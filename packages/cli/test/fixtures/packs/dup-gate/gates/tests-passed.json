@@ -1,0 +1,11 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "tests-passed",
+  "version": "1.0.0",
+  "level": "L1",
+  "requires_evidence": [
+    { "kind": "test-report", "status": "PROVEN" }
+  ],
+  "waivable": false,
+  "accepts_attestation": ["ci", "signature"]
+}

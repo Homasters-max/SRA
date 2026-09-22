@@ -1,0 +1,33 @@
+{
+  "$schema": "warrant://openspec-rules/1",
+  "context": "Language: Russian\nAll artifacts must be written in Russian.\nKeep OpenSpec structural headings and SHALL/MUST keywords in English.",
+  "rules": {
+    "proposal": [
+      "Answer only WHY, WHAT changes, WHAT is affected and WHAT is NOT changing; design belongs in design.md",
+      "State the non-goals explicitly",
+      "Keep the Capabilities section: it names the spec files this change will create or modify"
+    ],
+    "specs": [
+      "Describe observable behaviour only, never internal names or libraries",
+      "Every requirement and every scenario carries its stable ID comment directly under the heading",
+      "A delta for a new capability starts with ## Purpose; a delta for an existing one does not"
+    ],
+    "design": [
+      "Record each decision with its rejected alternatives",
+      "Do not introduce infrastructure or a dependency without justification",
+      "Leave an unresolved question as an UNKNOWN in the Change record, not as prose"
+    ],
+    "tasks": [
+      "Keep tasks independently verifiable and state how each one is verified",
+      "Reference the REQ IDs a task implements"
+    ]
+  },
+  "operations": {
+    "apply": {
+      "guidance": [
+        "Run warrant status before marking a task done",
+        "Never edit a stable ID comment while implementing"
+      ]
+    }
+  }
+}

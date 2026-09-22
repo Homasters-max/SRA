@@ -5,6 +5,7 @@ import { emit, failure, resultFromThrown, type CommandResult } from "../io/outpu
 import { CLI_VERSION } from "../version.js";
 import { notImplemented } from "../commands/stub.js";
 import { requireConfigPath } from "../commands/context.js";
+import { runValidate } from "../commands/validate.js";
 
 export type Runner = (args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -46,8 +47,15 @@ const needsConfig: Runner = () => {
 register("init", "initialise .warrant/ or a new change", () => notImplemented("init"), (c) =>
   c.argument("[what]").argument("[name]").option("--force")
 );
-register("validate", "validate configuration, packs, schemas, ids and generated files", needsConfig, (c) =>
-  c.option("--no-generated")
+register(
+  "validate",
+  "validate configuration, packs, schemas, ids and generated files",
+  (_args, opts) => {
+    // CONFIG_MISSING first, exactly as for the other config-bound commands (SCN-KRN-007).
+    requireConfigPath();
+    return runValidate({ generated: opts["generated"] as boolean | undefined });
+  },
+  (c) => c.option("--no-generated", "skip check (4), byte comparison of generated OpenSpec files")
 );
 register("fmt", "canonicalise JSON files", () => notImplemented("fmt"), (c) =>
   c.argument("[paths...]").option("--check")

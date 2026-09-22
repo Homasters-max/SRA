@@ -7,7 +7,7 @@
 ## 1. Каркас monorepo (D-1, D-8)
 
 - [x] 1.1 Создать ветку `feature/phase-1-kernel`; корневой `package.json` (workspaces `packages/*`, `bin.warrant`, `prepare`), `.gitignore` для `node_modules/`, `dist/`; проверить `npm install` без ошибок
-- [x] 1.2 `packages/cli/`: `package.json` (`private`, ESM, deps `commander`, `ajv`, `ajv-formats`, `canonicalize`, `ulid`, `cross-spawn`; dev `typescript`, `vitest`, `yaml`), `tsconfig.json` strict, скрипты `build`, `test`; проверить `npm -w packages/cli run build` даёт `dist/`
+- [x] 1.2 `packages/cli/`: `package.json` (`private`, ESM, deps `commander`, `ajv`, `ajv-formats`, `canonicalize`, `semver`, `ulid`, `cross-spawn`; dev `typescript`, `vitest`, `yaml`), `tsconfig.json` strict, скрипты `build`, `test`; проверить `npm -w packages/cli run build` даёт `dist/`
 - [x] 1.3 `src/core/errors.ts` — каталог кодов из D-8; `src/io/output.ts` — envelope `{command, ok, change?, data, errors}` и коды выхода (REQ-KRN-002, REQ-KRN-003); unit-тест: envelope печатается одним объектом, `USAGE` → код 3
 - [x] 1.4 `src/bin/warrant.ts` на commander с командами-заглушками `init validate fmt id sync resolve status`; e2e-тест: `warrant nosuchcommand` → код 3 и `errors[0].code = USAGE` (SCN-KRN-006); `warrant validate` без `.warrant/` → `CONFIG_MISSING`, код 3 (SCN-KRN-007)
 - [ ] 1.5 Проверить установку через git: `npm i -g <путь к репозиторию>` даёт рабочий `warrant --version`; зафиксировать команду в README
@@ -25,13 +25,13 @@
 
 ## 3. Команда validate (D-2, D-5, D-7, D-8, REQ-KRN-021)
 
-- [ ] 3.1 `src/core/packs/loader.ts`: чтение `warrant.json`, поиск packs bundled + `.warrant/local/`, проверка `kernel`-диапазона и `depends_on`, топологическая сортировка, загрузка `provides.*`; unit-тесты на fixture-packs: порядок загрузки, `PACK_NOT_FOUND`, `DUPLICATE_OBJECT_ID` (SCN-KRN-044), override с `overrides` принимается, ослабляющий override → `OVERRIDE_WEAKENS`
-- [ ] 3.2 Проверка (1): все `*.json` под `.warrant/**` и в packs — `$schema` + Ajv + semantic; e2e на fixture-проекте с одним невалидным файлом → `SCHEMA_VIOLATION` с путём, код 3 (SCN-KRN-005)
-- [ ] 3.3 Проверка (2): lock ↔ config — версии в диапазонах, hash packs / skills / generated совпадают (`LOCK_MISMATCH`); тест с изменённым файлом pack после lock
-- [ ] 3.4 `src/core/secrets.ts` с паттернами D-8; проверка (6) по `.warrant/**` и `.claude/**`; тест: `ghp_` + 36 символов → `SECRET_LIKE`, в `errors[]` нет самой строки (SCN-KRN-048)
-- [ ] 3.5 `src/core/ids/scan.ts` (сканер комментариев по D-5) и проверка (5) через `openspec show --json`: формат, размещение, уникальность, AREA в реестре; тесты: ID над заголовком → `ID_PLACEMENT` (SCN-KRN-046), неизвестная AREA → `AREA_UNKNOWN` (SCN-KRN-047), дубликат → `ID_DUPLICATE`; e2e-тест пропускается без `openspec` на PATH
+- [x] 3.1 `src/core/packs/loader.ts`: чтение `warrant.json`, поиск packs bundled + `.warrant/local/`, проверка `kernel`-диапазона и `depends_on`, топологическая сортировка, загрузка `provides.*`; unit-тесты на fixture-packs: порядок загрузки, `PACK_NOT_FOUND`, `DUPLICATE_OBJECT_ID` (SCN-KRN-044), override с `overrides` принимается, ослабляющий override → `OVERRIDE_WEAKENS`
+- [x] 3.2 Проверка (1): все `*.json` под `.warrant/**` и в packs — `$schema` + Ajv + semantic; e2e на fixture-проекте с одним невалидным файлом → `SCHEMA_VIOLATION` с путём, код 3 (SCN-KRN-005)
+- [x] 3.3 Проверка (2): lock ↔ config — версии в диапазонах, hash packs / skills / generated совпадают (`LOCK_MISMATCH`); тест с изменённым файлом pack после lock
+- [x] 3.4 `src/core/secrets.ts` с паттернами D-8; проверка (6) по `.warrant/**` и `.claude/**`; тест: `ghp_` + 36 символов → `SECRET_LIKE`, в `errors[]` нет самой строки (SCN-KRN-048)
+- [x] 3.5 `src/core/ids/scan.ts` (сканер комментариев по D-5) и проверка (5) через `openspec show --json`: формат, размещение, уникальность, AREA в реестре; тесты: ID над заголовком → `ID_PLACEMENT` (SCN-KRN-046), неизвестная AREA → `AREA_UNKNOWN` (SCN-KRN-047), дубликат → `ID_DUPLICATE`; e2e-тест пропускается без `openspec` на PATH
 - [ ] 3.6 Проверка (4): побайтное сравнение `openspec/config.yaml` и `openspec/schemas/<schema>/**` с результатом генерации (`GENERATED_DRIFT`, SCN-KRN-045), вызов `openspec schema validate --json` (`OPENSPEC_SCHEMA_INVALID`), ключи `rules` ⊆ artifacts (`RULES_ARTIFACT_UNKNOWN`); флаг `--no-generated` (D-Migration); зависит от 7.x — реализуется как вызов `sync --check` и закрывается после группы 7
-- [ ] 3.7 e2e: `warrant validate` на `packs/core-sdd/` из корня monorepo → `ok: true` (SCN-KRN-043); все находки собираются за один вызов, а не до первой ошибки
+- [x] 3.7 e2e: `warrant validate` на `packs/core-sdd/` из корня monorepo → `ok: true` (SCN-KRN-043); все находки собираются за один вызов, а не до первой ошибки
 
 ## 4. Команда fmt (D-3, REQ-KRN-022)
 
@@ -53,7 +53,7 @@
 
 ## 7. Команда sync (D-4, D-7, D-9, REQ-KRN-025)
 
-- [ ] 7.1 Pack `core-sdd` минимум: `pack.json`, `openspec/schema.json` (граф `warrant-sdd`, `instruction` = текст `spec-driven` + правила WARRANT по ADR-0015 п. 4), `openspec/rules.json`, `openspec/templates/{proposal,spec,design,tasks}.md`, `risk/levels.json`, `risk/floors.json`; `warrant validate` на pack зелёный (задача 3.7 остаётся зелёной)
+- [x] 7.1 Pack `core-sdd` минимум: `pack.json`, `openspec/schema.json` (граф `warrant-sdd`, `instruction` = текст `spec-driven` + правила WARRANT по ADR-0015 п. 4), `openspec/rules.json`, `openspec/templates/{proposal,spec,design,tasks}.md`, `risk/levels.json`, `risk/floors.json`; `warrant validate` на pack зелёный (задача 3.7 остаётся зелёной)
 - [ ] 7.2 `src/core/openspec/yaml-emit.ts`; unit-тесты: round-trip через `yaml.parse` на config с многострочным `context`, строках с `:` и `#`, пустой строке, числе в строке; первая строка — маркер (SCN-KRN-063)
 - [ ] 7.3 Слияние `rules.json` pack + project (ADR-0015 п. 2): конкатенация `context`, объединение списков с сохранением порядка и удалением точных дублей; unit-тест SCN-KRN-062
 - [ ] 7.4 Команда `sync`: loader → merge → emit `config.yaml`, `schema.yaml`, копии templates → копии схем в `.warrant/schemas/` → lock с hash каждого pack, skill, generated; запись только при изменении байтов; `--check` → код 1; e2e: идемпотентность (`data.changed = []`, git чист — SCN-KRN-061), `PACK_NOT_FOUND` без записи (SCN-KRN-064), `openspec schema validate warrant-sdd --json` → `valid: true` (SCN-KRN-063)

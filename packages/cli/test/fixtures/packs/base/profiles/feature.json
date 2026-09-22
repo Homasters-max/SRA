@@ -1,0 +1,15 @@
+{
+  "$schema": "warrant://profile/1",
+  "id": "feature",
+  "version": "1.0.0",
+  "artifacts": {
+    "required": ["proposal", "specs"],
+    "forbidden": ["direct-production-sql"]
+  },
+  "gates": {
+    "SPECIFIED->APPROVED": ["spec-valid"]
+  },
+  "capabilities": { "forbidden": ["PRODUCTION_WRITE"] },
+  "approvals": [{ "role": "maintainer", "at": "VERIFYING->MERGED" }],
+  "evidence": { "required": ["test-report"] }
+}

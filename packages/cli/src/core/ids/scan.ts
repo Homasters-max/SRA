@@ -1,0 +1,331 @@
+/**
+ * Stable-ID scanner and check (5) of `validate` (design D-5, ADR-0012, 02 section 3).
+ *
+ * The scanner is deliberately not a Markdown parser: the `<!-- id: ... -->`
+ * comment belongs to WARRANT, not to OpenSpec, so a regular expression over the
+ * raw bytes is the contract.
+ */
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
+
+import type { CliError } from "../errors.js";
+import { openspecAvailable, runOpenspec } from "../openspec/cli.js";
+
+/** Prefixes that use the `PREFIX-AREA-NNN` form (ADR-0012 point 1). */
+export const SPEC_LEVEL_PREFIXES = ["REQ", "SCN", "TASK", "UNK", "ASM"] as const;
+
+/** Well-formed id comment (design D-5). */
+export const ID_COMMENT_RE = /<!--\s*id:\s*(REQ|SCN|TASK|UNK|ASM)-([A-Z]{2,5})-(\d{3})\s*-->/g;
+
+/** Any `<!-- id: ... -->` comment, well-formed or not, so malformed ones can be reported. */
+export const ANY_ID_COMMENT_RE = /<!--\s*id:\s*([^>]*?)\s*-->/g;
+
+const WELL_FORMED_PAYLOAD = /^(REQ|SCN|TASK|UNK|ASM)-[A-Z]{2,5}-\d{3}$/;
+
+export interface FoundId {
+  id: string;
+  prefix: string;
+  area: string;
+  nnn: number;
+  /** Path relative to the project root, POSIX separators. */
+  file: string;
+  /** 1-based line number. */
+  line: number;
+}
+
+function posix(p: string): string {
+  return p.split(path.sep).join("/");
+}
+
+function lineOf(text: string, index: number): number {
+  let line = 1;
+  for (let i = 0; i < index; i += 1) if (text[i] === "\n") line += 1;
+  return line;
+}
+
+/** Markdown files under a directory, recursively. */
+function markdownFiles(dir: string): string[] {
+  const out: string[] = [];
+  const visit = (current: string): void => {
+    let entries: string[];
+    try {
+      entries = readdirSync(current).sort();
+    } catch {
+      return;
+    }
+    for (const name of entries) {
+      const abs = path.join(current, name);
+      let stat;
+      try {
+        stat = statSync(abs);
+      } catch {
+        continue;
+      }
+      if (stat.isDirectory()) visit(abs);
+      else if (stat.isFile() && name.toLowerCase().endsWith(".md")) out.push(abs);
+    }
+  };
+  visit(dir);
+  return out;
+}
+
+/** Ids found in one Markdown text. */
+export function scanMarkdown(text: string, file: string): FoundId[] {
+  const found: FoundId[] = [];
+  const re = new RegExp(ID_COMMENT_RE.source, "g");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const [, prefix = "", area = "", nnn = "000"] = m;
+    found.push({
+      id: `${prefix}-${area}-${nnn}`,
+      prefix,
+      area,
+      nnn: Number.parseInt(nnn, 10),
+      file,
+      line: lineOf(text, m.index)
+    });
+  }
+  return found;
+}
+
+/** Malformed `<!-- id: ... -->` comments in one Markdown text (check 5a). */
+export function scanMalformed(text: string, file: string): CliError[] {
+  const errors: CliError[] = [];
+  const re = new RegExp(ANY_ID_COMMENT_RE.source, "g");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const payload = m[1] ?? "";
+    if (WELL_FORMED_PAYLOAD.test(payload)) continue;
+    errors.push({
+      code: "ID_FORMAT",
+      message: `"${payload}" is not a stable id of the form PREFIX-AREA-NNN (line ${lineOf(text, m.index)})`,
+      path: file
+    });
+  }
+  return errors;
+}
+
+export interface ScanResult {
+  ids: FoundId[];
+  /** ID_FORMAT findings from malformed comments. */
+  malformed: CliError[];
+  /** Files actually read, as project-relative POSIX paths. */
+  files: string[];
+}
+
+/**
+ * Scans `openspec/specs/**`, `openspec/changes/**` (archive included) and the
+ * `unknowns[]` / `assumptions[]` of `.warrant/changes/*.json`.
+ */
+export function scanIds(projectRoot: string): ScanResult {
+  const ids: FoundId[] = [];
+  const malformed: CliError[] = [];
+  const files: string[] = [];
+
+  for (const rel of ["openspec/specs", "openspec/changes"]) {
+    const dir = path.join(projectRoot, rel);
+    if (!existsSync(dir)) continue;
+    for (const absolute of markdownFiles(dir)) {
+      const reported = posix(path.relative(projectRoot, absolute));
+      files.push(reported);
+      const text = readFileSync(absolute, "utf8");
+      ids.push(...scanMarkdown(text, reported));
+      malformed.push(...scanMalformed(text, reported));
+    }
+  }
+
+  const recordsDir = path.join(projectRoot, ".warrant", "changes");
+  if (existsSync(recordsDir)) {
+    for (const name of readdirSync(recordsDir).sort()) {
+      if (!name.toLowerCase().endsWith(".json")) continue;
+      const absolute = path.join(recordsDir, name);
+      const reported = posix(path.relative(projectRoot, absolute));
+      files.push(reported);
+      let json: unknown;
+      try {
+        json = JSON.parse(readFileSync(absolute, "utf8"));
+      } catch {
+        continue;
+      }
+      if (typeof json !== "object" || json === null) continue;
+      const record = json as Record<string, unknown>;
+      for (const field of ["unknowns", "assumptions"] as const) {
+        const list = record[field];
+        if (!Array.isArray(list)) continue;
+        list.forEach((entry, i) => {
+          if (typeof entry !== "object" || entry === null) return;
+          const id = (entry as Record<string, unknown>)["id"];
+          if (typeof id !== "string") return;
+          const m = /^(REQ|SCN|TASK|UNK|ASM)-([A-Z]{2,5})-(\d{3})$/.exec(id);
+          if (m === null) {
+            malformed.push({
+              code: "ID_FORMAT",
+              message: `"${id}" is not a stable id of the form PREFIX-AREA-NNN`,
+              path: `${reported}#/${field}/${i}/id`
+            });
+            return;
+          }
+          ids.push({
+            id,
+            prefix: m[1] as string,
+            area: m[2] as string,
+            nnn: Number.parseInt(m[3] as string, 10),
+            file: reported,
+            line: 0
+          });
+        });
+      }
+    }
+  }
+
+  return { ids, malformed, files };
+}
+
+/** AREA codes declared in `.warrant/local/areas.json`. */
+export function loadAreas(projectRoot: string): Set<string> {
+  const absolute = path.join(projectRoot, ".warrant", "local", "areas.json");
+  if (!existsSync(absolute)) return new Set();
+  try {
+    const json = JSON.parse(readFileSync(absolute, "utf8")) as Record<string, unknown>;
+    return new Set(Object.keys(json).filter((k) => /^[A-Z]{2,5}$/.test(k)));
+  } catch {
+    return new Set();
+  }
+}
+
+/** Check 5b: every AREA used is declared (SCN-KRN-047). */
+export function checkAreas(ids: FoundId[], areas: Set<string>): CliError[] {
+  const seen = new Set<string>();
+  const errors: CliError[] = [];
+  for (const found of ids) {
+    if (areas.has(found.area)) continue;
+    const key = `${found.area} ${found.file}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    errors.push({
+      code: "AREA_UNKNOWN",
+      message: `AREA "${found.area}" of ${found.id} is not declared in .warrant/local/areas.json`,
+      path: found.file
+    });
+  }
+  return errors;
+}
+
+/** Check 5c: an id appears in exactly one place. */
+export function checkDuplicates(ids: FoundId[]): CliError[] {
+  const byId = new Map<string, FoundId[]>();
+  for (const found of ids) {
+    const list = byId.get(found.id);
+    if (list === undefined) byId.set(found.id, [found]);
+    else list.push(found);
+  }
+  const errors: CliError[] = [];
+  for (const [id, list] of [...byId.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    if (list.length < 2) continue;
+    const where = list.map((f) => (f.line > 0 ? `${f.file}:${f.line}` : f.file)).join(", ");
+    errors.push({
+      code: "ID_DUPLICATE",
+      message: `${id} is declared more than once: ${where}`,
+      path: (list[1] as FoundId).file
+    });
+  }
+  return errors;
+}
+
+/**
+ * Placement is checked only for spec files of active changes and for main specs:
+ * those are what `openspec show --json` reparses. `tasks.md` and the other
+ * artifacts carry ids that `show` does not return at all, and archive is
+ * immutable, so both are checked for format and uniqueness only (design D-5).
+ */
+function isPlacementChecked(file: string): boolean {
+  if (file.startsWith("openspec/changes/archive/")) return false;
+  if (file.startsWith("openspec/specs/")) return file.endsWith(".md");
+  return /^openspec\/changes\/[^/]+\/specs\/.+\.md$/.test(file);
+}
+
+function firstLineId(text: unknown): string | null {
+  if (typeof text !== "string") return null;
+  const lines = text.split(/\r?\n/);
+  const first = (lines[0] ?? "").trim();
+  const m = /^<!--\s*id:\s*([A-Z]{3,4}-[A-Z]{2,5}-\d{3})\s*-->$/.exec(first);
+  if (m === null) return null;
+  const body = lines.slice(1).join("\n").trim();
+  if (body.length === 0) return null;
+  return m[1] as string;
+}
+
+function collectPlaced(node: unknown, into: Set<string>): void {
+  if (Array.isArray(node)) {
+    for (const item of node) collectPlaced(item, into);
+    return;
+  }
+  if (typeof node !== "object" || node === null) return;
+  const obj = node as Record<string, unknown>;
+  for (const key of ["text", "rawText"] as const) {
+    const id = firstLineId(obj[key]);
+    if (id !== null) into.add(id);
+  }
+  for (const value of Object.values(obj)) collectPlaced(value, into);
+}
+
+/**
+ * Check 5d: an id found by the scanner in an active change spec or in a main
+ * spec must come back from `openspec show --json` as the first line of its
+ * requirement or scenario, with a non-empty body after it (SCN-KRN-046).
+ */
+export function checkPlacement(projectRoot: string, ids: FoundId[]): { errors: CliError[]; skipped: boolean } {
+  const relevant = ids.filter((f) => isPlacementChecked(f.file) && (f.prefix === "REQ" || f.prefix === "SCN"));
+  if (relevant.length === 0) return { errors: [], skipped: false };
+  if (!openspecAvailable()) return { errors: [], skipped: true };
+
+  const placed = new Set<string>();
+
+  const changes = runOpenspec(["list", "--json"], projectRoot).json;
+  if (typeof changes === "object" && changes !== null && Array.isArray((changes as Record<string, unknown>)["changes"])) {
+    for (const entry of (changes as { changes: unknown[] }).changes) {
+      const name = typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>)["name"] : undefined;
+      if (typeof name !== "string") continue;
+      collectPlaced(runOpenspec(["show", name, "--json"], projectRoot).json, placed);
+    }
+  }
+
+  const specs = runOpenspec(["list", "--specs", "--json"], projectRoot).json;
+  if (typeof specs === "object" && specs !== null && Array.isArray((specs as Record<string, unknown>)["specs"])) {
+    for (const entry of (specs as { specs: unknown[] }).specs) {
+      const id =
+        typeof entry === "string"
+          ? entry
+          : typeof entry === "object" && entry !== null
+            ? ((entry as Record<string, unknown>)["id"] ?? (entry as Record<string, unknown>)["name"])
+            : undefined;
+      if (typeof id !== "string") continue;
+      collectPlaced(runOpenspec(["show", id, "--type", "spec", "--json"], projectRoot).json, placed);
+    }
+  }
+
+  const errors: CliError[] = [];
+  for (const found of relevant) {
+    if (placed.has(found.id)) continue;
+    errors.push({
+      code: "ID_PLACEMENT",
+      message: `${found.id} (line ${found.line}) is not directly under its own heading with a non-empty body after it (ADR-0012 section 7)`,
+      path: found.file
+    });
+  }
+  return { errors, skipped: false };
+}
+
+/** Check (5) as a whole. `skipped` is true when `openspec` is not on PATH. */
+export function checkIds(projectRoot: string): { errors: CliError[]; files: string[]; placementSkipped: boolean } {
+  const scan = scanIds(projectRoot);
+  const areas = loadAreas(projectRoot);
+  const errors: CliError[] = [
+    ...scan.malformed,
+    ...checkAreas(scan.ids, areas),
+    ...checkDuplicates(scan.ids)
+  ];
+  const placement = checkPlacement(projectRoot, scan.ids);
+  errors.push(...placement.errors);
+  return { errors, files: scan.files, placementSkipped: placement.skipped };
+}

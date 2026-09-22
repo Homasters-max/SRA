@@ -1,0 +1,9 @@
+{
+  "$schema": "warrant://pack/1",
+  "id": "bad-kernel",
+  "version": "1.0.0",
+  "kernel": ">=9.0 <10.0",
+  "description": "Fixture pack requiring a kernel this CLI is not.",
+  "depends_on": {},
+  "provides": {}
+}

@@ -38,13 +38,27 @@ npm test
 
 ## Команды фазы 1
 
-| Команда | Состояние |
-|---|---|
-| `warrant validate [--no-generated]` | реализована (проверки 1, 2, 3, 5, 6; 4 и 7 — в `data.skipped`) |
-| `warrant fmt`, `init`, `id`, `sync`, `resolve`, `status` | заглушки, задачи групп 4–9 Change `phase-1-kernel` |
+Все команды Change `phase-1-kernel` реализованы (REQ-KRN-021…027). Каждая печатает один JSON-объект
+`{ command, ok, change?, data, errors }`; коды выхода `0 / 1 / 2 / 3` ([04 §7](docs/04-lifecycle.md)).
 
-Все команды печатают один JSON-объект `{ command, ok, change?, data, errors }`; коды выхода `0 / 1 / 2 / 3`
-([04 §7](docs/04-lifecycle.md)).
+| Команда | Что делает |
+|---|---|
+| `warrant init [--force]` | создаёт `.warrant/` (`warrant.json`, `local/areas.json`, `local/openspec/rules.json`, каталоги), затем `sync` |
+| `warrant init change <name>` | `openspec new change` + record `.warrant/changes/<name>.json` в `PROPOSED`; имя проверяется по records и archive |
+| `warrant validate [--no-generated]` | семь проверок REQ-KRN-021: схемы, lock, packs, generated, ID, секреты, каноничность |
+| `warrant fmt [paths...] [--check]` | каноническая форма JSON (порядок ключей по схеме, LF, отступ 2) |
+| `warrant id <PREFIX> <AREA>` · `id EVID` · `id RUN` · `id WAV` · `id renumber <old> <new> --change <c>` | стабильные ID ([ADR-0012](docs/adr/WARRANT-ADR-0012-id-allocation.md)) |
+| `warrant sync [--check]` | генерирует `openspec/config.yaml`, `openspec/schemas/<schema>/**`, копии схем, lock ([ADR-0015](docs/adr/WARRANT-ADR-0015-openspec-sync-contract.md)) |
+| `warrant resolve <change> [--explain] [--classification <file>]` | effective policy; конфликт → `controller_action: ESCALATE`, код 2 |
+| `warrant status [change]` | состояние record, `effective_policy.{hash,sources}`, artifacts OpenSpec, `stale[]` |
+
+Типовой сценарий в новом проекте:
+
+```bash
+openspec init --tools none && warrant init && warrant init change demo && warrant validate && warrant status demo
+```
+
+Решения, принятые по ходу реализации (I-1…I-42), — в [design.md](openspec/changes/phase-1-kernel/design.md) Change `phase-1-kernel`.
 
 ## Структура
 

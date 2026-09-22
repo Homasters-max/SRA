@@ -10,12 +10,12 @@
         "DIFFICULT",
         "IRREVERSIBLE"
       ],
-      "security_impact": [
-        "HIGH"
-      ],
       "blast_radius": [
         "SYSTEM",
         "CROSS_SYSTEM"
+      ],
+      "security_impact": [
+        "HIGH"
       ],
       "compatibility": [
         "BREAKING"

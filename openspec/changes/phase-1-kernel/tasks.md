@@ -76,7 +76,7 @@
 
 ## 10. Критерий выхода и dogfooding
 
-- [ ] 10.1 Sample-проект во временном каталоге: `openspec init --tools none` → `warrant init` → `warrant init change demo` → `warrant validate` `ok: true`, `warrant status demo` `stale: []`; закрепить как e2e-тест `exit-criterion.test.ts` (пропуск без `openspec`)
+- [x] 10.1 Sample-проект во временном каталоге: `openspec init --tools none` → `warrant init` → `warrant init change demo` → `warrant validate` `ok: true`, `warrant status demo` `stale: []`; закрепить как e2e-тест `exit-criterion.test.ts` (пропуск без `openspec`)
 - [ ] 10.2 На этом репозитории: `warrant validate --no-generated` и `warrant fmt --check` проходят (`.warrant/local/areas.json`, ID `REQ-KRN-*`/`SCN-KRN-*` этого Change через `openspec show --json`); добавить `.warrant/warrant.json` и lock через `warrant init` без перезаписи `openspec/config.yaml`
-- [ ] 10.3 README корня: установка через git-tag, команды фазы 1, ссылка на docs; `docs/NEXT-SESSION.md` — состояние после фазы 1 и вход в фазу 2
+- [x] 10.3 README корня: установка через git-tag, команды фазы 1, ссылка на docs; `docs/NEXT-SESSION.md` — состояние после фазы 1 и вход в фазу 2
 - [ ] 10.4 `openspec validate phase-1-kernel --strict` зелёный, все задачи отмечены; PR из `feature/phase-1-kernel` в `main`

@@ -26,7 +26,7 @@
     ".warrant/schemas/evidence-manifest.1.schema.json": "sha256:25b416314d9759c0e0d854a47758dae7843f3dc48c743012e03478817bd9ffdb",
     ".warrant/schemas/evidence.1.schema.json": "sha256:d93118c8d992704b820fa387461b6ade57bb6885f2791cc97ebb6d6d71bdd3e8",
     ".warrant/schemas/gate.1.schema.json": "sha256:aadc86c6f42777a62baf409d8663bb249502f2a157eeb4fdb5a9d5fdbe1f56a6",
-    ".warrant/schemas/lock.1.schema.json": "sha256:53d7aec278104417f8203e629cbb914ddbf6f65285f90a4368624852edbcaf8d",
+    ".warrant/schemas/lock.1.schema.json": "sha256:f230067ef8bd43b93ee5dbe1536d2d98696e9a77d9fb98b00bdaa59f06cc6189",
     ".warrant/schemas/openspec-rules.1.schema.json": "sha256:a4abec7af798154247505389062cf6f8be3bdfb85a62be28db9b332c6aaf07bb",
     ".warrant/schemas/openspec-schema.1.schema.json": "sha256:87655b35eccbd48fe582a799e766139095f7843bee2bbaceaa1a19783967df39",
     ".warrant/schemas/overlay.1.schema.json": "sha256:95569992391c0b30ee713c45692a58a58ee541f2ba8564197f4cb5a3a62835c3",

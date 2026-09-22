@@ -105,7 +105,7 @@ SHALL доходить целиком (B4).
 
 Схема `warrant://lock/1` SHALL описывать `.warrant/warrant.lock.json`: `kernel` и `openspec` (точные версии),
 `packs` (id → `{ "version", "source", "hash" }`), `skills` (`namespace/name` → `{ "version", "path", "hash", "source"? }`, где
-`source` — `bundled`, а `path` тогда относителен корню bundled pack, I-52), `generated` (путь относительно корня проекта → `hash`).
+`source` — `bundled`, а `path` тогда относителен корню поставки — каталогу с bundled `packs/`, I-52, I-72), `generated` (путь относительно корня проекта → `hash`).
 Все `hash` SHALL иметь вид `sha256:<64 hex>`.
 
 #### Scenario: Lock, записанный sync
@@ -121,7 +121,7 @@ SHALL доходить целиком (B4).
 #### Scenario: Skill вне проекта
 <!-- id: SCN-KRN-087 -->
 - **WHEN** `warrant sync` выполнен в проекте, где skill найден только внутри bundled pack вне корня проекта
-- **THEN** lock содержит `skills["specification/adversarial-review"]` с `source: "bundled"`, `path` относительно pack и `hash`, а `warrant validate` проверяет hash по этому пути
+- **THEN** lock содержит `skills["specification/adversarial-review"]` с `source: "bundled"`, `path` относительно корня поставки и `hash`, а `warrant validate` проверяет hash по этому пути
 
 ### Requirement: Схема pack
 <!-- id: REQ-KRN-006 -->
@@ -253,6 +253,7 @@ pack для kind, [REQ-KRN-001](#requirement-адресация-и-форма-js
 <!-- id: REQ-KRN-021 -->
 
 `warrant validate` SHALL проверять и сообщать все находки за один вызов: (1) каждый `*.json` под `.warrant/**`
+(кроме сырого вывода checks `.warrant/evidence/**/raw/**` — он не часть записи, [REQ-VER-001](../verification/spec.md), I-76)
 и в подключённых packs имеет `$schema` и валиден; (2) `warrant.json` и lock согласованы — версии packs в диапазонах,
 hash каждого pack, skill и сгенерированного файла совпадает с содержимым, а pack, присутствующий в lock, но отсутствующий в
 `warrant.json`, даёт `LOCK_MISMATCH` (B3); (3) объекты с одним `id` не объявлены
@@ -267,7 +268,7 @@ approvals и `forbidden`; каталог `.warrant/local/<id>/` с `pack.json`, 
 при этом объявление ID в `openspec/changes/archive/**` SHALL NOT считаться дубликатом объявления того же ID в `openspec/specs/**`
 (archive — история, а не второе объявление), но SHALL считаться занятым для `warrant id`;
 (6) в `.warrant/**` и `.claude/**` нет строк, похожих на токены ([ADR-0010](../../../../docs/adr/WARRANT-ADR-0010-trust-by-reference.md));
-(7) все JSON-файлы `.warrant/**` канонические ([REQ-KRN-022](#requirement-команда-fmt));
+(7) все JSON-файлы `.warrant/**`, кроме `.warrant/evidence/**/raw/**`, канонические ([REQ-KRN-022](#requirement-команда-fmt));
 (8) правила `warrant://rule/1` pack'ов и `.warrant/local/rules/` имеют `id`, равный имени файла, и `paths`, не лежащие целиком в
 `openspec/changes/**` (иначе `RULE_SCOPE`, [ADR-0022](../../../../docs/adr/WARRANT-ADR-0022-path-rules.md) п. 4);
 (9) stable ID, объявленный в `HEAD` в `openspec/specs/**` или в `openspec/changes/<change>/**` при record `<change>` в состоянии

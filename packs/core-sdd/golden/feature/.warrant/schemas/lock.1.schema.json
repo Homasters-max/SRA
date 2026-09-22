@@ -66,7 +66,7 @@
               "$ref": "warrant://common/1#/$defs/semver"
             },
             "path": {
-              "description": "Path to the skill: relative to the project root, or to the root of the bundled pack when `source` is `bundled` (I-52).",
+              "description": "Path to the skill: relative to the project root, or to the distribution root (the directory holding the bundled `packs/`) when `source` is `bundled` (I-52, I-72).",
               "$ref": "warrant://common/1#/$defs/relative_path"
             },
             "hash": {

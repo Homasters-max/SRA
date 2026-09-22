@@ -10,7 +10,7 @@
  * `packages/cli/dist/**` (сборка обязательна, её делает `npm test` и `npm run
  * build`).
  */
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -89,16 +89,36 @@ process.stdout.write(JSON.stringify({
   return dir;
 }
 
-/** Запуск собранного CLI с разобранным конвертом. */
+/**
+ * Запуск собранного CLI с разобранным конвертом.
+ *
+ * Асинхронный: под vitest синхронный дочерний процесс блокирует event loop
+ * воркера и репортёр не успевает ответить на RPC (`onTaskUpdate`).
+ */
 export function runCli(args, cwd, env) {
-  const proc = spawnSync(process.execPath, [BIN, ...args], { cwd, encoding: "utf8", env: { ...process.env, ...env } });
-  let json;
-  try {
-    json = JSON.parse(proc.stdout);
-  } catch {
-    json = undefined;
-  }
-  return { status: proc.status ?? -1, stdout: proc.stdout, stderr: proc.stderr, json };
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [BIN, ...args], { cwd, env: { ...process.env, ...env } });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      let json;
+      try {
+        json = JSON.parse(stdout);
+      } catch {
+        json = undefined;
+      }
+      resolve({ status: code ?? -1, stdout, stderr, json });
+    });
+  });
 }
 
 /** Версия CLI из собранного `dist`: она попадает в `sources[0]` и нормализуется. */
@@ -161,15 +181,15 @@ export async function runGolden(name, tempRoot) {
   const { root, env } = prepareGolden(name, tempRoot);
   const version = await cliVersion();
 
-  const sync = runCli(["sync"], root, env);
+  const sync = await runCli(["sync"], root, env);
   if (sync.status !== 0) {
     throw new Error(`golden ${name}: warrant sync failed (${sync.status})\n${sync.stdout}${sync.stderr}`);
   }
-  const resolve = runCli(["resolve", name, "--explain"], root, env);
+  const resolve = await runCli(["resolve", name, "--explain"], root, env);
   if (resolve.status !== 0) {
     throw new Error(`golden ${name}: warrant resolve failed (${resolve.status})\n${resolve.stdout}${resolve.stderr}`);
   }
-  const status = runCli(["status", name], root, env);
+  const status = await runCli(["status", name], root, env);
   if (status.status !== 0) {
     throw new Error(`golden ${name}: warrant status failed (${status.status})\n${status.stdout}${status.stderr}`);
   }

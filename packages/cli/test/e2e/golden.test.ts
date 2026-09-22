@@ -85,9 +85,9 @@ describe("golden-фикстуры core-sdd", () => {
   // Проверка (4) `validate` вызывает `openspec schema validate`, поэтому здесь
   // нужен настоящий OpenSpec, а не fake из процедуры выше.
   for (const name of GOLDEN_NAMES as string[]) {
-    it.skipIf(!openspecAvailable())(`${name}: warrant validate внутри копии даёт ok: true (REQ-SDD-009)`, () => {
+    it.skipIf(!openspecAvailable())(`${name}: warrant validate внутри копии даёт ok: true (REQ-SDD-009)`, async () => {
       const { root } = prepareGolden(name, tempRoot, `${name}-validate`) as { root: string };
-      const run = runCli(["validate"], root, { WARRANT_PACKS_DIR: PACKS_DIR });
+      const run = await runCli(["validate"], root, { WARRANT_PACKS_DIR: PACKS_DIR });
       expect(run.json?.errors).toEqual([]);
       expect(run.json?.ok).toBe(true);
       expect(run.status).toBe(0);

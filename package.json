@@ -13,7 +13,8 @@
     "scripts/build.js",
     "packages/cli/dist",
     "packages/cli/schemas",
-    "packs"
+    "packs",
+    "!packs/core-sdd/golden"
   ],
   "engines": {
     "node": ">=20.19"

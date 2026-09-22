@@ -48,9 +48,9 @@ const PATH_KEY = Object.keys(process.env).find((k) => k.toUpperCase() === "PATH"
 describe("warrant sync", () => {
   it.skipIf(!hasOpenspec)(
     "generates config.yaml, schema.yaml and templates that openspec accepts (SCN-KRN-063)",
-    () => {
+    async () => {
       const root = project();
-      const run = runCli(["sync"], root);
+      const run = await runCli(["sync"], root);
       expect(run.json?.errors).toEqual([]);
       expect(run.status).toBe(0);
       expect(run.json?.data.schema).toBe("warrant-sdd");
@@ -75,19 +75,19 @@ describe("warrant sync", () => {
 
   it.skipIf(!hasOpenspec)(
     "changes no byte on a second run (SCN-KRN-061)",
-    () => {
+    async () => {
       const root = project();
-      const first = runCli(["sync"], root);
+      const first = await runCli(["sync"], root);
       expect(first.status).toBe(0);
       const generated = first.json?.data.generated as string[];
       const before = hashes(root, generated);
 
-      const second = runCli(["sync"], root);
+      const second = await runCli(["sync"], root);
       expect(second.status).toBe(0);
       expect(second.json?.data.changed).toEqual([]);
       expect(hashes(root, generated)).toEqual(before);
 
-      const check = runCli(["sync", "--check"], root);
+      const check = await runCli(["sync", "--check"], root);
       expect(check.status).toBe(0);
       expect(check.json?.ok).toBe(true);
     },
@@ -96,14 +96,14 @@ describe("warrant sync", () => {
 
   it.skipIf(!hasOpenspec)(
     "--check reports GENERATED_DRIFT with exit code 1 after config.yaml is edited",
-    () => {
+    async () => {
       const root = project();
-      expect(runCli(["sync"], root).status).toBe(0);
+      expect((await runCli(["sync"], root)).status).toBe(0);
       const config = path.join(root, "openspec", "config.yaml");
       const before = readFileSync(config, "utf8");
       writeFileSync(config, before.replace("schema: warrant-sdd", "schema: warrant-sdd # edited"), "utf8");
 
-      const run = runCli(["sync", "--check"], root);
+      const run = await runCli(["sync", "--check"], root);
       expect(run.status).toBe(1);
       expect(run.json?.ok).toBe(false);
       expect(run.json?.data.changed).toEqual(["openspec/config.yaml"]);
@@ -117,7 +117,7 @@ describe("warrant sync", () => {
 
   it.skipIf(!hasOpenspec)(
     "merges the project rules layer into config.yaml (SCN-KRN-062)",
-    () => {
+    async () => {
       const root = project();
       write(root, ".warrant/local/openspec/rules.json", {
         $schema: "warrant://openspec-rules/1",
@@ -125,7 +125,7 @@ describe("warrant sync", () => {
         rules: { specs: ["Project rule", "Describe observable behaviour only, never internal names or libraries"] }
       });
 
-      expect(runCli(["sync"], root).status).toBe(0);
+      expect((await runCli(["sync"], root)).status).toBe(0);
       const config = parse(readFileSync(path.join(root, "openspec", "config.yaml"), "utf8")) as {
         context: string;
         rules: Record<string, string[]>;
@@ -144,9 +144,9 @@ describe("warrant sync", () => {
 
   it.skipIf(!hasOpenspec)(
     "writes nothing when a pack is missing (SCN-KRN-064)",
-    () => {
+    async () => {
       const root = project({ "bdd-tdd": "^0.1" });
-      const run = runCli(["sync"], root);
+      const run = await runCli(["sync"], root);
       expect(run.status).toBe(3);
       expect(run.json?.errors[0].code).toBe("PACK_NOT_FOUND");
       expect(existsSync(path.join(root, ".warrant", "warrant.lock.json"))).toBe(false);
@@ -159,9 +159,9 @@ describe("warrant sync", () => {
 
   it.skipIf(!hasOpenspec)(
     "reports CONFIG_INVALID when no enabled pack provides an OpenSpec schema",
-    () => {
+    async () => {
       const root = project({ base: "^1.0" });
-      const run = runCli(["sync"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
+      const run = await runCli(["sync"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
       expect(run.status).toBe(3);
       expect(run.json?.errors[0].code).toBe("CONFIG_INVALID");
       expect(run.json?.errors[0].message).toContain("openspec_schema");
@@ -170,7 +170,7 @@ describe("warrant sync", () => {
     60_000
   );
 
-  it("refuses a version of openspec outside the configured range (task 7.5)", () => {
+  it("refuses a version of openspec outside the configured range (task 7.5)", async () => {
     const root = project({ "core-sdd": "^0.1" }, false);
     const fake = makeTempDir("warrant-fake-openspec-");
     tempDirs.push(fake);
@@ -183,7 +183,7 @@ describe("warrant sync", () => {
       // Permissions do not exist on Windows; the .cmd is used there.
     }
 
-    const run = runCli(["sync"], root, {
+    const run = await runCli(["sync"], root, {
       [PATH_KEY]: fake + path.delimiter + (process.env[PATH_KEY] ?? "")
     });
     expect(run.status).toBe(3);
@@ -195,10 +195,10 @@ describe("warrant sync", () => {
 
   it.skipIf(!hasOpenspec)(
     "leaves a synced project fully valid (SCN-KRN-042 without init)",
-    () => {
+    async () => {
       const root = project();
-      expect(runCli(["sync"], root).status).toBe(0);
-      const run = runCli(["validate"], root);
+      expect((await runCli(["sync"], root)).status).toBe(0);
+      const run = await runCli(["validate"], root);
       expect(run.json?.errors).toEqual([]);
       expect(run.json?.ok).toBe(true);
       expect(run.json?.data.skipped).toEqual([]);
@@ -232,9 +232,9 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
 
   it.skipIf(!hasOpenspec)(
     "records version, path and hash of every declared skill (SCN-SDD-013)",
-    () => {
+    async () => {
       const root = monorepo();
-      const run = runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
+      const run = await runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
       expect(run.json?.errors).toEqual([]);
 
       const lock = JSON.parse(readFileSync(path.join(root, ".warrant", "warrant.lock.json"), "utf8"));
@@ -245,7 +245,7 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
       });
 
       // A second run still changes nothing (SCN-KRN-061 with skills present).
-      const again = runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
+      const again = await runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
       expect(again.json?.data.changed).toEqual([]);
     },
     120_000
@@ -253,14 +253,14 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
 
   it.skipIf(!hasOpenspec)(
     "reports LOCK_MISMATCH with the skill path after one edited line (SCN-SDD-014)",
-    () => {
+    async () => {
       const root = monorepo();
-      expect(runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") }).status).toBe(0);
+      expect((await runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") })).status).toBe(0);
 
       const skill = path.join(root, SKILL_REL);
       writeFileSync(skill, readFileSync(skill, "utf8") + "\nOne more line, without a sync.\n", "utf8");
 
-      const run = runCli(["validate"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
+      const run = await runCli(["validate"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
       expect(run.status).toBe(3);
       const finding = run.json?.errors.find(
         (e: { code: string; path?: string }) => e.code === "LOCK_MISMATCH" && e.path === SKILL_REL
@@ -273,12 +273,12 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
 
   it.skipIf(!hasOpenspec)(
     "reports CONFIG_INVALID when the skill on disk is outside the declared range",
-    () => {
+    async () => {
       const root = monorepo();
       const skill = path.join(root, SKILL_REL);
       writeFileSync(skill, readFileSync(skill, "utf8").replace(/^version: .*$/m, "version: 2.0.0"), "utf8");
 
-      const run = runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
+      const run = await runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
       expect(run.status).toBe(3);
       const finding = run.json?.errors.find((e: { code: string }) => e.code === "CONFIG_INVALID");
       expect(finding.message).toContain("2.0.0");

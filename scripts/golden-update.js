@@ -61,7 +61,7 @@ try {
     const source = path.join(GOLDEN_ROOT, name);
 
     // (1) Лок и сгенерированные файлы самой фикстуры.
-    const inPlace = runCli(["sync"], source, goldenEnv(tempRoot, `${name}-inplace`));
+    const inPlace = await runCli(["sync"], source, goldenEnv(tempRoot, `${name}-inplace`));
     if (inPlace.status !== 0) {
       process.stderr.write(`golden ${name}: warrant sync failed\n${inPlace.stdout}${inPlace.stderr}\n`);
       failed = true;

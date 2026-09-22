@@ -27,6 +27,8 @@ Status: normative · Maturity: MVP
 
 - Изменение schema, policy, profile, gate, check, pack, skill version в lock — только `factory-change`.
 - Обычный product Change MUST NOT затрагивать эти пути (gate `scope-valid`).
+- Архив, record и evidence архивных Changes меняет только `factory-change` с целью «миграция формата»
+  ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)).
 
 ## 2. Golden changes и policy fixtures
 

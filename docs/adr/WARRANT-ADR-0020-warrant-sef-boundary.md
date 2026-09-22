@@ -5,7 +5,11 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: [WARRANT-ADR-0010, WARRANT-ADR-0011, WARRANT-ADR-0017, WARRANT-ADR-0018]
+amended_by: [WARRANT-ADR-0021]
 ---
+
+> Уточнено [ADR-0021](WARRANT-ADR-0021-archive-immutability.md): список путей п. 13 для `protected[]` расширен
+> неизменными путями архива (каталог архива, record и evidence архивных Changes).
 
 ## Context
 

@@ -53,7 +53,7 @@ Status: proposed · Источники: [ADR-0018](adr/WARRANT-ADR-0018-frontend
 - `sef work approve` вызывает `warrant transition <change> APPROVED --ref sef://<project>/approval/<work>-r<N>@<commit>` в коммите снимка.
 - Pack проекта объявляет тесты одним гейтом `warrant verify --transition VERIFYING->MERGED` (lane и integration); отдельного `pytest`-гейта нет.
 - `landing` вызывает `warrant transition <change> MERGED --ref …` в коммите посадки; после последнего TASK Change — `warrant archive` отдельным коммитом (gates `MERGED → ARCHIVED` — integration-гейты, конфликт → `sef inbox`).
-- `protected[]` `.sef/pack.yaml` покрывает пути policy WARRANT (`warrant validate` → `SEF_PROTECTED_DRIFT`).
+- `protected[]` `.sef/pack.yaml` покрывает пути policy WARRANT и неизменные пути архива — `openspec/changes/archive/**`, record и evidence архивных Changes ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) (`warrant validate` → `SEF_PROTECTED_DRIFT`).
 - `.codex/hooks.json` входит в эталон `.sef/engines/<profile>/`; trust hook Codex выдан в образе или слоте.
 - Процесс ACP-адаптера агента запускается с cwd = worktree Change, один процесс на worktree (Codex читает hooks при старте процесса).
 - `session/request_permission` не считается механизмом запрета: агент не обязан его вызывать.

@@ -42,6 +42,9 @@ design исправляется, и работа продолжается. Во�
 `IMPLEMENTING → SPECIFIED`) разрешён; переход вперёд — только через gates, указанные для перехода
 в effective policy.
 
+После `ARCHIVED` неизменны каталог архива, record и evidence Change; исправление — новый Change с `amends`.
+`ABANDONED` замораживает record и удаляет каталог Change тем же коммитом ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)).
+
 | Переход | Gates профиля `feature` (core-sdd@0.1) | Где вычисляется |
 |---|---|---|
 | `PROPOSED → SPECIFIED` | `required-artifacts-present`, `spec-valid`, `ids-valid` | локально |
@@ -212,7 +215,8 @@ Hooks внутри агента — ускорение, а не гарантия
 | `warrant gate [id]` | Вычислить verdict(s) | MVP |
 | `warrant verify <change>` | `check` + `gate` для всех требований effective policy текущего перехода | MVP |
 | `warrant analyze <change>` | Детерминированный анализ согласованности | MVP |
-| `warrant transition <change> <state> --ref <url>` | Записать переход; `APPROVED` / `MERGED` только с верифицируемым ref | MVP |
+| `warrant transition <change> <state> --ref <url>` | Записать переход; `APPROVED` / `MERGED` только с верифицируемым ref; `ABANDONED` удаляет каталог Change ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) | MVP |
+| `warrant link <change> --amends\|--supersedes <target>` | Связь с исправляемым (`MERGED` / `ARCHIVED`) или заменяемым (`ABANDONED`) Change; до `APPROVED` ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) | MVP |
 | `warrant sync-state <change>` | Прочитать форж (review, merge, CI run) и записать соответствующие переходы с refs | MVP |
 | `warrant archive <change>` | `openspec validate --strict` → gates `MERGED → ARCHIVED` → `openspec archive --yes --json` | MVP |
 | `warrant ci` | Всё для CI: Change и переход из ветки, пересчёт L0/L1, верификация refs, JSON, exit 1 при `FAIL` | MVP |
@@ -277,3 +281,6 @@ Governance-состояние Change (classification, risk, `change_state`) пр
   `warrant status` MUST сверять запись с производными сигналами (наличие artifacts, worktree, merge в git, каталог archive)
   и сообщать `STALE`, если они расходятся. Запись — акт перехода; вычисление — проверка, что акт всё ещё соответствует реальности.
 - Файл — не второй source спецификации: он не содержит ни требований, ни tasks ([03 §8](03-architecture.md)).
+- Необязательные `amends[]` (цель в `MERGED` / `ARCHIVED`) и `supersedes[]` (цель в `ABANDONED`) пишет `warrant link`;
+  обратные `amended_by[]` / `superseded_by[]` не хранятся — их вычисляют `status` и `analyze`. После `ARCHIVED` или
+  `ABANDONED` файл неизменен ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)).

@@ -1,6 +1,6 @@
 ---
 id: WARRANT-ADR-0018
-title: Frontend adapters — нейтральный guard, три слоя enforcement, MVP на Codex через ACP
+title: Frontend adapters — нейтральный guard, три слоя enforcement, MVP на Codex (ручной режим; ACP — со срезом S1 SEF)
 adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
@@ -56,21 +56,25 @@ prompt или `session/cancel`. Адаптер Codex не транслирует
 6. **Требования к SEF** (proposed, [11 §2](../11-integrations.md)): процесс ACP-адаптера запускается с cwd =
    worktree Change, один процесс на worktree; `request_permission` не считается механизмом запрета.
    Открытые I5 / I6 не закрываются.
-7. **MVP.** Адаптеры `codex` (`.codex/hooks.json`: PreToolUse и PostToolUse на `Bash` и `apply_patch`, пути —
-   из текста patch) и `acp` (если оркестратор — ACP client). Адаптеры `claude` и `opencode` — фаза 7. Сессии
+7. **MVP.** Адаптер `codex` (`.codex/hooks.json`: PreToolUse и PostToolUse на `Bash` и `apply_patch`, пути —
+   из текста patch) в ручном режиме под hooks и CI ([ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md) п. 4).
+   Адаптер `acp` — со срезом S1 SEF: ACP client — диспетчер SEF (до ADR-0020 здесь стояло «`acp`, если
+   оркестратор — ACP client»). Адаптеры `claude` и `opencode` — фаза 7. Сессии
    Claude на этапе spec guard не получают: их защищают топология PR ([ADR-0011](WARRANT-ADR-0011-pr-topology.md)),
    human review spec-PR и CI.
 
 ## Consequences
 
-- ADR-0013: slice ведёт Codex (через codex-acp), а не Claude Code; критерий выхода MVP не меняется по смыслу.
+- ADR-0013: slice ведёт Codex в ручном режиме (ADR-0020 п. 4; до ADR-0020 — «через codex-acp»), а не Claude Code;
+  критерий выхода MVP не меняется по смыслу.
 - ADR-0014: static deny в `.claude/settings.json`, hook Claude Code и reviewer-subagent переходят в адаптер
   `claude` (later). Static-слоя у Codex в MVP нет: запрет до действия — только hook, дальше ACP и CI.
 - Предел INV-07 сохраняется: если hooks неактивны, запись вне `write_scope` обнаруживается после действия
   (ACP) или в CI, а не предотвращается.
-- Открыто: (a) оркестрация — Claude-оркестратор как ACP client или Codex сам берёт утверждённые задачи
-  ([13 §6](../13-roadmap.md) Q6); без ACP-слоя работают только hooks и CI; (b) кто выполняет adversarial review в
-  MVP вместо Claude-subagent (Q7).
+- Закрыто ADR-0020: (a) оркестрация — диспетчер SEF как ACP client со среза S1; в MVP — ручной режим, работают
+  только hooks и CI ([13 §6](../13-roadmap.md) Q6); (b) adversarial review в MVP выполняет Codex отдельным Run (Q7).
+  До ADR-0020 вопросы стояли так: «Claude-оркестратор как ACP client или Codex сам берёт утверждённые задачи»;
+  «кто выполняет adversarial review вместо Claude-subagent».
 
 ## Alternatives
 

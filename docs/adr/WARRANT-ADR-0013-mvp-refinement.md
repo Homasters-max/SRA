@@ -5,11 +5,12 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: [WARRANT-ADR-0007]
-amended_by: [WARRANT-ADR-0018]
+amended_by: [WARRANT-ADR-0018, WARRANT-ADR-0020]
 ---
 
-> Уточнено [ADR-0018](WARRANT-ADR-0018-frontend-adapters.md): slice ведёт Codex через codex-acp, а не Claude Code;
-> критерий выхода MVP по смыслу не меняется.
+> Уточнено [ADR-0018](WARRANT-ADR-0018-frontend-adapters.md) и [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md):
+> slice ведёт Codex (в ручном режиме под hooks и CI; слой ACP — со срезом S1 SEF), а не Claude Code;
+> критерий выхода MVP по смыслу не меняется. (Заметка ADR-0018 говорила «через codex-acp» — уточнено ADR-0020.)
 
 ## Context
 

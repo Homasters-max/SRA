@@ -174,7 +174,7 @@ Hooks внутри агента — ускорение, а не гарантия
 | Capability | Spec author | Implementer | Verifier | Принуждение в MVP |
 |---|---|---|---|---|
 | `READ_REPO`, `READ_SPEC`, `READ_EVIDENCE` | ✓ | ✓ | ✓ | informative: чтение не ограничивается |
-| `WRITE_SPEC` | ✓ | — | — | `write_scope` Run + static deny |
+| `WRITE_SPEC` | ✓ | — | — | `write_scope` Run + hook `warrant guard` (static deny — later, адаптер `claude`, [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)) |
 | `WRITE_CODE` | — | ✓ | — | `write_scope` Run |
 | `RUN_TEST` | — | ✓ | ✓ | — |
 | `RUN_DATA_CHECK` | — | — | ✓ | pack `data`, later |

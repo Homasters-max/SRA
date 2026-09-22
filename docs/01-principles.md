@@ -45,7 +45,7 @@ Constitution меняется редко и только через Change с п
 | INV-04 | Сам является правилом о механизмах; см. [04 §6](04-lifecycle.md) | — |
 | INV-05 | Только для `UNKNOWN`: gate `blocking-unknowns-resolved` читает Change record. Маркеры в прозе — критерий L2-review, машиной не проверяются | Частично |
 | INV-06 | Проектное правило; `warrant validate` ловит только дубли ID объектов конфигурации | Design-time |
-| INV-07 | `write_scope` в Run + `warrant guard` в hooks агента + наблюдение ACP client ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)); подделка без ref не проходит CI | Shell не закрывается полностью; без hooks — обнаружение после действия |
+| INV-07 | `write_scope` в Run + `warrant guard` в hooks агента (MVP) + наблюдение ACP client (S1 SEF, [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md), [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)); подделка без ref не проходит CI | Shell не закрывается полностью; без hooks — обнаружение после действия (в MVP — finding `FRONTEND_HOOKS_INACTIVE` на `verify`) |
 | INV-08 | Policy-пути → profile `factory-change` → `human-approval` на merge | — |
 | INV-09 | Не принуждается в MVP: нет pack `data` | Later |
 | INV-10 | Resolver и gate-алгоритм: неизвестное → `MEDIUM`/`FAIL`/`ESCALATE` | — |

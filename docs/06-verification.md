@@ -94,14 +94,20 @@ Gate — правило перехода; агрегирует evidence в `gate
 
 ### Алгоритм verdict
 
-Выполняется по порядку, первое совпадение — результат:
+Сначала **пред-фильтр допустимости evidence** (D-12): запись исключается из рассмотрения с finding `STALE`, если
+`subject.commit` / `subject.base_commit` отличаются от текущих; `metrics.threshold` ≠ текущий effective param
+([06a §2](06a-evidence.md)); `limitations` содержит `scoped: …` (суженный прогон, [ADR-0017](adr/WARRANT-ADR-0017-check-execution.md));
+отпечаток target частичного waiver, применённого check, не совпадает с текущим кодом ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md) п. 7).
+
+Затем по порядку, первое совпадение — результат:
 
 ```text
-1. applies_when не выполнено                    → NOT_APPLICABLE
-2. предпосылки отсутствуют (нет Run, нет входа) → BLOCKED
-3. все requires_evidence со статусом PROVEN     → PASS
-4. есть ACTIVE waiver и gate waivable           → WAIVED
-5. иначе                                        → FAIL
+1. applies_when не выполнено, или все requires_evidence
+   имеют статус NOT_APPLICABLE от детерминированного check → NOT_APPLICABLE
+2. предпосылки отсутствуют (нет Run, нет входа)           → BLOCKED
+3. все requires_evidence со статусом PROVEN               → PASS
+4. есть ACTIVE waiver и gate waivable                     → WAIVED
+5. иначе                                                  → FAIL
 ```
 
 `NOT_APPLICABLE` ≠ `PASS`: он позволяет пройти profile без ложного waiver, но отображается отдельно.

@@ -72,7 +72,7 @@ Mutation testing проверяет силу тестов, но MUST NOT быт�
 | Risk | Требование |
 |---|---|
 | `LOW` | обычные tests; mutation не выполняется |
-| `MEDIUM` | check `mutation` выполняется, evidence пишется в manifest; gate не required |
+| `MEDIUM` | обычные tests; mutation не выполняется (было: check выполняется без gate — снято D-6) |
 | `HIGH` | gate `mutation-score` required + adversarial review |
 
 ### Scope — diff
@@ -82,7 +82,8 @@ Score считается только по мутантам внутри diff Ch
 
 - Мутант учитывается, если его location пересекает изменённые строки. Если инструмент не даёт строк — изменённые
   функции. Гранулярность (`line` / `function`) объявляет parser и пишет в evidence.
-- Base — `merge-base(HEAD, base-ветка PR)`, как у `scope-valid`. Сдвиг base → `STALE`.
+- Base — по транспорту: `github` — `merge-base(HEAD, base-ветка PR)`, как у `scope-valid`; `sef-hub` —
+  `manifest.base_commit` (`--base <commit>`). Сдвиг base → `STALE`.
 - Перенесённый код — изменённый. Rename файла распознаётся (`git diff -M`).
 
 ### Формула и порог
@@ -91,11 +92,12 @@ Score считается только по мутантам внутри diff Ch
 score = killed / (killed + survived + no_coverage)
 Timeout → killed · CompileError, RuntimeError → вне знаменателя (errors)
 Ignored в diff → survived, если нет исключения
-0 мутантов в diff → NOT_APPLICABLE
+0 мутантов в diff → evidence NOT_APPLICABLE (check) → gate NOT_APPLICABLE (шаг 1, 06 §3)
 ```
 
 Порог — `params.mutation_threshold`, default `0.9`. Check сравнивает сам, выставляет `PROVEN` / `NOT_PROVEN` и
-пишет применённый порог в `metrics.threshold`; gate сверяет его с effective param, расхождение → `STALE`.
+пишет применённый порог в `metrics.threshold`; gate сверяет его с effective param в пред-фильтре допустимости
+([06 §3](06-verification.md)), расхождение → finding `STALE`, evidence исключается.
 
 ### Нормализация отчёта
 
@@ -116,6 +118,7 @@ check `mutation` поставляется с `exclusive: true`, `local: "scoped-
     "base_commit": "abc1234",
     "killed": 41, "survived": 2, "no_coverage": 1, "timeout": 3, "errors": 0,
     "excluded_equivalent": 1,
+    "waivers": ["WAV-2026-004"],
     "score": 0.955,
     "threshold": 0.9,
     "module_score": 0.61
@@ -129,6 +132,7 @@ check `mutation` поставляется с `exclusive: true`, `local: "scoped-
 
 Исключаются частичным waiver ([05 §7](05-policy.md)) с `targets[]`. Target — отпечаток
 `{file, symbol, mutator, replacement, source_sha256}`; для гранулярности `function` — hash тела функции.
+Targets читает check (исключает мутанты, пишет `excluded_equivalent` и `waivers[]`); gate сверяет свежесть отпечатков.
 Отпечаток, не совпавший с текущим кодом, — finding `STALE`, исключение не действует. Общего реестра исключений нет.
 
 ### Защита от обхода
@@ -137,7 +141,7 @@ check `mutation` поставляется с `exclusive: true`, `local: "scoped-
 |---|---|
 | Инструмент помечает мутант `Ignored` | `Ignored` в diff → survived |
 | Pragma (`# pragma: no mutate` и др.) — мутант не попадает в отчёт | Lint diff → finding; легитимная pragma — через `targets` |
-| Сужение в конфиге инструмента | `params.mutation_config_paths` → `match.paths` profile `factory-change` |
+| Сужение в конфиге инструмента | Конфиг — policy-путь: проект SHOULD объявить его в override `.warrant/local/profiles/factory-change.json` (`match.paths`); было `params.mutation_config_paths` — снято D-16 |
 
 ## 5. Bugfix
 

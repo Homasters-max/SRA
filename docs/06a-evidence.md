@@ -56,7 +56,8 @@ Evidence:  claim "customer_id остаётся уникальным после �
 | `metrics` | Необязательно. Числовые результаты check; JSON Schema объявляет pack для своего kind (например, `mutation-report`, [ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)) |
 
 Если check сравнивал результат с параметром policy (порог), применённое значение MUST быть записано в `metrics`.
-Gate сверяет его с текущим effective param; расхождение → `STALE`, evidence не засчитывается.
+Gate сверяет его с текущим effective param в пред-фильтре допустимости ([06 §3](06-verification.md)); расхождение →
+finding `STALE`, evidence исключается.
 
 ## 3. Кто создаёт evidence
 

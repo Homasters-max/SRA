@@ -160,11 +160,11 @@ LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSI
 
 | Схема | REQ | Добавить | ADR |
 |---|---|---|---|
-| `evidence.1` | REQ-KRN-012 | `metrics` (форму задаёт pack для kind); `subject.base_commit` | 0016 |
-| `pack.1` → `provides` | REQ-KRN-006 | `rules[]`; объявление JSON Schema `metrics` для каждого kind (сейчас `evidence_kinds` — список строк) | 0016, 0022 |
-| `check.1` | REQ-KRN-010 | `execution{exclusive, timeout_s, local, max_paths, guard_prefixes}`; `run.scoped_command` | 0017 |
+| `evidence.1` | REQ-KRN-012 | `metrics` (object; форму задаёт pack для kind — валидация в два шага, D-13); `subject.base_commit` | 0016 |
+| `pack.1` → `provides` | REQ-KRN-006 | `rules[]`; `evidence_kinds` → `[{ "kind", "metrics_schema" }]` (сейчас список строк; D-13) | 0016, 0022 |
+| `check.1` | REQ-KRN-010 | `execution{exclusive, timeout_s, local, guard_prefixes}` (`max_paths` — later, D-23); `run.scoped_command` с плейсхолдером `{paths}` (сейчас REQ допускает только `{out}`) | 0017 |
 | `config.1` | REQ-KRN-004 | `defaults{check_timeout_s}` | 0017 |
-| `waiver.1` | REQ-KRN-019 | `targets[]` (частичный waiver; форму target задаёт pack gate) | 0016 |
+| `waiver.1` | REQ-KRN-019 | `targets[]` (object[]; форму задаёт pack gate — валидация в два шага, D-13; читает check, D-10) | 0016 |
 | `change-record.1` | REQ-KRN-011 | `amends[]`, `supersedes[]` | 0021 |
 
 ### B. Новая схема
@@ -172,21 +172,24 @@ LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSI
 | Схема | Содержание | ADR |
 |---|---|---|
 | `rule/1` | `{ $schema, id, paths[], text, enforced_by? }`; новый REQ в kernel spec | 0022 |
+| `run/1` | 03 §4: `change`, `operation`, `skill`, `write_scope[]`, `context_hash`, `run_state`, `guard_events[]`; `.warrant/runs/current`; путь через `WARRANT_STATE_DIR` (фаза 4; D-2, D-9) | 0014, 0017–0019, 0022 |
+| `skill-result/1` | envelope 07 §4 для `run submit`; `codex exec --output-schema` пишет его (фаза 4; D-5, D-9) | 0013, 0020 |
 
 ### C. Существующие команды
 
 | Команда | REQ | Добавить | ADR | Фаза |
 |---|---|---|---|---|
 | `validate` | REQ-KRN-021 | `--files`; stable ID изменён / удалён относительно `HEAD`; висячие REQ / SCN; pragma mutation-инструментов; правила с `paths` только в `openspec/changes/**` — ошибка; `AGENTS.md` побайтно и ≤ 16 KiB; цель `amends` / `supersedes` в допустимом состоянии | 0019, 0021, 0022 | 3 |
-| `status` | REQ-KRN-027 | вычисляемые `amended_by[]` / `superseded_by[]`; доля правил без `enforced_by` | 0021, 0022 | 3 |
+| `status` | REQ-KRN-027 | вычисляемые `amended_by[]` / `superseded_by[]`; доля правил без `enforced_by`; `stale[]`: `ABANDONED_DIR_PRESENT`, `DIR_MISSING_WITHOUT_TRANSITION` (D-22); finding `FRONTEND_HOOKS_INACTIVE` (D-14) | 0021, 0022, 0018 | 3–4 |
+| `init` | REQ-KRN-023 | проверка `codex --version ≥ MIN` при генерации `.codex/hooks.json` (D-7) | 0018 | 4 |
 | `sync` | REQ-KRN-025 | `.codex/hooks.json` (постоянная строка `warrant guard --frontend codex`), `AGENTS.md` | 0018, 0022 | 4 |
 
 ### D. Новые команды — требования с первого дня
 
 | Команда | Требования | Фаза |
 |---|---|---|
-| `check` | замок `exclusive` в `git-common-dir`, `BUSY` (код 2), `--wait`, `--paths` + `scoped_command`, `timeout_s`, режим `local` | 3 (0017) |
-| `gate` / `verify` | `metrics.threshold` сверяется с effective param → `STALE`; частичный waiver исключает `targets`, не даёт `WAIVED`; `scope-valid` запрещает архив, record и evidence архивных Changes | 3 (0016, 0021) |
+| `check` | замок `exclusive` в `git-common-dir`, `BUSY` (код 2), `--paths` + `scoped_command`, `timeout_s` (default 1800, D-17), `local: allowed \| scoped-only`; `--base <commit>` и `WARRANT_STATE_DIR` (D-2, D-20); `--wait`, `ci-only`, `max_paths` — later (D-23) | 3 (0017) |
+| `gate` / `verify` | пред-фильтр допустимости evidence (commit/base, `metrics.threshold`, `limitations` `scoped:`, отпечатки `targets`) → `STALE` (D-12); шаг 1 `NOT_APPLICABLE` от check (D-11); gate `spec-approved` транспортно-нейтральный (D-3); `scope-valid` запрещает архив, record и evidence архивных Changes, кроме archive-PR для своего каталога (D-15); `--base <commit>` (D-20); finding `FRONTEND_HOOKS_INACTIVE` (D-14) | 3 (0016, 0018, 0020, 0021) |
 | `analyze` | `STALE` для неприменимого target waiver; обратные ссылки | 3 (0016, 0021) |
 | `transition` | `ABANDONED` удаляет каталог Change и замораживает record | 3 (0021) |
 | `link` | `--amends` / `--supersedes`, до `APPROVED` | 3 (0021) |
@@ -253,8 +256,54 @@ docs/integrations/2026-09-17-sef-platform-design.md (черновик SEF, ПР�
 ```
 
 Открыто до ревью: пуш веток `feature/phase-2-core-sdd` и `feature/factory-adrs-0016-0022` (обе только локально);
-устаревший раздел «Состояние» и готовый запрос фазы 2 (группы 2–3 уже закоммичены, в `tasks.md` группа 2 не отмечена) —
+устаревший раздел «Состояние» и готовый запрос фазы 2 (группы 2–3 уже закоммичены; группа 2 в `tasks.md` отмечена здесь коммитом d2d8fd3 — cherry-pick в phase-2, D-25) —
 править в ветке phase-2.
+
+## Решения по находкам ревью ADR-0016…0022 (2026-09-22, ревьюер)
+
+Ревью проведено (отчёт — в сессии ревью: слой 1 L1-1…L1-11, слой 2 F-1…F-28, вопросы Q-1…Q-10). Ниже — принятые
+решения; ADR и docs правятся по ним **отдельными коммитами** после разбора. Согласование с черновиком SEF —
+[приложение F](integrations/2026-09-17-sef-platform-design.md) черновика (строки W-01…W-27).
+
+### Решения
+
+| # | Решение | Закрывает | Куда |
+|---|---|---|---|
+| D-1 | `sef-hub`: `MERGED` записывается один раз — в коммите посадки последнего item, вместе с `IMPLEMENTING`, `VERIFYING` (refs attempt / gate / landing); промежуточные посадки record не трогают (`STALE` между посадками — штатно, ADR-0011 п. 3); `warrant archive` — следующим коммитом | Q-1, F-7 | ADR-0020 п. 11–12; 11 §2; SEF W-14 |
+| D-2 | В `sef-hub` Run и evidence попытки живут вне репозитория: CLI читает `WARRANT_STATE_DIR` (`.warrant/runs/`, `.warrant/evidence/` → `var/sef/attempts/<id>/warrant/`); `.warrant/**` остаётся в `protected[]` целиком. Транспорт `github` — без изменений (в git) | Q-2, F-8 | ADR-0020 п. 13; 03 §4 (триггер «внешнее хранение» = S1 SEF); долг C (`run start`, `check`, `verify`: `WARRANT_STATE_DIR`); SEF W-09 |
+| D-3 | Gate `spec-approved` — транспортно-нейтральный, core-sdd, переход `VERIFYING→MERGED` (в `github` — CI impl-PR, в `sef-hub` — lane/integration): hash дерева `{proposal.md, design.md, specs/**}` на коммите из ref `APPROVED` ↔ на base; `tasks.md` исключён. Новых полей record нет | Q-3, F-6, F-18 | ADR-0020 п. 9; 06 §4; долг D `gate` |
+| D-4 | `guard pre` без активного Run отвечает `deny` только для путей под `paths.src`, `paths.tests`, `openspec/changes/**` и policy-путей (`match.paths` профилей); остальные пути (например `docs/**`) — `allow` + hint «начни с `run start`». Dogfooding: Codex на коде этого репозитория не используется до фазы 4; Claude-сессии guard не получают (ADR-0018 п. 7) | Q-4, F-21 | ADR-0022 п. 7 |
+| D-5 | Adversarial review spec в MVP: стол выполняет `warrant run start <change> --operation review` → `codex exec --output-schema <skill-result> -o result.json` → `warrant run submit result.json`; attestation `none`, `limitations: ["produced locally, unattested"]`. Плагин Claude Code не используется (Claude — только интерактив, ADR-0020) | Q-5, F-19 | ADR-0020 п. 5; 13 Q7 |
+| D-6 | Строка `MEDIUM` для mutation убирается: `LOW`/`MEDIUM` — check не выполняется, `HIGH` — gate `mutation-score` required. Примитив «check без gate» (`evidence.recommended`) — later по failure mode | Q-6, F-13 | ADR-0016 п. 10; 05 §4 (строка 182); 10-pack-bdd-tdd §4 |
+| D-7 | ADR-0018 п. 7 (адаптер `codex`) и ADR-0020 п. 5 (`codex exec`) — `proposed` до spike S8 «hooks Codex под codex-acp и `codex exec`; минимальная версия с hooks на `apply_patch`» (13 §3, до фазы 4). `warrant init` проверяет `codex --version ≥ MIN` (константа CLI); в SEF версия — в `image.pins` | Q-7, F-22 | ADR-0018, ADR-0020, 13 §3; SEF W-23 |
+| D-8 | Копия черновика SEF — снимок с баннером провенанса; изменения WARRANT → только приложение F; при новой rev — обновить снимок и перепроверить F | Q-8, F-25 | сделано в этом коммите |
+| D-9 | В долг B добавляются схемы `warrant://run/1` и `warrant://skill-result/1` (фаза 4); в C/D — `--base <commit>` для `check`/`verify`/`gate`, `WARRANT_STATE_DIR`, проверка версии Codex в `init`; в A — механизм pack-схем (D-13) и правка REQ-KRN-010 (`{paths}`) | Q-9, F-24 | этот файл, раздел «Долг» |
+| D-10 | `targets[]` частичного waiver читает **check** (waivers — файлы на `main`, пересчёт в CI воспроизводим): исключает мутанты, пишет в `metrics` `excluded_equivalent` и `waivers[]`; gate только сверяет, что waiver `ACTIVE` и отпечатки совпадают с текущим кодом (иначе `STALE`, исключение снимается) | Q-10, F-2 | ADR-0016 п. 6–7; 05 §7 |
+| D-11 | `NOT_APPLICABLE` для 0 мутантов в diff: шаг 1 алгоритма 06 §3 расширяется — «`applies_when` не выполнено **или все `requires_evidence` имеют статус `NOT_APPLICABLE`, выставленный детерминированным check**»; правило 02 §2 — «ставится правилом `applies_when` или check, не мнением агента» | F-1 | 06 §3; 02 §2; ADR-0016 п. 4 |
+| D-12 | 06 §3 получает пред-фильтр «допустимость evidence» перед шагами 1–5: `subject.commit`/`base_commit` ≠ текущие; `metrics.threshold` ≠ effective param; `limitations` содержит `scoped:`; отпечаток target не совпал → finding `STALE`, evidence исключается. ADR-0016 п. 6 «алгоритм не меняется» → «алгоритм получает пред-фильтр» | F-3 | 06 §3; 06a §2; ADR-0016 п. 6; ADR-0017 п. 4 |
+| D-13 | Двухступенчатая валидация pack-форм: kernel-схема допускает `evidence.metrics` и `waiver.targets[]` как object; `validate` затем применяет JSON Schema pack по `kind` (evidence) или по `gate` (waiver); неизвестный kind/gate → ошибка (INV-10). REQ-KRN-001 получает это исключение; `pack.1.provides.evidence_kinds` → `[{ "kind", "metrics_schema" }]` | F-4 | долг A; REQ-KRN-001/006/012/019 |
+| D-14 | Живость hooks в MVP без ACP: `warrant verify`/`ci` на `VERIFYING→MERGED` сверяет пути diff ∩ (`paths.src` ∪ `paths.tests`) с `guard_events[]` Runs Change; путь без события → finding `FRONTEND_HOOKS_INACTIVE` в `status` и отчёте `verify` (не `FAIL`: правки человека без hooks легитимны). Критерий выхода MVP: finding отсутствует | F-5 | ADR-0018 п. 5; ADR-0013 критерий; 13 §2 фаза 4 |
+| D-15 | `scope-valid`: запрет путей архива, record и evidence архивных Changes действует для spec-PR и impl-PR; archive-PR может создать ровно свой каталог `openspec/changes/archive/<date>-<change>/` и изменить `openspec/specs/**` как результат `openspec archive`; чужие каталоги архива — запрещены | F-11 | ADR-0021 п. 2; 06 §4 |
+| D-16 | ADR-0016 п. 8c (`params.mutation_config_paths` → `match.paths`) снимается: параметра нет; проект объявляет конфиг mutation-инструмента policy-путём через существующий override `.warrant/local/profiles/factory-change.json` (`overrides: "core-sdd:factory-change"`, `match.paths` + путь конфига); pack `bdd-tdd` документирует это как SHOULD | F-12 | ADR-0016 п. 8c; 10-pack-bdd-tdd |
+| D-17 | `timeout_s`: default `defaults.check_timeout_s`; при его отсутствии — константа CLI `1800` (как в 08 §3) | F-14 | ADR-0017 п. 1; 06 §2 |
+| D-18 | ADR-0019 п. 1(c) (stable ID изменён/удалён относительно `HEAD`) — только для файлов `openspec/specs/**` и для Changes с record ≥ `APPROVED`; до `APPROVED` renumber и удаление REQ легитимны | F-15 | ADR-0019 п. 1 |
+| D-19 | `forge sef-hub` верифицирует refs по git (снимок approval в коммите из ref) и по control-API SEF (`sef audit --json`: attempt, gate, landing, актор); INV-03 в `sef-hub` — TTY + owner-токен keyring SEF, записывается как требование в 11 §2 и строкой в таблице 01 INV-03 | F-16, F-17 | ADR-0020 п. 8; 11 §2; 01; SEF W-18, W-19 |
+| D-20 | Base по транспорту: `github` — `merge-base(HEAD, base PR)`; `sef-hub` — `manifest.base_commit`, передаётся `--base <commit>` | F-20 | ADR-0016 п. 2; ADR-0020; долг C/D |
+| D-21 | Вопросы 11 §4 получают идентификаторы I1…I5; I5 «SEF: CLI или API» — **закрыт: CLI (argv) в обе стороны**; I6 «кто создаёт Run» — **закрыт: SEF при prepare** (D-2, SEF W-07). Ссылки в ADR-0018 п. 6 и ADR-0020 п. 11 обновить | F-23 | 11 §4; ADR-0018; ADR-0020 |
+| D-22 | `ABANDONED`: `status`/`ci` дают `STALE` `ABANDONED_DIR_PRESENT` (record `ABANDONED` ∧ каталог есть) и `DIR_MISSING_WITHOUT_TRANSITION` (обратное); в `github` удаление каталога и transition едут в ветке `abandon/<change>` → PR или push как для archive | F-10 | ADR-0021 п. 8; ADR-0011 п. 2; REQ-KRN-027 |
+| D-23 | Избыточность → later по триггерам: ADR-0017 `--wait`, авто-снятие замка мёртвого pid, `local: "ci-only"`, `max_paths` (MVP: `exclusive`, `timeout_s`, `local: allowed \| scoped-only`, `scoped_command`); ADR-0019 бюджет 500 мс и лимит строк; ADR-0022 генерация `AGENTS.md` и `rules[]` в Context Pack — с первым правилом pack или проекта (в фазе 4 остаются схема `rule/1` и `guard` без Run → `deny`). `warrant link`, `supersedes[]`, `targets[]` — остаются (стоимость схемы мала) | избыточность | ADR-0017, ADR-0019, ADR-0022; 13 §3 later-идеи |
+| D-24 | Устаревшие формулировки L1-1…L1-10 правятся одним коммитом «docs: after ADR-0020»: ADR-0018 title/п. 7/Consequences, заметки в ADR-0013/0014 (+ `amended_by: 0020`), README 0018, 13 S5, 04 §6 `WRITE_SPEC`, 03 §7 (строки `.codex/hooks.json`, `AGENTS.md`, `.warrant/local/rules/`, `.claude/**` → later), 01 INV-07 (ACP client → S1), 06 §5 таблица `STALE` | L1-* | docs |
+| D-25 | Коммит d2d8fd3 (tasks.md, группа 2) переносится cherry-pick в `feature/phase-2-core-sdd`; здесь остаётся до merge | F-26 | git |
+
+### Правки по решениям — отдельные коммиты (порядок)
+
+1. `docs: after ADR-0020` — D-24 (только формулировки, без новых решений).
+2. `ADR-0016: D-6, D-10, D-11, D-12, D-16, D-20` + 05 §4/§7, 06 §3, 06a §2, 10-pack-bdd-tdd.
+3. `ADR-0017: D-17, D-23`; `ADR-0019: D-18, D-23`; `ADR-0022: D-4, D-23`.
+4. `ADR-0018: D-7, D-14` (+ `proposed` у п. 7); 13 §3 spike S8; ADR-0013 критерий.
+5. `ADR-0020: D-1, D-2, D-3, D-5, D-19, D-20, D-21` + 11 §2/§4, 01 INV-03, 06 §4 `spec-approved`.
+6. `ADR-0021: D-15, D-22` + 06 §4, REQ-KRN-027 (в change фазы 3).
+7. `NEXT-SESSION: долг` — D-9, D-13 (таблицы A–D).
 
 ## Чего не делать
 

@@ -47,6 +47,23 @@ describe("scanText", () => {
     expect(scanText(sample, "x.json")).toEqual([]);
   });
 
+  it("does not fire on words that merely end in a token prefix", () => {
+    const sample = [
+      "risk-assessment-framework-overview-and-checklist",
+      "task-tracking-improvements-v2-for-the-kernel",
+      "laugh_" + "a1b2c3d4e5".repeat(3) + "f6g7h8",
+      "MAKIA" + "0123456789ABCDEF"
+    ].join("\n");
+    expect(scanText(sample, "x.md")).toEqual([]);
+  });
+
+  it("still fires on a token at a word boundary", () => {
+    const key = "sk-" + "abcdefghij".repeat(3);
+    expect(scanText(`key: ${key}`, "x.md").map((e) => e.message)).toEqual(
+      expect.arrayContaining([expect.stringContaining("api-secret-key")])
+    );
+  });
+
   it("does not fire on any fixture shipped with this repository", () => {
     const dir = path.join(CLI_ROOT, "test", "fixtures");
     const findings = walkFiles(dir).flatMap((absolute) =>

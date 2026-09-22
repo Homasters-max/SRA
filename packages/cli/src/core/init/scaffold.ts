@@ -108,6 +108,8 @@ export interface ChangeDirLocation {
   path: string;
 }
 
+const ARCHIVE_DATE_RE = /^\d{4}-\d{2}-\d{2}-/;
+
 export function findChangeDir(root: string, name: string): ChangeDirLocation | null {
   const active = path.join(root, "openspec", "changes", name);
   if (existsSync(active)) return { where: "active", path: `openspec/changes/${name}` };
@@ -120,7 +122,9 @@ export function findChangeDir(root: string, name: string): ChangeDirLocation | n
   } catch {
     return null;
   }
-  const found = entries.find((entry) => entry === name || entry.endsWith(`-${name}`));
+  // Exactly `<name>` or `<YYYY-MM-DD>-<name>`: a bare suffix match would make
+  // `auth` collide with an archived `add-auth`.
+  const found = entries.find((entry) => entry === name || (ARCHIVE_DATE_RE.test(entry) && entry.slice(11) === name));
   return found === undefined ? null : { where: "archive", path: `openspec/changes/archive/${found}` };
 }
 

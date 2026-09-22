@@ -41,9 +41,9 @@
 
 ## 5. Команда init (REQ-KRN-023)
 
-- [ ] 5.1 `warrant init`: `warrant.json` (`kernel` из версии CLI, `openspec` из `openspec --version`, `packs.core-sdd`), `local/areas.json`, `local/openspec/rules.json`, каталоги с `.gitkeep`, копии схем в `.warrant/schemas/<name>.<major>.schema.json`, затем `sync`; `data.created[]`; e2e во временном каталоге с `openspec init --tools none`: после `init` → `warrant validate` `ok: true` (SCN-KRN-042, SCN-KRN-052)
-- [ ] 5.2 Повторный `init` без `--force` → `ALREADY_INITIALIZED`, файлы не тронуты; с `--force` — перезапись; тесты (SCN-KRN-053)
-- [ ] 5.3 `warrant init change <name>`: проверка имени по `.warrant/changes/` и `openspec/changes/archive/*-<name>` **до** вызова `openspec new change --schema <из config.yaml> --json`; record `PROPOSED` с одной transition `by: cli:local`, без `classification`; тесты: успех (SCN-KRN-054), имя из archive → `CHANGE_NAME_TAKEN` и `openspec` не вызывался (SCN-KRN-055)
+- [x] 5.1 `warrant init`: `warrant.json` (`kernel` из версии CLI, `openspec` из `openspec --version`, `packs.core-sdd`), `local/areas.json`, `local/openspec/rules.json`, каталоги с `.gitkeep`, копии схем в `.warrant/schemas/<name>.<major>.schema.json`, затем `sync`; `data.created[]`; e2e во временном каталоге с `openspec init --tools none`: после `init` → `warrant validate` `ok: true` (SCN-KRN-042, SCN-KRN-052)
+- [x] 5.2 Повторный `init` без `--force` → `ALREADY_INITIALIZED`, файлы не тронуты; с `--force` — перезапись; тесты (SCN-KRN-053)
+- [x] 5.3 `warrant init change <name>`: проверка имени по `.warrant/changes/` и `openspec/changes/archive/*-<name>` **до** вызова `openspec new change --schema <из config.yaml> --json`; record `PROPOSED` с одной transition `by: cli:local`, без `classification`; тесты: успех (SCN-KRN-054), имя из archive → `CHANGE_NAME_TAKEN` и `openspec` не вызывался (SCN-KRN-055)
 
 ## 6. Команда id (D-5, REQ-KRN-024)
 

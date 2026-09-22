@@ -5,6 +5,7 @@ import { emit, failure, resultFromThrown, type CommandResult } from "../io/outpu
 import { CLI_VERSION } from "../version.js";
 import { notImplemented } from "../commands/stub.js";
 import { requireConfigPath } from "../commands/context.js";
+import { runInitCommand } from "../commands/init.js";
 import { runValidate } from "../commands/validate.js";
 import { runFmt } from "../commands/fmt.js";
 import { runId } from "../commands/id.js";
@@ -48,8 +49,13 @@ const needsConfig: Runner = () => {
   return notImplemented("(pending)");
 };
 
-register("init", "initialise .warrant/ or a new change", () => notImplemented("init"), (c) =>
-  c.argument("[what]").argument("[name]").option("--force")
+register(
+  "init",
+  "initialise .warrant/ or a new change",
+  // `init` is the one command that must run without an existing config;
+  // `init change` checks for one itself.
+  (args, opts) => runInitCommand(args, { force: opts["force"] as boolean | undefined }),
+  (c) => c.argument("[what]").argument("[name]").option("--force")
 );
 register(
   "validate",

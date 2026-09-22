@@ -89,7 +89,7 @@ Profiles ссылаются только на ID. Определение gate с
 | `adversarial-review` | L2 | да | core-sdd | Review выполнен, blocking findings закрыты |
 | `bdd-passed` | L1 | нет | bdd-tdd | Acceptance scenarios проходят |
 | `red-first` | L1 | да | bdd-tdd | Тест падал до реализации |
-| `mutation-score` | L1 | да | bdd-tdd | Mutation score ≥ порога |
+| `mutation-score` | L1 | да | bdd-tdd | Score мутантов внутри diff ≥ порога ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)) |
 | `adr-present` | L0 | да | arch | ADR существует при durable decision |
 | `contract-compatible` | L1 | нет | data | Compatibility check пройден или bump версии |
 | `migration-verified` | L1 | нет | data | Миграция прогнана на тестовых данных |
@@ -108,7 +108,7 @@ Profiles ссылаются только на ID. Определение gate с
 | `UNSATISFIED` | REQ без task, test или evidence |
 | `ORPHAN` | Test / task / code без связи с REQ |
 | `AMBIGUOUS` | Одна ссылка указывает на несколько объектов |
-| `STALE` | Evidence получено на commit / spec revision, отличном от текущего |
+| `STALE` | Evidence получено на commit / spec revision / base / effective param, отличном от текущего; target частичного waiver не совпадает с текущим кодом |
 
 Пример:
 

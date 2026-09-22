@@ -29,7 +29,7 @@ OpenSpec + warrant-sdd schema + profile feature
 | **0. Spikes** | см. §3 | Все spikes закрыты решением |
 | **1. Kernel** | JSON Schemas контрактов, CLI: `init`, `validate`, `fmt`, `id`, `sync`, `resolve`, `status` | `warrant validate` работает на core-sdd |
 | **2. core-sdd** | schema `warrant-sdd`, profiles, core gates и checks, templates, controller rules, risk | Golden `feature`, `chore`, `factory-change` — snapshot effective policy (`resolve --explain`, `status`); прогон gates — фаза 3 |
-| **3. Verification** | `check`, `gate`, `analyze`, evidence manifest, CI integration | Vertical slice пройден |
+| **3. Verification** | `check`, `gate`, `analyze`, evidence manifest, CI integration; evidence schema с `metrics`, объявляемыми pack для kind ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)) | Vertical slice пройден |
 | **4. Frontend** (MVP) | Claude Code: static deny, `warrant guard`, reviewer-subagent (ADR-0014) | Агент проходит slice; в `guard_events[]` нет обойдённых `deny` |
 | **5. bdd-tdd, arch** | Gherkin/SCN, red-first, ADR, glossary, adversarial review | Снижение spec defects после implementation |
 | **6. data** | Contracts, compatibility engine, migration, rollback | Golden: breaking-data-change |
@@ -47,6 +47,7 @@ OpenSpec + warrant-sdd schema + profile feature
 | S4 | ~~Язык и распространение CLI~~ — **закрыт**: TypeScript на Node, monorepo, `npm i -g <git-tag>` ([ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md)) |
 | S5 | ~~Claude Code hooks / permissions~~ — **закрыт**: static deny из `warrant sync` + hook `warrant guard`, reviewer как subagent ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)) |
 | S6 | Принимает ли LATTICE внешние stable ID (`REQ-ING-001`) как identity, или выдаёт свои и нужен mapping. Формат ID фиксируется в фазе 1, поэтому вопрос — до MVP, а не в фазе 9. Proposed ответ: identity LATTICE = `<context>/<name>`, name = stable ID WARRANT без mapping ([integrations/06 D1](../lattice/docs/03-substrate-decisions.md)) |
+| S7 | Mutation-инструмент для Python sample (до фазы 5; MVP не блокирует). Критерии: результат по каждому мутанту, location в строках, стабильный вывод, parser в mutation-testing-report-schema без опоры на недокументированный формат (mutmut 3 `.meta` — не годится как есть) ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)) |
 
 ## 4. Не входит в MVP
 

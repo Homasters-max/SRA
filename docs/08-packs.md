@@ -69,7 +69,7 @@ KERNEL (меняется редко)                PACKS (подключают�
   "openspec": "1.13.x",
   "packs": {
     "core-sdd": { "version": "^0.1" },
-    "bdd-tdd":  { "version": "^0.1", "params": { "mutation_threshold": 0.7 } },
+    "bdd-tdd":  { "version": "^0.1", "params": { "mutation_threshold": 0.9 } },
     "data":     { "version": "^0.3", "params": { "reconciliation": "row-count+checksum" } }
   },
   "paths": {

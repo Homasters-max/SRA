@@ -173,6 +173,7 @@ resolver композирует их по правилам §5.
 | `LOW` | обычная verification | core-sdd |
 | `MEDIUM` | + `adversarial-review` | core-sdd |
 | `HIGH` | + `adversarial-review`, `human-approval` на merge | core-sdd |
+| `MEDIUM` | check `mutation` выполняется, gate `mutation-score` не required | bdd-tdd |
 | `HIGH` | + `mutation-score` | bdd-tdd |
 | `HIGH` | + `rollback-rehearsed` (если применимо) | data |
 
@@ -283,3 +284,19 @@ Waiver — явное временное исключение из конкре�
 - Gates с `waivable: false` MUST NOT отменяться waiver (`human-approval`, `scope-valid` и др.).
 - Истёкший waiver → `EXPIRED`; gate перевычисляется.
 - Агент MAY предложить waiver (`PROPOSED`), но не активировать его.
+
+### Частичный waiver
+
+Необязательное поле `targets[]` сужает waiver до отдельных объектов, которые gate учитывает поштучно
+(первое применение — эквивалентные мутанты, [ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)):
+
+```json
+"targets": [
+  { "file": "src/orders/total.py", "symbol": "apply_discount", "mutator": "EqualityOperator",
+    "replacement": ">=", "source_sha256": "…" }
+]
+```
+
+- Waiver с `targets` не переводит gate в `WAIVED`: gate исключает targets и считает verdict по остальному.
+- Target, не совпавший с текущим состоянием, — finding `STALE`; исключение не действует.
+- Форму target объявляет pack, поставляющий gate.

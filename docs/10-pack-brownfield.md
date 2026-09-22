@@ -49,3 +49,7 @@ Profile `refactor` в brownfield-зоне требует artifact `behavior-base
 
 Pack параметризуется путями legacy-кода (`params.legacy_paths`). Floor rule: изменения в этих путях без
 baseline spec → blocking `UNKNOWN`.
+
+Mutation score в brownfield-зоне считается по diff ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)):
+унаследованный долг не роняет gate Change. Долг виден как `metrics.module_score` в evidence `mutation-report`;
+gate его не читает.

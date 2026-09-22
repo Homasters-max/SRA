@@ -7,15 +7,19 @@
 
 ## Установка CLI
 
-Пакет не публикуется в npm ([ADR-0013](docs/adr/WARRANT-ADR-0013-mvp-refinement.md)). Устанавливается глобально из git-тега
-или из локального чекаута; `prepare` собирает `packages/cli/dist/`:
+Пакет не публикуется в npm ([ADR-0013](docs/adr/WARRANT-ADR-0013-mvp-refinement.md)). Два проверенных способа
+(design phase-1-kernel, D-1 и I-11):
 
-```bash
-npm i -g "git+https://github.com/<owner>/SRA.git#<tag>"
-```
+Из локального чекаута (symlink на каталог, `prepare` собирает `packages/cli/dist/`):
 
 ```bash
 npm i -g D:\project\SRA
+```
+
+Из git-тега через tarball (`npm i -g <git-url>#<tag>` напрямую на npm 10 / Windows кладёт пустое дерево — баг pacote):
+
+```bash
+git clone --branch <tag> <git-url> warrant && cd warrant && npm install && npm pack && npm i -g ./warrant-0.1.0.tgz
 ```
 
 Проверка: `warrant --version`. Требуется Node ≥ 20.19 и `openspec` 1.13.x на PATH.

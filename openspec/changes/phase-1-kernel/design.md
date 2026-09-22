@@ -192,6 +192,7 @@ checks, controller — фаза 2 добавляет файлы и строки 
 | I-8 | `.warrant/local/`: каждый `*.json` проверяется схемой; объектами policy (pack `local`) становятся только документы `profile`/`overlay`/`gate`/`check`, классифицируемые по `$schema`, без соглашения о каталогах; pack по `warrant.json` также ищется в `.warrant/local/<id>/pack.json` | `core/packs/loader.ts` |
 | I-9 | Объекты без `id` (`risk-floor`, `risk-levels`) получают id = имя файла без расширения; override `accepts_attestation` может только сужать список | `core/packs/loader.ts` |
 | I-10 | Задача 7.1 (минимум `packs/core-sdd`) и hash из 4.1 выполнены в группе 3: без них не проверить SCN-KRN-043 и lock | `packs/core-sdd/`, `core/canon/hash.ts` |
+| I-11 | Установка: `npm i -g <путь к чекауту>` и `npm pack` → `npm i -g <tgz>` проверены; `npm i -g <git-url>#<tag>` напрямую на npm 10 / Windows не работает (внутренний `npm install` наследует `npm_config_global`, tarball выходит без файлов). `scripts/build.js` выполняет `prepare` без зависимости от PATH и доставляет `typescript` в клон с чистым окружением npm | `scripts/build.js`, README |
 
 ## Open Questions
 

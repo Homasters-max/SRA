@@ -137,6 +137,7 @@ project/
 | `openspec/schemas/`, `openspec/config.yaml` | WARRANT (через pack) | `factory-change` |
 | `.warrant/warrant.json`, `.warrant/warrant.lock.json`, `.warrant/local/` | WARRANT | `factory-change` |
 | `.claude/settings.json`, `.claude/agents/` | WARRANT (генерируется `warrant sync`) | `factory-change` |
+| `.claude/commands/opsx/`, `.claude/skills/openspec-*/` | OpenSpec (`openspec init \| update`) | `chore` ([ADR-0015](adr/WARRANT-ADR-0015-openspec-sync-contract.md)) |
 | `.warrant/changes/` | WARRANT (запись только CLI) | Переходы через `warrant` ([04 §9](04-lifecycle.md)); агент MUST NOT писать напрямую |
 | `.warrant/waivers/` | WARRANT | Waiver lifecycle ([05](05-policy.md)) |
 | `.warrant/evidence/`, `.warrant/runs/` | WARRANT (запись только CLI) | Агент MUST NOT писать напрямую; CI не пишет ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)) |

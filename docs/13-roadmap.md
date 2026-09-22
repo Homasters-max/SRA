@@ -42,8 +42,8 @@ OpenSpec + warrant-sdd schema + profile feature
 | Spike | Вопрос |
 |---|---|
 | S1 | ~~HTML-комментарии ID через `openspec validate` и archive~~ — **закрыт** на OpenSpec 1.13.1: проходят при размещении строго под заголовком с непустым телом ([ADR-0012 §7](adr/WARRANT-ADR-0012-id-allocation.md)) |
-| S2 | Версия — 1.13.1 (ADR-0012). **Открыт**: устройство project-local schema и `config.yaml`, что именно генерирует `warrant sync`. Первый пункт плана фазы 1 ([NEXT-SESSION](NEXT-SESSION.md)) |
-| S3 | ~~Хранение `classification` и `change_state`~~ — **закрыт**: `.warrant/changes/<change>.json` ([04 §9](04-lifecycle.md), ADR-0009). Остаток вопроса ушёл в S2: есть ли у OpenSpec собственные metadata Change, которые стоит читать |
+| S2 | ~~Устройство project-local schema и `config.yaml`, что генерирует `warrant sync`~~ — **закрыт** на OpenSpec 1.13.1: `config.yaml` = `schema` + `context` + `rules` + `operations`; schema — `openspec/schemas/<name>/{schema.yaml, templates/}`; `.openspec.yaml` — metadata Change, WARRANT читает `schema` и `skip_specs` ([ADR-0015](adr/WARRANT-ADR-0015-openspec-sync-contract.md)) |
+| S3 | ~~Хранение `classification` и `change_state`~~ — **закрыт**: `.warrant/changes/<change>.json` ([04 §9](04-lifecycle.md), ADR-0009). Остаток (metadata Change у OpenSpec) закрыт в ADR-0015: `.openspec.yaml`, читаются `schema` и `skip_specs` |
 | S4 | ~~Язык и распространение CLI~~ — **закрыт**: TypeScript на Node, monorepo, `npm i -g <git-tag>` ([ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md)) |
 | S5 | ~~Claude Code hooks / permissions~~ — **закрыт**: static deny из `warrant sync` + hook `warrant guard`, reviewer как subagent ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)) |
 | S6 | Принимает ли LATTICE внешние stable ID (`REQ-ING-001`) как identity, или выдаёт свои и нужен mapping. Формат ID фиксируется в фазе 1, поэтому вопрос — до MVP, а не в фазе 9. Proposed ответ: identity LATTICE = `<context>/<name>`, name = stable ID WARRANT без mapping ([integrations/06 D1](../lattice/docs/03-substrate-decisions.md)) |

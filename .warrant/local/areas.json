@@ -1,0 +1,6 @@
+{
+  "$schema": "warrant://areas/1",
+  "KRN": {
+    "capability": "kernel"
+  }
+}

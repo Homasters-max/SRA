@@ -18,5 +18,6 @@
 | [0012](WARRANT-ADR-0012-id-allocation.md) | Выдача ID: NNN immutable с MERGED, ULID для EVID/RUN, реестр AREA | ACCEPTED |
 | [0013](WARRANT-ADR-0013-mvp-refinement.md) | Уточнение MVP: sample-проект, TypeScript, агент ведёт slice, core-sdd@0.1 = feature/chore/factory-change | ACCEPTED |
 | [0014](WARRANT-ADR-0014-claude-code-enforcement.md) | Enforcement в Claude Code: static deny + `warrant guard`, review как subagent | ACCEPTED |
+| [0015](WARRANT-ADR-0015-openspec-sync-contract.md) | Контракт `warrant sync` с OpenSpec 1.13.1: что генерируется, schema `warrant-sdd`, что WARRANT читает у OpenSpec (S2, остаток S3) | ACCEPTED |
 
 Новый ADR: следующий номер, frontmatter как в существующих, строка в этой таблице.

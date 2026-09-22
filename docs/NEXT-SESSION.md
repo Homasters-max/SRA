@@ -13,9 +13,13 @@ version: 0.1.0
 ## Состояние на 2026-09-22
 
 - Документы 01–08 отгриллены в MVP-scope. Результат — ADR-0010…0014 ([adr/](adr/README.md)); документы 01–04 приведены в соответствие.
-- Спайки: S1 закрыт (ADR-0012 §7, OpenSpec 1.13.1), S3 закрыт (ADR-0009), S4 закрыт (ADR-0013: TypeScript), S5 закрыт (ADR-0014), S6 — proposed через LATTICE. **Открыт только S2**: устройство project-local schema и `config.yaml` в OpenSpec 1.13.1.
+- Спайки: S1 закрыт (ADR-0012 §7, OpenSpec 1.13.1), S2 закрыт ([ADR-0015](adr/WARRANT-ADR-0015-openspec-sync-contract.md)), S3 закрыт (ADR-0009, остаток — ADR-0015), S4 закрыт (ADR-0013: TypeScript), S5 закрыт (ADR-0014), S6 — proposed через LATTICE. Открытых spikes нет.
 - Кода нет. Ни одной JSON Schema `warrant://*` нет.
-- Фаза 0 завершена. Следующая — **фаза 1 Kernel** ([13 §2](13-roadmap.md)), ведётся через OpenSpec, без superpowers.
+- OpenSpec инициализирован в репозитории (`openspec init --tools claude`, schema `spec-driven`, `config.yaml` вручную — ADR-0015 п. 7).
+- Change `phase-1-kernel`: `proposal.md`, `specs/kernel/spec.md` (REQ-KRN-001…027, SCN-KRN-001…072), `design.md`, `tasks.md`
+  написаны, `openspec validate --strict` проходит. Семь вопросов review закрыты (`DECISION` в proposal).
+  `.warrant/local/areas.json` создан вручную (`KRN` → `kernel`). **Следующий шаг — apply** на ветке `feature/phase-1-kernel`
+  (`/opsx:apply phase-1-kernel`), группы задач 1 → 10, тесты первыми для schemas и resolver.
 
 ## Что уже решено для фазы 1 (не обсуждать заново)
 
@@ -37,41 +41,29 @@ version: 0.1.0
 Skills superpowers из Claude Code убраны. Фаза 1 ведётся **самим OpenSpec** в этом репозитории: это одновременно
 закрывает S2 (мы увидим `config.yaml` и schema изнутри) и даёт первые артефакты для будущего `factory-change`.
 
-### Шаг 1 — подключить OpenSpec и провести спайк S2
+### Шаг 1 — спайк S2 · выполнен
 
-OpenSpec 1.13.1 уже установлен глобально (`@fission-ai/openspec@1.13.1`, проверено `openspec --version`).
-Повторно не ставить — только инициализировать в репозитории:
+`openspec init --tools claude` сделан, результат — [ADR-0015](adr/WARRANT-ADR-0015-openspec-sync-contract.md). S2 и остаток S3 закрыты в 13 §3.
 
-```bash
-openspec init
-```
+### Шаг 2 — планирование Change `phase-1-kernel` · выполнено
 
-Изучить сгенерированные `openspec/config.yaml`, `openspec/schemas/`, slash-команды (`/opsx:*` или `/openspec:*`
-в зависимости от версии). Результат — **ADR-0015**: что именно генерирует `warrant sync`, как выглядит
-project-local schema `warrant-sdd`. Закрыть S2 в 13 §3.
+`openspec/changes/phase-1-kernel/`: proposal (решения review — `DECISION` в конце), specs (REQ-KRN-001…027, SCN-KRN-001…072),
+design (D-1…D-10), tasks (10 групп, 47 задач). `openspec validate phase-1-kernel --strict` — зелёный.
 
-### Шаг 2 — один OpenSpec Change на фазу 1
+### Шаг 2a — apply · следующий
 
-Change `phase-1-kernel` через штатные команды OpenSpec (propose → specs → design → tasks → apply → archive):
-
-- **proposal.md** — только WHY / WHAT / non-goals (13 §5): команды `init validate fmt id sync resolve status`,
-  core-sdd@0.1 = `feature chore factory-change`. Не design.
-- **specs/** — требования с `<!-- id: REQ-KRN-NNN -->` под заголовками (ADR-0012 §7): по одному REQ на команду
-  и на JSON Schema; сценарии WHEN/THEN. Это первые реальные stable ID проекта — сразу проверяем S1 на себе.
-- **design.md** — monorepo `packages/cli/` TypeScript, порядок schemas по зависимостям
-  (`config pack profile overlay gate check change-record evidence evidence-manifest controller-rules risk-floor
-  risk-levels openspec-rules waiver`), `resolve` как чистая функция с golden cases (12 §2).
-- **tasks.md** — ссылки на REQ; порядок: schemas → `validate` → `fmt` → `init` → `id` → `sync` → `resolve --explain` → `status`.
-- **apply** — тесты первыми для schemas и `resolve`; ветка `feature/phase-1-kernel`.
-- **archive** — критерий выхода 13 §2: `warrant validate` проходит на core-sdd и на sample-проекте после `warrant init`.
+Ветка `feature/phase-1-kernel`. Вести через `/opsx:apply phase-1-kernel` группами задач 1 → 10 из tasks.md:
+каркас → schemas (тесты первыми) → validate → fmt → init → id → sync → resolve (golden первыми) → status → критерий выхода.
+Коммит на группу. Ничего сверх tasks.md: новая потребность — сначала правка tasks/design, потом код.
 
 Готовый запрос:
 
 ```text
-Прочитай docs/NEXT-SESSION.md, затем docs/00-readme.md, 13-roadmap.md, adr/WARRANT-ADR-0006, 0007, 0009–0014,
-затем 02, 03, 04, 05, 06, 06a, 08. OpenSpec 1.13.1 уже установлен глобально — только `openspec init`.
-Выполни Шаг 1 (спайк S2 → ADR-0015). Затем создай OpenSpec
-Change phase-1-kernel по Шагу 2 и остановись после proposal + specs на моё review. Спорные места — вопросом ко мне.
+Прочитай docs/NEXT-SESSION.md, затем openspec/changes/phase-1-kernel/{proposal,design,tasks}.md и specs/kernel/spec.md.
+Документы 02–08 и ADR-0006, 0012, 0013, 0015 — по мере необходимости. Создай ветку feature/phase-1-kernel и выполняй
+tasks.md через /opsx:apply phase-1-kernel, группа за группой, начиная с 1. Тесты первыми для schemas и resolver.
+Коммит после каждой группы с зелёными тестами. Отклонения от spec/design — вопросом ко мне, не молча.
+Остановись после группы 3 (validate работает на packs/core-sdd) и покажи результат.
 ```
 
 ### Шаг 3 — не раньше конца фазы 1

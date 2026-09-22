@@ -30,6 +30,7 @@ version: 0.1.0
 | B3 | `packages/cli/src/core/packs/hash.ts` `checkLock()` | pack, удалённый из `warrant.json`, но оставшийся в lock, не даёт `LOCK_MISMATCH` (`sync --check` при этом видит расхождение) | quick fix, отдельный PR в любой момент |
 | B4 | `packages/cli/src/bin/warrant.ts` `run()` | `process.exit` сразу после записи envelope в stdout; в pipe на Windows большой вывод может обрезаться | **фаза 3**, вместе с CI-матрицей ubuntu + windows (`process.exitCode` вместо `exit`) |
 | B5 | `packages/cli/src/core/openspec/yaml-emit.ts` `emitKey()` | ключи `null` / `true` / `false` пишутся в YAML без кавычек и читаются как не-строки | quick fix, можно вместе с B3 |
+| B6 | `packages/cli/src/core/ids/scan.ts` | после `openspec archive` main spec `openspec/specs/**` и архивная delta `openspec/changes/archive/**` объявляют одни и те же `REQ`/`SCN` → ложный `ID_DUPLICATE` (найдено при архивировании `phase-1-kernel`, G-6). Архив должен считаться «занято», но не «объявлено дважды» | **фаза 2**, группа 3, с SCN в delta spec kernel |
 
 Пункты не дублировать в GitHub issues без решения maintainer'а; эта таблица — единственное место учёта.
 

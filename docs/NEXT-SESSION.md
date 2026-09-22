@@ -32,7 +32,7 @@ version: 0.2.0
   `fmt --check` и `sync --check` — `changed: []`, `openspec validate phase-2-core-sdd --strict` зелёный,
   `golden:update` — `written: []`, повторный `npm test` не меняет рабочее дерево (SCN-SDD-015).
 - Решения по ходу реализации **I-45…I-65** — таблица «Решения по ходу реализации» в
-  [openspec/changes/phase-2-core-sdd/design.md](../openspec/changes/phase-2-core-sdd/design.md). Долг, переходящий в фазу 3:
+  [design.md архива](../openspec/changes/archive/2026-09-22-phase-2-core-sdd/design.md). Долг, переходящий в фазу 3:
 
   | # | Долг |
   |---|---|

@@ -129,6 +129,12 @@ resolver композирует их по правилам §5.
 
 Итоговое значение измерения = максимум из floor, proposer и human (понижение ниже floor — только с approval).
 
+**Floor по размеру diff** (Maturity: later, по failure mode). Правило вида
+`{ "diff_size": { "files": N, "lines": M }, "set": { "blast_radius": "COMPONENT" } }` с порогами из параметров pack:
+большой Change получает более строгую policy, но не блокируется; «разбить Change» решает человек. Отдельного
+finding `OVERSIZED` нет. В транспорте `sef-hub` то же делает `risk_floor` SEF по фактическому diff
+([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)). Источник идеи — правило «1 change = 1–4 недели» в `oinsio/clear-progress`.
+
 ### Уровень risk
 
 Вычисляется детерминированно, **в этом порядке**:

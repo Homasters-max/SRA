@@ -96,6 +96,10 @@ Change + relevant specs + relevant ADR + glossary + affected files + relevant te
 - Каждый finding MUST иметь `marker` (обычно `FACT` или `INFERENCE`); INFERENCE MUST NOT выдаваться за FACT.
 - Локальные `id` (`F-1`, `U-1`) действуют внутри результата; stable ID (`UNK-…`) выдаёт CLI при записи.
 - `severity`: `BLOCKER`, `MAJOR`, `MINOR`, `INFO`.
+- **Ничего не теряется молча** (Maturity: later — с первым skill, чей manifest объявляет входной список, например
+  вывод гейта или findings другого ревьюера). Каждый входной элемент попадает либо в `findings[]`, либо в
+  `dismissed[]` (`{ "input_ref", "reason" }`); CLI при приёме envelope проверяет покрытие по ссылкам и числу.
+  Источник — приём «сначала дословно перечисли все находки» из `oinsio/clear-progress`.
 
 ## 5. Authority
 

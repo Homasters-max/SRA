@@ -116,6 +116,7 @@ Lock MUST генерироваться CLI и MUST NOT редактироват�
 | `data` | profiles data-change / migration, contracts, compatibility, rollback | later | [09-pack-data](09-pack-data.md) |
 | `brownfield` | characterization, baseline spec | later | [10-pack-brownfield](10-pack-brownfield.md) |
 | `security` | overlays по `security_impact`, threat-model, security checks, threat review | later | [10-pack-security](10-pack-security.md) |
+| `ui` | UI States Matrix (сеть × данные → UI: loading, error, empty, offline) в proposal, a11y (axe-core), visual regression | later (первый проект с UI) | — |
 | `lattice`, `jev`, `sef` | интеграционные адаптеры: proposal channel, read model, проекция маркеров | deferred | [11-integrations](11-integrations.md), [integrations/](integrations/00-readme.md) |
 
 ## 7. Правка конфигурации агентом (LLM)

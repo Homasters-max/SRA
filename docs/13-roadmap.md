@@ -49,6 +49,14 @@ OpenSpec + warrant-sdd schema + profile feature
 | S6 | Принимает ли LATTICE внешние stable ID (`REQ-ING-001`) как identity, или выдаёт свои и нужен mapping. Формат ID фиксируется в фазе 1, поэтому вопрос — до MVP, а не в фазе 9. Proposed ответ: identity LATTICE = `<context>/<name>`, name = stable ID WARRANT без mapping ([integrations/06 D1](../lattice/docs/03-substrate-decisions.md)) |
 | S7 | Mutation-инструмент для Python sample (до фазы 5; MVP не блокирует). Критерии: результат по каждому мутанту, location в строках, стабильный вывод, parser в mutation-testing-report-schema без опоры на недокументированный формат (mutmut 3 `.meta` — не годится как есть) ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)) |
 
+### Later-идеи без отдельного ADR (источник — `oinsio/clear-progress`)
+
+| Идея | Где записана | Триггер |
+|---|---|---|
+| Floor `blast_radius` по размеру diff | [05 §4](05-policy.md) | Failure mode: слишком большой Change |
+| Pack `ui`: UI States Matrix, a11y, visual regression | [08 §6](08-packs.md) | Первый проект с UI |
+| `dismissed[]` и покрытие входного списка в skill-result | [07 §4](07-skills.md) | Первый skill с входным списком |
+
 ## 4. Не входит в MVP
 
 ```text

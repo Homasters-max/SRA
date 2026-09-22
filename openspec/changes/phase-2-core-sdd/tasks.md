@@ -37,9 +37,9 @@
 
 ## 5. Golden
 
-- [ ] 5.1 Скрипт `scripts/golden-update.js` (`npm run golden:update`): для каждого `packs/core-sdd/golden/<profile>/` копирует во временный проект, `sync`, `resolve --explain`, `status` (fake openspec), пишет `expected/*.json` канонически без volatile-полей. Проверка: запуск создаёт три `expected/` каталога; повторный запуск — без diff. (REQ-SDD-009)
-- [ ] 5.2 Три golden-проекта `feature`, `chore`, `factory-change` с change record (полная classification по REQ-SDD-003…005) и artifacts. Проверка: `warrant validate` внутри каждого golden `ok: true`. (REQ-SDD-009)
-- [ ] 5.3 e2e `golden.test.ts`: сравнение с `expected/*` побайтно после канонизации; утверждения SCN-SDD-004, SCN-SDD-005, SCN-SDD-007. Проверка: `npm test` зелёный; SCN-SDD-016 — временное удаление `scope-valid` из `feature.json` ломает два golden (проверить вручную, вернуть). (REQ-SDD-009)
+- [x] 5.1 Скрипт `scripts/golden-update.js` (`npm run golden:update`): для каждого `packs/core-sdd/golden/<profile>/` копирует во временный проект, `sync`, `resolve --explain`, `status` (fake openspec), пишет `expected/*.json` канонически без volatile-полей. Проверка: запуск создаёт три `expected/` каталога; повторный запуск — без diff. (REQ-SDD-009)
+- [x] 5.2 Три golden-проекта `feature`, `chore`, `factory-change` с change record (полная classification по REQ-SDD-003…005) и artifacts. Проверка: `warrant validate` внутри каждого golden `ok: true`. (REQ-SDD-009)
+- [x] 5.3 e2e `golden.test.ts`: сравнение с `expected/*` побайтно после канонизации; утверждения SCN-SDD-004, SCN-SDD-005, SCN-SDD-007. Проверка: `npm test` зелёный; SCN-SDD-016 — временное удаление `scope-valid` из `feature.json` ломает два golden (проверить вручную, вернуть). (REQ-SDD-009)
 
 ## 6. Выход фазы 2
 

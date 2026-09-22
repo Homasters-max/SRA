@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://profile/1",
+  "title": "WARRANT profile",
+  "description": "Profile — a named policy layer selected by classification (05 section 3).",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://profile/1"
+    },
+    "id": {
+      "description": "Profile id, unique across the packs enabled in a project.",
+      "$ref": "warrant://common/1#/$defs/kebab_id"
+    },
+    "version": {
+      "description": "Exact version of this profile.",
+      "$ref": "warrant://common/1#/$defs/semver"
+    },
+    "overrides": {
+      "description": "Pack object this local profile replaces, as `<pack>:<id>` (08 section 4).",
+      "$ref": "warrant://common/1#/$defs/overrides_ref"
+    },
+    "description": {
+      "description": "What this profile is for, in one sentence.",
+      "type": "string"
+    },
+    "extends": {
+      "description": "Profile ids merged in before this profile, depth first and without cycles.",
+      "type": "array",
+      "items": { "$ref": "warrant://common/1#/$defs/kebab_id" }
+    },
+    "match": {
+      "description": "Deterministic selection rules proposing this profile.",
+      "type": "object",
+      "properties": {
+        "paths": {
+          "description": "Glob patterns over changed paths that propose this profile.",
+          "type": "array",
+          "items": {
+            "description": "Glob pattern relative to the project root.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifacts": {
+      "description": "Artifact requirements contributed by this profile.",
+      "$ref": "warrant://common/1#/$defs/policy_body/properties/artifacts"
+    },
+    "gates": {
+      "description": "Gates required per transition under this profile.",
+      "$ref": "warrant://common/1#/$defs/policy_body/properties/gates"
+    },
+    "capabilities": {
+      "description": "Capability restrictions contributed by this profile.",
+      "$ref": "warrant://common/1#/$defs/policy_body/properties/capabilities"
+    },
+    "approvals": {
+      "description": "Human approvals required under this profile.",
+      "$ref": "warrant://common/1#/$defs/policy_body/properties/approvals"
+    },
+    "evidence": {
+      "description": "Evidence requirements contributed by this profile.",
+      "$ref": "warrant://common/1#/$defs/policy_body/properties/evidence"
+    }
+  },
+  "required": ["$schema", "id", "version"],
+  "additionalProperties": false
+}

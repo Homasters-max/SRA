@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://openspec-rules/1",
+  "title": "WARRANT OpenSpec rules source",
+  "description": "Source of `openspec/config.yaml`: project context, per-artifact rules and operation guidance (08 section 8, ADR-0015). Every field is optional; an object carrying only `$schema` is valid.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://openspec-rules/1"
+    },
+    "context": {
+      "description": "Project context injected into every OpenSpec artifact instruction.",
+      "type": "string"
+    },
+    "rules": {
+      "description": "Extra rules per artifact, keyed by an artifact id of the OpenSpec schema in use.",
+      "type": "object",
+      "properties": {},
+      "patternProperties": {
+        "^[a-z0-9]+(-[a-z0-9]+)*$": {
+          "description": "Rules shown to the agent working on this artifact.",
+          "type": "array",
+          "items": {
+            "description": "One rule, phrased as an instruction.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "propertyNames": {
+        "anyOf": [
+          { "$ref": "warrant://common/1#/$defs/kebab_id" },
+          { "pattern": "^\\$comment$" }
+        ]
+      },
+      "additionalProperties": false
+    },
+    "operations": {
+      "description": "Guidance for OpenSpec operations. Only `apply` and `archive` exist.",
+      "type": "object",
+      "properties": {
+        "apply": {
+          "description": "Guidance shown while implementing a Change.",
+          "type": "object",
+          "properties": {
+            "guidance": {
+              "description": "Instructions added to the operation.",
+              "type": "array",
+              "items": {
+                "description": "One instruction.",
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "archive": {
+          "description": "Guidance shown while archiving a Change.",
+          "type": "object",
+          "properties": {
+            "guidance": {
+              "description": "Instructions added to the operation.",
+              "type": "array",
+              "items": {
+                "description": "One instruction.",
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["$schema"],
+  "additionalProperties": false
+}

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://overlay/1",
+  "title": "WARRANT overlay",
+  "description": "Overlay — a policy layer applied when its `match` agrees with the classification of a Change (05 section 4).",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://overlay/1"
+    },
+    "id": {
+      "description": "Overlay id, unique across the packs enabled in a project.",
+      "$ref": "warrant://common/1#/$defs/kebab_id"
+    },
+    "version": {
+      "description": "Exact version of this overlay.",
+      "$ref": "warrant://common/1#/$defs/semver"
+    },
+    "overrides": {
+      "description": "Pack object this local overlay replaces, as `<pack>:<id>` (08 section 4).",
+      "$ref": "warrant://common/1#/$defs/overrides_ref"
+    },
+    "description": {
+      "description": "What this overlay adds, in one sentence.",
+      "type": "string"
+    },
+    "match": {
+      "description": "Classification fields that must agree for this overlay to apply. An empty object makes the overlay unconditional.",
+      "type": "object",
+      "properties": {
+        "risk_level": {
+          "description": "Risk levels this overlay applies to.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/risk_level" }
+        },
+        "profiles": {
+          "description": "Profile ids this overlay applies to; the match is an intersection.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/kebab_id" }
+        },
+        "data_loss": {
+          "description": "Values of the `data_loss` dimension this overlay applies to.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/data_loss" }
+        },
+        "reversibility": {
+          "description": "Values of the `reversibility` dimension this overlay applies to.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/reversibility" }
+        },
+        "blast_radius": {
+          "description": "Values of the `blast_radius` dimension this overlay applies to.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/blast_radius" }
+        },
+        "security_impact": {
+          "description": "Values of the `security_impact` dimension this overlay applies to.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/security_impact" }
+        },
+        "compatibility": {
+          "description": "Values of the `compatibility` dimension this overlay applies to.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/compatibility" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifacts": {
+      "description": "Artifact requirements contributed by this overlay.",
+      "$ref": "warrant://common/1#/$defs/policy_body/properties/artifacts"
+    },
+    "gates": {
+      "description": "Gates required per transition under this overlay.",
+      "$ref": "warrant://common/1#/$defs/policy_body/properties/gates"
+    },
+    "capabilities": {
+      "description": "Capability restrictions contributed by this overlay.",
+      "$ref": "warrant://common/1#/$defs/policy_body/properties/capabilities"
+    },
+    "approvals": {
+      "description": "Human approvals required under this overlay.",
+      "$ref": "warrant://common/1#/$defs/policy_body/properties/approvals"
+    },
+    "evidence": {
+      "description": "Evidence requirements contributed by this overlay.",
+      "$ref": "warrant://common/1#/$defs/policy_body/properties/evidence"
+    }
+  },
+  "required": ["$schema", "id", "version"],
+  "additionalProperties": false
+}

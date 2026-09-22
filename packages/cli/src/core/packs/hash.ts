@@ -29,15 +29,28 @@ function err(code: CliError["code"], message: string, p: string): CliError {
 }
 
 /**
+ * Каталог фикстур pack'а, не входящий в его содержимое (решение I-59).
+ *
+ * `golden/` — мини-проекты, которыми pack проверяет сам себя. Каждый из них
+ * хранит собственный `warrant.lock.json`, а лок записывает хэш содержимого
+ * pack'а. Если бы `golden/` попадал в этот хэш, запись лока меняла бы хэш,
+ * который она только что записала, — неподвижной точки не существует. Фикстуры
+ * не перечислены в `provides`, loader их не читает, и на effective policy они не
+ * влияют, поэтому исключение ничего не ослабляет.
+ */
+export const PACK_FIXTURES_DIR = "golden";
+
+/**
  * Hash of a pack directory: the byte hash of every file under it, keyed by its
  * POSIX path relative to the pack root, run through RFC 8785. Sorting comes
  * from the canonical JSON form, so the result does not depend on the order the
- * file system returned.
+ * file system returned. `golden/` is left out (see {@link PACK_FIXTURES_DIR}).
  */
 export function packContentHash(dir: string): string {
   const files: Record<string, string> = {};
   for (const absolute of walkFiles(dir)) {
     const rel = path.relative(dir, absolute).split(path.sep).join("/");
+    if (rel === PACK_FIXTURES_DIR || rel.startsWith(`${PACK_FIXTURES_DIR}/`)) continue;
     files[rel] = bytesHash(readFileSync(absolute));
   }
   return canonicalHash({ files });

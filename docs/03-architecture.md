@@ -116,7 +116,8 @@ project/
 │   ├── evidence/<change>/          manifest.json + записи EVID-*.json
 │   └── runs/                       RUN-*.json + current (в git в MVP; внешнее хранение — later)
 │
-├── .claude/                        генерируется warrant sync для frontend Claude Code (ADR-0014)
+├── .codex/hooks.json               генерируется warrant sync: hook warrant guard --frontend codex (ADR-0018, MVP)
+├── .claude/                        адаптер claude, later (ADR-0014)
 │   ├── settings.json               permissions.deny + hook warrant guard
 │   └── agents/warrant-reviewer.md  subagent для review-Run
 │

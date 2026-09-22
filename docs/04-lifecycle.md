@@ -151,12 +151,14 @@ Prompt не является enforcement (INV-04). Принуждение рас
 | **CLI** `warrant` | Разрешает переходы состояний, пишет record, evidence и runs | MVP |
 | **CI** `warrant ci` | Заново вычисляет L0/L1, верифицирует refs, блокирует merge. Не пишет в репозиторий ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)) | MVP |
 | **Форж** (GitHub) | Bot-идентичность агента без права merge; branch protection на `main`; required review | MVP |
-| **Static deny** frontend'а | `permissions.deny` в `.claude/settings.json`, генерируется `warrant sync` | MVP (Claude Code) |
-| **Hook** `warrant guard` | `PreToolUse` на `Edit|Write|Bash`: отказ вне `write_scope` активного Run и на прямой запуск тяжёлых checks (ADR-0017) | MVP (Claude Code) |
+| **ACP client** (SEF / оркестратор) | Наблюдает `tool_call`, `validate --files` после правки, `session/cancel` при записи вне `write_scope`, проверка живости hooks ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)) | MVP (если оркестрация через ACP) |
+| **Hook** `warrant guard --frontend <name>` | `pre`: отказ вне `write_scope` активного Run и на прямой запуск тяжёлых checks (ADR-0017); `post`: hints по изменённому файлу ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)) | MVP (`codex`); `claude`, `opencode` — later |
+| **Static deny** frontend'а | `permissions.deny` в `.claude/settings.json`, генерируется `warrant sync` | later (адаптер `claude`) |
 
-WARRANT **agent-agnostic**: вся логика в CLI, который общается JSON. Frontends (Claude Code — первый;
-далее агенты через ACP или API) — адаптеры, которые вызывают CLI и транслируют capabilities в свои
-механизмы (permissions, hooks, sandbox). Детали для Claude Code — [ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md).
+WARRANT **agent-agnostic**: вся логика в CLI, который общается JSON. Frontends — адаптеры, которые переводят
+родной формат агента в нормализованное событие `warrant guard` и обратно ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)).
+В MVP реализацию ведёт Codex через codex-acp; адаптер Claude Code ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)) — later.
+Hooks внутри агента — ускорение, а не гарантия: запрет до действия, если они загружены; дальше ACP и CI.
 
 Известный предел: deny на `Edit` / `Write` не мешает записи через shell. Гарантия — не hook, а CI: запись
 без верифицируемого ref не проходит `warrant ci`.
@@ -201,7 +203,7 @@ WARRANT **agent-agnostic**: вся логика в CLI, который обща�
 | `warrant resolve <change> [--explain]` | Вычислить effective policy с происхождением каждого требования | MVP |
 | `warrant next <change>` | Ответ controller | MVP |
 | `warrant run start\|submit\|finish` | Создать Run и Context Pack, принять result envelope skill, закрыть Run | MVP |
-| `warrant guard` | Hook: разрешить / отклонить запись по `write_scope` активного Run и прямой запуск тяжёлых checks ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)) | MVP |
+| `warrant guard --frontend <name>` | Адаптер frontend: `pre` — разрешить / отклонить по `write_scope` и тяжёлым checks ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)); `post` — hints ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)); нормализованный контракт — [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md) | MVP |
 | `warrant unknown add\|resolve`, `warrant assumption add` | Записать UNKNOWN / ASSUMPTION / DECISION в record | MVP |
 | `warrant check [id] [--paths …] [--wait]` | Запустить check(s), записать evidence; `--paths` — суженный прогон, `--wait` — ждать замок `exclusive` ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)) | MVP |
 | `warrant gate [id]` | Вычислить verdict(s) | MVP |
@@ -212,7 +214,7 @@ WARRANT **agent-agnostic**: вся логика в CLI, который обща�
 | `warrant archive <change>` | `openspec validate --strict` → gates `MERGED → ARCHIVED` → `openspec archive --yes --json` | MVP |
 | `warrant ci` | Всё для CI: Change и переход из ветки, пересчёт L0/L1, верификация refs, JSON, exit 1 при `FAIL` | MVP |
 | `warrant id <prefix> <area>`, `warrant id renumber <old> <new>` | Выдать stable ID; перенумеровать до `MERGED` при коллизии | MVP |
-| `warrant validate` | Конфигурация, packs, JSON Schema, IDs, сгенерированные YAML, отсутствие токенов | MVP |
+| `warrant validate [--files <paths>]` | Конфигурация, packs, JSON Schema, IDs, сгенерированные YAML, отсутствие токенов; `--files` — только проверки одного файла ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)) | MVP |
 | `warrant fmt` | Привести JSON к каноническому виду | MVP |
 | `warrant sync` | Сгенерировать `openspec/config.yaml`, schema, `.claude/**` из packs; обновить lock | MVP |
 | `warrant waive` | Создать / отозвать waiver | later ([ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md)) |

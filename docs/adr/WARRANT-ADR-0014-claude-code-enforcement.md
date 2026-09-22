@@ -4,8 +4,11 @@ title: Enforcement в frontend Claude Code — два слоя, review как su
 adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
-amended_by: [WARRANT-ADR-0017]
+amended_by: [WARRANT-ADR-0017, WARRANT-ADR-0018]
 ---
+
+> Уточнено [ADR-0018](WARRANT-ADR-0018-frontend-adapters.md): решения этого ADR становятся адаптером `claude` (later);
+> MVP ведёт Codex через codex-acp; `warrant guard` принимает нормализованное событие и `--frontend`.
 
 > Уточнено [ADR-0017](WARRANT-ADR-0017-check-execution.md): `warrant guard` (п. 2) также отклоняет прямой запуск
 > тяжёлых checks по `execution.guard_prefixes` и подсказывает `warrant check`.

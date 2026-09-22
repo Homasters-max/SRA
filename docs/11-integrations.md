@@ -40,7 +40,15 @@ version: 0.1.0
 | **LATTICE** | Semantic read model: объекты, relations, grounding, `epistemic_state`, история по snapshot | REQ, SCN, DCT, ADR, TERM, DECISION как объекты; EVID как provenance | Identity, relations, provenance, валидация инвариантов графа | [integrations/01](integrations/01-lattice-contract.md), [05](integrations/05-warrant-lattice.md) |
 | **SRA** | Result envelope skill ([07 §4](07-skills.md)) | Skill invocation, Context Pack | Reasoning; verdict не выносит | [07](07-skills.md), [integrations/03](integrations/03-sra-lattice.md) |
 | **JEV** | Candidate classification: profiles, risk dimensions ([05 §4](05-policy.md)) | Пути diff, proposal Change | Нет; floor rules не переопределяет | [integrations/04](integrations/04-jev-classifier.md) |
-| **SEF** | Расписание, выбор агента, retry policy | JSON CLI ([04 §7](04-lifecycle.md)): `status`, `next`, `verify` | Оркестрация; переходы состояний — только через `warrant` | открыт |
+| **SEF** | Расписание, выбор агента, retry policy | JSON CLI ([04 §7](04-lifecycle.md)): `status`, `next`, `verify` | Оркестрация; переходы состояний — только через `warrant` | открыт; требования запуска агента — ниже |
+
+### Требования WARRANT к запуску агентов SEF
+
+Status: proposed · Источник: [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md). Не закрывает вопрос «SEF: CLI или API».
+
+- Процесс ACP-адаптера агента запускается с cwd = worktree Change, один процесс на worktree (Codex читает hooks при старте процесса).
+- `session/request_permission` не считается механизмом запрета: агент не обязан его вызывать.
+- Если SEF — ACP client, он вызывает `warrant validate --files` по `locations` завершённых edit `tool_call`, доставляет hints в следующем prompt и делает `session/cancel` при записи вне `write_scope`.
 
 Роль WARRANT в цепочке proposals всех компонентов одна: **authorization** (policy, approval, INV-11) между источником
 proposal и валидацией LATTICE ([integrations/02 §3](integrations/02-proposal-contract.md)).

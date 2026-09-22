@@ -1,0 +1,79 @@
+#!/usr/bin/env node
+import { Command, CommanderError } from "commander";
+import { EXIT, WarrantError } from "../core/errors.js";
+import { emit, failure, resultFromThrown, type CommandResult } from "../io/output.js";
+import { CLI_VERSION } from "../version.js";
+import { notImplemented } from "../commands/stub.js";
+import { requireConfigPath } from "../commands/context.js";
+
+export type Runner = (args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
+
+const program = new Command("warrant")
+  .description("WARRANT specification governance CLI")
+  .version(CLI_VERSION, "-V, --version")
+  .option("--json", "print the JSON envelope (always on in phase 1)")
+  .exitOverride()
+  .configureOutput({
+    // Commander's own help/errors are diagnostics, not the envelope: keep stdout clean.
+    writeOut: (text) => process.stderr.write(text),
+    writeErr: (text) => process.stderr.write(text)
+  });
+
+async function run(name: string, runner: Runner, args: string[], opts: Record<string, unknown>): Promise<never> {
+  let result: CommandResult;
+  try {
+    result = await runner(args, opts);
+  } catch (thrown) {
+    result = resultFromThrown(thrown);
+  }
+  process.exit(emit(name, result));
+}
+
+function register(name: string, description: string, runner: Runner, configure?: (cmd: Command) => void): void {
+  const cmd = program.command(name).description(description);
+  configure?.(cmd);
+  cmd.action(async (...actionArgs: unknown[]) => {
+    const command = actionArgs[actionArgs.length - 1] as Command;
+    await run(name, runner, command.args, command.opts());
+  });
+}
+
+const needsConfig: Runner = () => {
+  requireConfigPath();
+  return notImplemented("(pending)");
+};
+
+register("init", "initialise .warrant/ or a new change", () => notImplemented("init"), (c) =>
+  c.argument("[what]").argument("[name]").option("--force")
+);
+register("validate", "validate configuration, packs, schemas, ids and generated files", needsConfig, (c) =>
+  c.option("--no-generated")
+);
+register("fmt", "canonicalise JSON files", () => notImplemented("fmt"), (c) =>
+  c.argument("[paths...]").option("--check")
+);
+register("id", "allocate stable ids", needsConfig, (c) => c.argument("[args...]").option("--change <name>"));
+register("sync", "generate OpenSpec files and lock", needsConfig, (c) => c.option("--check"));
+register("resolve", "compute effective policy", needsConfig, (c) =>
+  c.argument("<change>").option("--explain").option("--classification <file>")
+);
+register("status", "show change status", needsConfig, (c) => c.argument("[change]"));
+
+async function main(): Promise<void> {
+  try {
+    await program.parseAsync(process.argv);
+  } catch (thrown) {
+    if (thrown instanceof CommanderError) {
+      // --version and --help exit through here with code 0; their text already went to stderr.
+      if (thrown.exitCode === 0) {
+        if (thrown.code === "commander.version") process.stdout.write(CLI_VERSION + "\n");
+        process.exit(EXIT.OK);
+      }
+      const command = process.argv[2] ?? "";
+      process.exit(emit(command, failure(new WarrantError("USAGE", thrown.message.trim()))));
+    }
+    process.exit(emit(process.argv[2] ?? "", resultFromThrown(thrown)));
+  }
+}
+
+void main();

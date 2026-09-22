@@ -6,10 +6,10 @@
 
 ## 1. Каркас monorepo (D-1, D-8)
 
-- [ ] 1.1 Создать ветку `feature/phase-1-kernel`; корневой `package.json` (workspaces `packages/*`, `bin.warrant`, `prepare`), `.gitignore` для `node_modules/`, `dist/`; проверить `npm install` без ошибок
-- [ ] 1.2 `packages/cli/`: `package.json` (`private`, ESM, deps `commander`, `ajv`, `ajv-formats`, `canonicalize`, `ulid`, `cross-spawn`; dev `typescript`, `vitest`, `yaml`), `tsconfig.json` strict, скрипты `build`, `test`; проверить `npm -w packages/cli run build` даёт `dist/`
-- [ ] 1.3 `src/core/errors.ts` — каталог кодов из D-8; `src/io/output.ts` — envelope `{command, ok, change?, data, errors}` и коды выхода (REQ-KRN-002, REQ-KRN-003); unit-тест: envelope печатается одним объектом, `USAGE` → код 3
-- [ ] 1.4 `src/bin/warrant.ts` на commander с командами-заглушками `init validate fmt id sync resolve status`; e2e-тест: `warrant nosuchcommand` → код 3 и `errors[0].code = USAGE` (SCN-KRN-006); `warrant validate` без `.warrant/` → `CONFIG_MISSING`, код 3 (SCN-KRN-007)
+- [x] 1.1 Создать ветку `feature/phase-1-kernel`; корневой `package.json` (workspaces `packages/*`, `bin.warrant`, `prepare`), `.gitignore` для `node_modules/`, `dist/`; проверить `npm install` без ошибок
+- [x] 1.2 `packages/cli/`: `package.json` (`private`, ESM, deps `commander`, `ajv`, `ajv-formats`, `canonicalize`, `ulid`, `cross-spawn`; dev `typescript`, `vitest`, `yaml`), `tsconfig.json` strict, скрипты `build`, `test`; проверить `npm -w packages/cli run build` даёт `dist/`
+- [x] 1.3 `src/core/errors.ts` — каталог кодов из D-8; `src/io/output.ts` — envelope `{command, ok, change?, data, errors}` и коды выхода (REQ-KRN-002, REQ-KRN-003); unit-тест: envelope печатается одним объектом, `USAGE` → код 3
+- [x] 1.4 `src/bin/warrant.ts` на commander с командами-заглушками `init validate fmt id sync resolve status`; e2e-тест: `warrant nosuchcommand` → код 3 и `errors[0].code = USAGE` (SCN-KRN-006); `warrant validate` без `.warrant/` → `CONFIG_MISSING`, код 3 (SCN-KRN-007)
 - [ ] 1.5 Проверить установку через git: `npm i -g <путь к репозиторию>` даёт рабочий `warrant --version`; зафиксировать команду в README
 
 ## 2. JSON Schemas kernel — тесты первыми (D-2, REQ-KRN-001, REQ-KRN-004…020)

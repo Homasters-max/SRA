@@ -199,12 +199,14 @@ describe.skipIf(!hasOpenspec)("warrant validate (12): evidence records and manif
     expect(run.status).toBe(0);
   }, 60_000);
 
-  it("leaves raw JSON output alone in checks (1) and (7) and in fmt (I-76)", async () => {
+  it("leaves raw output alone in checks (1), (6) and (7) and in fmt (I-76)", async () => {
     const root = seeded();
     write(root, `${DIR}/${ID_A}.json`, evidence(ID_A));
     write(root, `${DIR}/manifest.json`, manifest([ID_A]));
     // What `openspec validate --json` prints: no `$schema`, not canonical.
     write(root, `${DIR}/raw/openspec-validate/stdout.json`, '{"items":[],   "version":"1.0"}');
+    // A test report may quote a secret-scanner fixture; raw output is never committed.
+    write(root, `${DIR}/raw/tests-passed/junit.xml`, `<testcase name="ghp_${"a".repeat(36)}"/>\n`);
     const run = await validate(root);
     expect(run.json?.errors).toEqual([]);
     expect(run.status).toBe(0);

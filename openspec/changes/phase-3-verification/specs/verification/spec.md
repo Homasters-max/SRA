@@ -48,7 +48,8 @@ Evidence Change SHALL храниться в `<state>/evidence/<change>/`: `manif
 `warrant check <change> [id...] [--paths <a,b>] [--base <ref>]` SHALL выполнить указанные checks (без `id` — все checks, чьи
 `produces` пересекаются с `requires_evidence` gates следующего перехода вперёд из `change_state` record), каждый — командой `run.command`
 после подстановки плейсхолдеров `{out}`, `{change}`, `{paths}` ([REQ-KRN-010](#requirement-схема-check)); с `--paths` SHALL выполняться
-`run.scoped_command`, а запись SHALL нести `limitations: ["scoped: <paths>"]`. Check без `run.command` (например, `tests-passed` pack'а без
+`run.scoped_command`, а запись SHALL нести `limitations: ["scoped: <paths>"]`; check без `scoped_command` при `--paths` SHALL выполнять
+полный `run.command` без этой пометки с предупреждением в stderr (I-80). Check без `run.command` (например, `tests-passed` pack'а без
 override в `.warrant/local/checks/`) SHALL давать `CHECK_NOT_CONFIGURED`, код 3. Вывод SHALL разбираться parser'ом (`junit` → kind
 `test-report`; `openspec-validate` → kind `spec-report`) в `evidence_status` (`PROVEN` при отсутствии падений, иначе `NOT_PROVEN`;
 `NOT_APPLICABLE` — когда parser детерминированно установил отсутствие предмета проверки, D-11) и `metrics` по форме kind'а.

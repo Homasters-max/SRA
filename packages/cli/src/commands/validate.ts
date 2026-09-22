@@ -179,11 +179,11 @@ export function runValidate(
     warn("validate: check (5) id placement skipped: `openspec` is not on PATH\n");
   }
 
-  // Check (6): secrets.
+  // Check (6): secrets; raw check output is never committed (I-76).
   errors.push(
     ...scanSecrets(
       root,
-      (dir) => walkFiles(dir),
+      (dir) => walkFiles(dir).filter((absolute) => !isRawEvidencePath(reportPath(absolute, root))),
       (absolute) => reportPath(absolute, root)
     )
   );

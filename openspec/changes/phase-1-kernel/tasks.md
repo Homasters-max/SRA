@@ -35,9 +35,9 @@
 
 ## 4. Команда fmt (D-3, REQ-KRN-022)
 
-- [ ] 4.1 `src/core/canon/{order-keys,format-json,hash}.ts`; unit-тесты: `$schema` первым, порядок по `properties` схемы с разыменованием `#/$defs` и `warrant://common/1`, словари по алфавиту, файл без схемы — алфавит; `canonicalHash` стабилен для переставленных ключей
-- [ ] 4.2 Команда `fmt [paths...]` и `--check`; e2e: канонический файл не меняет байты и `data.changed = []` (SCN-KRN-049); переставленные ключи в `warrant.json` приводятся (SCN-KRN-050); `--check` → код 1 и путь в `data.changed` (SCN-KRN-051); файл без `$schema` → warning в stderr, stdout только envelope (SCN-KRN-004)
-- [ ] 4.3 Проверка (7) в `validate`: неканонический файл → `NOT_CANONICAL`; тест
+- [x] 4.1 `src/core/canon/{order-keys,format-json,hash}.ts`; unit-тесты: `$schema` первым, порядок по `properties` схемы с разыменованием `#/$defs` и `warrant://common/1`, словари по алфавиту, файл без схемы — алфавит; `canonicalHash` стабилен для переставленных ключей
+- [x] 4.2 Команда `fmt [paths...]` и `--check`; e2e: канонический файл не меняет байты и `data.changed = []` (SCN-KRN-049); переставленные ключи в `warrant.json` приводятся (SCN-KRN-050); `--check` → код 1 и путь в `data.changed` (SCN-KRN-051); файл без `$schema` → warning в stderr, stdout только envelope (SCN-KRN-004)
+- [x] 4.3 Проверка (7) в `validate`: неканонический файл → `NOT_CANONICAL`; тест
 
 ## 5. Команда init (REQ-KRN-023)
 
@@ -47,9 +47,9 @@
 
 ## 6. Команда id (D-5, REQ-KRN-024)
 
-- [ ] 6.1 `warrant id <PREFIX> <AREA>` для `REQ SCN TASK UNK ASM`: max по сканеру (specs + changes + archive + records) + 1, три цифры; AREA из реестра; тесты: учёт archive (SCN-KRN-056), `AREA_UNKNOWN` (SCN-KRN-057), переход через 999 → ошибка `ID_FORMAT`
-- [ ] 6.2 `warrant id EVID | RUN` → ULID, `warrant id WAV` → `WAV-<год>-NNN` по `.warrant/waivers/`; тест: два `EVID` подряд различны и матчат Crockford (SCN-KRN-058)
-- [ ] 6.3 `warrant id renumber <old> <new> --change <name>`: отказ, если `<new>` существует (`ID_TAKEN`) или record в `MERGED` / `ARCHIVED` (`ID_IMMUTABLE`, SCN-KRN-060); замена по границам слова в `openspec/changes/<name>/**` и `paths.tests`; `data.rewritten[]`; тест: файлы вне каталога не тронуты (SCN-KRN-059)
+- [x] 6.1 `warrant id <PREFIX> <AREA>` для `REQ SCN TASK UNK ASM`: max по сканеру (specs + changes + archive + records) + 1, три цифры; AREA из реестра; тесты: учёт archive (SCN-KRN-056), `AREA_UNKNOWN` (SCN-KRN-057), переход через 999 → ошибка `ID_FORMAT`
+- [x] 6.2 `warrant id EVID | RUN` → ULID, `warrant id WAV` → `WAV-<год>-NNN` по `.warrant/waivers/`; тест: два `EVID` подряд различны и матчат Crockford (SCN-KRN-058)
+- [x] 6.3 `warrant id renumber <old> <new> --change <name>`: отказ, если `<new>` существует (`ID_TAKEN`) или record в `MERGED` / `ARCHIVED` (`ID_IMMUTABLE`, SCN-KRN-060); замена по границам слова в `openspec/changes/<name>/**` и `paths.tests`; `data.rewritten[]`; тест: файлы вне каталога не тронуты (SCN-KRN-059)
 
 ## 7. Команда sync (D-4, D-7, D-9, REQ-KRN-025)
 

@@ -4,9 +4,11 @@
  * Every finding is collected: the command never stops at the first error, so
  * one run tells the whole story (SCN-KRN-043, task 3.7).
  *
+ * Check (7), the canonical form, shares its file set with `warrant fmt`
+ * (`core/canon/files.ts`) so the two can never disagree.
+ *
  * Not implemented yet and therefore always listed in `data.skipped`:
  *   - `generated` (check 4)  — closes with task 3.6, after `sync` exists.
- *   - `canonical` (check 7)  — closes with task 4.3, after `fmt` exists.
  */
 import path from "node:path";
 
@@ -16,18 +18,10 @@ import { checkLock, LOCK_REL } from "../core/packs/hash.js";
 import { checkIds } from "../core/ids/scan.js";
 import { scanSecrets } from "../core/secrets.js";
 import { validateFile } from "../core/schemas/semantic.js";
+import { checkCanonical, SCHEMA_COPIES_PREFIX } from "../core/canon/files.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { projectRoot as defaultRoot, WARRANT_DIR } from "./context.js";
 import { readFileSync } from "node:fs";
-
-/**
- * `.warrant/schemas/` holds copies of the kernel JSON-Schema files themselves.
- * They are JSON Schema documents, not WARRANT documents: their `$schema` is
- * `https://json-schema.org/draft/2020-12/schema`, so validating them against
- * the WARRANT registry would report SCHEMA_UNKNOWN for every one. They are
- * excluded from check (1); `sync` verifies them by hash instead.
- */
-const SCHEMA_COPIES_PREFIX = `${WARRANT_DIR}/schemas/`;
 
 function sortErrors(errors: CliError[]): CliError[] {
   return [...errors].sort((a, b) => {
@@ -106,9 +100,8 @@ export function runValidate(
     )
   );
 
-  // Check (7): canonical form — task 4.3.
-  skipped.push("canonical");
-  warn("validate: check (7) canonical form is not implemented yet (task 4.3); skipped\n");
+  // Check (7): canonical form of every `.warrant/**` JSON file (REQ-KRN-022).
+  errors.push(...checkCanonical(root));
 
   const data = {
     checked: { files: checkedFiles.size, packs: loaded.packs.map((p) => p.id) },

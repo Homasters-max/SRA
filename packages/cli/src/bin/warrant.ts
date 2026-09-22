@@ -6,6 +6,8 @@ import { CLI_VERSION } from "../version.js";
 import { notImplemented } from "../commands/stub.js";
 import { requireConfigPath } from "../commands/context.js";
 import { runValidate } from "../commands/validate.js";
+import { runFmt } from "../commands/fmt.js";
+import { runId } from "../commands/id.js";
 
 export type Runner = (args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -57,10 +59,18 @@ register(
   },
   (c) => c.option("--no-generated", "skip check (4), byte comparison of generated OpenSpec files")
 );
-register("fmt", "canonicalise JSON files", () => notImplemented("fmt"), (c) =>
-  c.argument("[paths...]").option("--check")
+register(
+  "fmt",
+  "canonicalise JSON files",
+  (args, opts) => runFmt(args, { check: opts["check"] as boolean | undefined }),
+  (c) => c.argument("[paths...]").option("--check")
 );
-register("id", "allocate stable ids", needsConfig, (c) => c.argument("[args...]").option("--change <name>"));
+register(
+  "id",
+  "allocate stable ids",
+  (args, opts) => runId(args, { ...(typeof opts["change"] === "string" ? { change: opts["change"] as string } : {}) }),
+  (c) => c.argument("[args...]").option("--change <name>")
+);
 register("sync", "generate OpenSpec files and lock", needsConfig, (c) => c.option("--check"));
 register("resolve", "compute effective policy", needsConfig, (c) =>
   c.argument("<change>").option("--explain").option("--classification <file>")

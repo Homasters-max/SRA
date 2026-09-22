@@ -173,12 +173,14 @@ checks, controller — фаза 2 добавляет файлы и строки 
 ## Migration Plan
 
 Новый код; миграции нет. Откат — удаление ветки. В этом репозитории `openspec/config.yaml` остаётся ручным до фазы 2 (ADR-0015 п. 7),
-поэтому `warrant validate` на самом репозитории в фазе 1 запускается с флагом `--no-generated` (пропуск проверки 4 из REQ-KRN-021);
-флаг документируется как временный и удаляется в фазе 2.
+поэтому `warrant validate` на самом репозитории в фазе 1 запускается с флагом `--no-generated` (пропуск проверки 4 из REQ-KRN-021
+и hash файлов `openspec/**` в проверке 2 — иначе восстановленный из git `config.yaml` давал бы `LOCK_MISMATCH`);
+флаг документируется как временный и удаляется в фазе 2. Сам `.warrant/warrant.json` и lock репозитория создаются `warrant init`
+с последующим `git checkout -- openspec/config.yaml` (I-43).
 
 ## Решения по ходу реализации
 
-Зафиксированы при apply групп 1–3 (I-1…I-11), 4 и 6 (I-12…I-15), 7 и 8 (I-16…I-21), 5 (I-22…I-31), 9 (I-32…I-42), 2026-09-22; нормативные документы не затронуты, ADR не требуется.
+Зафиксированы при apply групп 1–3 (I-1…I-11), 4 и 6 (I-12…I-15), 7 и 8 (I-16…I-21), 5 (I-22…I-31), 9 (I-32…I-42), 10 (I-43, I-44), 2026-09-22; нормативные документы не затронуты, ADR не требуется.
 
 | # | Решение | Где |
 |---|---|---|
@@ -224,6 +226,8 @@ checks, controller — фаза 2 добавляет файлы и строки 
 | I-40 | Без аргумента: `data = { changes: [...] }`, без `change` в envelope, имена из `.warrant/changes/*.json` лексикографически; нет каталога → `{ changes: [] }`, код 0; packs загружаются один раз | `core/record/read.ts`, `commands/status.ts` |
 | I-41 | `readJsonFile` / `readChangeRecord` вынесены из `commands/resolve.ts` в `core/record/read.ts`: `resolve` и `status` сообщают одинаковые коды для одних и тех же проблем record | `core/record/read.ts` |
 | I-42 | e2e `status` идут без реального `openspec`: fake на PATH (`openspec.cmd` + shell-скрипт, абсолютный `process.execPath`) отдаёт сохранённый fixture для `status --json` и `1.13.1` для `--version`; реальный бинарь проверяется задачей 10.1 | `test/e2e/status.test.ts`, `test/fixtures/openspec/` |
+| I-43 | `--no-generated` также пропускает сверку hash entries `openspec/**` из `lock.generated` (копии схем `.warrant/schemas/**` сверяются всегда); принято maintainer'ом вместо ADR к ADR-0015 п. 7 и вместо флага `init --no-sync`. Dogfooding: `warrant init` в репозитории, затем `config.yaml` восстановлен из git; `openspec/schemas/warrant-sdd/**` оставлен как сгенерирован | `core/packs/hash.ts`, `commands/validate.ts` |
+| I-44 | Сканер ID (D-5) игнорирует комментарии внутри inline code span (`...` в одной строке): найдено dogfooding — `REQ-KRN-099` в тексте SCN-KRN-046 давал `ID_PLACEMENT` и раздул бы нумерацию `warrant id`. Fenced-блоки не обрабатываются, пока нет failure mode | `core/ids/scan.ts` |
 
 ## Open Questions
 

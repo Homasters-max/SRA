@@ -40,6 +40,13 @@ describe("scanMarkdown", () => {
     expect(found[1]?.line).toBe(9);
   });
 
+  it("ignores an id comment quoted in inline code (I-44)", () => {
+    const text = "- **WHEN** comment `<!-- id: REQ-KRN-099 -->` stands above the heading\n<!-- id: REQ-KRN-002 -->\n";
+    expect(scanMarkdown(text, "f.md").map((f) => f.id)).toEqual(["REQ-KRN-002"]);
+    expect(scanMarkdown(text, "f.md")[0]?.line).toBe(2);
+    expect(scanMalformed("see `<!-- id: bad -->` in prose", "f.md")).toEqual([]);
+  });
+
   it("ignores comments that are not id comments", () => {
     expect(scanMarkdown("<!-- a note -->\n<!-- idea: x -->", "f.md")).toEqual([]);
   });

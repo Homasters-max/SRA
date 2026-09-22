@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://areas/1",
+  "title": "WARRANT AREA registry",
+  "description": "`.warrant/local/areas.json` — registry mapping an AREA code to the capability it names (ADR-0012 section 5). Every stable ID uses an AREA declared here.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://areas/1"
+    }
+  },
+  "patternProperties": {
+    "^[A-Z]{2,5}$": {
+      "description": "Capability behind one AREA code.",
+      "type": "object",
+      "properties": {
+        "capability": {
+          "description": "Capability path under `openspec/specs/`, for example `kernel` or `customer-search`.",
+          "$ref": "warrant://common/1#/$defs/kebab_path"
+        }
+      },
+      "required": ["capability"],
+      "additionalProperties": false
+    }
+  },
+  "propertyNames": {
+    "anyOf": [
+      { "$ref": "warrant://common/1#/$defs/area" },
+      { "pattern": "^\\$(schema|comment)$" }
+    ]
+  },
+  "required": ["$schema"],
+  "additionalProperties": false
+}

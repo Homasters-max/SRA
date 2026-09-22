@@ -150,7 +150,9 @@ export function runValidate(
   }
 
   // Check (2): lock against config and pack content.
-  errors.push(...checkLock({ projectRoot: root, config: loaded.config, packs: loaded.packs }));
+  errors.push(
+    ...checkLock({ projectRoot: root, config: loaded.config, packs: loaded.packs, skipOpenspecGenerated: opts.generated === false })
+  );
   checkedFiles.add(LOCK_REL);
 
   // Check (4): generated OpenSpec files, byte for byte (task 3.6, SCN-KRN-045).
@@ -158,7 +160,7 @@ export function runValidate(
   // only repeat it, so the check is skipped without a second word.
   if (opts.generated === false) {
     skipped.push("generated");
-    warn("validate: check (4) generated files skipped (--no-generated)\n");
+    warn("validate: check (4) generated files and their lock hashes for openspec/** skipped (--no-generated)\n");
   } else if (loaded.errors.length === 0) {
     errors.push(...checkGenerated(root, loaded, skipped, warn));
   }

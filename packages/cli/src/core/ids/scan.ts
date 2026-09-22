@@ -37,6 +37,15 @@ function posix(p: string): string {
   return p.split(path.sep).join("/");
 }
 
+/**
+ * Inline code spans (`...` on one line) are blanked before scanning so an id
+ * comment quoted in prose — a spec describing the format — is neither an id
+ * nor a placement error (I-44). Lengths are kept so indices and lines hold.
+ */
+export function blankCodeSpans(text: string): string {
+  return text.replace(/`[^`\n]*`/g, (span) => " ".repeat(span.length));
+}
+
 function lineOf(text: string, index: number): number {
   let line = 1;
   for (let i = 0; i < index; i += 1) if (text[i] === "\n") line += 1;
@@ -73,8 +82,9 @@ function markdownFiles(dir: string): string[] {
 export function scanMarkdown(text: string, file: string): FoundId[] {
   const found: FoundId[] = [];
   const re = new RegExp(ID_COMMENT_RE.source, "g");
+  const scanned = blankCodeSpans(text);
   let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
+  while ((m = re.exec(scanned)) !== null) {
     const [, prefix = "", area = "", nnn = "000"] = m;
     found.push({
       id: `${prefix}-${area}-${nnn}`,
@@ -92,8 +102,9 @@ export function scanMarkdown(text: string, file: string): FoundId[] {
 export function scanMalformed(text: string, file: string): CliError[] {
   const errors: CliError[] = [];
   const re = new RegExp(ANY_ID_COMMENT_RE.source, "g");
+  const scanned = blankCodeSpans(text);
   let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
+  while ((m = re.exec(scanned)) !== null) {
     const payload = m[1] ?? "";
     if (WELL_FORMED_PAYLOAD.test(payload)) continue;
     errors.push({

@@ -13,16 +13,14 @@ version: 0.1.0
 ## Состояние на 2026-09-22 (ночь)
 
 - Документы 01–08 отгриллены в MVP-scope (ADR-0010…0015); открытых spikes нет.
-- Change `phase-1-kernel` на ветке `feature/phase-1-kernel`: **группы 1–9 сделаны**, группа 10 — частично (см. ниже).
+- Change `phase-1-kernel` на ветке `feature/phase-1-kernel`: **все 10 групп сделаны**; фаза 1 завершена, ждёт review PR.
   Все семь команд фазы 1 реализованы: `init` (в т. ч. `init change`), `validate` (все семь проверок), `fmt`, `id`, `sync`, `resolve`, `status`.
   Решения по ходу реализации — I-1…I-42 в `design.md`. Глобальный `warrant` — symlink на этот чекаут: после `npm run build` актуален.
 - Критерий выхода (10.1) закреплён e2e-тестом `exit-criterion.test.ts`: `openspec init` → `warrant init` → `init change demo` → `validate` ok → `status demo` `stale: []`.
-- **Открыто — 10.2 (dogfooding на этом репозитории).** Задача требует `.warrant/warrant.json` и lock «через `warrant init` без перезаписи
-  `openspec/config.yaml`», но `init` по REQ-KRN-023 всегда вызывает `sync`, который переписывает `config.yaml` (schema `warrant-sdd`) и кладёт
-  его hash в lock; ADR-0015 п. 7 запрещает переход на `warrant-sdd` до фазы 2, а `--no-generated` отключает проверку (4), но не hash generated в проверке (2).
-  Варианты для maintainer'а: (a) принять генерацию `config.yaml` сейчас — нужен ADR, меняющий ADR-0015 п. 7; (b) расширить `--no-generated` на
-  generated-часть проверки (2) — правка REQ-KRN-021, временная до фазы 2; (c) отложить 10.2 до фазы 2 вместе со снятием флага.
-- 10.3 (README, этот файл) сделано; 10.4 (PR) — после решения по 10.2.
+- 10.2 сделано (вариант 2, I-43): `.warrant/warrant.json` и lock созданы `warrant init`, `openspec/config.yaml` восстановлен из git (ADR-0015 п. 7);
+  `--no-generated` теперь пропускает и hash `openspec/**` в проверке (2). `openspec/schemas/warrant-sdd/**` сгенерирован и закоммичен, но не используется до фазы 2.
+  Dogfooding нашёл дефект сканера ID (I-44). `warrant validate --no-generated` и `warrant fmt --check` на репозитории — чисто.
+- 10.3 сделано; 10.4 — PR из `feature/phase-1-kernel` в `main`.
 
 ## Что уже решено для фазы 1 (не обсуждать заново)
 
@@ -53,7 +51,7 @@ Skills superpowers из Claude Code убраны. Фаза 1 ведётся **с
 `openspec/changes/phase-1-kernel/`: proposal (решения review — `DECISION` в конце), specs (REQ-KRN-001…027, SCN-KRN-001…072),
 design (D-1…D-10), tasks (10 групп, 47 задач). `openspec validate phase-1-kernel --strict` — зелёный.
 
-### Шаг 2a — apply · в работе, остаток группы 10 (10.2, 10.4)
+### Шаг 2a — apply · выполнен
 
 Ветка `feature/phase-1-kernel`. Вести через `/opsx:apply phase-1-kernel` по tasks.md; коммит на группу с зелёными тестами.
 Ничего сверх tasks.md: новая потребность — сначала правка tasks/design, потом код. Отклонения от spec/design — вопросом

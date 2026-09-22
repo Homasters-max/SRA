@@ -294,3 +294,32 @@ describe("warrant validate: id placement", () => {
     60_000
   );
 });
+
+describe("warrant validate: --no-generated and the lock (I-43)", () => {
+  function lockedProject(): string {
+    const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"));
+    const lockPath = path.join(root, ".warrant/warrant.lock.json");
+    const lock = JSON.parse(readFileSync(lockPath, "utf8"));
+    lock.generated = {
+      "openspec/config.yaml": "sha256:" + "0".repeat(64),
+      ".warrant/schemas/common.1.schema.json": "sha256:" + "0".repeat(64)
+    };
+    write(root, ".warrant/warrant.lock.json", lock);
+    write(root, "openspec/config.yaml", "schema: spec-driven\n");
+    write(root, ".warrant/schemas/common.1.schema.json", "{}\n");
+    return root;
+  }
+
+  it("skips lock hashes of openspec/** with --no-generated but still checks schema copies", () => {
+    const run = runCli(["validate", "--no-generated"], lockedProject());
+    const paths = run.json?.errors.map((e: { path?: string }) => e.path);
+    expect(paths).not.toContain(".warrant/warrant.lock.json#/generated/openspec/config.yaml");
+    expect(paths).toContain(".warrant/warrant.lock.json#/generated/.warrant/schemas/common.1.schema.json");
+  });
+
+  it("checks lock hashes of openspec/** without the flag", () => {
+    const run = runCli(["validate"], lockedProject());
+    const paths = run.json?.errors.map((e: { path?: string }) => e.path);
+    expect(paths).toContain(".warrant/warrant.lock.json#/generated/openspec/config.yaml");
+  });
+});

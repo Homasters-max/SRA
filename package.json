@@ -19,9 +19,9 @@
   },
   "scripts": {
     "prepare": "npm run build",
-    "build": "tsc -p packages/cli/tsconfig.json",
+    "build": "node node_modules/typescript/bin/tsc -p packages/cli/tsconfig.json",
     "test": "npm run build && vitest run --config packages/cli/vitest.config.ts",
-    "typecheck": "tsc --noEmit -p packages/cli/tsconfig.json"
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit -p packages/cli/tsconfig.json"
   },
   "dependencies": {
     "ajv": "^8.17.1",

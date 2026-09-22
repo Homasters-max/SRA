@@ -68,6 +68,9 @@ describe("warrant init", () => {
       }
       // The schema copies come from `sync`, not from `init` itself.
       expect(existsSync(path.join(root, ".warrant", "schemas", "config.1.schema.json"))).toBe(true);
+      // Raw check output is never committed (SCN-VER-004).
+      expect(created).toContain(".gitignore");
+      expect(readFileSync(path.join(root, ".gitignore"), "utf8").split("\n")).toContain(".warrant/evidence/**/raw/");
 
       const config = JSON.parse(readFileSync(path.join(root, ".warrant", "warrant.json"), "utf8")) as {
         openspec: string;

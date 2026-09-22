@@ -12,6 +12,7 @@ import { runSync } from "../commands/sync.js";
 import { runResolve } from "../commands/resolve.js";
 import { runStatus } from "../commands/status.js";
 import { runClassify } from "../commands/classify.js";
+import { runCheck } from "../commands/check.js";
 
 export type Runner = (args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -113,6 +114,21 @@ register(
   "show change status",
   (args) => runStatus(args[0] as string | undefined),
   (c) => c.argument("[change]")
+);
+register(
+  "check",
+  "run checks of a change and record evidence",
+  (args, opts) =>
+    runCheck(args[0] as string, args.slice(1), {
+      ...(typeof opts["paths"] === "string" ? { paths: opts["paths"] } : {}),
+      ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {})
+    }),
+  (c) =>
+    c
+      .argument("<change>")
+      .argument("[ids...]")
+      .option("--paths <a,b>", "run run.scoped_command over these comma-separated paths")
+      .option("--base <ref>", "base commit of the evidence (default: merge-base of HEAD and main)")
 );
 
 async function main(): Promise<void> {

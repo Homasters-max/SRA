@@ -24,6 +24,7 @@ import {
   changeNameConflict,
   changeRecord,
   configDocument,
+  gitignoreWithRawEvidence,
   isChangeName,
   rulesDocument,
   schemaFromConfigYaml
@@ -94,6 +95,15 @@ export function runInit(opts: InitOptions = {}, root: string = defaultRoot()): C
   write.json(`${WARRANT_DIR}/local/areas.json`, areasDocument());
   write.json(`${WARRANT_DIR}/local/openspec/rules.json`, rulesDocument());
   for (const dir of KEPT_DIRS) write.text(`${WARRANT_DIR}/${dir}/.gitkeep`, "");
+
+  // Raw check output stays out of git (REQ-VER-001); an existing `.gitignore`
+  // only gets the line appended, never rewritten.
+  const gitignore = path.join(root, ".gitignore");
+  const ignored = gitignoreWithRawEvidence(existsSync(gitignore) ? readFileSync(gitignore, "utf8") : null);
+  if (ignored !== null) {
+    writeFileSync(gitignore, ignored, "utf8");
+    created.push(".gitignore");
+  }
 
   // Schema copies, the OpenSpec files and the lock are `sync`'s files.
   const synced = runSync({}, root);

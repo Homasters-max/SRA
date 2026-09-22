@@ -33,7 +33,7 @@ import { checkWaivers } from "../core/validate/waivers.js";
 import { checkEvidence } from "../core/validate/evidence.js";
 import { scanSecrets } from "../core/secrets.js";
 import { validateFile } from "../core/schemas/semantic.js";
-import { checkCanonical, SCHEMA_COPIES_PREFIX } from "../core/canon/files.js";
+import { checkCanonical, isRawEvidencePath, SCHEMA_COPIES_PREFIX } from "../core/canon/files.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { projectRoot as defaultRoot, WARRANT_DIR } from "./context.js";
 import { readFileSync } from "node:fs";
@@ -144,6 +144,7 @@ export function runValidate(
     if (!absolute.toLowerCase().endsWith(".json")) continue;
     const reported = reportPath(absolute, root);
     if (reported.startsWith(SCHEMA_COPIES_PREFIX)) continue;
+    if (isRawEvidencePath(reported)) continue; // raw check output is not a record (I-76)
     if (reported === LOCK_REL) continue; // check (2) validates the lock
     if (checkedFiles.has(reported)) continue;
     checkedFiles.add(reported);

@@ -644,7 +644,14 @@ function loadLocalLayer(
       continue;
     }
 
-    collected.objects.set(objectKey(kind, targetId), { kind, id: targetId, pack: "local", path: reported, json });
+    collected.objects.set(objectKey(kind, targetId), {
+      kind,
+      id: targetId,
+      pack: "local",
+      path: reported,
+      json,
+      overridden: target
+    });
   }
 }
 

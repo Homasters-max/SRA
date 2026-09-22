@@ -45,6 +45,12 @@ export interface PackObject {
   /** Path relative to the project root (local) or to the repo root (bundled pack). */
   path: string;
   json: unknown;
+  /**
+   * For a project-local override (`"overrides": "<pack>:<id>"`): the pack
+   * object it replaced. `warrant check` takes the fields a check override
+   * leaves out (`produces`, `parser`, …) from here.
+   */
+  overridden?: PackObject;
 }
 
 /** A pack manifest that was found, parsed and validated. */

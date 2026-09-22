@@ -6,7 +6,8 @@
 import { describe, expect, it } from "vitest";
 
 import { openspecAvailable } from "../../src/core/openspec/cli.js";
-import { codes, findError, record, useSyncedProject, validate, write } from "../helpers/synced.js";
+import { runCli } from "../helpers/cli.js";
+import { codes, findError, PACKS, record, useSyncedProject, validate, write } from "../helpers/synced.js";
 
 const hasOpenspec = openspecAvailable();
 const project = useSyncedProject();
@@ -196,6 +197,20 @@ describe.skipIf(!hasOpenspec)("warrant validate (12): evidence records and manif
     const run = await validate(root);
     expect(run.json?.errors).toEqual([]);
     expect(run.status).toBe(0);
+  }, 60_000);
+
+  it("leaves raw JSON output alone in checks (1) and (7) and in fmt (I-76)", async () => {
+    const root = seeded();
+    write(root, `${DIR}/${ID_A}.json`, evidence(ID_A));
+    write(root, `${DIR}/manifest.json`, manifest([ID_A]));
+    // What `openspec validate --json` prints: no `$schema`, not canonical.
+    write(root, `${DIR}/raw/openspec-validate/stdout.json`, '{"items":[],   "version":"1.0"}');
+    const run = await validate(root);
+    expect(run.json?.errors).toEqual([]);
+    expect(run.status).toBe(0);
+    const fmt = await runCli(["fmt", "--check"], root, { WARRANT_PACKS_DIR: PACKS });
+    expect(fmt.json?.errors).toEqual([]);
+    expect(fmt.status).toBe(0);
   }, 60_000);
 
   it("reports the pack form violation with the file and /metrics/tests (SCN-KRN-084)", async () => {

@@ -22,10 +22,10 @@
 
 ## 3. check: evidence, runner, замок
 
-- [ ] 3.1 `core/evidence/`: `store.ts` (`WARRANT_STATE_DIR`, каталог `<state>/evidence/<change>/`, чтение записей), `record.ts` (сборка записи, `context_hash`, `artifacts[]` из `{out}`), `manifest.ts`, `attestation.ts` (D-6, D-7). Проверка: unit-тесты сборки записи и attestation по env; SCN-VER-002 unit'ом. (REQ-VER-001)
-- [ ] 3.2 `core/check/`: `placeholders.ts` (`{out}`, `{change}`, `{paths}` → элементы argv, D-2), `runner.ts` (cross-spawn без shell, timeout с kill дерева, D-4), `lock.ts` (`wx`, держатель, освобождение в `finally`/сигналах, D-3). Проверка: unit-тесты плейсхолдеров; e2e SCN-VER-008 (второй процесс держит замок), SCN-VER-009 (timeout 1 с на `node -e "setTimeout(…)"`). (REQ-VER-002)
-- [ ] 3.3 Parsers `junit` и `openspec-validate` (D-5) с `metrics` по формам pack. Проверка: unit-тесты на junit с падением/без, `tests=0` → `INCONCLUSIVE`; на JSON `openspec validate` с issues. (REQ-VER-002)
-- [ ] 3.4 Команда `warrant check <change> [id...] [--paths] [--base]`: выбор checks по gates следующего перехода, `CHECK_NOT_CONFIGURED`, запись evidence и manifest, `.gitignore` из `warrant init`. Проверка: e2e SCN-VER-001, 003, 004, 005, 006, 007, 010, 011 (fake `openspec`, override `tests-passed` с `node`-скриптом, пишущим junit). (REQ-VER-001, REQ-VER-002, REQ-KRN-023)
+- [x] 3.1 `core/evidence/`: `store.ts` (`WARRANT_STATE_DIR`, каталог `<state>/evidence/<change>/`, чтение записей), `record.ts` (сборка записи, `context_hash`, `artifacts[]` из `{out}`), `manifest.ts`, `attestation.ts` (D-6, D-7). Проверка: unit-тесты сборки записи и attestation по env; SCN-VER-002 unit'ом. (REQ-VER-001)
+- [x] 3.2 `core/check/`: `placeholders.ts` (`{out}`, `{change}`, `{paths}` → элементы argv, D-2), `runner.ts` (cross-spawn без shell, timeout с kill дерева, D-4), `lock.ts` (`wx`, держатель, освобождение в `finally`/сигналах, D-3). Проверка: unit-тесты плейсхолдеров; e2e SCN-VER-008 (второй процесс держит замок), SCN-VER-009 (timeout 1 с на `node -e "setTimeout(…)"`). (REQ-VER-002)
+- [x] 3.3 Parsers `junit` и `openspec-validate` (D-5) с `metrics` по формам pack. Проверка: unit-тесты на junit с падением/без, `tests=0` → `INCONCLUSIVE`; на JSON `openspec validate` с issues. (REQ-VER-002)
+- [x] 3.4 Команда `warrant check <change> [id...] [--paths] [--base]`: выбор checks по gates следующего перехода, `CHECK_NOT_CONFIGURED`, запись evidence и manifest, `.gitignore` из `warrant init`. Проверка: e2e SCN-VER-001, 003, 004, 005, 006, 007, 010, 011 (fake `openspec`, override `tests-passed` с `node`-скриптом, пишущим junit). (REQ-VER-001, REQ-VER-002, REQ-KRN-023)
 
 ## 4. gate, controller, verify
 

@@ -24,18 +24,24 @@ try {
   result = spawnSync(process.execPath, [tsc, "-p", project, ...extra], { stdio: "inherit" });
 } catch {
   const range = require(path.join(root, "package.json")).devDependencies.typescript;
-  process.stderr.write(`build: local typescript not found, using npx typescript@${range}\n`);
-  // The inherited global flag is exactly what broke the inner install; npx would
-  // repeat the mistake and put typescript into the global prefix.
-  const env = { ...process.env };
-  for (const key of Object.keys(env)) {
-    if (/^npm_config_(global|location|prefix)$/i.test(key)) delete env[key];
+  process.stderr.write(`build: local typescript not found, installing typescript@${range} into the clone\n`);
+  // The inherited npm_config_* (global, prefix, force, ...) is exactly what
+  // broke the inner install; a nested npm must not see any of it.
+  const env = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!/^npm_config_/i.test(key)) env[key] = value;
   }
-  const npx = process.platform === "win32" ? "npx.cmd" : "npx";
-  result = spawnSync(npx, ["--yes", "-p", `typescript@${range}`, "tsc", "-p", project, ...extra], {
+  const win = process.platform === "win32";
+  // Quoted so that cmd.exe does not eat the caret in "^5.8.3".
+  const spec = win ? `"typescript@${range}"` : `typescript@${range}`;
+  const install = spawnSync(win ? "npm.cmd" : "npm", ["install", "--no-save", "--no-audit", "--no-fund", spec], {
+    cwd: root,
     stdio: "inherit",
     env,
-    shell: process.platform === "win32"
+    shell: win
   });
+  if (install.status !== 0) process.exit(install.status ?? 1);
+  const tsc = require.resolve("typescript/bin/tsc", { paths: [root] });
+  result = spawnSync(process.execPath, [tsc, "-p", project, ...extra], { stdio: "inherit" });
 }
 process.exit(result.status ?? 1);

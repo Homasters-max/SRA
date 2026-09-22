@@ -64,15 +64,15 @@ Check — детерминированная исполняемая провер
 | Поле | Default | Правило |
 |---|---|---|
 | `exclusive` | `false` | Один замок на машину: `$(git rev-parse --git-common-dir)/warrant/check.lock`, общий для процессов и worktree |
-| `timeout_s` | `defaults.check_timeout_s` | По истечении check прерывается, замок освобождается |
-| `local` | `allowed` | `scoped-only` — локально только `--paths`; `ci-only` — локально никакой |
-| `max_paths` | — | Больше путей в `--paths` → код `3` |
+| `timeout_s` | `defaults.check_timeout_s`, иначе `1800` | По истечении check прерывается, замок освобождается |
+| `local` | `allowed` | `scoped-only` — локально только `--paths`; `ci-only` — локально никакой (later, D-23) |
+| `max_paths` | — | Больше путей в `--paths` → код `3` (later, D-23) |
 | `guard_prefixes` | первые токены `run.command` | По ним `warrant guard` отклоняет прямой запуск |
 
-- Замок занят → код `2`, `errors[0].code: "BUSY"` с держателем замка; `--wait` ждёт до `timeout_s` (CI).
-  Замок мёртвого pid снимается автоматически с записью в журнал Run.
+- Замок занят → код `2`, `errors[0].code: "BUSY"` с держателем замка; `--wait` ждёт до `timeout_s` (CI; later).
+  Замок мёртвого pid снимается автоматически с записью в журнал Run (later, D-23).
 - `warrant check <id> --paths …` запускает `scoped_command`; без значения пути берутся из diff. Evidence
-  суженного прогона несёт `limitations: ["scoped: <paths>"]` и gate не засчитывается.
+  суженного прогона несёт `limitations: ["scoped: <paths>"]` и исключается пред-фильтром допустимости (§3).
 - Для checks с `exclusive` или `local ≠ allowed` guard отвечает `deny` на Bash-команду с совпавшим префиксом
   и подсказывает `warrant check`.
 

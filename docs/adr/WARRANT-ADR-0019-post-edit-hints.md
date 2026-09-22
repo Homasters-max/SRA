@@ -30,7 +30,9 @@ comment while implementing» (`packs/core-sdd/openspec/rules.json`) держит
 
 1. **Проверки одного файла** (все — части существующих или решённых проверок):
    (a) JSON `.warrant/**` и packs — схема и канонический вид; (b) Markdown `openspec/changes/**` — формат ID,
-   размещение под заголовком, AREA из реестра; (c) **stable ID изменён или удалён** относительно `HEAD`;
+   размещение под заголовком, AREA из реестра; (c) **stable ID изменён или удалён** относительно `HEAD` — для
+   `openspec/specs/**` и для Change с record ≥ `APPROVED` (до `APPROVED` renumber и удаление REQ легитимны,
+   [ADR-0012](WARRANT-ADR-0012-id-allocation.md) п. 1; D-18);
    (d) висячие ссылки REQ / SCN в `tasks.md` и тестах; (e) строки, похожие на токены; (f) pragma-маркеры
    mutation-инструментов ([ADR-0016](WARRANT-ADR-0016-mutation-diff-scope.md) п. 8b).
    Проверки уровня проекта (lock, hash, drift сгенерированных файлов, сверка с `openspec show`) — только `validate`.
@@ -42,7 +44,8 @@ comment while implementing» (`packs/core-sdd/openspec/rules.json`) держит
    активного Run — сырьё для [12-evolution](../12-evolution.md).
 5. **Выбор проверок** — по пути в CLI; hook вызывается на любую правку, для постороннего файла ответ пустой.
 6. **Бюджет** — 500 мс на файл; без lock, hash и дочерних процессов, кроме одного `git show HEAD:<path>` для (c).
-   Превышение → проверка в `data.skipped[]` с причиной `budget`.
+   Превышение → проверка в `data.skipped[]` с причиной `budget`. Числовой бюджет и `skipped: budget` — later по замеру
+   (D-23); в фазах 3–4 действует только правило «без lock, hash и дочерних процессов».
 7. **Адаптер** — `warrant guard` с `phase: post` ([ADR-0018](WARRANT-ADR-0018-frontend-adapters.md)).
 8. **Канал.** Hints доставляются туда, где модель их видит: `additionalContext` (Codex, Claude Code), `output`
    (OpenCode), блок следующего prompt (ACP). Адаптер всегда завершается успешно; его сбой — только в журнал Run.
@@ -50,7 +53,7 @@ comment while implementing» (`packs/core-sdd/openspec/rules.json`) держит
 9. **Момент.** Внутри агента — синхронно после каждой правки; в слое ACP — после каждого завершённого edit
    `tool_call`, доставка в конце хода. `Stop` / `session.idle` не используются: у Claude и Codex блок на Stop
    продолжает ход, то есть блокирует.
-10. **Повторы.** Полный список находок по файлу, не больше 10 строк + «и ещё N»; чистый файл — пустой ответ.
+10. **Повторы.** Полный список находок по файлу, не больше 10 строк + «и ещё N» (лимит строк — later, D-23); чистый файл — пустой ответ.
     Без состояния между вызовами.
 
 ## Consequences

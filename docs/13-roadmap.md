@@ -56,6 +56,9 @@ OpenSpec + warrant-sdd schema + profile feature
 | Floor `blast_radius` по размеру diff | [05 §4](05-policy.md) | Failure mode: слишком большой Change |
 | Pack `ui`: UI States Matrix, a11y, visual regression | [08 §6](08-packs.md) | Первый проект с UI |
 | `dismissed[]` и покрытие входного списка в skill-result | [07 §4](07-skills.md) | Первый skill с входным списком |
+| `check`: `--wait`, снятие мёртвого замка, `local: "ci-only"`, `max_paths` | [ADR-0017](adr/WARRANT-ADR-0017-check-execution.md) | Failure mode параллельных прогонов (D-23) |
+| Бюджет 500 мс и лимит строк hints | [ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md) | Замер задержки hook (D-23) |
+| `AGENTS.md` и `rules[]` в Context Pack | [ADR-0022](adr/WARRANT-ADR-0022-path-rules.md) | Первое правило pack или проекта (D-23) |
 
 ## 4. Не входит в MVP
 

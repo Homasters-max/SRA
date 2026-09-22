@@ -27,8 +27,11 @@ amended_by: [WARRANT-ADR-0020]
 1. **Блок `execution`** рядом с `run` в check:
    `{ "exclusive": bool, "timeout_s": int, "local": "allowed" | "scoped-only" | "ci-only", "max_paths": int,
    "guard_prefixes": string[][] }`. Defaults: `exclusive: false`, `local: "allowed"`,
-   `timeout_s` — из `warrant.json` `defaults.check_timeout_s`. Это стоимость выполнения, а не сила проверки:
-   мягкие defaults не нарушают INV-10.
+   `timeout_s` — из `warrant.json` `defaults.check_timeout_s`, при его отсутствии — константа CLI `1800` (D-17).
+   Это стоимость выполнения, а не сила проверки: мягкие defaults не нарушают INV-10.
+   Объём MVP (фаза 3, D-23): `exclusive`, `timeout_s`, `local: "allowed" | "scoped-only"`, `scoped_command`, `--paths`;
+   `guard_prefixes` — фаза 4. Later по failure mode: `--wait`, авто-снятие замка мёртвого pid, `local: "ci-only"`,
+   `max_paths`. Текст п. 3–4 сохраняет их как проект later-поведения.
 2. **Кто исполняет.** Runner `warrant check` (замок, timeout, `local`) и `warrant guard` (запрет обхода).
    Orchestration (фаза 7) читает тот же manifest. Внутреннее планирование CI — вне WARRANT.
 3. **Замок `exclusive`** — один на машину: file lock `$(git rev-parse --git-common-dir)/warrant/check.lock`, общий
@@ -68,3 +71,5 @@ amended_by: [WARRANT-ADR-0020]
 - **Guard только предупреждает** — отвергнуто: это снова текст, а не механизм.
 - **Ожидание замка по умолчанию** — отвергнуто для агента: блокирует сессию; для CI — `--wait`.
 - **Отдельный OpenSpec change к kernel сейчас** — отвергнуто: поля никто не читает до фазы 3.
+- **`--wait`, снятие мёртвого замка, `ci-only`, `max_paths` в MVP** — отложено ревью 2026-09-22 (D-23): нет failure mode;
+  `timeout_s` без `defaults` — константа `1800` (D-17), а не неограниченное ожидание (INV-10).

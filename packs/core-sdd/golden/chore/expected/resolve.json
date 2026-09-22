@@ -137,8 +137,8 @@
   "risk_level": "LOW",
   "sources": [
     "kernel@{CLI_VERSION}",
-    "core-sdd@0.1.0:overlay/core-default@1.0.0",
-    "core-sdd@0.1.0:profile/chore@1.0.0",
-    "core-sdd@0.1.0:overlay/risk-low@1.0.0"
+    "core-sdd@0.2.0:overlay/core-default@1.0.0",
+    "core-sdd@0.2.0:profile/chore@1.0.0",
+    "core-sdd@0.2.0:overlay/risk-low@1.0.0"
   ]
 }

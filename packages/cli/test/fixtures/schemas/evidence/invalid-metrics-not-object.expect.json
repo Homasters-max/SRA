@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/metrics",
+  "scenario": "SCN-KRN-092"
+}

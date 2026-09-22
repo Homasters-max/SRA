@@ -149,6 +149,20 @@ export function checkLock(input: LockCheckInput): CliError[] {
     }
   }
 
+  // B3: a pack removed from `warrant.json` but still in the lock is a stale
+  // lock, not a harmless leftover — `sync --check` already sees it (SCN-KRN-094).
+  const configured = isPlainObject(config["packs"]) ? config["packs"] : {};
+  for (const id of Object.keys(lockPacks).sort()) {
+    if (id === "$comment" || id in configured) continue;
+    errors.push(
+      err(
+        "LOCK_MISMATCH",
+        `lock records pack ${id}, which .warrant/warrant.json does not enable; run \`warrant sync\``,
+        `${LOCK_REL}#/packs/${id}`
+      )
+    );
+  }
+
   const generated = isPlainObject(lock["generated"]) ? lock["generated"] : {};
   for (const [rel, hash] of Object.entries(generated)) {
     if (rel === "$comment") continue;

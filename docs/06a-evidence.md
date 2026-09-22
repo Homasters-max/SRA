@@ -84,6 +84,10 @@ finding `STALE`, evidence исключается.
 | `sef-gate` | Гейт SEF в контейнере гейтов (транспорт `sef-hub`, proposed) | `sef://<project>/attempt/<id>/gate/<gate-id>` |
 | `none` | Локальный запуск CLI | — |
 
+- `attestation` check-записи CLI выводит из окружения, а не из аргументов (P-15): `GITHUB_ACTIONS=true` вместе с
+  `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`, `GITHUB_RUN_ID` → `{ "type": "ci", "ref": "<server>/<repo>/actions/runs/<id>" }`;
+  иначе `{ "type": "none" }`. Другие CI — later. Записи CI-прогона impl-PR выгружаются artifact'ом; человек кладёт их в
+  archive-PR и пишет `transition MERGED --ref <URL run>` (CI не пишет в репозиторий, [ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)).
 - Gate объявляет допустимые типы: `"accepts_attestation": ["ci", "human-review"]`. По умолчанию `none` не засчитывается
   для gates перехода `VERIFYING → MERGED` (INV-10).
 - L2 review для risk `HIGH` MUST выполняться отдельным Run в CI (attestation `ci`); для `MEDIUM` MAY выполняться локально

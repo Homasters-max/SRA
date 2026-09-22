@@ -1,0 +1,28 @@
+{
+  "$schema": "warrant://check/1",
+  "id": "mutation",
+  "version": "1.0.0",
+  "level": "L1",
+  "run": {
+    "command": [
+      "mutmut",
+      "run",
+      "--since={base}"
+    ]
+  },
+  "execution": {
+    "exclusive": true,
+    "timeout_s": 3600,
+    "local": "scoped-only",
+    "guard_prefixes": [
+      [
+        "mutmut"
+      ],
+      [
+        "python",
+        "-m",
+        "mutmut"
+      ]
+    ]
+  }
+}

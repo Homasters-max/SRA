@@ -1,0 +1,24 @@
+{
+  "$schema": "warrant://lock/1",
+  "kernel": "0.1.0",
+  "openspec": "1.13.1",
+  "packs": {
+    "core-sdd": {
+      "version": "0.1.0",
+      "source": "bundled",
+      "hash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  },
+  "skills": {
+    "specification/adversarial-review": {
+      "version": "0.1.0",
+      "path": "skills/specification/adversarial-review/SKILL.md",
+      "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "source": "npm"
+    }
+  },
+  "generated": {
+    "openspec/config.yaml": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    "openspec/schemas/warrant-sdd/schema.yaml": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  }
+}

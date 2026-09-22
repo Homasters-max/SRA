@@ -39,7 +39,7 @@ function project(change = "demo"): string {
     $schema: "warrant://config/1",
     kernel: "0.1",
     openspec: "1.13.x",
-    packs: { "core-sdd": { version: "^0.1" } }
+    packs: { "core-sdd": { version: "^0.2" } }
   });
   write(root, `.warrant/changes/${change}.json`, {
     $schema: "warrant://change-record/1",

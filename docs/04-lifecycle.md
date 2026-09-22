@@ -194,7 +194,7 @@ Hooks внутри агента — ускорение, а не гарантия
 
 ```json
 {
-  "command": "next",
+  "command": "verify",
   "ok": true,
   "change": "add-customer-search",
   "data": { "controller_action": "CONTINUE", "next": "implement", "rule": "impl-incomplete" },
@@ -209,18 +209,18 @@ Hooks внутри агента — ускорение, а не гарантия
 | `warrant status [change]` | Состояние Change, effective policy, verdicts, `STALE`, следующая операция | MVP |
 | `warrant classify <change> [--propose <json>]` | Классификация: path rules + proposal агента + human overrides | MVP |
 | `warrant resolve <change> [--explain]` | Вычислить effective policy с происхождением каждого требования | MVP |
-| `warrant next <change>` | Ответ controller | MVP |
+| `warrant next <change>` | Отдельной команды нет: ответ controller (`controller_action`, `next`, `rule`) печатают `verify` и `status` | later |
 | `warrant run start\|submit\|finish` | Создать Run и Context Pack (с `rules[]`, пересекающими `write_scope`, [ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)), принять result envelope skill, закрыть Run | MVP |
 | `warrant guard --frontend <name>` | Адаптер frontend: `pre` — разрешить / отклонить по `write_scope` и тяжёлым checks ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)); `post` — hints ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)); нормализованный контракт — [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md) | MVP |
 | `warrant unknown add\|resolve`, `warrant assumption add` | Записать UNKNOWN / ASSUMPTION / DECISION в record | MVP |
-| `warrant check [id] [--paths …] [--wait]` | Запустить check(s), записать evidence; `--paths` — суженный прогон, `--wait` — ждать замок `exclusive` ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)) | MVP |
-| `warrant gate [id]` | Вычислить verdict(s) | MVP |
-| `warrant verify <change>` | `check` + `gate` для всех требований effective policy текущего перехода | MVP |
+| `warrant check <change> [id...] [--paths …] [--base <ref>]` | Запустить check(s) gates перехода, записать evidence; `--paths` — суженный прогон ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)); `--wait` — ждать замок `exclusive` — later | MVP |
+| `warrant gate <change> [id...] [--transition <FROM->TO>] [--base <ref>]` | Вычислить verdict(s) по записанному evidence и ответ controller; checks не запускает | MVP |
+| `warrant verify <change> [--transition <FROM->TO>] [--base <ref>] [--paths …]` | `check` + `gate` + controller для всех требований effective policy перехода | MVP |
 | `warrant analyze <change>` | Детерминированный анализ согласованности | MVP |
-| `warrant transition <change> <state> --ref <url>` | Записать переход; `APPROVED` / `MERGED` только с верифицируемым ref; `ABANDONED` удаляет каталог Change ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) | MVP |
+| `warrant transition <change> <state> [--ref <url>] [--by <login>] [--commit <sha>]` | Записать переход, если gates перехода в `PASS` / `WAIVED` / `NOT_APPLICABLE`; `APPROVED` / `MERGED` только с верифицируемым `--ref`; `--by` — человек из роли approval; `--commit` — commit evidence для `MERGED`; переходы назад — без gates; `ABANDONED` удаляет каталог Change ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) | MVP |
 | `warrant link <change> --amends\|--supersedes <target>` | Связь с исправляемым (`MERGED` / `ARCHIVED`) или заменяемым (`ABANDONED`) Change; до `APPROVED` ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) | MVP |
 | `warrant sync-state <change>` | Прочитать форж (review, merge, CI run) и записать соответствующие переходы с refs | MVP |
-| `warrant archive <change>` | `openspec validate --strict` → gates `MERGED → ARCHIVED` → `openspec archive --yes --json` | MVP |
+| `warrant archive <change>` | Только из `MERGED`: `openspec validate --strict` → gates `MERGED → ARCHIVED` → `openspec archive --yes --json` → переход `ARCHIVED` | MVP |
 | `warrant ci` | Всё для CI: Change и переход из ветки, пересчёт L0/L1, верификация refs, JSON, exit 1 при `FAIL` | MVP |
 | `warrant id <prefix> <area>`, `warrant id renumber <old> <new>` | Выдать stable ID; перенумеровать до `MERGED` при коллизии | MVP |
 | `warrant validate [--files <paths>]` | Конфигурация, packs, JSON Schema, IDs, сгенерированные YAML, отсутствие токенов; `--files` — только проверки одного файла ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)) | MVP |
@@ -229,6 +229,9 @@ Hooks внутри агента — ускорение, а не гарантия
 | `warrant waive` | Создать / отозвать waiver | later ([ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md)) |
 
 Коды выхода: `0` — ok; `1` — verdict FAIL / STOP; `2` — WAIT / ESCALATE; `3` — ошибка конфигурации.
+Переход по умолчанию у `check`, `gate`, `verify` — следующий вперёд от `change_state`. Код `gate` и `verify` — по
+`controller_action` (gate `FAIL` → `WAIT` → `2`); `check` — `0`, если evidence записано (в том числе `NOT_PROVEN`),
+`2` — замок `exclusive` занят (`BUSY`), `3` — таймаут или ошибка конфигурации.
 
 ## 8. Human approval
 

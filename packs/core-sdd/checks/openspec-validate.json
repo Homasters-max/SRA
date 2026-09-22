@@ -8,11 +8,16 @@
     "command": [
       "openspec",
       "validate",
+      "{change}",
       "--strict",
       "--json"
     ]
   },
+  "execution": {
+    "timeout_s": 300
+  },
   "produces": [
     "spec-report"
-  ]
+  ],
+  "parser": "openspec-validate"
 }

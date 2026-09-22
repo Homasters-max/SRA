@@ -5,8 +5,11 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: [WARRANT-ADR-0013, WARRANT-ADR-0014]
-amended_by: [WARRANT-ADR-0020, WARRANT-ADR-0022]
+amended_by: [WARRANT-ADR-0020, WARRANT-ADR-0022, WARRANT-ADR-0023]
 ---
+
+> Уточнено [ADR-0023](WARRANT-ADR-0023-warrant-dev-frontend.md): п. 7 относится к проектам под WARRANT и к slice MVP; код
+> самого репозитория WARRANT в MVP пишут сессии Claude Code без guard под топологией PR, review и CI.
 
 > Уточнено [ADR-0022](WARRANT-ADR-0022-path-rules.md): `warrant sync` также генерирует корневой `AGENTS.md`; `guard` в фазе `pre` без активного Run
 > отвечает `deny` с подсказкой `warrant run start`.

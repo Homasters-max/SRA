@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command, CommanderError } from "commander";
 import { EXIT, WarrantError } from "../core/errors.js";
-import { emit, failure, resultFromThrown, type CommandResult } from "../io/output.js";
+import { emitToProcess, failure, resultFromThrown, writeStdout, type CommandResult } from "../io/output.js";
 import { CLI_VERSION } from "../version.js";
 import { requireConfigPath } from "../commands/context.js";
 import { runInitCommand } from "../commands/init.js";
@@ -26,14 +26,16 @@ const program = new Command("warrant")
     writeErr: (text) => process.stderr.write(text)
   });
 
-async function run(name: string, runner: Runner, args: string[], opts: Record<string, unknown>): Promise<never> {
+async function run(name: string, runner: Runner, args: string[], opts: Record<string, unknown>): Promise<void> {
   let result: CommandResult;
   try {
     result = await runner(args, opts);
   } catch (thrown) {
     result = resultFromThrown(thrown);
   }
-  process.exit(emit(name, result));
+  // No `process.exit`: the exit code is set after stdout accepted the whole
+  // envelope, and Node ends the process once the pipe has drained (B4).
+  await emitToProcess(name, result);
 }
 
 function register(name: string, description: string, runner: Runner, configure?: (cmd: Command) => void): void {
@@ -119,14 +121,17 @@ async function main(): Promise<void> {
   } catch (thrown) {
     if (thrown instanceof CommanderError) {
       // --version and --help exit through here with code 0; their text already went to stderr.
+      // Same path as every command (design D-15): write, then set the code.
       if (thrown.exitCode === 0) {
-        if (thrown.code === "commander.version") process.stdout.write(CLI_VERSION + "\n");
-        process.exit(EXIT.OK);
+        if (thrown.code === "commander.version") await writeStdout(CLI_VERSION + "\n");
+        process.exitCode = EXIT.OK;
+        return;
       }
       const command = process.argv[2] ?? "";
-      process.exit(emit(command, failure(new WarrantError("USAGE", thrown.message.trim()))));
+      await emitToProcess(command, failure(new WarrantError("USAGE", thrown.message.trim())));
+      return;
     }
-    process.exit(emit(process.argv[2] ?? "", resultFromThrown(thrown)));
+    await emitToProcess(process.argv[2] ?? "", resultFromThrown(thrown));
   }
 }
 

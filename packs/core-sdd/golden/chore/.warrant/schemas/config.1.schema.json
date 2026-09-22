@@ -49,6 +49,18 @@
       },
       "additionalProperties": false
     },
+    "defaults": {
+      "description": "Project-wide values used where a pack object leaves them unset.",
+      "type": "object",
+      "properties": {
+        "check_timeout_s": {
+          "description": "Timeout in seconds for a check without `execution.timeout_s`; when absent the kernel uses 1800 (ADR-0017).",
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
     "paths": {
       "description": "Project paths WARRANT needs to know about.",
       "type": "object",

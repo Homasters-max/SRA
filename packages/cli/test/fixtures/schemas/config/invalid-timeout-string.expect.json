@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/defaults/check_timeout_s",
+  "scenario": "SCN-KRN-086"
+}

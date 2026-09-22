@@ -1,0 +1,9 @@
+{
+  "$schema": "warrant://rule/1",
+  "id": "json-canonical",
+  "paths": [
+    ".warrant/**/*.json"
+  ],
+  "text": "Every JSON file under .warrant/ is in canonical form.",
+  "enforced_by": "fmt --check"
+}

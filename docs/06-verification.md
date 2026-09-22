@@ -104,13 +104,19 @@ Gate — правило перехода; агрегирует evidence в `gate
 ```text
 1. applies_when не выполнено, или все requires_evidence
    имеют статус NOT_APPLICABLE от детерминированного check → NOT_APPLICABLE
-2. предпосылки отсутствуют (нет Run, нет входа)           → BLOCKED
+2. предпосылки отсутствуют (нет Run, нет входа) или
+   нет ни одной допустимой записи требуемого kind         → BLOCKED
 3. все requires_evidence со статусом PROVEN               → PASS
 4. есть ACTIVE waiver и gate waivable                     → WAIVED
 5. иначе                                                  → FAIL
 ```
 
 `NOT_APPLICABLE` ≠ `PASS`: он позволяет пройти profile без ложного waiver, но отображается отдельно.
+
+`BLOCKED` ≠ `FAIL` (P-7): нет ни одной допустимой записи нужного kind (не было прогона или все записи исключены
+пред-фильтром) → `BLOCKED` с finding `NO_EVIDENCE`, controller отвечает `verify-incomplete`; запись есть, но её статус ≠
+требуемому → `FAIL`. L0-gates без `requires_evidence` вычисляет сам CLI; для них `BLOCKED` — только при отсутствии
+входа (не git-репозиторий, нет `openspec`).
 
 ## 4. Каталог gates
 

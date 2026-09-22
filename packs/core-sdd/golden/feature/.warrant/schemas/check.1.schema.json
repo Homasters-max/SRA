@@ -35,16 +35,62 @@
       "type": "object",
       "properties": {
         "command": {
-          "description": "Argv of the command; the placeholder `{out}` is replaced by the run output directory.",
+          "description": "Argv of the full run. Placeholders: `{out}` (the run output directory) and `{change}` (the Change id); any other `{name}` is rejected.",
           "type": "array",
           "minItems": 1,
           "items": {
-            "description": "One argv element.",
-            "type": "string"
+            "description": "One argv element; `{name}` tokens other than `{out}` and `{change}` are not allowed.",
+            "type": "string",
+            "pattern": "^(?![\\s\\S]*\\{(?!(?:out|change)\\})[A-Za-z0-9_.-]+\\})"
+          }
+        },
+        "scoped_command": {
+          "description": "Argv of a run narrowed to `--paths` (ADR-0017). Placeholders: `{out}`, `{change}` and `{paths}` (expanded into one argv element per path); any other `{name}` is rejected.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "description": "One argv element; `{name}` tokens other than `{out}`, `{change}` and `{paths}` are not allowed.",
+            "type": "string",
+            "pattern": "^(?![\\s\\S]*\\{(?!(?:out|change|paths)\\})[A-Za-z0-9_.-]+\\})"
           }
         }
       },
       "required": ["command"],
+      "additionalProperties": false
+    },
+    "execution": {
+      "description": "How the check may be run (06 section 2 \"Execution\", ADR-0017).",
+      "type": "object",
+      "properties": {
+        "exclusive": {
+          "description": "Run under the one per-machine check lock shared by processes and worktrees; default false.",
+          "type": "boolean"
+        },
+        "timeout_s": {
+          "description": "Timeout in seconds; default `defaults.check_timeout_s` of the project config, else 1800.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "local": {
+          "description": "Where the check may run: `allowed` (default), `scoped-only` (locally only with `--paths`) or `ci-only`.",
+          "type": "string",
+          "enum": ["allowed", "scoped-only", "ci-only"]
+        },
+        "guard_prefixes": {
+          "description": "Command prefixes by which `warrant guard` recognises a direct run of this check; default the first tokens of `run.command`.",
+          "type": "array",
+          "items": {
+            "description": "One prefix as a list of argv tokens.",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "description": "One argv token.",
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
       "additionalProperties": false
     },
     "produces": {

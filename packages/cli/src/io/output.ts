@@ -79,3 +79,27 @@ export function emit(command: string, result: CommandResult, printer: Printer = 
   printer.stdout(formatEnvelope(toEnvelope(command, result)));
   return result.exitCode;
 }
+
+/**
+ * Writes `text` to stdout and resolves once the stream has accepted it.
+ *
+ * Resolves on error too (a closed pipe, EPIPE): the reader is gone, and the
+ * exit code is all that is left to report.
+ */
+export function writeStdout(text: string): Promise<void> {
+  return new Promise<void>((resolve) => {
+    process.stdout.write(text, () => resolve());
+  });
+}
+
+/**
+ * Prints the envelope of the process's command and sets `process.exitCode`
+ * once the write completed (B4, REQ-KRN-003). The process is never ended with
+ * `process.exit`: that would drop whatever part of a large envelope is still
+ * buffered for a pipe. Node exits by itself once stdout has drained, provided
+ * no other handle is left open.
+ */
+export async function emitToProcess(command: string, result: CommandResult): Promise<void> {
+  await writeStdout(formatEnvelope(toEnvelope(command, result)));
+  process.exitCode = result.exitCode;
+}

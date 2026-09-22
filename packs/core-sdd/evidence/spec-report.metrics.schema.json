@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "core-sdd spec-report metrics",
+  "description": "Shape of `metrics` in evidence of kind `spec-report`: the result of `openspec validate --strict --json`.",
+  "type": "object",
+  "properties": {
+    "issues": {
+      "description": "Number of issues OpenSpec reported.",
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "issues"
+  ],
+  "additionalProperties": false
+}

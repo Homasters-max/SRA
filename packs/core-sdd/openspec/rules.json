@@ -5,7 +5,8 @@
     "design": [
       "Record each decision with its rejected alternatives",
       "Do not introduce infrastructure or a dependency without justification",
-      "Leave an unresolved question as an UNKNOWN in the Change record, not as prose"
+      "Leave an unresolved question as an UNKNOWN in the Change record, not as prose",
+      "Record every deviation from the spec as an I-N row in the decisions table of design.md"
     ],
     "proposal": [
       "Answer only WHY, WHAT changes, WHAT is affected and WHAT is NOT changing; design belongs in design.md",

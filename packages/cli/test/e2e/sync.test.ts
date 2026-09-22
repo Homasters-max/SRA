@@ -1,7 +1,7 @@
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { parse } from "yaml";
+import { parse, parseDocument } from "yaml";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
 import { bytesHash } from "../../src/core/canon/hash.js";
@@ -24,7 +24,7 @@ function write(root: string, rel: string, content: string | object): void {
 }
 
 /** A temp project enabling the given packs, with OpenSpec initialised. */
-function project(packs: Record<string, string> = { "core-sdd": "^0.1" }, init = true): string {
+function project(packs: Record<string, string> = { "core-sdd": "^0.2" }, init = true): string {
   const root = makeTempDir("warrant-sync-");
   tempDirs.push(root);
   write(root, ".warrant/warrant.json", {
@@ -171,7 +171,7 @@ describe("warrant sync", () => {
   );
 
   it("refuses a version of openspec outside the configured range (task 7.5)", async () => {
-    const root = project({ "core-sdd": "^0.1" }, false);
+    const root = project({ "core-sdd": "^0.2" }, false);
     const fake = makeTempDir("warrant-fake-openspec-");
     tempDirs.push(fake);
     // Both spellings, so the test works whichever shell cross-spawn picks.
@@ -222,7 +222,7 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
       $schema: "warrant://config/1",
       kernel: "0.1",
       openspec: "1.13.x",
-      packs: { "core-sdd": { version: "^0.1" } }
+      packs: { "core-sdd": { version: "^0.2" } }
     });
     expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
     return root;
@@ -283,6 +283,67 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
       const finding = run.json?.errors.find((e: { code: string }) => e.code === "CONFIG_INVALID");
       expect(finding.message).toContain("2.0.0");
       expect(finding.path).toBe(SKILL_REL);
+    },
+    120_000
+  );
+});
+
+describe("warrant sync: YAML scalars that are not strings (B5)", () => {
+  it.skipIf(!hasOpenspec)(
+    "quotes keys and values a YAML reader would not keep as strings (SCN-KRN-100)",
+    async () => {
+      const root = makeTempDir("warrant-yaml-");
+      tempDirs.push(root);
+      cpSync(path.join(REPO_ROOT, "packs", "core-sdd"), path.join(root, "packs", "core-sdd"), { recursive: true });
+      cpSync(path.join(REPO_ROOT, "sra"), path.join(root, "sra"), { recursive: true });
+      // An artifact whose id is the word `null`: it becomes a value in
+      // schema.yaml and a `rules` key in config.yaml.
+      const schemaFile = path.join(root, "packs", "core-sdd", "openspec", "schema.json");
+      const schema = JSON.parse(readFileSync(schemaFile, "utf8")) as { artifacts: Record<string, unknown>[] };
+      schema.artifacts.push({
+        id: "null",
+        generates: "null.md",
+        description: "Artifact whose id reads as a YAML null",
+        template: "proposal.md",
+        requires: []
+      });
+      write(root, "packs/core-sdd/openspec/schema.json", schema);
+      const version = (JSON.parse(readFileSync(path.join(root, "packs", "core-sdd", "pack.json"), "utf8")) as {
+        version: string;
+      }).version;
+      write(root, ".warrant/warrant.json", {
+        $schema: "warrant://config/1",
+        kernel: "0.1",
+        openspec: "1.13.x",
+        packs: { "core-sdd": { version } }
+      });
+      write(root, ".warrant/local/openspec/rules.json", {
+        $schema: "warrant://openspec-rules/1",
+        rules: { null: ["no"] },
+        operations: { apply: { guidance: ["yes"] } }
+      });
+      expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
+
+      const run = await runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
+      expect(run.json?.errors).toEqual([]);
+
+      const configText = readFileSync(path.join(root, "openspec", "config.yaml"), "utf8");
+      const schemaText = readFileSync(path.join(root, "openspec", "schemas", "warrant-sdd", "schema.yaml"), "utf8");
+      expect(configText).toContain('\n  "null":\n    - "no"\n');
+      expect(configText).toContain('\n      - "yes"\n');
+      expect(schemaText).toContain('- id: "null"\n');
+
+      // Read back under both YAML versions: every key and value is a string.
+      for (const version of ["1.1", "1.2"] as const) {
+        const config = parseDocument(configText, { version }).toJS({ mapAsMap: true }) as Map<unknown, unknown>;
+        const rules = config.get("rules") as Map<unknown, unknown>;
+        expect([...rules.keys()]).toContain("null");
+        expect(rules.get("null")).toEqual(["no"]);
+        const operations = config.get("operations") as Map<unknown, Map<unknown, unknown>>;
+        expect(operations.get("apply")?.get("guidance")).toContain("yes");
+        const parsed = parseDocument(schemaText, { version }).toJS() as { artifacts: { id: unknown }[] };
+        expect(parsed.artifacts.map((a) => a.id)).toContain("null");
+      }
     },
     120_000
   );

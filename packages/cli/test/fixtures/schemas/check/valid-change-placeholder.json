@@ -1,0 +1,23 @@
+{
+  "$schema": "warrant://check/1",
+  "id": "openspec-validate",
+  "version": "1.0.0",
+  "level": "L1",
+  "run": {
+    "command": [
+      "openspec",
+      "validate",
+      "{change}",
+      "--strict",
+      "--json",
+      "--out={out}/report.json"
+    ]
+  },
+  "execution": {
+    "timeout_s": 300
+  },
+  "produces": [
+    "spec-report"
+  ],
+  "parser": "openspec-validate"
+}

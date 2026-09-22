@@ -253,6 +253,22 @@
         "required": ["id", "text"],
         "additionalProperties": false
       }
+    },
+    "amends": {
+      "description": "Changes whose accepted result this Change amends; each MUST be MERGED or ARCHIVED (ADR-0021).",
+      "type": "array",
+      "items": {
+        "description": "Change id without the archive date.",
+        "$ref": "warrant://common/1#/$defs/kebab_id"
+      }
+    },
+    "supersedes": {
+      "description": "Changes this Change replaces; each MUST be ABANDONED (ADR-0021).",
+      "type": "array",
+      "items": {
+        "description": "Change id without the archive date.",
+        "$ref": "warrant://common/1#/$defs/kebab_id"
+      }
     }
   },
   "required": ["$schema", "change", "change_state"],

@@ -209,3 +209,9 @@ fixture-проектах без git).
 
 | # | Решение | Где |
 |---|---|---|
+| I-66 | `packages/cli/test/fixtures` — не проект WARRANT (нет `.warrant/warrant.json`); CI-шаг «`warrant validate` в fixture-проекте» идёт в копии golden `packs/core-sdd/golden/feature` во временном каталоге | 1.1, `.github/workflows/ci.yml` |
+| I-67 | Плейсхолдер в `check.1` — только `{name}` из `[A-Za-z0-9_.-]`; `{}` и `{ a: 1 }` не плейсхолдеры (иначе отклонялся бы код в `node -e`) | 1.3, `check.1.schema.json` |
+| I-68 | Объектная форма `evidence_kinds` требует и `kind`, и `metrics_schema` (объект без формы не отличается от строки); `guard_prefixes` — каждый префикс ≥ 1 непустого токена | 1.3, `pack.1`, `check.1` |
+| I-69 | Формы `metrics` core-sdd строгие: все поля обязательны, `additionalProperties: false`, integer ≥ 0 — решение pack, kernel строгость не навязывает (D-13) | 1.4, `packs/core-sdd/evidence/*.metrics.schema.json` |
+| I-70 | Версии объектов pack (`checks/*.json` и др.) остаются `1.0.0`, поднята только версия pack `0.2.0`; каталог `evidence/` pack'а вне `provides` допустим, если его файлы ровно совпадают со ссылками `metrics_schema` | 1.4, `core-sdd-catalog.test.ts` |
+| I-71 | B4: e2e SCN-KRN-085 на Windows проходит и со старым `process.exit` — тест регрессионный, дефект не воспроизводит; Linux проверяет CI | 1.2, `status.test.ts` |

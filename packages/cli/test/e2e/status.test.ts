@@ -242,3 +242,57 @@ describe("warrant status", () => {
     expect(run.json?.data).toEqual({ changes: [] });
   });
 });
+
+describe("warrant status: large output through a pipe (B4)", () => {
+  const COUNT = 400;
+
+  /**
+   * A project with {@link COUNT} more records, each with a classification and
+   * without a change directory, next to the `add-search` of {@link project}.
+   */
+  function crowded(packs: Record<string, { version: string }>): string {
+    const root = project();
+    write(root, ".warrant/warrant.json", { $schema: "warrant://config/1", kernel: "0.1", openspec: "1.13.x", packs });
+    for (let i = 0; i < COUNT; i += 1) {
+      const name = `change-${String(i).padStart(4, "0")}`;
+      write(
+        root,
+        `.warrant/changes/${name}.json`,
+        record(name, "PROPOSED", {
+          classification: { profiles: ["feature"], risk: { data_loss: { value: "HIGH", from: "human:kat" } } }
+        })
+      );
+    }
+    return root;
+  }
+
+  it(
+    "delivers a JSON envelope larger than 64 KiB whole, with the exit code (SCN-KRN-085)",
+    async () => {
+      const root = crowded({ policy: { version: "^1.0" } });
+      // `runCli` reads stdout through a pipe, which is the case B4 is about.
+      const run = await runCli(["status"], root, env(null));
+      expect(Buffer.byteLength(run.stdout, "utf8")).toBeGreaterThan(64 * 1024);
+      expect(() => JSON.parse(run.stdout)).not.toThrow();
+      expect(run.status).toBe(0);
+      expect(run.json?.ok).toBe(true);
+      expect((run.json?.data.changes as unknown[]).length).toBe(COUNT + 1);
+    },
+    60_000
+  );
+
+  it(
+    "keeps a non-zero exit code after a large envelope (SCN-KRN-085)",
+    async () => {
+      const root = crowded({ policy: { version: "^1.0" }, "policy-conflict": { version: "^1.0" } });
+      const run = await runCli(["status"], root, env(null));
+      expect(Buffer.byteLength(run.stdout, "utf8")).toBeGreaterThan(64 * 1024);
+      expect(() => JSON.parse(run.stdout)).not.toThrow();
+      expect(run.status).toBe(2);
+      expect(run.json?.data.controller_action).toBe("ESCALATE");
+      expect((run.json?.data.changes as unknown[]).length).toBe(COUNT + 1);
+      expect((run.json?.errors as unknown[]).length).toBe(COUNT);
+    },
+    60_000
+  );
+});

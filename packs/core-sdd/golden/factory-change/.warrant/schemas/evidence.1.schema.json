@@ -52,6 +52,11 @@
           "type": "string",
           "minLength": 1
         },
+        "base_commit": {
+          "description": "Base commit a diff-scoped claim was measured against (ADR-0016); absent when the claim is not relative to a base.",
+          "type": "string",
+          "minLength": 1
+        },
         "spec_revision": {
           "description": "Spec revision the claim refers to, for example `openspec/specs/ingestion@abc1234`.",
           "type": "string",
@@ -150,6 +155,11 @@
         "type": "string",
         "minLength": 1
       }
+    },
+    "metrics": {
+      "description": "Results of the producer as named values. The kernel only requires an object: its shape is declared by the pack for the evidence kind (`metrics_schema` in `provides.evidence_kinds`) and checked by `warrant validate` as a second step (REQ-KRN-001, ADR-0016).",
+      "type": "object",
+      "additionalProperties": true
     }
   },
   "required": [

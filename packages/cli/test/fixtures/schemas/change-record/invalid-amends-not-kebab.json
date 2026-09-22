@@ -1,0 +1,71 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "add-customer-search",
+  "change_state": "APPROVED",
+  "classification": {
+    "profiles": [
+      "feature"
+    ],
+    "risk": {
+      "data_loss": {
+        "value": "NONE",
+        "from": "proposer:llm"
+      },
+      "reversibility": {
+        "value": "EASY",
+        "from": "proposer:llm"
+      },
+      "blast_radius": {
+        "value": "LOCAL",
+        "from": "floor"
+      },
+      "security_impact": {
+        "value": "MEDIUM",
+        "from": "floor"
+      },
+      "compatibility": {
+        "value": "COMPATIBLE",
+        "from": "human:kat"
+      }
+    },
+    "risk_level": "MEDIUM"
+  },
+  "transitions": [
+    {
+      "to": "SPECIFIED",
+      "at": "2026-09-22T09:00:00Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    {
+      "to": "APPROVED",
+      "at": "2026-09-22T11:00:00Z",
+      "by": "ci:run/8812",
+      "effective_policy_hash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "gates": {
+        "spec-valid": "PASS",
+        "human-approval": "PASS"
+      },
+      "evidence": [
+        "EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1A2"
+      ],
+      "ref": "https://forge.example.com/org/repo/pull/12#issuecomment-1"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "UNK-CUS-012",
+      "text": "May historical records be rewritten?",
+      "blocking": true
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "ASM-CUS-004",
+      "text": "The source emits timestamps in UTC."
+    }
+  ],
+  "amends": [
+    "Add Search"
+  ]
+}

@@ -66,7 +66,7 @@ describe("golden-фикстуры core-sdd", () => {
     expect(run.resolve["risk_level"]).toBe("LOW");
     const gates = run.resolve["gates"] as Record<string, string[]>;
     expect(gates["SPECIFIED->APPROVED"]).not.toContain("adversarial-review");
-    expect(run.resolve["sources"]).toContain("core-sdd@0.1.0:overlay/risk-low@1.0.0");
+    expect(run.resolve["sources"]).toContain("core-sdd@0.2.0:overlay/risk-low@1.0.0");
   });
 
   it("factory-change: HIGH, factory-golden-passed, PRODUCTION_WRITE, наследование feature (SCN-SDD-007)", async () => {

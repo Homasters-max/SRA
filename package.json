@@ -10,6 +10,7 @@
   },
   "files": [
     "packages/cli/package.json",
+    "scripts/build.js",
     "packages/cli/dist",
     "packages/cli/schemas",
     "packs"
@@ -19,9 +20,9 @@
   },
   "scripts": {
     "prepare": "npm run build",
-    "build": "node node_modules/typescript/bin/tsc -p packages/cli/tsconfig.json",
+    "build": "node scripts/build.js",
     "test": "npm run build && vitest run --config packages/cli/vitest.config.ts",
-    "typecheck": "node node_modules/typescript/bin/tsc --noEmit -p packages/cli/tsconfig.json"
+    "typecheck": "node scripts/build.js --noEmit"
   },
   "dependencies": {
     "ajv": "^8.17.1",

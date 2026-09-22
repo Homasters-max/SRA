@@ -15,7 +15,7 @@ version: 0.1.0
 - Документы 01–08 отгриллены в MVP-scope. Результат — ADR-0010…0014 ([adr/](adr/README.md)); документы 01–04 приведены в соответствие.
 - Спайки: S1 закрыт (ADR-0012 §7, OpenSpec 1.13.1), S3 закрыт (ADR-0009), S4 закрыт (ADR-0013: TypeScript), S5 закрыт (ADR-0014), S6 — proposed через LATTICE. **Открыт только S2**: устройство project-local schema и `config.yaml` в OpenSpec 1.13.1.
 - Кода нет. Ни одной JSON Schema `warrant://*` нет.
-- Фаза 0 завершена. Следующая — **фаза 1 Kernel** ([13 §2](13-roadmap.md)).
+- Фаза 0 завершена. Следующая — **фаза 1 Kernel** ([13 §2](13-roadmap.md)), ведётся через OpenSpec, без superpowers.
 
 ## Что уже решено для фазы 1 (не обсуждать заново)
 
@@ -32,40 +32,43 @@ version: 0.1.0
 | Enforcement Claude Code: static deny из `warrant sync` + hook `warrant guard`; reviewer = subagent | ADR-0014 |
 | Все машинные файлы — JSON с `$schema` `warrant://<name>/<major>`; `warrant fmt` канонизирует | ADR-0006, 08 §7 |
 
-## Порядок работы
+## Порядок работы — через OpenSpec (dogfooding)
 
-### Шаг 1 — план (одна сессия, без кода)
+Skills superpowers из Claude Code убраны. Фаза 1 ведётся **самим OpenSpec** в этом репозитории: это одновременно
+закрывает S2 (мы увидим `config.yaml` и schema изнутри) и даёт первые артефакты для будущего `factory-change`.
 
-Использовать skill `superpowers:writing-plans`. Вход — документы; выход — `docs/plans/<date>-phase-1-kernel.md`.
-План MUST включать:
+### Шаг 1 — поставить OpenSpec и провести спайк S2
 
-1. **S2 как первый пункт плана**: поставить OpenSpec 1.13.1 в sample-проект, изучить `openspec/schemas/<name>/schema.yaml`
-   и `config.yaml`, зафиксировать, что генерирует `warrant sync`. Результат — ADR-0015 и закрытие S2 в 13 §3.
-2. JSON Schemas kernel в порядке зависимостей: `config`, `pack`, `profile`, `overlay`, `gate`, `check`, `change-record`,
-   `evidence`, `evidence-manifest`, `controller-rules`, `risk-floor`, `risk-levels`, `openspec-rules`, `waiver`.
-   Каждая — с `description` у каждого поля (подсказка для LLM).
-3. Команды в порядке: `validate` → `fmt` → `init` → `id` → `sync` → `resolve --explain` → `status`.
-   `resolve` — самая содержательная: композиция overlays по 05 §5 с `POLICY_CONFLICT` и объяснением источников.
-4. Pack `core-sdd@0.1`: три profile, overlays `risk-*`, floors, controller rules из 04 §4, templates из 13 §5.
-5. Golden cases для `resolve` (12 §2) как тесты: вход classification → ожидаемая effective policy. Минимум:
-   `feature-low`, `feature-unknown-risk → MEDIUM + blocking UNKNOWN`, `factory-change`, `policy-conflict → ESCALATE`.
-6. Критерий выхода фазы 1 (13 §2): `warrant validate` проходит на core-sdd и на sample-проекте после `warrant init`.
+```bash
+npm i -g @fission-ai/openspec@1.13.1 && openspec init
+```
+
+Изучить сгенерированные `openspec/config.yaml`, `openspec/schemas/`, slash-команды (`/opsx:*` или `/openspec:*`
+в зависимости от версии). Результат — **ADR-0015**: что именно генерирует `warrant sync`, как выглядит
+project-local schema `warrant-sdd`. Закрыть S2 в 13 §3.
+
+### Шаг 2 — один OpenSpec Change на фазу 1
+
+Change `phase-1-kernel` через штатные команды OpenSpec (propose → specs → design → tasks → apply → archive):
+
+- **proposal.md** — только WHY / WHAT / non-goals (13 §5): команды `init validate fmt id sync resolve status`,
+  core-sdd@0.1 = `feature chore factory-change`. Не design.
+- **specs/** — требования с `<!-- id: REQ-KRN-NNN -->` под заголовками (ADR-0012 §7): по одному REQ на команду
+  и на JSON Schema; сценарии WHEN/THEN. Это первые реальные stable ID проекта — сразу проверяем S1 на себе.
+- **design.md** — monorepo `packages/cli/` TypeScript, порядок schemas по зависимостям
+  (`config pack profile overlay gate check change-record evidence evidence-manifest controller-rules risk-floor
+  risk-levels openspec-rules waiver`), `resolve` как чистая функция с golden cases (12 §2).
+- **tasks.md** — ссылки на REQ; порядок: schemas → `validate` → `fmt` → `init` → `id` → `sync` → `resolve --explain` → `status`.
+- **apply** — тесты первыми для schemas и `resolve`; ветка `feature/phase-1-kernel`.
+- **archive** — критерий выхода 13 §2: `warrant validate` проходит на core-sdd и на sample-проекте после `warrant init`.
 
 Готовый запрос:
 
 ```text
 Прочитай docs/NEXT-SESSION.md, затем docs/00-readme.md, 13-roadmap.md, adr/WARRANT-ADR-0006, 0007, 0009–0014,
-затем 02, 03, 04, 05, 06, 06a, 08. Используй superpowers:writing-plans и составь план фазы 1 Kernel по разделу
-«Шаг 1» из NEXT-SESSION.md. Не пиши код и не создавай packages/ до утверждения плана. Спорные места —
-вопросом ко мне, не допущением.
+затем 02, 03, 04, 05, 06, 06a, 08. Выполни Шаг 1 (OpenSpec 1.13.1, спайк S2 → ADR-0015). Затем создай OpenSpec
+Change phase-1-kernel по Шагу 2 и остановись после proposal + specs на моё review. Спорные места — вопросом ко мне.
 ```
-
-### Шаг 2 — исполнение (следующие сессии)
-
-Skill `superpowers:executing-plans` (одна сессия ведёт план с checkpoint'ами) или
-`superpowers:subagent-driven-development` (независимые задачи параллельно). TDD обязателен
-(`superpowers:test-driven-development`): schemas и `resolve` — чистые функции, тесты пишутся первыми.
-Ветка `feature/phase-1-kernel`, коммиты по задачам плана.
 
 ### Шаг 3 — не раньше конца фазы 1
 

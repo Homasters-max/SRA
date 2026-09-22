@@ -1,0 +1,15 @@
+{
+  "$schema": "warrant://check/1",
+  "id": "adversarial-review",
+  "version": "1.0.0",
+  "level": "L2",
+  "run": {
+    "command": [
+      "true"
+    ]
+  },
+  "produces": [
+    "review"
+  ],
+  "parser": "none"
+}

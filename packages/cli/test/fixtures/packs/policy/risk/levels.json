@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://risk-levels/1",
+  "high": {
+    "when_any": {
+      "data_loss": [
+        "MEDIUM",
+        "HIGH"
+      ],
+      "reversibility": [
+        "DIFFICULT",
+        "IRREVERSIBLE"
+      ],
+      "blast_radius": [
+        "SYSTEM",
+        "CROSS_SYSTEM"
+      ],
+      "security_impact": [
+        "HIGH"
+      ],
+      "compatibility": [
+        "BREAKING"
+      ]
+    }
+  },
+  "low": {
+    "when_all": {
+      "data_loss": [
+        "NONE"
+      ],
+      "reversibility": [
+        "EASY"
+      ],
+      "blast_radius": [
+        "LOCAL"
+      ],
+      "security_impact": [
+        "NONE"
+      ],
+      "compatibility": [
+        "COMPATIBLE"
+      ]
+    }
+  },
+  "default": "MEDIUM"
+}

@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://pack/1",
+  "title": "WARRANT pack manifest",
+  "description": "`pack.json` — manifest of a WARRANT pack (08 section 2). Every path in `provides` is relative to the pack directory and MUST NOT leave it.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://pack/1"
+    },
+    "id": {
+      "description": "Pack id, unique across the packs enabled in a project.",
+      "$ref": "warrant://common/1#/$defs/kebab_id"
+    },
+    "version": {
+      "description": "Exact version of this pack.",
+      "$ref": "warrant://common/1#/$defs/semver"
+    },
+    "kernel": {
+      "description": "Kernel version range this pack is compatible with, for example `>=0.1 <0.2`.",
+      "$ref": "warrant://common/1#/$defs/semver_range"
+    },
+    "description": {
+      "description": "What this pack adds, in one sentence.",
+      "type": "string"
+    },
+    "depends_on": {
+      "description": "Other packs this pack requires, keyed by pack id with an accepted version range.",
+      "type": "object",
+      "properties": {},
+      "patternProperties": {
+        "^[a-z0-9]+(-[a-z0-9]+)*$": {
+          "description": "Accepted version range of the required pack.",
+          "$ref": "warrant://common/1#/$defs/semver_range"
+        }
+      },
+      "propertyNames": {
+        "anyOf": [
+          { "$ref": "warrant://common/1#/$defs/kebab_id" },
+          { "pattern": "^\\$comment$" }
+        ]
+      },
+      "additionalProperties": false
+    },
+    "provides": {
+      "description": "Objects this pack contributes, as paths relative to the pack directory.",
+      "type": "object",
+      "properties": {
+        "profiles": {
+          "description": "Profile files (`warrant://profile/1`).",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/relative_path" }
+        },
+        "overlays": {
+          "description": "Overlay files (`warrant://overlay/1`).",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/relative_path" }
+        },
+        "gates": {
+          "description": "Gate files (`warrant://gate/1`).",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/relative_path" }
+        },
+        "checks": {
+          "description": "Check files (`warrant://check/1`).",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/relative_path" }
+        },
+        "risk_floors": {
+          "description": "Risk floor files (`warrant://risk-floor/1`).",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/relative_path" }
+        },
+        "risk_levels": {
+          "description": "Risk level files (`warrant://risk-levels/1`).",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/relative_path" }
+        },
+        "controller_rules": {
+          "description": "Controller rule tables (`warrant://controller-rules/1`).",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/relative_path" }
+        },
+        "recipes": {
+          "description": "Recipe files contributed by this pack.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/relative_path" }
+        },
+        "templates": {
+          "description": "Markdown templates contributed by this pack.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/relative_path" }
+        },
+        "openspec_schema": {
+          "description": "OpenSpec workflow schema source (`warrant://openspec-schema/1`).",
+          "$ref": "warrant://common/1#/$defs/relative_path"
+        },
+        "openspec_rules": {
+          "description": "OpenSpec per-artifact rules source (`warrant://openspec-rules/1`).",
+          "$ref": "warrant://common/1#/$defs/relative_path"
+        },
+        "skills": {
+          "description": "Skills this pack expects, as `namespace/name@range`.",
+          "type": "array",
+          "items": {
+            "description": "Skill reference `namespace/name@range`.",
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*@.+$"
+          }
+        },
+        "evidence_kinds": {
+          "description": "Evidence kinds this pack declares.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/kebab_id" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "params_schema": {
+      "description": "JSON Schema file validating `packs.<id>.params` from the project config.",
+      "$ref": "warrant://common/1#/$defs/relative_path"
+    }
+  },
+  "required": ["$schema", "id", "version", "kernel"],
+  "additionalProperties": false
+}

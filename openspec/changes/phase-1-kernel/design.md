@@ -28,19 +28,23 @@
 ### 1. Layout monorepo и установка через git-tag
 
 ```text
-package.json                  workspace root; "bin": {"warrant": "packages/cli/dist/bin/warrant.js"}; "prepare": build
-packages/cli/                 @warrant/cli (private), TypeScript ESM, tsc → dist/
+package.json                  единственный npm-пакет: deps, "bin": {"warrant": "packages/cli/dist/bin/warrant.js"}, "prepare": build, "files"
+packages/cli/                 каталог кода CLI (не workspace и не пакет), TypeScript ESM, tsc → dist/
   schemas/                    JSON Schema kernel: <name>.<major>.schema.json + common.1.schema.json
   src/                        bin/, commands/, core/{schemas,canon,ids,resolve,sync,packs,openspec,secrets}, io/
   test/                       vitest: unit, golden/resolve/<case>/{input.json,expected.json}, e2e (temp dirs)
 packs/core-sdd/               pack.json, openspec/{schema.json,rules.json,templates/*.md}, risk/{levels,floors}.json
 ```
 
-`npm i -g <git-url>#<tag>` устанавливает **корневой** пакет, поэтому `bin` и `prepare` объявлены в корне;
-`prepare` вызывает `npm -w packages/cli run build`. Bundled packs находятся по пути `<корень установленного пакета>/packs`,
-вычисляемому от `import.meta.url` CLI, а не от cwd. Это же закрывает `UNK-KRN-003`: источники packs — bundled + `.warrant/local/`.
+`npm i -g <git-url>#<tag>` устанавливает **корневой** пакет, поэтому `bin`, `prepare`, зависимости и `files` объявлены в корне;
+`prepare` запускает `node scripts/build.js` (tsc по пути, fallback — см. I-11). `files` перечисляет `packages/cli/{package.json,dist,schemas}` и `packs`,
+иначе `.gitignore` исключил бы `dist/` из tarball. Bundled packs находятся по пути `<корень установленного пакета>/packs`,
+вычисляемому от `import.meta.url` CLI (пять уровней вверх от `dist/core/packs/`), а не от cwd. Это же закрывает `UNK-KRN-003`:
+источники packs — bundled + `.warrant/local/`. Версия CLI — `version` корневого `package.json` (`src/version.ts`).
 
-**Alternatives considered:** `packages/cli` как самостоятельный пакет с копией `packs/` — отвергнуто: две копии pack в репозитории.
+**Alternatives considered:** npm workspaces (`packages/*`) — отвергнуто после проверки (задача 1.5): npm отвечает
+`Workspaces not supported for global packages`, глобальная установка корня невозможна, а установка `packages/cli` даёт лишь
+symlink на локальный чекаут без `packs/`. `packages/cli` как самостоятельный пакет с копией `packs/` — отвергнуто: две копии pack в репозитории.
 
 ### 2. JSON Schema: draft 2020-12, Ajv, общий `common`
 
@@ -169,8 +173,61 @@ checks, controller — фаза 2 добавляет файлы и строки 
 ## Migration Plan
 
 Новый код; миграции нет. Откат — удаление ветки. В этом репозитории `openspec/config.yaml` остаётся ручным до фазы 2 (ADR-0015 п. 7),
-поэтому `warrant validate` на самом репозитории в фазе 1 запускается с флагом `--no-generated` (пропуск проверки 4 из REQ-KRN-021);
-флаг документируется как временный и удаляется в фазе 2.
+поэтому `warrant validate` на самом репозитории в фазе 1 запускается с флагом `--no-generated` (пропуск проверки 4 из REQ-KRN-021
+и hash файлов `openspec/**` в проверке 2 — иначе восстановленный из git `config.yaml` давал бы `LOCK_MISMATCH`);
+флаг документируется как временный и удаляется в фазе 2. Сам `.warrant/warrant.json` и lock репозитория создаются `warrant init`
+с последующим `git checkout -- openspec/config.yaml` (I-43).
+
+## Решения по ходу реализации
+
+Зафиксированы при apply групп 1–3 (I-1…I-11), 4 и 6 (I-12…I-15), 7 и 8 (I-16…I-21), 5 (I-22…I-31), 9 (I-32…I-42), 10 (I-43, I-44), 2026-09-22; нормативные документы не затронуты, ADR не требуется.
+
+| # | Решение | Где |
+|---|---|---|
+| I-1 | Один npm-пакет в корне, без workspaces (см. D-1, Alternatives) | `package.json`, `packages/cli/package.json` |
+| I-2 | Зависимость `semver` для диапазонов версий packs и `kernel`; ручной парсер диапазонов не пишется | `core/packs/loader.ts` |
+| I-3 | Проверка размещения ID (5) — только `REQ`/`SCN` в `openspec/specs/**` и `openspec/changes/<c>/specs/**`: `TASK`/`UNK`/`ASM` не попадают в `openspec show --json`, для них — формат, AREA, уникальность | `core/ids/scan.ts` |
+| I-4 | `.warrant/schemas/**` исключены из проверки (1): это копии JSON Schema с `$schema` draft 2020-12; целостность — по hash в lock (`sync`) | `commands/validate.ts` |
+| I-5 | Отсутствие `warrant.lock.json` при наличии `warrant.json` → `LOCK_MISMATCH` с подсказкой `warrant sync`, не `CONFIG_MISSING` | `core/packs/hash.ts` |
+| I-6 | Пока проверка (4) не реализована (задача 3.6), `validate` кладёт `generated` в `data.skipped` и предупреждает в stderr — вывод не притворяется полным; `canonical` снят в группе 4 вместе с проверкой (7) | `commands/validate.ts` |
+| I-7 | Hash pack для lock = `canonicalHash({ files: { "<posix path>": "sha256:<bytes>" } })` по всем файлам pack; `sync` обязан использовать ту же функцию `packContentHash` | `core/packs/hash.ts` |
+| I-8 | `.warrant/local/`: каждый `*.json` проверяется схемой; объектами policy (pack `local`) становятся только документы `profile`/`overlay`/`gate`/`check`, классифицируемые по `$schema`, без соглашения о каталогах; pack по `warrant.json` также ищется в `.warrant/local/<id>/pack.json` | `core/packs/loader.ts` |
+| I-9 | Объекты без `id` (`risk-floor`, `risk-levels`) получают id = имя файла без расширения; override `accepts_attestation` может только сужать список | `core/packs/loader.ts` |
+| I-10 | Задача 7.1 (минимум `packs/core-sdd`) и hash из 4.1 выполнены в группе 3: без них не проверить SCN-KRN-043 и lock | `packs/core-sdd/`, `core/canon/hash.ts` |
+| I-11 | Установка: `npm i -g <путь к чекауту>` и `npm pack` → `npm i -g <tgz>` проверены; `npm i -g <git-url>#<tag>` напрямую на npm 10 / Windows не работает (внутренний `npm install` наследует `npm_config_global`, tarball выходит без файлов). `scripts/build.js` выполняет `prepare` без зависимости от PATH и доставляет `typescript` в клон с чистым окружением npm | `scripts/build.js`, README |
+| I-12 | `fmt` без путей и без `.warrant/` → `CONFIG_MISSING` (код 3); с явными путями `warrant.json` не нужен, а явный каталог берётся целиком (исключение `.warrant/schemas/**` — только для набора по умолчанию). `data = { checked, changed[] }`; `--check` даёт по одной ошибке `NOT_CANONICAL` на файл и код 1; нечитаемый / невалидный JSON → `CONFIG_INVALID`, код 3, перекрывает код 1. Предупреждение о неизвестной `$schema` печатается для каждого такого файла, даже канонического | `commands/fmt.ts` |
+| I-13 | Набор файлов канонической формы и исключение `.warrant/schemas/**` (I-4) живут в `core/canon/files.ts` и общие для `fmt` и проверки (7) `validate`; проверка (7) молчит о нечитаемых файлах — их уже сообщает проверка (1). `orderKeys` разыменовывает только `#/...` и `warrant://common/1#/...`; неразрешимый `$ref` → алфавит, не ошибка | `core/canon/{files,order-keys,format-json}.ts` |
+| I-14 | `warrant id`: ничего не пишет на диск; `data` = `{ id, prefix, area }` (spec-уровень), `{ id, prefix }` (`EVID`/`RUN`), `{ id, prefix, year }` (`WAV`, год — UTC, счётчик по полю `id` файлов `.warrant/waivers/*.json`); синтаксически неверная AREA → `AREA_UNKNOWN`; переполнение 999 → `ID_FORMAT` также для `WAV` | `core/ids/allocate.ts`, `commands/id.ts` |
+| I-15 | `renumber`: порядок проверок формат (`ID_FORMAT`: не `PREFIX-AREA-NNN`, разные префиксы, `old = new`) → `CHANGE_NOT_FOUND` → `ID_IMMUTABLE` → `ID_TAKEN` → вхождения; `<old>` не встречается → `USAGE`, ничего не записано; запись только после планирования всех файлов. Все файлы под `openspec/changes/<name>/**`, `paths.tests` и сам record считаются текстом, если нет NUL-байта; граница слова — `(?<![A-Za-z0-9-])ID(?![A-Za-z0-9-])`; record переписывается текстово, не структурно | `core/ids/renumber.ts` |
+| I-16 | `sync`: порядок — `warrant.json` → проверка версии `openspec` (`OPENSPEC_FAILED`, если бинаря нет; `OPENSPEC_VERSION` при несовпадении с `warrant.json.openspec`) → loader; любая ошибка loader'а прерывает без записи (SCN-KRN-064). Ровно один pack с `openspec_schema`: ноль или больше одного → `CONFIG_INVALID`. `openspec/` не требуется и `openspec init` не вызывается — создаются только нужные каталоги | `commands/sync.ts`, `core/sync/plan.ts`, `core/openspec/version.ts` |
+| I-17 | Lock: `skills` опущен (фаза 1 без skills); копии схем `.warrant/schemas/*.schema.json` входят в `generated` (I-4); lock пишется через `writeJsonFile` и потому канонический. `sync --check`: файлы под `openspec/` и копии схем → `GENERATED_DRIFT`, lock → `LOCK_MISMATCH`, код 1. Устаревшие templates не удаляются, а перечисляются в `data.stale[]`. `data = { schema, changed[], generated[], stale[] }` | `core/sync/plan.ts` |
+| I-18 | Проверка (4) `validate` = `planSync` без lock (lock — проверка 2); без `openspec` на PATH побайтное сравнение и `RULES_ARTIFACT_UNKNOWN` выполняются, а `openspec schema validate` и проверка версии пропускаются с `openspec-schema` в `data.skipped`; при ошибках loader'а проверка (4) молча не запускается. Порядок ключей `rules` в `config.yaml` — порядок слоёв (pack, затем проект) | `commands/validate.ts` |
+| I-19 | Resolver: `collectLayers(loaded, classification, riskLevel)` — слой `risk` требует уже вычисленного уровня; без classification слой `risk` не собирается вовсе (SCN-KRN-068), хотя `MEDIUM` выведен. Неизвестный profile или цикл `extends` → `CONFIG_INVALID`. `low.when_all` и `match` по измерению требуют наличия измерения (fail closed). `classification.profiles` дедуплицируется и сортируется до раскрытия `extends` | `core/resolve/{layers,risk-level}.ts` |
+| I-20 | Результат `resolve`: все массивы отсортированы (строки лексикографически, `approvals` по `role@at`, ключи `gates` лексикографически), ключи всегда присутствуют (пустые массивы / объекты); `explain[].item` — `risk_level:<L>`, `artifact.{required,recommended,forbidden}:<id>`, `gate:<id>` (без перехода, как в 05 §6), `capability.forbidden:<x>`, `approval:<role>@<at>`, `evidence:<kind>`; `explain` в `data` только с `--explain`; `sources` для `.warrant/local` дедуплицируются по hash содержимого. Конфликт: `errors[0] = POLICY_CONFLICT`, `data = { controller_action: ESCALATE, conflicts[] }`, код 2 | `core/resolve/merge.ts`, `commands/resolve.ts` |
+| I-21 | Golden cases: `input.json = { packs[], classification?, local? }` — раннер строит temp-проект и прогоняет реальный loader; `expected.json` — результат без `hash` (`kernel@{CLI_VERSION}` и `sha256:<hash>` нормализуются раннером), для `policy-conflict` — объект конфликта. Fixture-packs `policy` и `policy-conflict`; golden-файлы без `$schema` вне `.warrant/**` и вне набора `fmt`. `--classification <file>` валидируется оборачиванием в минимальный record; файл имеет приоритет над record | `test/golden/resolve/`, `test/fixtures/packs/{policy,policy-conflict}` |
+| I-22 | `init` пишет только свои файлы (`warrant.json`, `local/areas.json`, `local/openspec/rules.json`, четыре `.gitkeep`) и затем вызывает `runSync`: копии схем, файлы OpenSpec и lock создаёт только `sync` (I-17), логика не дублируется | `commands/init.ts` |
+| I-23 | Порядок `init`: `ALREADY_INITIALIZED` → `openspec --version` → версия bundled pack → запись → `sync`; повторный `init` отказывает одинаково с `openspec` на PATH и без него | `commands/init.ts` |
+| I-24 | Нет `openspec` на PATH → `OPENSPEC_FAILED`, код 3, до любой записи (как I-16) | `commands/init.ts` |
+| I-25 | `warrant.json.openspec` = `<major>.<minor>.x` от точной версии `openspec --version` (minor может менять форму `config.yaml`, patch — нет); `packs.core-sdd.version` = `^<version из packs/core-sdd/pack.json>`; bundled pack без версии → `INTERNAL` | `core/init/scaffold.ts` |
+| I-26 | `--force` переписывает все init-owned файлы и ничего больше; содержимое `changes/`, `waivers/`, `evidence/`, `runs/` не удаляется. Без `--force` существующие init-owned файлы (кроме `warrant.json`) остаются и не попадают в `data.created[]` | `commands/init.ts` |
+| I-27 | `data` `init` = `{ created[], sync }`: `created[]` — записанные init-owned файлы плюс `changed[]` из `sync` (POSIX-пути); `sync` — полный payload `{ schema, changed, generated, stale }`. Ошибка `sync` пробрасывается со своим кодом, `data` сохраняется | `commands/init.ts` |
+| I-28 | `init change`: порядок `requireConfigPath` → kebab-case (`USAGE`) → `CHANGE_NAME_TAKEN` → `config.yaml` с ключом `schema` (`CONFIG_INVALID`) → `openspec new change` (`OPENSPEC_FAILED`) → record. Конфликт имени учитывает также `openspec/changes/<name>/` и `archive/<name>` (сверх двух источников spec — чтобы не затирать ручной каталог); `errors[0].path` — конфликтующий путь | `core/init/scaffold.ts` |
+| I-29 | `data` `init change` = `{ change, record, openspec_dir }`, `change` в envelope; record = `{ $schema, change, change_state: PROPOSED, transitions: [{ to: PROPOSED, at: <UTC ISO 8601>, by: "cli:local" }] }` через `writeJsonFile` | `core/init/scaffold.ts` |
+| I-30 | Имя схемы OpenSpec берётся из `openspec/config.yaml` регулярным выражением `^schema: <value>$` (в кавычках или без), не YAML-парсером: `yaml` — только dev-зависимость, `sync` пишет ключ в колонке 0 | `core/init/scaffold.ts` |
+| I-31 | Тесты: fake `openspec` на PATH (паттерн из `sync.test.ts`) пишет marker-файл — доказательство, что `openspec new change` не вызывался при `CHANGE_NAME_TAKEN` (SCN-KRN-055) и `openspec --version` — при повторном `init` | `test/e2e/init.test.ts` |
+| I-32 | `parseOpenspecStatus` берёт из ответа OpenSpec 1.13 только `artifacts[].id → status`; не-объект, отсутствие `artifacts` или статус вне `done|ready|blocked|skipped` → `OPENSPEC_FAILED` (изменение контракта видно, а не даёт `{}`); элементы без `id` пропускаются | `core/openspec/status.ts` |
+| I-33 | Обёртка `openspecStatus` не бросает: ненулевой код или нечитаемый ответ → `{ artifacts: {}, warning }`, команда печатает warning в stderr | `core/openspec/status.ts`, `commands/status.ts` |
+| I-34 | `openspec status` не вызывается, если каталог Change не активен (отсутствует или в archive): `stale[]` это уже объясняет, `artifacts: {}` без warning | `commands/status.ts` |
+| I-35 | Нет `openspec` на PATH → `artifacts: {}`, warning в stderr, код 0; `status` не выполняет проверку `OPENSPEC_VERSION` (read-only отчёт должен работать и при дрейфе версии) | `commands/status.ts` |
+| I-36 | Порядок ключей на Change: `change, change_state, classification, effective_policy, artifacts, stale`; `classification` без записи в record → `null` (ключ всегда есть); `effective_policy` = `{ hash, sources }` или `null`, если policy не вычислена; ключей `verdicts`/`next` нет | `commands/status.ts` |
+| I-37 | `stale[]` = `{ code, message, path }` (POSIX-путь: искомый каталог для `CHANGE_DIR_MISSING`, найденный archive-каталог для `ARCHIVED_WITHOUT_TRANSITION`); коды stale — отдельное пространство, не в `ERROR_CODES`: staleness — отчёт, код выхода 0 | `core/status/stale.ts` |
+| I-38 | Поиск каталога Change общий для `init change` и `status` — `findChangeDir`: `archive/<YYYY-MM-DD>-<name>` и `archive/<name>` (перенесён вручную) | `core/init/scaffold.ts` |
+| I-39 | `POLICY_CONFLICT` в `status` — как в `resolve` (`errors[0]`, `data.controller_action: ESCALATE`, код 2), но payload Change сохраняется с `effective_policy: null`: конфликт и stale-сигналы не скрываются; в списке сообщение с префиксом имени, остальные Changes выводятся. Ошибка слоёв (неизвестный profile, цикл `extends`) → `CONFIG_INVALID`, код 3, без `controller_action` | `commands/status.ts` |
+| I-40 | Без аргумента: `data = { changes: [...] }`, без `change` в envelope, имена из `.warrant/changes/*.json` лексикографически; нет каталога → `{ changes: [] }`, код 0; packs загружаются один раз | `core/record/read.ts`, `commands/status.ts` |
+| I-41 | `readJsonFile` / `readChangeRecord` вынесены из `commands/resolve.ts` в `core/record/read.ts`: `resolve` и `status` сообщают одинаковые коды для одних и тех же проблем record | `core/record/read.ts` |
+| I-42 | e2e `status` идут без реального `openspec`: fake на PATH (`openspec.cmd` + shell-скрипт, абсолютный `process.execPath`) отдаёт сохранённый fixture для `status --json` и `1.13.1` для `--version`; реальный бинарь проверяется задачей 10.1 | `test/e2e/status.test.ts`, `test/fixtures/openspec/` |
+| I-43 | `--no-generated` также пропускает сверку hash entries `openspec/**` из `lock.generated` (копии схем `.warrant/schemas/**` сверяются всегда); принято maintainer'ом вместо ADR к ADR-0015 п. 7 и вместо флага `init --no-sync`. Dogfooding: `warrant init` в репозитории, затем `config.yaml` восстановлен из git; `openspec/schemas/warrant-sdd/**` оставлен как сгенерирован | `core/packs/hash.ts`, `commands/validate.ts` |
+| I-44 | Сканер ID (D-5) игнорирует комментарии внутри inline code span (`...` в одной строке): найдено dogfooding — `REQ-KRN-099` в тексте SCN-KRN-046 давал `ID_PLACEMENT` и раздул бы нумерацию `warrant id`. Fenced-блоки не обрабатываются, пока нет failure mode | `core/ids/scan.ts` |
 
 ## Open Questions
 

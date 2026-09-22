@@ -1,0 +1,11 @@
+{
+  "$schema": "warrant://profile/1",
+  "id": "chore",
+  "version": "1.0.0",
+  "description": "Standalone profile, no extends.",
+  "artifacts": {
+    "required": [
+      "tasks"
+    ]
+  }
+}

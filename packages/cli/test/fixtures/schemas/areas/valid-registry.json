@@ -1,0 +1,9 @@
+{
+  "$schema": "warrant://areas/1",
+  "KRN": {
+    "capability": "kernel"
+  },
+  "CUS": {
+    "capability": "customer-search"
+  }
+}

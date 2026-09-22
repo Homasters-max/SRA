@@ -1,0 +1,44 @@
+{
+  "$schema": "warrant://pack/1",
+  "id": "data",
+  "version": "0.3.0",
+  "kernel": ">=0.1 <0.2",
+  "depends_on": {
+    "core-sdd": ">=0.1"
+  },
+  "provides": {
+    "profiles": [
+      "profiles/data-change.json",
+      "profiles/migration.json"
+    ],
+    "gates": [
+      "gates/contract-compatible.json",
+      "gates/reconciliation-passed.json"
+    ],
+    "checks": [
+      "checks/contract-diff.json"
+    ],
+    "risk_floors": [
+      "risk/floors.json"
+    ],
+    "controller_rules": [],
+    "recipes": [
+      "recipes/specify-data.json"
+    ],
+    "templates": [
+      "templates/data-contract.md",
+      "templates/migration-plan.md"
+    ],
+    "openspec_rules": "openspec/rules.json",
+    "skills": [
+      "data/contract-authoring@^1",
+      "semantic/evidence-reasoning@^1"
+    ],
+    "evidence_kinds": [
+      "schema-diff",
+      "data-quality-report",
+      "rollback-report"
+    ]
+  },
+  "params_schema": "params.schema.json"
+}

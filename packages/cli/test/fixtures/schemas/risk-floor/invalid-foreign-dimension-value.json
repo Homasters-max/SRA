@@ -1,0 +1,13 @@
+{
+  "$schema": "warrant://risk-floor/1",
+  "floors": [
+    {
+      "paths": [
+        "**/migrations/**"
+      ],
+      "set": {
+        "data_loss": "BREAKING"
+      }
+    }
+  ]
+}

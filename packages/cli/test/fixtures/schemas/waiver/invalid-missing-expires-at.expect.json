@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/expires_at",
+  "scenario": "SCN-KRN-039"
+}

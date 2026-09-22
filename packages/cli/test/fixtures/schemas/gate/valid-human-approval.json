@@ -1,0 +1,17 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "human-approval",
+  "version": "1.0.0",
+  "level": "L2",
+  "requires_evidence": [
+    {
+      "kind": "human-approval",
+      "status": "PROVEN"
+    }
+  ],
+  "waivable": false,
+  "accepts_attestation": [
+    "human-review",
+    "signature"
+  ]
+}

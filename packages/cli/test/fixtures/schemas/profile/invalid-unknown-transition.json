@@ -1,0 +1,10 @@
+{
+  "$schema": "warrant://profile/1",
+  "id": "data-change",
+  "version": "1.2.0",
+  "gates": {
+    "DRAFT->DONE": [
+      "spec-valid"
+    ]
+  }
+}

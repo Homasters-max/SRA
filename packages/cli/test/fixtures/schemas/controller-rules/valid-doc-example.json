@@ -1,0 +1,88 @@
+{
+  "$schema": "warrant://controller-rules/1",
+  "rules": [
+    {
+      "id": "policy-conflict",
+      "when": {
+        "policy_conflict": true
+      },
+      "action": "ESCALATE"
+    },
+    {
+      "id": "gate-failed-hard",
+      "when": {
+        "gate_verdict": "FAIL",
+        "gate_waivable": false
+      },
+      "action": "STOP"
+    },
+    {
+      "id": "gate-failed-waivable",
+      "when": {
+        "gate_verdict": "FAIL",
+        "gate_waivable": true
+      },
+      "action": "WAIT"
+    },
+    {
+      "id": "blocking-unknown",
+      "when": {
+        "blocking_unknowns": ">0"
+      },
+      "action": "WAIT",
+      "next": "clarify"
+    },
+    {
+      "id": "missing-artifact",
+      "when": {
+        "missing_required_artifacts": ">0"
+      },
+      "action": "CONTINUE",
+      "next": "specify"
+    },
+    {
+      "id": "approval-pending",
+      "when": {
+        "pending_approvals": ">0"
+      },
+      "action": "WAIT"
+    },
+    {
+      "id": "impl-incomplete",
+      "when": {
+        "open_tasks": ">0"
+      },
+      "action": "CONTINUE",
+      "next": "implement"
+    },
+    {
+      "id": "awaiting-attestation",
+      "when": {
+        "gates_awaiting_attestation": ">0"
+      },
+      "action": "WAIT"
+    },
+    {
+      "id": "verify-incomplete",
+      "when": {
+        "unevaluated_gates": ">0"
+      },
+      "action": "CONTINUE",
+      "next": "verify"
+    },
+    {
+      "id": "gaps",
+      "when": {
+        "analyze_findings": ">0"
+      },
+      "action": "CONTINUE",
+      "next": "converge"
+    },
+    {
+      "id": "done",
+      "when": {},
+      "action": "CONTINUE",
+      "next": "archive"
+    }
+  ]
+}

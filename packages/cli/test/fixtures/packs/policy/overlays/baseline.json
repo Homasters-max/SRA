@@ -1,0 +1,17 @@
+{
+  "$schema": "warrant://overlay/1",
+  "id": "baseline",
+  "version": "1.0.0",
+  "description": "Unconditional default layer: no match, so it always applies.",
+  "artifacts": {
+    "required": [
+      "proposal",
+      "specs"
+    ]
+  },
+  "gates": {
+    "VERIFYING->MERGED": [
+      "tests-passed"
+    ]
+  }
+}

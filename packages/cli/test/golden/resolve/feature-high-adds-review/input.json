@@ -1,0 +1,16 @@
+{
+  "packs": [
+    "policy"
+  ],
+  "classification": {
+    "profiles": [
+      "feature"
+    ],
+    "risk": {
+      "data_loss": {
+        "value": "HIGH",
+        "from": "human:kat"
+      }
+    }
+  }
+}

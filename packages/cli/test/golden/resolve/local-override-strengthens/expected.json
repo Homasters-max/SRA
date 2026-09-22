@@ -1,0 +1,55 @@
+{
+  "sources": [
+    "kernel@{CLI_VERSION}",
+    "project:.warrant/local@sha256:<hash>"
+  ],
+  "risk_level": "MEDIUM",
+  "artifacts": {
+    "required": [
+      "proposal",
+      "specs",
+      "tasks"
+    ],
+    "recommended": [],
+    "forbidden": []
+  },
+  "gates": {
+    "VERIFYING->MERGED": [
+      "lint-passed",
+      "tests-passed"
+    ]
+  },
+  "capabilities": {
+    "forbidden": []
+  },
+  "approvals": [],
+  "evidence": {
+    "required": []
+  },
+  "explain": [
+    {
+      "item": "risk_level:MEDIUM",
+      "from": "default:no-classification"
+    },
+    {
+      "item": "artifact.required:proposal",
+      "from": "overlay/baseline"
+    },
+    {
+      "item": "artifact.required:specs",
+      "from": "overlay/baseline"
+    },
+    {
+      "item": "artifact.required:tasks",
+      "from": "overlay/baseline"
+    },
+    {
+      "item": "gate:lint-passed",
+      "from": "overlay/baseline"
+    },
+    {
+      "item": "gate:tests-passed",
+      "from": "overlay/baseline"
+    }
+  ]
+}

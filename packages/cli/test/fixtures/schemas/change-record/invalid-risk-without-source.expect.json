@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/classification/risk/data_loss",
+  "scenario": "SCN-KRN-023"
+}

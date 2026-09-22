@@ -1,0 +1,6 @@
+{
+  "name": "@warrant/cli",
+  "private": true,
+  "description": "WARRANT kernel CLI: schemas, validate, fmt, id, sync, resolve, status. Not an npm package of its own: dependencies, build and bin live in the repository root package.json (design D-1).",
+  "type": "module"
+}

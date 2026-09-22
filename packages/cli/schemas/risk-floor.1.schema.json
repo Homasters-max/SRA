@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://risk-floor/1",
+  "title": "WARRANT risk floor rules",
+  "description": "Deterministic path rules setting the minimum value of a risk dimension (05 section 4). Floors can be raised by a proposer or a human, never silently lowered.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://risk-floor/1"
+    },
+    "floors": {
+      "description": "Floor rules; every rule whose paths match contributes its minimums.",
+      "type": "array",
+      "items": {
+        "description": "One floor rule.",
+        "type": "object",
+        "properties": {
+          "paths": {
+            "description": "Glob patterns over changed paths that trigger this rule.",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "description": "Glob pattern relative to the project root.",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "set": {
+            "description": "Minimum value per risk dimension imposed by this rule.",
+            "type": "object",
+            "properties": {
+              "data_loss": {
+                "description": "Minimum value of the `data_loss` dimension.",
+                "$ref": "warrant://common/1#/$defs/data_loss"
+              },
+              "reversibility": {
+                "description": "Minimum value of the `reversibility` dimension.",
+                "$ref": "warrant://common/1#/$defs/reversibility"
+              },
+              "blast_radius": {
+                "description": "Minimum value of the `blast_radius` dimension.",
+                "$ref": "warrant://common/1#/$defs/blast_radius"
+              },
+              "security_impact": {
+                "description": "Minimum value of the `security_impact` dimension.",
+                "$ref": "warrant://common/1#/$defs/security_impact"
+              },
+              "compatibility": {
+                "description": "Minimum value of the `compatibility` dimension.",
+                "$ref": "warrant://common/1#/$defs/compatibility"
+              }
+            },
+            "minProperties": 1,
+            "additionalProperties": false
+          }
+        },
+        "required": ["paths", "set"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["$schema", "floors"],
+  "additionalProperties": false
+}

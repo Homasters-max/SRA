@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://common/1",
+  "title": "WARRANT common definitions",
+  "description": "Shared enums, identifier patterns and policy fragments reused by every kernel document schema. This file is not a document schema: it MUST NOT appear in the `$schema` field of a WARRANT file.",
+  "$defs": {
+    "change_state": {
+      "description": "Lifecycle state of a Change (02 section 2).",
+      "type": "string",
+      "enum": [
+        "PROPOSED",
+        "SPECIFIED",
+        "APPROVED",
+        "IMPLEMENTING",
+        "VERIFYING",
+        "MERGED",
+        "ARCHIVED",
+        "ABANDONED"
+      ]
+    },
+    "evidence_status": {
+      "description": "Status axis of an evidence record (02 section 2).",
+      "type": "string",
+      "enum": ["PROVEN", "NOT_PROVEN", "INCONCLUSIVE", "NOT_APPLICABLE"]
+    },
+    "gate_verdict": {
+      "description": "Verdict axis of a gate (02 section 2). There is no INCONCLUSIVE verdict.",
+      "type": "string",
+      "enum": ["PASS", "FAIL", "WAIVED", "NOT_APPLICABLE", "BLOCKED"]
+    },
+    "controller_action": {
+      "description": "Action axis of the controller decision table (02 section 2).",
+      "type": "string",
+      "enum": ["CONTINUE", "WAIT", "STOP", "ESCALATE"]
+    },
+    "waiver_state": {
+      "description": "State axis of a waiver (02 section 2).",
+      "type": "string",
+      "enum": ["PROPOSED", "ACTIVE", "EXPIRED", "REVOKED"]
+    },
+    "risk_level": {
+      "description": "Aggregate risk level derived from the risk dimensions (05 section 4).",
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH"]
+    },
+    "risk_dimension": {
+      "description": "Name of one of the five risk dimensions (05 section 4).",
+      "type": "string",
+      "enum": [
+        "data_loss",
+        "reversibility",
+        "blast_radius",
+        "security_impact",
+        "compatibility"
+      ]
+    },
+    "data_loss": {
+      "description": "Values of the `data_loss` risk dimension, ascending; UNKNOWN is always allowed.",
+      "type": "string",
+      "enum": ["NONE", "LOW", "MEDIUM", "HIGH", "UNKNOWN"]
+    },
+    "reversibility": {
+      "description": "Values of the `reversibility` risk dimension, ascending; UNKNOWN is always allowed.",
+      "type": "string",
+      "enum": ["EASY", "MODERATE", "DIFFICULT", "IRREVERSIBLE", "UNKNOWN"]
+    },
+    "blast_radius": {
+      "description": "Values of the `blast_radius` risk dimension, ascending; UNKNOWN is always allowed.",
+      "type": "string",
+      "enum": ["LOCAL", "COMPONENT", "SYSTEM", "CROSS_SYSTEM", "UNKNOWN"]
+    },
+    "security_impact": {
+      "description": "Values of the `security_impact` risk dimension, ascending; UNKNOWN is always allowed.",
+      "type": "string",
+      "enum": ["NONE", "LOW", "MEDIUM", "HIGH", "UNKNOWN"]
+    },
+    "compatibility": {
+      "description": "Values of the `compatibility` risk dimension, ascending; UNKNOWN is always allowed.",
+      "type": "string",
+      "enum": ["COMPATIBLE", "DEPRECATING", "BREAKING", "UNKNOWN"]
+    },
+    "transition": {
+      "description": "Change transition key of the form `<FROM>-><TO>` over the change_state enum.",
+      "type": "string",
+      "pattern": "^(PROPOSED|SPECIFIED|APPROVED|IMPLEMENTING|VERIFYING|MERGED|ARCHIVED|ABANDONED)->(PROPOSED|SPECIFIED|APPROVED|IMPLEMENTING|VERIFYING|MERGED|ARCHIVED|ABANDONED)$"
+    },
+    "kebab_id": {
+      "description": "Lower-case kebab-case identifier, for example `tests-passed`.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "kebab_path": {
+      "description": "Slash-separated kebab-case path, for example `customer-search` or `data/contracts`.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)*$"
+    },
+    "semver": {
+      "description": "Exact semantic version, for example `1.2.0`.",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "semver_range": {
+      "description": "Semantic version range accepted by npm-style resolvers, for example `^0.1`, `>=0.1 <0.2` or `1.13.x`.",
+      "type": "string",
+      "pattern": "^[\\^~><=0-9xX*.\\s|+-]+$",
+      "minLength": 1
+    },
+    "sha256": {
+      "description": "Content hash in the form `sha256:<64 lower-case hex digits>`.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "ulid": {
+      "description": "ULID body: 26 Crockford base32 characters (ADR-0012).",
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "evid_id": {
+      "description": "Evidence identifier `EVID-<ULID>` (ADR-0012).",
+      "type": "string",
+      "pattern": "^EVID-[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "run_id": {
+      "description": "Run identifier `RUN-<ULID>` (ADR-0012).",
+      "type": "string",
+      "pattern": "^RUN-[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "spec_id": {
+      "description": "Spec-level stable identifier `PREFIX-AREA-NNN` (02 section 3).",
+      "type": "string",
+      "pattern": "^(REQ|SCN|TASK|UNK|ASM)-[A-Z]{2,5}-[0-9]{3}$"
+    },
+    "area": {
+      "description": "Capability area code: 2 to 5 upper-case latin letters (ADR-0012).",
+      "type": "string",
+      "pattern": "^[A-Z]{2,5}$"
+    },
+    "relative_path": {
+      "description": "Path relative to its owning directory: no leading slash and no `..` segment.",
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$",
+      "minLength": 1
+    },
+    "level": {
+      "description": "Verification level: L0 (structural), L1 (executable), L2 (LLM judgement).",
+      "type": "string",
+      "enum": ["L0", "L1", "L2"]
+    },
+    "attestation_type": {
+      "description": "Who vouches for the provenance of a record (06a section 3).",
+      "type": "string",
+      "enum": ["ci", "human-review", "signature", "none"]
+    },
+    "overrides_ref": {
+      "description": "Reference `<pack>:<id>` to the pack object this local object replaces (08 section 4).",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*:[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "policy_body": {
+      "description": "Policy fields shared by profile and overlay (05 section 3 and 4).",
+      "type": "object",
+      "properties": {
+        "artifacts": {
+          "description": "Artifact requirements contributed by this policy layer.",
+          "type": "object",
+          "properties": {
+            "required": {
+              "description": "Artifact ids that MUST exist before the guarded transition.",
+              "type": "array",
+              "items": {
+                "description": "Artifact id.",
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "recommended": {
+              "description": "Artifact ids that are reported but do not block a transition.",
+              "type": "array",
+              "items": {
+                "description": "Artifact id.",
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "forbidden": {
+              "description": "Artifact ids that MUST NOT be produced under this policy.",
+              "type": "array",
+              "items": {
+                "description": "Artifact id.",
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "gates": {
+          "description": "Gates required per transition; the key is a `<FROM>-><TO>` transition.",
+          "type": "object",
+          "properties": {},
+          "patternProperties": {
+            "^(PROPOSED|SPECIFIED|APPROVED|IMPLEMENTING|VERIFYING|MERGED|ARCHIVED|ABANDONED)->(PROPOSED|SPECIFIED|APPROVED|IMPLEMENTING|VERIFYING|MERGED|ARCHIVED|ABANDONED)$": {
+              "description": "Gate ids that MUST pass for this transition.",
+              "type": "array",
+              "items": { "$ref": "warrant://common/1#/$defs/kebab_id" }
+            }
+          },
+          "propertyNames": {
+            "anyOf": [
+              { "$ref": "warrant://common/1#/$defs/transition" },
+              { "pattern": "^\\$comment$" }
+            ]
+          },
+          "additionalProperties": false
+        },
+        "capabilities": {
+          "description": "Capability restrictions contributed by this policy layer.",
+          "type": "object",
+          "properties": {
+            "forbidden": {
+              "description": "Capability names that agents MUST NOT use, for example `PRODUCTION_WRITE`.",
+              "type": "array",
+              "items": {
+                "description": "Capability name.",
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "approvals": {
+          "description": "Human approvals required at specific transitions.",
+          "type": "array",
+          "items": {
+            "description": "One required approval.",
+            "type": "object",
+            "properties": {
+              "role": {
+                "description": "Role name resolved through `roles` in the project config.",
+                "$ref": "warrant://common/1#/$defs/kebab_id"
+              },
+              "at": {
+                "description": "Transition at which the approval is required.",
+                "$ref": "warrant://common/1#/$defs/transition"
+              }
+            },
+            "required": ["role", "at"],
+            "additionalProperties": false
+          }
+        },
+        "evidence": {
+          "description": "Evidence requirements contributed by this policy layer.",
+          "type": "object",
+          "properties": {
+            "required": {
+              "description": "Evidence kinds that MUST be present.",
+              "type": "array",
+              "items": { "$ref": "warrant://common/1#/$defs/kebab_id" }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

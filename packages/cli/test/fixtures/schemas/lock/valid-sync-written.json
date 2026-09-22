@@ -1,0 +1,23 @@
+{
+  "$schema": "warrant://lock/1",
+  "kernel": "0.1.0",
+  "openspec": "1.13.1",
+  "packs": {
+    "core-sdd": {
+      "version": "0.1.0",
+      "source": "bundled",
+      "hash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  },
+  "skills": {
+    "semantic/evidence-reasoning": {
+      "version": "1.0.0",
+      "path": ".warrant/local/skills/evidence-reasoning",
+      "hash": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+    }
+  },
+  "generated": {
+    "openspec/config.yaml": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    "openspec/schemas/warrant-sdd/schema.yaml": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  }
+}

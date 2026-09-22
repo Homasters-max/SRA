@@ -1,0 +1,10 @@
+{
+  "$schema": "warrant://openspec-rules/1",
+  "operations": {
+    "deploy": {
+      "guidance": [
+        "Ship it"
+      ]
+    }
+  }
+}

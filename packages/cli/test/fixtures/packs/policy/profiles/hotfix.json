@@ -1,0 +1,14 @@
+{
+  "$schema": "warrant://profile/1",
+  "id": "hotfix",
+  "version": "1.0.0",
+  "description": "Urgent fix; extends data-change, which extends feature.",
+  "extends": [
+    "data-change"
+  ],
+  "gates": {
+    "VERIFYING->MERGED": [
+      "rollback-rehearsed"
+    ]
+  }
+}

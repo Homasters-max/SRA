@@ -1,0 +1,14 @@
+{
+  "$schema": "warrant://profile/1",
+  "id": "data-change",
+  "version": "1.0.0",
+  "description": "Data work; extends feature.",
+  "extends": [
+    "feature"
+  ],
+  "evidence": {
+    "required": [
+      "reconciliation-report"
+    ]
+  }
+}

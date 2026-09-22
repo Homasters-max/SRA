@@ -1,0 +1,15 @@
+{
+  "code": "POLICY_CONFLICT",
+  "message": "artifact \"adr\" is required by overlay/conflict-require and forbidden by overlay/conflict-forbid",
+  "items": [
+    {
+      "item": "adr",
+      "required_by": [
+        "overlay/conflict-require"
+      ],
+      "forbidden_by": [
+        "overlay/conflict-forbid"
+      ]
+    }
+  ]
+}

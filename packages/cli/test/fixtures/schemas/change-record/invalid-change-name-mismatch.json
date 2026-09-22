@@ -1,0 +1,5 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "add-customer-search",
+  "change_state": "PROPOSED"
+}

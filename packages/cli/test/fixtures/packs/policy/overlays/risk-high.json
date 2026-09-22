@@ -1,0 +1,27 @@
+{
+  "$schema": "warrant://overlay/1",
+  "id": "risk-high",
+  "version": "1.0.0",
+  "description": "Applies at HIGH risk.",
+  "match": {
+    "risk_level": [
+      "HIGH"
+    ]
+  },
+  "artifacts": {
+    "required": [
+      "design"
+    ]
+  },
+  "gates": {
+    "VERIFYING->MERGED": [
+      "adversarial-review"
+    ]
+  },
+  "approvals": [
+    {
+      "role": "security",
+      "at": "APPROVED->IMPLEMENTING"
+    }
+  ]
+}

@@ -371,7 +371,8 @@ hash каждого pack, skill и сгенерированного файла �
 (6) в `.warrant/**` и `.claude/**` нет строк, похожих на токены ([ADR-0010](../../../../docs/adr/WARRANT-ADR-0010-trust-by-reference.md));
 (7) все JSON-файлы `.warrant/**` канонические ([REQ-KRN-022](#requirement-команда-fmt)).
 Любая находка SHALL давать `ok: false` и код выхода 3. Флаг `--no-generated` SHALL пропускать проверку (4)
-и SHALL быть отмечен в `data.skipped[]`; он нужен репозиторию WARRANT, пока `config.yaml` ведётся вручную (ADR-0015 п. 7).
+и сверку hash файлов `openspec/**` из lock в проверке (2), SHALL быть отмечен в `data.skipped[]`; он нужен репозиторию WARRANT,
+пока `config.yaml` ведётся вручную (ADR-0015 п. 7), и удаляется в фазе 2.
 
 #### Scenario: Проект после init
 <!-- id: SCN-KRN-042 -->

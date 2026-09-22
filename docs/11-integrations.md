@@ -59,6 +59,14 @@ Status: proposed · Источники: [ADR-0018](adr/WARRANT-ADR-0018-frontend
 - Процесс ACP-адаптера агента запускается с cwd = worktree Change, один процесс на worktree (Codex читает hooks при старте процесса).
 - `session/request_permission` не считается механизмом запрета: агент не обязан его вызывать.
 - Если SEF — ACP client, он вызывает `warrant validate --files` по `locations` завершённых edit `tool_call`, доставляет hints в следующем prompt и делает `session/cancel` при записи вне `write_scope`.
+- Один `MERGED` на Change: посадка не последнего item record не трогает; последняя посадка несёт `APPROVED→IMPLEMENTING→VERIFYING→MERGED` с refs attempt / gate / landing (D-1).
+- Run и evidence попытки — вне репозитория: SEF задаёт `WARRANT_STATE_DIR` → `var/sef/attempts/<id>/warrant/`; `.warrant/**` в `protected[]` целиком (D-2).
+- Base попытки передаётся `warrant verify | check --base <manifest.base_commit>`; policy-пути WARRANT в контейнере гейтов — из base, если не в `impact.write` (D-20).
+- INV-03: `sef work approve` и ручная `sef land` принимаются только с реального TTY и owner-токеном keyring; `forge sef-hub` проверяет снимок approval в git и актора через `sef audit --json` (D-19).
+- `sef work approve` отклоняется, если `warrant transition … APPROVED` завершился с ошибкой; `sef work validate` вызывает `warrant analyze` (TASK ↔ item) и `warrant validate`.
+- Item не дублирует текст TASK: только контракт и `source_ref`; бриф — из `tasks.md` и spec в context pack. Отображение `risk_level` WARRANT → `risk` item — данные `.sef/policy.yaml` (нижняя граница `HIGH→complex`, `MEDIUM→normal`, `LOW→small`).
+- `warrant` и `openspec` закреплены в `image.pins` и на хосте диспетчера; `.sef/acceptance/**` входит в `paths.tests` `warrant.json`; эталон `.sef/engines/<profile>/` собирается через `warrant sync`.
+- Подробно — [приложение F](integrations/2026-09-17-sef-platform-design.md) черновика SEF (W-01…W-27).
 
 Роль WARRANT в цепочке proposals всех компонентов одна: **authorization** (policy, approval, INV-11) между источником
 proposal и валидацией LATTICE ([integrations/02 §3](integrations/02-proposal-contract.md)).
@@ -74,10 +82,11 @@ proposal и валидацией LATTICE ([integrations/02 §3](integrations/02-
 
 ## 4. Открытые вопросы
 
-| Вопрос | Состояние |
-|---|---|
-| Принимает ли LATTICE внешние stable ID как identity (spike S6, [13](13-roadmap.md)) | Открыт, нужен до MVP |
-| Семантика `contested` и `derived` в LATTICE для проекции маркеров | Proposed в [integrations/05](integrations/05-warrant-lattice.md) |
-| SEF: CLI или API; кто создаёт Run | Открыт |
-| Glossary и ADR-индекс как projection LATTICE | Deferred, [10-pack-arch](10-pack-arch.md) |
-| Факты фабрики (FACT, DECISION, PATTERN, FAILURE) в LATTICE или в `.warrant/` | Deferred, [12 §6](12-evolution.md) |
+| # | Вопрос | Состояние |
+|---|---|---|
+| I1 | Принимает ли LATTICE внешние stable ID как identity (spike S6, [13](13-roadmap.md)) | Открыт, нужен до MVP |
+| I2 | Семантика `contested` и `derived` в LATTICE для проекции маркеров | Proposed в [integrations/05](integrations/05-warrant-lattice.md) |
+| I3 | Glossary и ADR-индекс как projection LATTICE | Deferred, [10-pack-arch](10-pack-arch.md) |
+| I4 | Факты фабрики (FACT, DECISION, PATTERN, FAILURE) в LATTICE или в `.warrant/` | Deferred, [12 §6](12-evolution.md) |
+| I5 | SEF вызывает WARRANT как CLI или API | **Закрыт** (D-21): CLI (argv) в обе стороны — `warrant` на столе и на хосте диспетчера, `sef audit --json` для forge ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md) п. 11) |
+| I6 | Кто создаёт Run в `sef-hub` | **Закрыт** (D-21): SEF при prepare попытки вызывает `warrant run start`; Run живёт в `WARRANT_STATE_DIR` ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md) п. 13, 15) |

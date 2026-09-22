@@ -41,7 +41,7 @@ Constitution меняется редко и только через Change с п
 |---|---|---|
 | INV-01 | Impl-PR валиден, только если в base есть merged spec-PR с approving review ([ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)); `scope-valid` | — |
 | INV-02 | Алгоритм gate: `requires_evidence` считает только PROVEN нужного kind; L2 — отдельный gate, не замена ([06 §3](06-verification.md)) | — |
-| INV-03 | Агент — отдельная bot-идентичность; `human-approval` проверяет `review.author ∈ roles.maintainer` и `≠ pr.author` ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)) | Требует GitHub App |
+| INV-03 | `github`: агент — отдельная bot-идентичность; `human-approval` проверяет `review.author ∈ roles.maintainer` и `≠ pr.author` ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)). `sef-hub` (proposed): актор approve / land — реальный TTY + owner-токен keyring SEF ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md) п. 8) | Требует GitHub App; в `sef-hub` — механизм SEF |
 | INV-04 | Сам является правилом о механизмах; см. [04 §6](04-lifecycle.md) | — |
 | INV-05 | Только для `UNKNOWN`: gate `blocking-unknowns-resolved` читает Change record. Маркеры в прозе — критерий L2-review, машиной не проверяются | Частично |
 | INV-06 | Проектное правило; `warrant validate` ловит только дубли ID объектов конфигурации | Design-time |

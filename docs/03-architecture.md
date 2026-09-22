@@ -114,7 +114,7 @@ project/
 │   ├── changes/<change>.json       Change record: classification, change_state, unknowns, журнал переходов
 │   ├── waivers/                    WAV-*.json
 │   ├── evidence/<change>/          manifest.json + записи EVID-*.json
-│   └── runs/                       RUN-*.json + current (в git в MVP; внешнее хранение — later)
+│   └── runs/                       RUN-*.json + current (в git в MVP; в sef-hub — вне репозитория, WARRANT_STATE_DIR, ADR-0020 п. 13)
 │
 ├── .codex/hooks.json               генерируется warrant sync: hook warrant guard --frontend codex (ADR-0018, MVP)
 ├── AGENTS.md                       генерируется warrant sync из правил с paths ["**"] (ADR-0022)

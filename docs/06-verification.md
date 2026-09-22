@@ -138,7 +138,7 @@ Profiles ссылаются только на ID. Определение gate с
 | `reconciliation-passed` | L1 | да | data | Source ↔ target сверка |
 | `rollback-rehearsed` | L1 | да | data | Rollback выполнен на production-like snapshot |
 | `factory-golden-passed` | L1 | нет | core-sdd | Golden changes WARRANT проходят ([12](12-evolution.md)) |
-| `spec-approved` | L0 | нет | core-sdd | Транспорт `sef-hub`: дерево `openspec/changes/<change>/` на базе попытки совпадает с одобренным ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)) |
+| `spec-approved` | L0 | нет | core-sdd | Дерево `{proposal.md, design.md, specs/**}` Change на base совпадает с деревом на коммите из ref `APPROVED`; `tasks.md` исключён; оба транспорта ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md) п. 9, D-3) |
 
 ## 5. Analyze
 

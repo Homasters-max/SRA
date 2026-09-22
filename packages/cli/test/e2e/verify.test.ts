@@ -122,8 +122,9 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant status: verification", () => {
       transition: "PROPOSED->SPECIFIED",
       gates: { "spec-valid": "BLOCKED" },
       findings: [expect.objectContaining({ code: "NO_EVIDENCE", gate: "spec-valid" })],
-      controller_action: "CONTINUE",
-      rule: null
+      controller_action: "WAIT",
+      next: "verify",
+      rule: "verify-incomplete"
     });
 
     const check = await runCli(["check", "add-search", "openspec-validate"], root, env());

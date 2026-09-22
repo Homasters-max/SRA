@@ -48,7 +48,7 @@
   "stale": [],
   "superseded_by": [],
   "verification": {
-    "controller_action": "CONTINUE",
+    "controller_action": "WAIT",
     "findings": [
       {
         "code": "NO_EVIDENCE",
@@ -62,7 +62,8 @@
       "required-artifacts-present": "PASS",
       "spec-valid": "BLOCKED"
     },
-    "rule": null,
+    "next": "verify",
+    "rule": "verify-incomplete",
     "transition": "PROPOSED->SPECIFIED"
   }
 }

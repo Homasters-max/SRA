@@ -131,8 +131,9 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant gate", () => {
       expect.objectContaining({ code: "STALE", evidence: check.json.data.checks[0].evidence, reason: "commit" })
     );
     expect(run.json.data.findings).toContainEqual(expect.objectContaining({ code: "NO_EVIDENCE", gate: "spec-valid" }));
-    // BLOCKED alone matches no rule of core-sdd: CONTINUE (REQ-VER-005).
-    expect(run.json.data.controller_action).toBe("CONTINUE");
+    // BLOCKED alone matches no rule of core-sdd: the kernel fallback waits (SCN-VER-039).
+    expect(run.json.data).toMatchObject({ controller_action: "WAIT", next: "verify", rule: "verify-incomplete" });
+    expect(run.status).toBe(2);
   }, 120_000);
 
   it("factory-golden-passed is NOT_APPLICABLE when the diff misses applies_when (SCN-VER-014)", async () => {

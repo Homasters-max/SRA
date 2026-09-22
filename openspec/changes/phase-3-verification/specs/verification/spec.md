@@ -105,7 +105,8 @@ Check с `execution.exclusive: true` SHALL брать file lock `<git-common-dir
 Затем по порядку [06 §3](../../../../docs/06-verification.md): `applies_when.changed_paths` не пересекает diff, или все
 `requires_evidence` имеют `NOT_APPLICABLE` от check → `NOT_APPLICABLE`; нет входа (не git-репозиторий, нет `openspec`, нет ни одной
 допустимой записи требуемого kind) → `BLOCKED` с finding (`NO_EVIDENCE`, `NO_INPUT`); все `requires_evidence` `PROVEN` → `PASS`;
-`ACTIVE` waiver на этот gate и Change при `waivable: true` → `WAIVED` (finding `WAIVED_BY: <WAV>`); иначе `FAIL`.
+иначе `FAIL`. `ACTIVE` waiver на этот gate и Change при `waivable: true` SHALL превращать `BLOCKED` и `FAIL` в `WAIVED`
+(finding `WAIVED_BY: <WAV>`; I-84).
 На переходе `VERIFYING->MERGED` запись с `attestation.type: "none"` SHALL NOT засчитываться, если gate не объявляет `none` в
 `accepts_attestation` (06a §3): verdict `BLOCKED`, finding `ATTESTATION_REQUIRED`. Команда SHALL печатать `data.gates` (id → verdict),
 `data.findings[]`, `data.transition`; код выхода — по controller ([REQ-VER-005](#requirement-controller)).
@@ -192,7 +193,8 @@ record и evidence этого Change. Каждый FAIL SHALL сопровожд
 (худший verdict перехода в порядке `FAIL` > `BLOCKED` > `WAIVED` > `NOT_APPLICABLE` > `PASS`) и `gate_waivable` этого gate,
 `blocking_unknowns`, `pending_approvals`, `gates_awaiting_attestation`, `unevaluated_gates`, `missing_required_artifacts`;
 применить правила `controller/rules.json` всех подключённых packs в порядке загрузки, первое совпавшее — результат
-(`controller_action`, `next`?, `rule`); ни одно не совпало → `CONTINUE` без `next`, `rule: null`. Controller SHALL быть чистой функцией
+(`controller_action`, `next`?, `rule`); ни одно не совпало и худший verdict — `BLOCKED` → правило kernel `verify-incomplete`
+(`WAIT`, `next: "verify"`; P-7, I-91); ни одно не совпало иначе → `CONTINUE` без `next`, `rule: null`. Controller SHALL быть чистой функцией
 входов. Код выхода `gate` и `verify`: `CONTINUE` → 0, `STOP` → 1, `WAIT` и `ESCALATE` → 2.
 
 #### Scenario: Gate FAIL → WAIT
@@ -209,6 +211,11 @@ record и evidence этого Change. Каждый FAIL SHALL сопровожд
 <!-- id: SCN-VER-026 -->
 - **WHEN** все gates перехода `PASS`, `WAIVED` или `NOT_APPLICABLE`, конфликтов и UNKNOWN нет
 - **THEN** `controller_action` равен `CONTINUE`, `rule` равен `null`, код выхода 0
+
+#### Scenario: Только BLOCKED
+<!-- id: SCN-VER-039 -->
+- **WHEN** gates перехода не дали `FAIL`, хотя бы один — `BLOCKED` (например, `NO_EVIDENCE` после нового commit), правила packs не совпали
+- **THEN** `controller_action` равен `WAIT`, `next` равен `verify`, `rule` равен `verify-incomplete`, код выхода 2
 
 ### Requirement: Команда verify
 <!-- id: REQ-VER-006 -->

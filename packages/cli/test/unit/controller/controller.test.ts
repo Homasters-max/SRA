@@ -102,6 +102,12 @@ describe("controller rules of core-sdd", () => {
     expect(exitCodeOf(decision.controller_action)).toBe(0);
   });
 
+  it("only BLOCKED, no pack rule → kernel verify-incomplete, WAIT, exit 2 (SCN-VER-039)", () => {
+    const decision = evaluateController(RULES, inputs({ "spec-valid": "BLOCKED", "ids-valid": "PASS" }));
+    expect(decision).toEqual({ controller_action: "WAIT", next: "verify", rule: "verify-incomplete" });
+    expect(exitCodeOf(decision.controller_action)).toBe(2);
+  });
+
   it("policy conflict → ESCALATE first", () => {
     expect(evaluateController(RULES, conflictInputs([{ id: "UNK-SRC-001", blocking: true }]))).toEqual({
       controller_action: "ESCALATE",

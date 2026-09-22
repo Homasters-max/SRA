@@ -3,7 +3,9 @@
  *
  * Rules of every enabled pack are tried in load order (core-sdd first), each
  * pack's rules in file order; the first rule whose `when` matches the inputs
- * is the result. No match → `CONTINUE` without `next`, `rule: null`. Pure: the
+ * is the result. No match → `WAIT` with `next: "verify"` and rule
+ * `verify-incomplete` when the worst verdict is `BLOCKED`, else `CONTINUE`
+ * without `next`, `rule: null`. Pure: the
  * same inputs and rules give the same decision.
  *
  * `when` compares by type: a boolean equals the input; `">N"` holds when the
@@ -90,8 +92,16 @@ export function evaluateController(rules: readonly ControllerRule[], inputs: Con
     if (rule.next !== undefined) decision.next = rule.next;
     return decision;
   }
+  // Kernel fallback (P-7, I-91): a transition whose worst verdict is BLOCKED is
+  // not ready, whatever the packs say; the verdicts need more input, not a human.
+  if (inputs.gate_verdict === "BLOCKED") {
+    return { controller_action: "WAIT", next: "verify", rule: VERIFY_INCOMPLETE };
+  }
   return { controller_action: "CONTINUE", rule: null };
 }
+
+/** Id of the kernel fallback rule: no pack rule matched, and a gate is BLOCKED. */
+export const VERIFY_INCOMPLETE = "verify-incomplete";
 
 /** Exit code of `gate` and `verify` (P-20): CONTINUE 0, STOP 1, WAIT and ESCALATE 2. */
 export function exitCodeOf(action: ControllerAction): ExitCode {

@@ -91,7 +91,7 @@ Profile `factory-change@1.0.0` SHALL иметь `extends: ["feature"]`, допо
 #### Scenario: Репозиторий WARRANT — сам себе golden
 <!-- id: SCN-SDD-008 -->
 - **WHEN** `warrant classify phase-2-core-sdd --base main` выполнен на этой ветке
-- **THEN** `profiles` содержит `factory-change`, `risk.blast_radius` равен `SYSTEM` от floor, `warrant status phase-2-core-sdd` показывает `risk_level: HIGH`
+- **THEN** `profiles` содержит `factory-change`, `risk.blast_radius` равен `SYSTEM` от floor, `warrant resolve phase-2-core-sdd` показывает `risk_level: HIGH`, а `warrant status` — `stale: []` и `overlay/risk-high` в `sources`
 
 ### Requirement: Risk overlays
 <!-- id: REQ-SDD-006 -->

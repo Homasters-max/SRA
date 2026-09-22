@@ -8,9 +8,10 @@
  * (`core/canon/files.ts`) so the two can never disagree; check (4) shares its
  * planner with `warrant sync` (`core/sync/plan.ts`) for the same reason.
  *
- * Nothing is skipped unconditionally. `data.skipped` lists what this run could
- * not do: `generated` when `--no-generated` was given (design Migration Plan),
- * `openspec-schema` and `ids-placement` when `openspec` is not on PATH.
+ * Nothing is skipped unconditionally: `config.yaml` is generated whole, so
+ * there is no flag to opt out of check (4) (REQ-KRN-025, откат I-43).
+ * `data.skipped` lists what this run could not do: `openspec-schema` and
+ * `ids-placement` when `openspec` is not on PATH.
  */
 import path from "node:path";
 
@@ -112,13 +113,7 @@ function checkGenerated(
   return errors;
 }
 
-export interface ValidateOptions {
-  /** `--no-generated`: commander sets `generated` to false when the flag is given. */
-  generated?: boolean | undefined;
-}
-
 export function runValidate(
-  opts: ValidateOptions = {},
   root: string = defaultRoot(),
   warn: (text: string) => void = (text) => process.stderr.write(text)
 ): CommandResult {
@@ -150,18 +145,13 @@ export function runValidate(
   }
 
   // Check (2): lock against config and pack content.
-  errors.push(
-    ...checkLock({ projectRoot: root, config: loaded.config, packs: loaded.packs, skipOpenspecGenerated: opts.generated === false })
-  );
+  errors.push(...checkLock({ projectRoot: root, config: loaded.config, packs: loaded.packs }));
   checkedFiles.add(LOCK_REL);
 
   // Check (4): generated OpenSpec files, byte for byte (task 3.6, SCN-KRN-045).
   // A failed load already told the whole story; planning on top of it would
   // only repeat it, so the check is skipped without a second word.
-  if (opts.generated === false) {
-    skipped.push("generated");
-    warn("validate: check (4) generated files and their lock hashes for openspec/** skipped (--no-generated)\n");
-  } else if (loaded.errors.length === 0) {
+  if (loaded.errors.length === 0) {
     errors.push(...checkGenerated(root, loaded, skipped, warn));
   }
 

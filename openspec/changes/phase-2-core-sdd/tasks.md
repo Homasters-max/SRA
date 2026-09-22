@@ -12,11 +12,11 @@
 
 ## 2. Данные pack core-sdd
 
-- [ ] 2.1 Черновики по одному объекту каждого типа (overlay, profile, gate, check, controller rules) прогнать через `warrant validate` их схемами; выявленные несовместимости схем — вопрос maintainer'у до наполнения. Проверка: отчёт в design I-N, `validate` на черновиках `ok: true`. (REQ-SDD-001)
-- [ ] 2.2 Overlays `core-default`, `risk-low`, `risk-medium`, `risk-high` в `packs/core-sdd/overlays/`. Проверка: `validate` зелёный; unit-тест resolver на пустой classification даёт SCN-SDD-003; SCN-SDD-009. (REQ-SDD-002, REQ-SDD-006)
-- [ ] 2.3 Profiles `feature`, `chore`, `factory-change` в `profiles/` по REQ-SDD-003…005 (gates по переходам, approvals, evidence, `match.paths`, `extends`, `capabilities.forbidden`). Проверка: `validate` зелёный; unit-тесты resolver: gates `feature` = 04 §5, `chore` без `adversarial-review`, `factory-change` содержит `factory-golden-passed` и `PRODUCTION_WRITE`. (REQ-SDD-003, REQ-SDD-004, REQ-SDD-005)
-- [ ] 2.4 Gates (12 файлов) в `gates/` с `level`, `waivable`, `requires_evidence`, `applies_when` по 06 §3–4; checks `openspec-validate`, `tests-passed` в `checks/`; `controller/rules.json` с тремя правилами. Проверка: unit-тест читает каталог и утверждает SCN-SDD-011, SCN-SDD-012; каждый gate, на который ссылается profile/overlay, есть в `provides.gates` (SCN-SDD-002). (REQ-SDD-007)
-- [ ] 2.5 `sra/skills/specification/adversarial-review/SKILL.md` (frontmatter `name`, `version: 0.1.0`, `description`; семь категорий 06 §7) и `provides.skills: ["specification/adversarial-review@^0.1"]`; `pack.json.provides` перечисляет все файлы 2.2–2.4 в алфавитном порядке. Проверка: `warrant validate --no-generated` на репозитории `ok: true`; `provides` покрывает каждый файл каталога (unit-тест «нет файлов вне provides»). (REQ-SDD-001, REQ-SDD-008)
+- [x] 2.1 Черновики по одному объекту каждого типа (overlay, profile, gate, check, controller rules) прогнать через `warrant validate` их схемами; выявленные несовместимости схем — вопрос maintainer'у до наполнения. Проверка: отчёт в design I-N, `validate` на черновиках `ok: true`. (REQ-SDD-001)
+- [x] 2.2 Overlays `core-default`, `risk-low`, `risk-medium`, `risk-high` в `packs/core-sdd/overlays/`. Проверка: `validate` зелёный; unit-тест resolver на пустой classification даёт SCN-SDD-003; SCN-SDD-009. (REQ-SDD-002, REQ-SDD-006)
+- [x] 2.3 Profiles `feature`, `chore`, `factory-change` в `profiles/` по REQ-SDD-003…005 (gates по переходам, approvals, evidence, `match.paths`, `extends`, `capabilities.forbidden`). Проверка: `validate` зелёный; unit-тесты resolver: gates `feature` = 04 §5, `chore` без `adversarial-review`, `factory-change` содержит `factory-golden-passed` и `PRODUCTION_WRITE`. (REQ-SDD-003, REQ-SDD-004, REQ-SDD-005)
+- [x] 2.4 Gates (12 файлов) в `gates/` с `level`, `waivable`, `requires_evidence`, `applies_when` по 06 §3–4; checks `openspec-validate`, `tests-passed` в `checks/`; `controller/rules.json` с тремя правилами. Проверка: unit-тест читает каталог и утверждает SCN-SDD-011, SCN-SDD-012; каждый gate, на который ссылается profile/overlay, есть в `provides.gates` (SCN-SDD-002). (REQ-SDD-007)
+- [x] 2.5 `sra/skills/specification/adversarial-review/SKILL.md` (frontmatter `name`, `version: 0.1.0`, `description`; семь категорий 06 §7) и `provides.skills: ["specification/adversarial-review@^0.1"]`; `pack.json.provides` перечисляет все файлы 2.2–2.4 в алфавитном порядке. Проверка: `warrant validate --no-generated` на репозитории `ok: true`; `provides` покрывает каждый файл каталога (unit-тест «нет файлов вне provides»). (REQ-SDD-001, REQ-SDD-008)
 
 ## 3. Kernel: classify, B1, B2, skills в lock
 
@@ -30,10 +30,10 @@
 
 ## 4. sync целиком и переезд репозитория
 
-- [ ] 4.1 `planSync`: `context` проекта из `.warrant/local/openspec/rules.json`, `config.yaml` всегда целиком; `--no-generated` удалён из `validate` и `checkLock` (откат I-43). Проверка: e2e `sync.test.ts` SCN-KRN-062 (context после pack через пустую строку), `validate.test.ts` SCN-KRN-082; тест I-43 удалён. (REQ-KRN-025, REQ-KRN-021)
-- [ ] 4.2 `packs/core-sdd/openspec/rules.json`: `context` нейтральный (одна фраза о WARRANT), язык проекта убран. Проверка: grep «Russian» в `packs/` пуст. (REQ-KRN-025)
-- [ ] 4.3 Переезд: `warrant sync` в корне репозитория (config.yaml → `warrant-sdd`, lock со skills), `.openspec.yaml` change'а → `schema: warrant-sdd` (I-45), закоммитить сгенерированное. Проверка: `warrant validate` без флагов `ok: true` (SCN-KRN-083); `openspec validate phase-2-core-sdd --strict` зелёный; `openspec status --change phase-2-core-sdd` показывает четыре artifacts. (REQ-KRN-025)
-- [ ] 4.4 Dogfooding classify: `warrant classify phase-2-core-sdd --base main` → record с `factory-change`, `blast_radius: SYSTEM`; `warrant status phase-2-core-sdd` → `risk_level: HIGH`, `stale: []`. Проверка: SCN-SDD-008 вручную + вывод в отчёт; record закоммичен. (REQ-SDD-005)
+- [x] 4.1 `planSync`: `context` проекта из `.warrant/local/openspec/rules.json`, `config.yaml` всегда целиком; `--no-generated` удалён из `validate` и `checkLock` (откат I-43). Проверка: e2e `sync.test.ts` SCN-KRN-062 (context после pack через пустую строку), `validate.test.ts` SCN-KRN-082; тест I-43 удалён. (REQ-KRN-025, REQ-KRN-021)
+- [x] 4.2 `packs/core-sdd/openspec/rules.json`: `context` нейтральный (одна фраза о WARRANT), язык проекта убран. Проверка: grep «Russian» в `packs/` пуст. (REQ-KRN-025)
+- [x] 4.3 Переезд: `warrant sync` в корне репозитория (config.yaml → `warrant-sdd`, lock со skills), `.openspec.yaml` change'а → `schema: warrant-sdd` (I-45), закоммитить сгенерированное. Проверка: `warrant validate` без флагов `ok: true` (SCN-KRN-083); `openspec validate phase-2-core-sdd --strict` зелёный; `openspec status --change phase-2-core-sdd` показывает четыре artifacts. (REQ-KRN-025)
+- [x] 4.4 Dogfooding classify: `warrant classify phase-2-core-sdd --base main` → record с `factory-change`, `blast_radius: SYSTEM`; `warrant resolve phase-2-core-sdd` → `risk_level: HIGH`; `warrant status` → `stale: []`, `risk-high` в `sources` (I-57). Проверка: SCN-SDD-008 вручную + вывод в отчёт; record закоммичен. (REQ-SDD-005)
 
 ## 5. Golden
 

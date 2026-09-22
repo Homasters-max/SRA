@@ -133,7 +133,11 @@ describe("warrant sync", () => {
       // The pack rule keeps its place; the project's new one is appended.
       expect(config.rules.specs?.[0]).toBe("Describe observable behaviour only, never internal names or libraries");
       expect(config.rules.specs?.at(-1)).toBe("Project rule");
+      // The pack context leads, the project's own follows after one blank line.
+      expect(config.context.startsWith("This project is governed by WARRANT")).toBe(true);
       expect(config.context.endsWith("\n\nProject line.")).toBe(true);
+      // The pack no longer speaks for a concrete project (task 4.2).
+      expect(config.context).not.toContain("Russian");
     },
     60_000
   );
@@ -256,7 +260,7 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
       const skill = path.join(root, SKILL_REL);
       writeFileSync(skill, readFileSync(skill, "utf8") + "\nOne more line, without a sync.\n", "utf8");
 
-      const run = runCli(["validate", "--no-generated"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
+      const run = runCli(["validate"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
       expect(run.status).toBe(3);
       const finding = run.json?.errors.find(
         (e: { code: string; path?: string }) => e.code === "LOCK_MISMATCH" && e.path === SKILL_REL

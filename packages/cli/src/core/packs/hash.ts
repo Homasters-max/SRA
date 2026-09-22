@@ -55,12 +55,6 @@ export interface LockCheckInput {
   projectRoot: string;
   config: Record<string, unknown>;
   packs: LoadedPack[];
-  /**
-   * `--no-generated` (I-43): skip the hash check of lock entries under
-   * `openspec/` — the files check (4) would compare. Schema copies under
-   * `.warrant/schemas/` are always checked.
-   */
-  skipOpenspecGenerated?: boolean | undefined;
 }
 
 /**
@@ -145,7 +139,6 @@ export function checkLock(input: LockCheckInput): CliError[] {
   const generated = isPlainObject(lock["generated"]) ? lock["generated"] : {};
   for (const [rel, hash] of Object.entries(generated)) {
     if (rel === "$comment") continue;
-    if (input.skipOpenspecGenerated === true && rel.startsWith("openspec/")) continue;
     const target = path.join(projectRoot, rel);
     if (!existsSync(target)) {
       errors.push(err("LOCK_MISMATCH", `generated file listed in the lock is missing`, rel));

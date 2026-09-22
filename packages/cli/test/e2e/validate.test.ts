@@ -26,8 +26,14 @@ function write(root: string, rel: string, content: string | object): void {
   writeFileSync(absolute, typeof content === "string" ? content : canonicalText(content).text, "utf8");
 }
 
-/** A project enabling the given packs, with a lock that matches them. */
-function project(packs: Record<string, string>, packsDir: string): string {
+/**
+ * A project enabling the given packs, with a lock that matches them.
+ *
+ * With `synced` the project is additionally run through `openspec init` and
+ * `warrant sync`, so check (4) — which has no opt-out since task 4.1 — has the
+ * generated files it compares against. Needs `openspec` on PATH.
+ */
+function project(packs: Record<string, string>, packsDir: string, synced = false): string {
   const root = makeTempDir("warrant-e2e-");
   tempDirs.push(root);
   write(root, ".warrant/warrant.json", {
@@ -48,37 +54,50 @@ function project(packs: Record<string, string>, packsDir: string): string {
       ])
     )
   });
+  if (synced) {
+    if (!runOpenspec(["init", "--tools", "none"], root).ok) throw new Error("openspec init failed");
+    const sync = runCli(["sync"], root, { WARRANT_PACKS_DIR: packsDir });
+    if (sync.status !== 0) throw new Error(`warrant sync failed: ${sync.stdout}${sync.stderr}`);
+  }
   return root;
 }
 
 describe("warrant validate", () => {
-  it("accepts a project using the bundled pack core-sdd (SCN-KRN-043)", () => {
-    const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"));
-    const run = runCli(["validate", "--no-generated"], root);
-    expect(run.json?.errors).toEqual([]);
-    expect(run.json?.ok).toBe(true);
-    expect(run.status).toBe(0);
-    expect(run.json?.command).toBe("validate");
-    expect(run.json?.data.checked.packs).toContain("core-sdd");
-    expect(run.json?.data.checked.files).toBeGreaterThan(5);
-    expect(run.json?.data.skipped).toContain("generated");
-    expect(run.json?.data.skipped).not.toContain("canonical");
-  });
+  it.skipIf(!openspecAvailable())(
+    "accepts a synced project using the bundled pack core-sdd (SCN-KRN-043)",
+    () => {
+      const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"), true);
+      const run = runCli(["validate"], root);
+      expect(run.json?.errors).toEqual([]);
+      expect(run.json?.ok).toBe(true);
+      expect(run.status).toBe(0);
+      expect(run.json?.command).toBe("validate");
+      expect(run.json?.data.checked.packs).toContain("core-sdd");
+      expect(run.json?.data.checked.files).toBeGreaterThan(5);
+      // Nothing is skipped any more: check (4) has no flag (SCN-KRN-082).
+      expect(run.json?.data.skipped).toEqual([]);
+    },
+    60_000
+  );
 
-  it("validates every file of packs/core-sdd against its own schema", () => {
-    const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"));
-    const run = runCli(["validate", "--no-generated"], root);
-    expect(run.json?.ok).toBe(true);
-    // pack.json, schema.json, rules.json, levels.json, floors.json and 4 templates.
-    expect(packContentHash(CORE_SDD)).toMatch(/^sha256:[0-9a-f]{64}$/);
-  });
+  it.skipIf(!openspecAvailable())(
+    "validates every file of packs/core-sdd against its own schema",
+    () => {
+      const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"), true);
+      const run = runCli(["validate"], root);
+      expect(run.json?.ok).toBe(true);
+      // pack.json, schema.json, rules.json, levels.json, floors.json and 4 templates.
+      expect(packContentHash(CORE_SDD)).toMatch(/^sha256:[0-9a-f]{64}$/);
+    },
+    60_000
+  );
 
   it("reports SCHEMA_VIOLATION with the file path and prints nothing but the envelope (SCN-KRN-005)", () => {
     const root = project({ base: "^1.0" }, FIXTURE_PACKS);
     // `level` is required by warrant://gate/1 and `waivable` has no default (SCN-KRN-019).
     write(root, ".warrant/local/gates/x.json", { $schema: "warrant://gate/1", id: "x", version: "1.0.0" });
 
-    const run = runCli(["validate", "--no-generated"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
+    const run = runCli(["validate"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
     expect(run.status).toBe(3);
     expect(run.json?.ok).toBe(false);
     const violation = run.json?.errors.find((e: { code: string }) => e.code === "SCHEMA_VIOLATION");
@@ -100,7 +119,7 @@ describe("warrant validate", () => {
       packs: { base: { version: "^1.0" }, "dup-gate": { version: "^1.0" } }
     });
 
-    const run = runCli(["validate", "--no-generated"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
+    const run = runCli(["validate"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
     expect(run.status).toBe(3);
     const duplicate = run.json?.errors.find((e: { code: string }) => e.code === "DUPLICATE_OBJECT_ID");
     expect(duplicate.message).toContain("base");
@@ -112,7 +131,7 @@ describe("warrant validate", () => {
     const token = "ghp_" + "a1b2c3d4e5".repeat(3) + "f6g7h8";
     write(root, ".claude/settings.json", `{\n  "token": "${token}"\n}\n`);
 
-    const run = runCli(["validate", "--no-generated"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
+    const run = runCli(["validate"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
     expect(run.status).toBe(3);
     const finding = run.json?.errors.find((e: { code: string }) => e.code === "SECRET_LIKE");
     expect(finding.path).toBe(".claude/settings.json");
@@ -133,7 +152,7 @@ describe("warrant validate", () => {
     write(root, ".warrant/local/gates/x.json", { $schema: "warrant://gate/1", id: "x", version: "1.0.0" });
     write(root, "openspec/specs/kernel/spec.md", "### Requirement: R\n<!-- id: REQ-ZZZ-001 -->\n\nThe system SHALL x.\n");
 
-    const run = runCli(["validate", "--no-generated"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
+    const run = runCli(["validate"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
     expect(run.status).toBe(3);
     const found = new Set<string>(run.json?.errors.map((e: { code: string }) => e.code));
     expect(found.has("SCHEMA_VIOLATION")).toBe(true);
@@ -155,7 +174,7 @@ describe("warrant validate", () => {
       ['{', '  "KRN": {', '    "capability": "kernel"', "  },", '  "$schema": "warrant://areas/1"', "}", ""].join("\n")
     );
 
-    const run = runCli(["validate", "--no-generated"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
+    const run = runCli(["validate"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
     expect(run.status).toBe(3);
     const finding = run.json?.errors.find((e: { code: string }) => e.code === "NOT_CANONICAL");
     expect(finding).toBeDefined();
@@ -171,11 +190,13 @@ describe("warrant validate", () => {
     expect(run.json?.errors[0].code).toBe("CONFIG_MISSING");
   });
 
-  it("accepts --no-generated and records the skip", () => {
+  it("rejects the removed flag --no-generated with USAGE (SCN-KRN-082)", () => {
     const root = project({ base: "^1.0" }, FIXTURE_PACKS);
     const run = runCli(["validate", "--no-generated"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
-    expect(run.json?.data.skipped).toContain("generated");
-    expect(run.stderr).toContain("--no-generated");
+    expect(run.status).toBe(3);
+    expect(run.json?.errors[0].code).toBe("USAGE");
+    // `generated` is not a skip any run can report any more.
+    expect(run.json?.data?.skipped ?? []).not.toContain("generated");
   });
 });
 
@@ -285,7 +306,7 @@ describe("warrant validate: id placement", () => {
         ].join("\n")
       );
 
-      const run = runCli(["validate", "--no-generated"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
+      const run = runCli(["validate"], root, { WARRANT_PACKS_DIR: FIXTURE_PACKS });
       const placement = run.json?.errors.filter((e: { code: string }) => e.code === "ID_PLACEMENT");
       expect(placement.map((e: { message: string }) => e.message.split(" ")[0])).toEqual(["REQ-KRN-099"]);
       expect(placement[0].path).toBe("openspec/changes/demo/specs/kernel/spec.md");
@@ -295,7 +316,9 @@ describe("warrant validate: id placement", () => {
   );
 });
 
-describe("warrant validate: --no-generated and the lock (I-43)", () => {
+// I-43 is rolled back: there is no way to exempt `openspec/**` entries of
+// `lock.generated` from check (2) any more (REQ-KRN-025, task 4.1).
+describe("warrant validate: every lock.generated entry is checked", () => {
   function lockedProject(): string {
     const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"));
     const lockPath = path.join(root, ".warrant/warrant.lock.json");
@@ -310,17 +333,12 @@ describe("warrant validate: --no-generated and the lock (I-43)", () => {
     return root;
   }
 
-  it("skips lock hashes of openspec/** with --no-generated but still checks schema copies", () => {
-    const run = runCli(["validate", "--no-generated"], lockedProject());
-    const paths = run.json?.errors.map((e: { path?: string }) => e.path);
-    expect(paths).not.toContain(".warrant/warrant.lock.json#/generated/openspec/config.yaml");
-    expect(paths).toContain(".warrant/warrant.lock.json#/generated/.warrant/schemas/common.1.schema.json");
-  });
-
-  it("checks lock hashes of openspec/** without the flag", () => {
+  it("reports both the openspec/** entry and the schema copy", () => {
     const run = runCli(["validate"], lockedProject());
+    expect(run.status).toBe(3);
     const paths = run.json?.errors.map((e: { path?: string }) => e.path);
     expect(paths).toContain(".warrant/warrant.lock.json#/generated/openspec/config.yaml");
+    expect(paths).toContain(".warrant/warrant.lock.json#/generated/.warrant/schemas/common.1.schema.json");
   });
 });
 
@@ -336,7 +354,7 @@ describe("warrant validate: overrides may only strengthen (B1)", () => {
       match: { risk_level: ["HIGH"], profiles: ["never"] }
     });
 
-    const run = runCli(["validate", "--no-generated"], root);
+    const run = runCli(["validate"], root);
     expect(run.status).toBe(3);
     const finding = run.json?.errors.find((e: { code: string }) => e.code === "OVERRIDE_WEAKENS");
     expect(finding).toBeDefined();
@@ -352,7 +370,7 @@ describe("warrant validate: overrides may only strengthen (B1)", () => {
       match: { risk_level: ["HIGH", "MEDIUM"] }
     });
 
-    const run = runCli(["validate", "--no-generated"], root);
+    const run = runCli(["validate"], root);
     expect(run.json?.errors.filter((e: { code: string }) => e.code === "OVERRIDE_WEAKENS")).toEqual([]);
   });
 
@@ -365,7 +383,7 @@ describe("warrant validate: overrides may only strengthen (B1)", () => {
       extends: []
     });
 
-    const run = runCli(["validate", "--no-generated"], root);
+    const run = runCli(["validate"], root);
     expect(run.status).toBe(3);
     const finding = run.json?.errors.find(
       (e: { code: string; path?: string }) =>
@@ -383,7 +401,7 @@ describe("warrant validate: overrides may only strengthen (B1)", () => {
       gates: { ...riskHigh.gates, "VERIFYING->MERGED": [] }
     });
 
-    const run = runCli(["validate", "--no-generated"], root);
+    const run = runCli(["validate"], root);
     expect(run.status).toBe(3);
     const finding = run.json?.errors.find((e: { code: string }) => e.code === "OVERRIDE_WEAKENS");
     expect(finding.message).toContain("gates.VERIFYING->MERGED: human-approval");
@@ -424,7 +442,7 @@ describe("warrant validate: a pack directory is never a project layer (B2)", () 
       change_state: "PROPOSED"
     });
 
-    const run = runCli(["validate", "--no-generated"], root);
+    const run = runCli(["validate"], root);
     expect(run.status).toBe(3);
     const finding = run.json?.errors.find(
       (e: { code: string; path?: string }) =>
@@ -438,13 +456,17 @@ describe("warrant validate: a pack directory is never a project layer (B2)", () 
     expect(JSON.stringify(resolved.json)).not.toContain("loud-artifact");
   });
 
-  it("still reads a local directory that carries no pack.json", () => {
-    const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"));
-    write(root, ".warrant/local/overlays/loud.json", loudOverlay);
+  it.skipIf(!openspecAvailable())(
+    "still reads a local directory that carries no pack.json",
+    () => {
+      const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"), true);
+      write(root, ".warrant/local/overlays/loud.json", loudOverlay);
 
-    const run = runCli(["validate", "--no-generated"], root);
-    expect(run.json?.errors).toEqual([]);
-  });
+      const run = runCli(["validate"], root);
+      expect(run.json?.errors).toEqual([]);
+    },
+    60_000
+  );
 });
 
 describe("warrant validate: id equals the file base name (task 3.6)", () => {
@@ -458,7 +480,7 @@ describe("warrant validate: id equals the file base name (task 3.6)", () => {
       match: {}
     });
 
-    const run = runCli(["validate", "--no-generated"], root);
+    const run = runCli(["validate"], root);
     expect(run.status).toBe(3);
     const finding = run.json?.errors.find((e: { code: string }) => e.code === "SEMANTIC_INVALID");
     expect(finding).toBeDefined();

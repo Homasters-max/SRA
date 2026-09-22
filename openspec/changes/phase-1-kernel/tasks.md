@@ -70,9 +70,9 @@
 
 ## 9. Команда status (REQ-KRN-027)
 
-- [ ] 9.1 `src/core/openspec/status.ts`: обёртка над `openspec status --change <c> --json` → `{artifact: done|ready|blocked|skipped}`; тест на сохранённом JSON-ответе OpenSpec
-- [ ] 9.2 `warrant status [change]`: record (`change_state`, `classification`), `effective_policy.{hash,sources}` через resolver, artifacts, `stale[]` (каталог отсутствует и не в archive → `CHANGE_DIR_MISSING`; в archive при состоянии ≠ `ARCHIVED` → `ARCHIVED_WITHOUT_TRANSITION`); без ключей `verdicts` / `next`; e2e: свежий Change (SCN-KRN-070), archive без транзиции (SCN-KRN-071), неизвестный → `CHANGE_NOT_FOUND` код 3 (SCN-KRN-072)
-- [ ] 9.3 `warrant status` без аргумента — все records из `.warrant/changes/`; тест с двумя records
+- [x] 9.1 `src/core/openspec/status.ts`: обёртка над `openspec status --change <c> --json` → `{artifact: done|ready|blocked|skipped}`; тест на сохранённом JSON-ответе OpenSpec
+- [x] 9.2 `warrant status [change]`: record (`change_state`, `classification`), `effective_policy.{hash,sources}` через resolver, artifacts, `stale[]` (каталог отсутствует и не в archive → `CHANGE_DIR_MISSING`; в archive при состоянии ≠ `ARCHIVED` → `ARCHIVED_WITHOUT_TRANSITION`); без ключей `verdicts` / `next`; e2e: свежий Change (SCN-KRN-070), archive без транзиции (SCN-KRN-071), неизвестный → `CHANGE_NOT_FOUND` код 3 (SCN-KRN-072)
+- [x] 9.3 `warrant status` без аргумента — все records из `.warrant/changes/`; тест с двумя records
 
 ## 10. Критерий выхода и dogfooding
 

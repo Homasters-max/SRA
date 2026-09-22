@@ -5,11 +5,12 @@
  * document and the pack set — and hands them to the pure resolver, so the same
  * inputs always produce the same `hash` (SCN-KRN-065).
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { loadPacks } from "../core/packs/loader.js";
+import { readChangeRecord, readJsonFile } from "../core/record/read.js";
 import { resolveForProject, type Classification } from "../core/resolve/index.js";
 import { validateFile } from "../core/schemas/semantic.js";
 import { success, failures, type CommandResult } from "../io/output.js";
@@ -22,38 +23,6 @@ export interface ResolveOptions {
 
 function posix(p: string): string {
   return p.split(path.sep).join("/");
-}
-
-function readJsonFile(absolute: string, reported: string): unknown {
-  let text: string;
-  try {
-    text = readFileSync(absolute, "utf8");
-  } catch (cause) {
-    throw new WarrantError("CONFIG_INVALID", `cannot read file: ${(cause as Error).message}`, { path: reported });
-  }
-  try {
-    return JSON.parse(text);
-  } catch (cause) {
-    throw new WarrantError("CONFIG_INVALID", `invalid JSON: ${(cause as Error).message}`, { path: reported });
-  }
-}
-
-/** The record of the Change, validated against `warrant://change-record/1`. */
-function readRecord(root: string, change: string): Record<string, unknown> {
-  const rel = posix(path.join(".warrant", "changes", `${change}.json`));
-  const absolute = path.join(root, ".warrant", "changes", `${change}.json`);
-  if (!existsSync(absolute)) {
-    throw new WarrantError("CHANGE_NOT_FOUND", `no record for change "${change}" in .warrant/changes/`, {
-      path: rel
-    });
-  }
-  const json = readJsonFile(absolute, rel);
-  const result = validateFile(json, rel);
-  if (!result.ok) {
-    const first = result.errors[0] as CliError;
-    throw new WarrantError(first.code, first.message, { path: first.path ?? rel });
-  }
-  return json as Record<string, unknown>;
 }
 
 /**
@@ -94,7 +63,7 @@ export function runResolve(
 ): CommandResult {
   requireConfigPath(root);
 
-  const record = readRecord(root, change);
+  const record = readChangeRecord(root, change);
   const classification =
     opts.classification !== undefined && opts.classification !== ""
       ? readClassificationFile(root, change, opts.classification)

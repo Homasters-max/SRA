@@ -1,0 +1,106 @@
+{
+  "changeName": "add-search",
+  "schemaName": "warrant-sdd",
+  "planningHome": {
+    "kind": "repo",
+    "root": "/tmp/proj",
+    "changesDir": "/tmp/proj\\openspec\\changes",
+    "defaultSchema": "spec-driven"
+  },
+  "changeRoot": "/tmp/proj\\openspec\\changes\\add-search",
+  "artifactPaths": {
+    "proposal": {
+      "outputPath": "proposal.md",
+      "resolvedOutputPath": "/tmp/proj\\openspec\\changes\\add-search\\proposal.md",
+      "existingOutputPaths": []
+    },
+    "specs": {
+      "outputPath": "specs/**/*.md",
+      "resolvedOutputPath": "/tmp/proj\\openspec\\changes\\add-search\\specs\\**\\*.md",
+      "existingOutputPaths": []
+    },
+    "design": {
+      "outputPath": "design.md",
+      "resolvedOutputPath": "/tmp/proj\\openspec\\changes\\add-search\\design.md",
+      "existingOutputPaths": []
+    },
+    "tasks": {
+      "outputPath": "tasks.md",
+      "resolvedOutputPath": "/tmp/proj\\openspec\\changes\\add-search\\tasks.md",
+      "existingOutputPaths": []
+    }
+  },
+  "isPlanningComplete": false,
+  "isComplete": false,
+  "applyRequires": [
+    "tasks"
+  ],
+  "nextSteps": [
+    "Run openspec instructions proposal --change \"add-search\" --json before writing that artifact."
+  ],
+  "actionContext": {
+    "mode": "repo-local",
+    "sourceOfTruth": "repo",
+    "planningArtifacts": [
+      "proposal",
+      "specs",
+      "design",
+      "tasks"
+    ],
+    "linkedContext": [],
+    "allowedEditRoots": [
+      "/tmp/proj"
+    ],
+    "requiresAffectedAreaSelection": false,
+    "constraints": [
+      "Repo-local change artifacts and implementation edits are scoped to this project."
+    ]
+  },
+  "artifacts": [
+    {
+      "id": "proposal",
+      "outputPath": "proposal.md",
+      "status": "ready",
+      "requires": []
+    },
+    {
+      "id": "specs",
+      "outputPath": "specs/**/*.md",
+      "status": "blocked",
+      "requires": [
+        "proposal"
+      ],
+      "missingDeps": [
+        "proposal"
+      ]
+    },
+    {
+      "id": "design",
+      "outputPath": "design.md",
+      "status": "blocked",
+      "requires": [
+        "proposal"
+      ],
+      "missingDeps": [
+        "proposal"
+      ]
+    },
+    {
+      "id": "tasks",
+      "outputPath": "tasks.md",
+      "status": "blocked",
+      "requires": [
+        "specs",
+        "design"
+      ],
+      "missingDeps": [
+        "specs",
+        "design"
+      ]
+    }
+  ],
+  "root": {
+    "path": "/tmp/proj",
+    "source": "nearest"
+  }
+}

@@ -96,16 +96,21 @@ export function schemaFromConfigYaml(text: string): string | null {
 }
 
 /**
- * Why a change name cannot be used, or null when it is free (ADR-0012 section 6).
+ * Directory of a Change under `openspec/changes/`, as a POSIX path relative to
+ * the project root, or null when there is none.
  *
- * Archived changes keep their name forever: reusing one would make the stable
- * ids of two different Changes point at the same directory name.
+ * `active` is `openspec/changes/<name>`; `archive` is the archived copy, whose
+ * directory is `<YYYY-MM-DD>-<name>` (or plain `<name>` when it was moved by
+ * hand). Shared by `init change` (a name conflict) and `status` (a stale record).
  */
-export function changeNameConflict(root: string, name: string): string | null {
-  const record = path.join(root, ".warrant", "changes", `${name}.json`);
-  if (existsSync(record)) return `.warrant/changes/${name}.json`;
+export interface ChangeDirLocation {
+  where: "active" | "archive";
+  path: string;
+}
+
+export function findChangeDir(root: string, name: string): ChangeDirLocation | null {
   const active = path.join(root, "openspec", "changes", name);
-  if (existsSync(active)) return `openspec/changes/${name}`;
+  if (existsSync(active)) return { where: "active", path: `openspec/changes/${name}` };
   const archive = path.join(root, "openspec", "changes", "archive");
   let entries: string[];
   try {
@@ -115,7 +120,18 @@ export function changeNameConflict(root: string, name: string): string | null {
   } catch {
     return null;
   }
-  // Archive directories are `<YYYY-MM-DD>-<name>`.
   const found = entries.find((entry) => entry === name || entry.endsWith(`-${name}`));
-  return found === undefined ? null : `openspec/changes/archive/${found}`;
+  return found === undefined ? null : { where: "archive", path: `openspec/changes/archive/${found}` };
+}
+
+/**
+ * Why a change name cannot be used, or null when it is free (ADR-0012 section 6).
+ *
+ * Archived changes keep their name forever: reusing one would make the stable
+ * ids of two different Changes point at the same directory name.
+ */
+export function changeNameConflict(root: string, name: string): string | null {
+  const record = path.join(root, ".warrant", "changes", `${name}.json`);
+  if (existsSync(record)) return `.warrant/changes/${name}.json`;
+  return findChangeDir(root, name)?.path ?? null;
 }

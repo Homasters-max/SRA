@@ -3,7 +3,6 @@ import { Command, CommanderError } from "commander";
 import { EXIT, WarrantError } from "../core/errors.js";
 import { emit, failure, resultFromThrown, type CommandResult } from "../io/output.js";
 import { CLI_VERSION } from "../version.js";
-import { notImplemented } from "../commands/stub.js";
 import { requireConfigPath } from "../commands/context.js";
 import { runInitCommand } from "../commands/init.js";
 import { runValidate } from "../commands/validate.js";
@@ -11,6 +10,7 @@ import { runFmt } from "../commands/fmt.js";
 import { runId } from "../commands/id.js";
 import { runSync } from "../commands/sync.js";
 import { runResolve } from "../commands/resolve.js";
+import { runStatus } from "../commands/status.js";
 
 export type Runner = (args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -43,11 +43,6 @@ function register(name: string, description: string, runner: Runner, configure?:
     await run(name, runner, command.args, command.opts());
   });
 }
-
-const needsConfig: Runner = () => {
-  requireConfigPath();
-  return notImplemented("(pending)");
-};
 
 register(
   "init",
@@ -95,7 +90,12 @@ register(
     }),
   (c) => c.argument("<change>").option("--explain").option("--classification <file>")
 );
-register("status", "show change status", needsConfig, (c) => c.argument("[change]"));
+register(
+  "status",
+  "show change status",
+  (args) => runStatus(args[0] as string | undefined),
+  (c) => c.argument("[change]")
+);
 
 async function main(): Promise<void> {
   try {

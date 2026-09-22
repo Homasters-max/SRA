@@ -92,6 +92,9 @@ design (D-1…D-10), tasks (10 групп, 47 задач). `openspec validate ph
 ### Шаг 3 — не раньше конца фазы 1
 
 Фаза 2 (core-sdd целиком, golden feature/chore), затем 3 (verification, CI) и 4 (Claude Code frontend).
+В фазе 3 вместе с `warrant ci` — CI-матрица **ubuntu-latest + windows-latest**: `npm test`, `npm i -g` из чекаута,
+`warrant validate` на sample-проекте. До этого WARRANT на Linux не запускался ни разу; код кроссплатформенный
+по замыслу (`path`, `cross-spawn`, POSIX-пути в lock), но это не проверено.
 Vertical slice по ADR-0013 — после фазы 4. LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSION.md)).
 
 ## Чего не делать

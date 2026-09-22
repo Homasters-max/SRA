@@ -1,0 +1,11 @@
+{
+  "$schema": "warrant://check/1",
+  "id": "tests-passed",
+  "version": "1.0.0",
+  "description": "Format of the test run: the project supplies the command through .warrant/local/checks/.",
+  "level": "L1",
+  "produces": [
+    "test-report"
+  ],
+  "parser": "junit"
+}

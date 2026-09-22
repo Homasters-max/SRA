@@ -1,0 +1,14 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "adversarial-review",
+  "version": "1.0.0",
+  "description": "An adversarial review of the specification was run and its blocking findings are closed.",
+  "level": "L2",
+  "requires_evidence": [
+    {
+      "kind": "review",
+      "status": "PROVEN"
+    }
+  ],
+  "waivable": true
+}

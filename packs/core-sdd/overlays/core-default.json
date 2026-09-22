@@ -1,0 +1,24 @@
+{
+  "$schema": "warrant://overlay/1",
+  "id": "core-default",
+  "version": "1.0.0",
+  "description": "Unconditional baseline: spec and ID validity on every transition that touches specs.",
+  "match": {},
+  "gates": {
+    "MERGED->ARCHIVED": [
+      "spec-valid",
+      "ids-valid"
+    ],
+    "PROPOSED->SPECIFIED": [
+      "spec-valid",
+      "ids-valid"
+    ],
+    "SPECIFIED->APPROVED": [
+      "spec-valid",
+      "ids-valid"
+    ],
+    "VERIFYING->MERGED": [
+      "ids-valid"
+    ]
+  }
+}

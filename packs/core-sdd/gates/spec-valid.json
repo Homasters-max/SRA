@@ -1,0 +1,8 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "spec-valid",
+  "version": "1.0.0",
+  "description": "OpenSpec validation of the change and its specs passes.",
+  "level": "L1",
+  "waivable": false
+}

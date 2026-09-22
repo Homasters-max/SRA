@@ -1,0 +1,11 @@
+{
+  "$schema": "warrant://overlay/1",
+  "id": "risk-low",
+  "version": "1.0.0",
+  "description": "LOW risk adds nothing: the baseline and the profile are the whole policy.",
+  "match": {
+    "risk_level": [
+      "LOW"
+    ]
+  }
+}

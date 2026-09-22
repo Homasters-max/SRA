@@ -1,0 +1,8 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "scope-valid",
+  "version": "1.0.0",
+  "description": "The diff touches only the paths the change is allowed to touch.",
+  "level": "L0",
+  "waivable": false
+}

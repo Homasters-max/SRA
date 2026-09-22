@@ -1,0 +1,8 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "required-artifacts-present",
+  "version": "1.0.0",
+  "description": "Every artifact listed in artifacts.required exists.",
+  "level": "L0",
+  "waivable": false
+}

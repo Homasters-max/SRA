@@ -1,0 +1,8 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "evidence-complete",
+  "version": "1.0.0",
+  "description": "Every evidence kind listed in evidence.required is present.",
+  "level": "L0",
+  "waivable": false
+}

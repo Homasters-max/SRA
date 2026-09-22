@@ -1,0 +1,50 @@
+{
+  "$schema": "warrant://profile/1",
+  "id": "chore",
+  "version": "1.0.0",
+  "description": "Documentation and housekeeping changes that carry no specs.",
+  "match": {
+    "paths": [
+      "docs/**",
+      "**/*.md",
+      "package.json",
+      "package-lock.json"
+    ]
+  },
+  "artifacts": {
+    "required": [
+      "proposal",
+      "tasks"
+    ],
+    "recommended": [
+      "design"
+    ]
+  },
+  "gates": {
+    "APPROVED->IMPLEMENTING": [
+      "branch-isolated"
+    ],
+    "MERGED->ARCHIVED": [
+      "required-artifacts-present"
+    ],
+    "PROPOSED->SPECIFIED": [
+      "required-artifacts-present",
+      "ids-valid"
+    ],
+    "SPECIFIED->APPROVED": [
+      "required-artifacts-present",
+      "ids-valid",
+      "human-approval"
+    ],
+    "VERIFYING->MERGED": [
+      "tests-passed",
+      "scope-valid"
+    ]
+  },
+  "approvals": [
+    {
+      "role": "maintainer",
+      "at": "SPECIFIED->APPROVED"
+    }
+  ]
+}

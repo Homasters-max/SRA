@@ -6,17 +6,44 @@
   "description": "Baseline spec-driven workflow for OpenSpec with the WARRANT governance rules.",
   "depends_on": {},
   "provides": {
-    "profiles": [],
-    "overlays": [],
-    "gates": [],
-    "checks": [],
+    "profiles": [
+      "profiles/chore.json",
+      "profiles/factory-change.json",
+      "profiles/feature.json"
+    ],
+    "overlays": [
+      "overlays/core-default.json",
+      "overlays/risk-high.json",
+      "overlays/risk-low.json",
+      "overlays/risk-medium.json"
+    ],
+    "gates": [
+      "gates/adversarial-review.json",
+      "gates/analyze-clean.json",
+      "gates/blocking-unknowns-resolved.json",
+      "gates/branch-isolated.json",
+      "gates/evidence-complete.json",
+      "gates/factory-golden-passed.json",
+      "gates/human-approval.json",
+      "gates/ids-valid.json",
+      "gates/required-artifacts-present.json",
+      "gates/scope-valid.json",
+      "gates/spec-valid.json",
+      "gates/tests-passed.json"
+    ],
+    "checks": [
+      "checks/openspec-validate.json",
+      "checks/tests-passed.json"
+    ],
     "risk_floors": [
       "risk/floors.json"
     ],
     "risk_levels": [
       "risk/levels.json"
     ],
-    "controller_rules": [],
+    "controller_rules": [
+      "controller/rules.json"
+    ],
     "recipes": [],
     "templates": [
       "openspec/templates/proposal.md",
@@ -26,7 +53,9 @@
     ],
     "openspec_schema": "openspec/schema.json",
     "openspec_rules": "openspec/rules.json",
-    "skills": [],
+    "skills": [
+      "specification/adversarial-review@^0.1"
+    ],
     "evidence_kinds": [
       "test-report",
       "review",

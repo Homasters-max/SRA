@@ -1,0 +1,8 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "analyze-clean",
+  "version": "1.0.0",
+  "description": "warrant analyze reports no UNSATISFIED, CONFLICT or ORPHAN finding.",
+  "level": "L0",
+  "waivable": true
+}

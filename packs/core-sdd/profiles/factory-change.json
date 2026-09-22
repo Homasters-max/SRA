@@ -1,0 +1,29 @@
+{
+  "$schema": "warrant://profile/1",
+  "id": "factory-change",
+  "version": "1.0.0",
+  "description": "Change to the WARRANT factory itself: packs, schemas, skills and project configuration.",
+  "extends": [
+    "feature"
+  ],
+  "match": {
+    "paths": [
+      ".warrant/**",
+      "openspec/schemas/**",
+      "openspec/config.yaml",
+      "packs/**",
+      "packages/cli/schemas/**",
+      "sra/skills/**"
+    ]
+  },
+  "gates": {
+    "VERIFYING->MERGED": [
+      "factory-golden-passed"
+    ]
+  },
+  "capabilities": {
+    "forbidden": [
+      "PRODUCTION_WRITE"
+    ]
+  }
+}

@@ -72,6 +72,7 @@ KERNEL (меняется редко)                PACKS (подключают�
     "bdd-tdd":  { "version": "^0.1", "params": { "mutation_threshold": 0.9 } },
     "data":     { "version": "^0.3", "params": { "reconciliation": "row-count+checksum" } }
   },
+  "defaults": { "check_timeout_s": 1800 },
   "paths": {
     "adr": "docs/adr",
     "glossary": "docs/glossary.md",

@@ -29,8 +29,8 @@ OpenSpec + warrant-sdd schema + profile feature
 | **0. Spikes** | см. §3 | Все spikes закрыты решением |
 | **1. Kernel** | JSON Schemas контрактов, CLI: `init`, `validate`, `fmt`, `id`, `sync`, `resolve`, `status` | `warrant validate` работает на core-sdd |
 | **2. core-sdd** | schema `warrant-sdd`, profiles, core gates и checks, templates, controller rules, risk | Golden `feature`, `chore`, `factory-change` — snapshot effective policy (`resolve --explain`, `status`); прогон gates — фаза 3 |
-| **3. Verification** | `check`, `gate`, `analyze`, evidence manifest, CI integration; evidence schema с `metrics`, объявляемыми pack для kind ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)) | Vertical slice пройден |
-| **4. Frontend** (MVP) | Claude Code: static deny, `warrant guard`, reviewer-subagent (ADR-0014) | Агент проходит slice; в `guard_events[]` нет обойдённых `deny` |
+| **3. Verification** | `check`, `gate`, `analyze`, evidence manifest, CI integration; evidence schema с `metrics`, объявляемыми pack для kind ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)); `execution` в схеме check, runner с замком ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)) | Vertical slice пройден |
+| **4. Frontend** (MVP) | Claude Code: static deny, `warrant guard` (включая `guard_prefixes`, ADR-0017), reviewer-subagent (ADR-0014) | Агент проходит slice; в `guard_events[]` нет обойдённых `deny` |
 | **5. bdd-tdd, arch** | Gherkin/SCN, red-first, ADR, glossary, adversarial review | Снижение spec defects после implementation |
 | **6. data** | Contracts, compatibility engine, migration, rollback | Golden: breaking-data-change |
 | **7. Orchestration** | Вызов агентов через ACP / API, retry policy, context packs | Два frontends на одном CLI |

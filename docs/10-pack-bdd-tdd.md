@@ -101,6 +101,8 @@ Ignored в diff → survived, если нет исключения
 
 Parser каждого инструмента приводит отчёт к mutation-testing-report-schema (экосистема Stryker); фильтр по diff
 применяет check WARRANT. Инструмент MAY сужать прогон ради стоимости, но verdict считается по фильтру WARRANT.
+Сужение и стоимость — через `execution` ([06 §2](06-verification.md), [ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)):
+check `mutation` поставляется с `exclusive: true`, `local: "scoped-only"`, `max_paths: 5` — полный прогон только в CI.
 Инструмент для Python sample — spike S7 ([13 §3](13-roadmap.md)).
 
 ### Evidence `mutation-report`

@@ -152,7 +152,7 @@ Prompt не является enforcement (INV-04). Принуждение рас
 | **CI** `warrant ci` | Заново вычисляет L0/L1, верифицирует refs, блокирует merge. Не пишет в репозиторий ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)) | MVP |
 | **Форж** (GitHub) | Bot-идентичность агента без права merge; branch protection на `main`; required review | MVP |
 | **Static deny** frontend'а | `permissions.deny` в `.claude/settings.json`, генерируется `warrant sync` | MVP (Claude Code) |
-| **Hook** `warrant guard` | `PreToolUse` на `Edit|Write|Bash`: отказ вне `write_scope` активного Run | MVP (Claude Code) |
+| **Hook** `warrant guard` | `PreToolUse` на `Edit|Write|Bash`: отказ вне `write_scope` активного Run и на прямой запуск тяжёлых checks (ADR-0017) | MVP (Claude Code) |
 
 WARRANT **agent-agnostic**: вся логика в CLI, который общается JSON. Frontends (Claude Code — первый;
 далее агенты через ACP или API) — адаптеры, которые вызывают CLI и транслируют capabilities в свои
@@ -201,9 +201,9 @@ WARRANT **agent-agnostic**: вся логика в CLI, который обща�
 | `warrant resolve <change> [--explain]` | Вычислить effective policy с происхождением каждого требования | MVP |
 | `warrant next <change>` | Ответ controller | MVP |
 | `warrant run start\|submit\|finish` | Создать Run и Context Pack, принять result envelope skill, закрыть Run | MVP |
-| `warrant guard` | Hook: разрешить / отклонить запись по `write_scope` активного Run | MVP |
+| `warrant guard` | Hook: разрешить / отклонить запись по `write_scope` активного Run и прямой запуск тяжёлых checks ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)) | MVP |
 | `warrant unknown add\|resolve`, `warrant assumption add` | Записать UNKNOWN / ASSUMPTION / DECISION в record | MVP |
-| `warrant check [id]` | Запустить check(s), записать evidence | MVP |
+| `warrant check [id] [--paths …] [--wait]` | Запустить check(s), записать evidence; `--paths` — суженный прогон, `--wait` — ждать замок `exclusive` ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)) | MVP |
 | `warrant gate [id]` | Вычислить verdict(s) | MVP |
 | `warrant verify <change>` | `check` + `gate` для всех требований effective policy текущего перехода | MVP |
 | `warrant analyze <change>` | Детерминированный анализ согласованности | MVP |

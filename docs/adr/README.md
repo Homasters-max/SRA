@@ -17,8 +17,9 @@
 | [0011](WARRANT-ADR-0011-pr-topology.md) | Два PR на Change + archive; транзиции record в следующем PR; `warrant archive` | ACCEPTED |
 | [0012](WARRANT-ADR-0012-id-allocation.md) | Выдача ID: NNN immutable с MERGED, ULID для EVID/RUN, реестр AREA | ACCEPTED |
 | [0013](WARRANT-ADR-0013-mvp-refinement.md) | Уточнение MVP: sample-проект, TypeScript, агент ведёт slice, core-sdd@0.1 = feature/chore/factory-change | ACCEPTED |
-| [0014](WARRANT-ADR-0014-claude-code-enforcement.md) | Enforcement в Claude Code: static deny + `warrant guard`, review как subagent | ACCEPTED |
+| [0014](WARRANT-ADR-0014-claude-code-enforcement.md) | Enforcement в Claude Code: static deny + `warrant guard`, review как subagent | ACCEPTED (уточнён 0017) |
 | [0015](WARRANT-ADR-0015-openspec-sync-contract.md) | Контракт `warrant sync` с OpenSpec 1.13.1: что генерируется, schema `warrant-sdd`, что WARRANT читает у OpenSpec (S2, остаток S3) | ACCEPTED |
 | [0016](WARRANT-ADR-0016-mutation-diff-scope.md) | Mutation score по diff: формула, порог 0.9, эквивалентные мутанты — частичный waiver, evidence `metrics` | ACCEPTED |
+| [0017](WARRANT-ADR-0017-check-execution.md) | `execution` в check: машинный замок `exclusive`, `local` allowed / scoped-only / ci-only, `--paths`, guard по `guard_prefixes` | ACCEPTED |
 
 Новый ADR: следующий номер, frontmatter как в существующих, строка в этой таблице.

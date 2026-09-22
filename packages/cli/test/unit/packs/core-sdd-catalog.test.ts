@@ -124,22 +124,22 @@ describe("pack core-sdd: каталог", () => {
     expect(referenced.has("rollback-rehearsed")).toBe(false);
   });
 
-  it("controller/rules.json: ровно три правила, первое — blocking UNKNOWN (SCN-SDD-012)", () => {
+  it("controller/rules.json: ровно три правила, первое — POLICY_CONFLICT (SCN-SDD-012, I-48)", () => {
     const doc = readJson("controller/rules.json");
     const result = validateFile(doc, "controller/rules.json");
     expect(result.ok).toBe(true);
     expect(doc.$schema).toBe("warrant://controller-rules/1");
     expect(doc.rules).toHaveLength(3);
-    expect(doc.rules[0]).toEqual({
+    expect(doc.rules[0].when).toEqual({ policy_conflict: true });
+    expect(doc.rules[0].action).toBe("ESCALATE");
+    expect(doc.rules[1].when).toEqual({ gate_verdict: "FAIL" });
+    expect(doc.rules[1].action).toBe("WAIT");
+    expect(doc.rules[2]).toEqual({
       id: "blocking-unknown",
       when: { blocking_unknowns: ">0" },
       action: "WAIT",
       next: "clarify"
     });
-    expect(doc.rules[1].when).toEqual({ policy_conflict: true });
-    expect(doc.rules[1].action).toBe("ESCALATE");
-    expect(doc.rules[2].when).toEqual({ gate_verdict: "FAIL" });
-    expect(doc.rules[2].action).toBe("WAIT");
   });
 
   it("check tests-passed описывает только формат, openspec-validate — команду (REQ-SDD-007)", () => {

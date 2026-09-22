@@ -14,7 +14,8 @@ Pack `core-sdd` версии `0.1.0` SHALL объявлять в `provides`: ove
 profiles `feature`, `chore`, `factory-change`; gates `spec-valid`, `required-artifacts-present`, `blocking-unknowns-resolved`, `ids-valid`,
 `branch-isolated`, `tests-passed`, `scope-valid`, `analyze-clean`, `evidence-complete`, `human-approval`, `adversarial-review`,
 `factory-golden-passed`; checks `openspec-validate`, `tests-passed`; `controller_rules` `controller/rules.json`; `skills`
-`specification/adversarial-review@^0.1`; `risk_floors`, `risk_levels`, `openspec_schema`, `openspec_rules`, `templates` как в фазе 1.
+`specification/adversarial-review@^0.1`; `risk_floors`, `risk_levels`, `openspec_schema`, `openspec_rules`, `templates` как в фазе 1; `evidence_kinds` — `test-report`, `spec-report`, `review`,
+`human-approval` (каждый kind, который `produces` какой-либо check pack, SHALL быть объявлен).
 Один объект — один файл ([08 §7](../../../../docs/08-packs.md)); каждый файл SHALL проходить `warrant validate` своей схемой; `level` и
 `waivable` gates SHALL совпадать с [06 §4](../../../../docs/06-verification.md), где `worktree-ready` заменён на `branch-isolated` (ADR-0011).
 Profiles `bugfix`, `refactor`, `experiment` SHALL NOT входить в 0.1 (ADR-0013).
@@ -118,9 +119,9 @@ Gates других packs SHALL NOT упоминаться; [05 §4](../../../../
 `human-approval`, `spec-valid`, `scope-valid`, `ids-valid`, `required-artifacts-present`, `blocking-unknowns-resolved`, `tests-passed`,
 `evidence-complete`, `factory-golden-passed` SHALL быть `waivable: false`. Check `openspec-validate` SHALL описывать
 `openspec validate --strict --json` с `produces: ["spec-report"]`; check `tests-passed` SHALL описывать только формат (`parser: junit`,
-`produces: ["test-report"]`), а команду проект задаёт override'ом в `.warrant/local/checks/`. `controller/rules.json` SHALL содержать
-ровно три правила по порядку: открытый blocking `UNKNOWN` → `WAIT` с операцией `clarify`; `POLICY_CONFLICT` → `ESCALATE`;
-verdict gate `FAIL` → `WAIT`. В фазе 2 эти объекты SHALL только проверяться `validate` и попадать в lock; исполнение — фаза 3.
+`produces: ["test-report"]`), а команду проект задаёт override'ом в `.warrant/local/checks/`. Gate `spec-valid` SHALL требовать evidence `spec-report`. `controller/rules.json` SHALL содержать
+ровно три правила в порядке [04 §4](../../../../docs/04-lifecycle.md): `POLICY_CONFLICT` → `ESCALATE`; verdict gate `FAIL` → `WAIT`;
+открытый blocking `UNKNOWN` → `WAIT` с операцией `clarify`. В фазе 2 эти объекты SHALL только проверяться `validate` и попадать в lock; исполнение — фаза 3.
 
 #### Scenario: Waivable по каталогу
 <!-- id: SCN-SDD-011 -->
@@ -130,7 +131,7 @@ verdict gate `FAIL` → `WAIT`. В фазе 2 эти объекты SHALL тол
 #### Scenario: Controller rules валидны
 <!-- id: SCN-SDD-012 -->
 - **WHEN** `warrant validate` читает `controller/rules.json`
-- **THEN** файл проходит `warrant://controller-rules/1`, `rules.length` равен 3, первый `when` — blocking UNKNOWN
+- **THEN** файл проходит `warrant://controller-rules/1`, `rules.length` равен 3, первый `when` — `policy_conflict`, последний — blocking UNKNOWN
 
 ### Requirement: Skill adversarial review в lock
 <!-- id: REQ-SDD-008 -->

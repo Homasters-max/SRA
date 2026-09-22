@@ -4,5 +4,11 @@
   "version": "1.0.0",
   "description": "OpenSpec validation of the change and its specs passes.",
   "level": "L1",
+  "requires_evidence": [
+    {
+      "kind": "spec-report",
+      "status": "PROVEN"
+    }
+  ],
   "waivable": false
 }

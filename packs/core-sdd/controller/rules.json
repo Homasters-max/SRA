@@ -2,14 +2,6 @@
   "$schema": "warrant://controller-rules/1",
   "rules": [
     {
-      "id": "blocking-unknown",
-      "when": {
-        "blocking_unknowns": ">0"
-      },
-      "action": "WAIT",
-      "next": "clarify"
-    },
-    {
       "id": "policy-conflict",
       "when": {
         "policy_conflict": true
@@ -22,6 +14,14 @@
         "gate_verdict": "FAIL"
       },
       "action": "WAIT"
+    },
+    {
+      "id": "blocking-unknown",
+      "when": {
+        "blocking_unknowns": ">0"
+      },
+      "action": "WAIT",
+      "next": "clarify"
     }
   ]
 }

@@ -58,6 +58,7 @@
     ],
     "evidence_kinds": [
       "test-report",
+      "spec-report",
       "review",
       "human-approval"
     ]

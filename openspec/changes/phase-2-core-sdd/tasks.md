@@ -26,6 +26,8 @@
 - [ ] 3.4 B2: `loadLocalLayer()` не читает каталоги с `pack.json`; неподключённый — `CONFIG_INVALID`. Проверка: e2e — SCN-KRN-080, `resolve` не видит его overlays. (REQ-KRN-021)
 - [ ] 3.5 `planSync` пишет `lock.skills` (version из frontmatter, path, `bytesHash`), проверяет диапазон `@^0.1`. Проверка: e2e `sync.test.ts` — SCN-SDD-013; `validate` — SCN-SDD-014. (REQ-SDD-008)
 
+- [ ] 3.6 Semantic-правило `validate`: для объектов pack и project-слоя (`profiles`, `overlays`, `gates`, `checks`, `risk_levels`) `id === basename` файла (design Decision 1); находка `SEMANTIC_INVALID` с `path`. Проверка: e2e `validate.test.ts` — файл с чужим `id` даёт код 3; unit-тест каталога core-sdd остаётся зелёным. (REQ-KRN-021)
+
 ## 4. sync целиком и переезд репозитория
 
 - [ ] 4.1 `planSync`: `context` проекта из `.warrant/local/openspec/rules.json`, `config.yaml` всегда целиком; `--no-generated` удалён из `validate` и `checkLock` (откат I-43). Проверка: e2e `sync.test.ts` SCN-KRN-062 (context после pack через пустую строку), `validate.test.ts` SCN-KRN-082; тест I-43 удалён. (REQ-KRN-025, REQ-KRN-021)

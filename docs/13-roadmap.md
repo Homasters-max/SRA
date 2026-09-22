@@ -30,12 +30,12 @@ OpenSpec + warrant-sdd schema + profile feature
 | **1. Kernel** | JSON Schemas контрактов, CLI: `init`, `validate`, `fmt`, `id`, `sync`, `resolve`, `status` | `warrant validate` работает на core-sdd |
 | **2. core-sdd** | schema `warrant-sdd`, profiles, core gates и checks, templates, controller rules, risk | Golden `feature`, `chore`, `factory-change` — snapshot effective policy (`resolve --explain`, `status`); прогон gates — фаза 3 |
 | **3. Verification** | `check`, `gate`, `analyze`, evidence manifest, CI integration; evidence schema с `metrics`, объявляемыми pack для kind ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)); `execution` в схеме check, runner с замком ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)) | Vertical slice пройден |
-| **4. Frontend** (MVP) | Codex через codex-acp: адаптеры `codex` и `acp`, `warrant guard` pre / post (ADR-0017, ADR-0018, ADR-0019), `validate --files` | Codex проходит slice; в `guard_events[]` нет обойдённых `deny` |
+| **4. Frontend** (MVP) | Codex в ручном режиме: адаптер `codex` (hooks), `warrant guard` pre / post (ADR-0017, ADR-0018, ADR-0019), `validate --files`; слой ACP — срез S1 SEF (ADR-0020) | Codex проходит slice; в `guard_events[]` нет обойдённых `deny` |
 | **5. bdd-tdd, arch** | Gherkin/SCN, red-first, ADR, glossary, adversarial review | Снижение spec defects после implementation |
 | **6. data** | Contracts, compatibility engine, migration, rollback | Golden: breaking-data-change |
 | **7. Orchestration** | Вызов агентов через ACP / API, retry policy, context packs; адаптеры `claude`, `opencode` (ADR-0014, ADR-0018) | Два frontends на одном CLI |
 | **8. Runtime** | Runtime evidence, drift detection | Runtime observation → новый Change |
-| **9. Integrations** | LATTICE, SEF, JEV, SRA | [11](11-integrations.md) заполнен |
+| **9. Integrations** | LATTICE, SEF (транспорт `sef-hub`, гейты WARRANT в pack SEF — ADR-0020), JEV, SRA | [11](11-integrations.md) заполнен |
 
 ## 3. Spikes (до MVP)
 
@@ -81,8 +81,8 @@ Proposal отвечает только на: WHY, WHAT changes, WHAT is affected
 | Q3  | Хранение состояния Change (S3)                  | **Закрыт**: Change record, пишет только CLI                                                                                                                                         | [04 §9](04-lifecycle.md), ADR-0009                                               |
 | Q4  | Pack `security`: состав overlay и threat review | **Состав определён** (later). Kernel-зависимость закрыта: overlay `match` по любому полю classification                                                                             | [10-pack-security](10-pack-security.md), [05 §4](05-policy.md)                   |
 | Q5  | Подписание evidence, полученного вне CI         | **Закрыт для MVP**: attestation по месту производства; `signature` — later                                                                                                          | [06a §3](06a-evidence.md), ADR-0009                                              |
-| Q6  | Оркестрация реализации в MVP | **Открыт**: (A) Claude-оркестратор как ACP client передаёт утверждённые задачи Codex через codex-acp; (B) Codex сам берёт утверждённые задачи. Без ACP-слоя остаются hooks Codex и CI | [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md) |
-| Q7  | Кто выполняет adversarial review в MVP | **Открыт**: reviewer-subagent Claude ушёл в адаптер `claude` (later). Кандидат: review делает не автор кода (Codex пишет — Claude проверяет) | [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md), ADR-0013 |
+| Q6  | Оркестрация реализации в MVP | **Закрыт**: MVP — Codex в ручном режиме под hooks и CI; оркестрация через ACP — диспетчер SEF (срез S1), Claude — стол | [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md) |
+| Q7  | Кто выполняет adversarial review в MVP | **Закрыт**: spec (автор Claude) проверяет Codex отдельным локальным Run, unattested; в SEF — независимость по семействам | [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md), ADR-0013 |
 
 Q3 и Q5 — один вопрос с двух сторон: кто имеет право писать состояние. Ответ один: authoritative записи делают
 CLI в CI и человек через PR; локальный CLI пишет черновики ([ADR-0009](adr/WARRANT-ADR-0009-change-record-attestation.md)).

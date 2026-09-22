@@ -40,12 +40,21 @@ version: 0.1.0
 | **LATTICE** | Semantic read model: объекты, relations, grounding, `epistemic_state`, история по snapshot | REQ, SCN, DCT, ADR, TERM, DECISION как объекты; EVID как provenance | Identity, relations, provenance, валидация инвариантов графа | [integrations/01](integrations/01-lattice-contract.md), [05](integrations/05-warrant-lattice.md) |
 | **SRA** | Result envelope skill ([07 §4](07-skills.md)) | Skill invocation, Context Pack | Reasoning; verdict не выносит | [07](07-skills.md), [integrations/03](integrations/03-sra-lattice.md) |
 | **JEV** | Candidate classification: profiles, risk dimensions ([05 §4](05-policy.md)) | Пути diff, proposal Change | Нет; floor rules не переопределяет | [integrations/04](integrations/04-jev-classifier.md) |
-| **SEF** | Расписание, выбор агента, retry policy | JSON CLI ([04 §7](04-lifecycle.md)): `status`, `next`, `verify` | Оркестрация; переходы состояний — только через `warrant` | открыт; требования запуска агента — ниже |
+| **SEF** | Расписание, выбор агента, retry policy | JSON CLI ([04 §7](04-lifecycle.md)): `status`, `next`, `verify` | Оркестрация; переходы состояний — только через `warrant` | граница — [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md); требования — ниже |
 
-### Требования WARRANT к запуску агентов SEF
+### Требования WARRANT к SEF
 
-Status: proposed · Источник: [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md). Не закрывает вопрос «SEF: CLI или API».
+Status: proposed · Источники: [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md), [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md);
+опираются на черновик SEF rev 3 ([2026-09-17-sef-platform-design](integrations/2026-09-17-sef-platform-design.md), предварительный). Не закрывают вопрос «SEF: CLI или API».
 
+Граница: WARRANT — инструмент стола и argv-гейты; SEF — исполнение, попытки, evidence исполнения, допуск, посадка.
+
+- Sef item задачи ссылается на TASK OpenSpec: `source_ref: <change>#TASK-…`; один TASK — один item.
+- `sef work approve` вызывает `warrant transition <change> APPROVED --ref sef://<project>/approval/<work>-r<N>@<commit>` в коммите снимка.
+- Pack проекта объявляет тесты одним гейтом `warrant verify --transition VERIFYING->MERGED` (lane и integration); отдельного `pytest`-гейта нет.
+- `landing` вызывает `warrant transition <change> MERGED --ref …` в коммите посадки; после последнего TASK Change — `warrant archive` отдельным коммитом (gates `MERGED → ARCHIVED` — integration-гейты, конфликт → `sef inbox`).
+- `protected[]` `.sef/pack.yaml` покрывает пути policy WARRANT (`warrant validate` → `SEF_PROTECTED_DRIFT`).
+- `.codex/hooks.json` входит в эталон `.sef/engines/<profile>/`; trust hook Codex выдан в образе или слоте.
 - Процесс ACP-адаптера агента запускается с cwd = worktree Change, один процесс на worktree (Codex читает hooks при старте процесса).
 - `session/request_permission` не считается механизмом запрета: агент не обязан его вызывать.
 - Если SEF — ACP client, он вызывает `warrant validate --files` по `locations` завершённых edit `tool_call`, доставляет hints в следующем prompt и делает `session/cancel` при записи вне `write_scope`.

@@ -124,7 +124,10 @@ SPEC → IMPLEMENT → VERIFY → ANALYZE → converged? ── yes → MERGE �
 
 Status: normative · Maturity: MVP
 
-Решение — [WARRANT-ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md). Два PR на Change плюс archive:
+Топология Change имеет два транспорта ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)): `github` (MVP, ниже) и
+`sef-hub` (со срезом S1 SEF, proposed: `sef work approve` → попытка → `landing`; archive — `landing` после последнего TASK).
+
+Транспорт `github` — [WARRANT-ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md). Два PR на Change плюс archive:
 
 ```text
 propose / specify  → ветка spec/<change> от актуального main → PR → human review → merge   (SPECIFIED → APPROVED)
@@ -151,7 +154,7 @@ Prompt не является enforcement (INV-04). Принуждение рас
 | **CLI** `warrant` | Разрешает переходы состояний, пишет record, evidence и runs | MVP |
 | **CI** `warrant ci` | Заново вычисляет L0/L1, верифицирует refs, блокирует merge. Не пишет в репозиторий ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)) | MVP |
 | **Форж** (GitHub) | Bot-идентичность агента без права merge; branch protection на `main`; required review | MVP |
-| **ACP client** (SEF / оркестратор) | Наблюдает `tool_call`, `validate --files` после правки, `session/cancel` при записи вне `write_scope`, проверка живости hooks ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)) | MVP (если оркестрация через ACP) |
+| **ACP client** (диспетчер SEF, [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)) | Наблюдает `tool_call`, `validate --files` после правки, `session/cancel` при записи вне `write_scope`, проверка живости hooks ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)) | S1 SEF; в MVP нет |
 | **Hook** `warrant guard --frontend <name>` | `pre`: отказ вне `write_scope` активного Run и на прямой запуск тяжёлых checks (ADR-0017); `post`: hints по изменённому файлу ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)) | MVP (`codex`); `claude`, `opencode` — later |
 | **Static deny** frontend'а | `permissions.deny` в `.claude/settings.json`, генерируется `warrant sync` | later (адаптер `claude`) |
 

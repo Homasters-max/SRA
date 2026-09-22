@@ -132,6 +132,7 @@ Profiles ссылаются только на ID. Определение gate с
 | `reconciliation-passed` | L1 | да | data | Source ↔ target сверка |
 | `rollback-rehearsed` | L1 | да | data | Rollback выполнен на production-like snapshot |
 | `factory-golden-passed` | L1 | нет | core-sdd | Golden changes WARRANT проходят ([12](12-evolution.md)) |
+| `spec-approved` | L0 | нет | core-sdd | Транспорт `sef-hub`: дерево `openspec/changes/<change>/` на базе попытки совпадает с одобренным ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)) |
 
 ## 5. Analyze
 
@@ -144,6 +145,9 @@ Profiles ссылаются только на ID. Определение gate с
 | `UNSATISFIED` | REQ без task, test или evidence |
 | `ORPHAN` | Test / task / code без связи с REQ |
 | `AMBIGUOUS` | Одна ссылка указывает на несколько объектов |
+
+В транспорте `sef-hub` `analyze` дополнительно сверяет TASK ↔ sef item (`source_ref`): TASK без item — `MISSING`,
+с несколькими items — `AMBIGUOUS` ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)).
 | `STALE` | Evidence получено на commit / spec revision / base / effective param, отличном от текущего; target частичного waiver не совпадает с текущим кодом |
 
 Пример:

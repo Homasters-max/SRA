@@ -79,6 +79,8 @@ Gate сверяет его с текущим effective param; расхожден
 | `ci` | Запись создана CLI внутри CI-запуска | id запуска |
 | `human-review` | Человек через PR review / approval API | URL review |
 | `signature` | Подпись зарегистрированного ключа (`warrant.json` → `trusted_signers`) | id подписи |
+| `sef-approval` | Владелец через `sef work approve` (транспорт `sef-hub`, proposed, [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)) | `sef://<project>/approval/<work>-r<N>@<commit>` |
+| `sef-gate` | Гейт SEF в контейнере гейтов (транспорт `sef-hub`, proposed) | `sef://<project>/attempt/<id>/gate/<gate-id>` |
 | `none` | Локальный запуск CLI | — |
 
 - Gate объявляет допустимые типы: `"accepts_attestation": ["ci", "human-review"]`. По умолчанию `none` не засчитывается

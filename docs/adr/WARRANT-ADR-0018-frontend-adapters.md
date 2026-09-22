@@ -5,7 +5,12 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: [WARRANT-ADR-0013, WARRANT-ADR-0014]
+amended_by: [WARRANT-ADR-0020]
 ---
+
+> Уточнено [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md): слой ACP принадлежит SEF (диспетчер — ACP client, не Claude);
+> MVP — Codex в ручном режиме под hooks и CI; адаптер `claude` не планируется; `.codex/hooks.json` — часть эталона
+> `.sef/engines/<profile>/`, trust выдаётся в образе или слоте.
 
 ## Context
 

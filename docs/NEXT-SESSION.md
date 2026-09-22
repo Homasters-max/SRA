@@ -10,16 +10,16 @@ version: 0.1.0
 
 Файл передачи контекста. Прочитать первым, затем [00-readme](00-readme.md).
 
-## Состояние на 2026-09-22 (вечер)
+## Состояние на 2026-09-22 (поздний вечер)
 
 - Документы 01–08 отгриллены в MVP-scope (ADR-0010…0015); открытых spikes нет.
-- Change `phase-1-kernel` в apply на ветке `feature/phase-1-kernel`, **группы 1–3 из 10 сделаны** (три коммита, 151 тест зелёный):
-  каркас CLI и envelope; 18 JSON Schema `warrant://<name>/1` с fixtures на SCN-KRN-001…041; `warrant validate`
-  (проверки 1, 2, 3, 5, 6 из REQ-KRN-021), loader packs, lock, сканер ID, secrets. Досрочно: задача 7.1 (минимум `packs/core-sdd`)
-  и `canonicalHash` из 4.1. Решения по ходу реализации — таблица I-1…I-10 в `design.md`.
+- Change `phase-1-kernel` в apply на ветке `feature/phase-1-kernel`, **группы 1–4, 6–8 из 10 сделаны** (коммиты до `18b38d3`, 282 теста зелёные):
+  каркас CLI и envelope; 18 JSON Schema; `warrant validate` со всеми семью проверками REQ-KRN-021 (3.6 закрыта через `sync`);
+  `fmt`, `id` (allocate / ULID / WAV / renumber), `sync` (YAML emitter, слияние rules, lock, копии схем), `resolve` (7 golden cases).
+  Решения по ходу реализации — таблица I-1…I-21 в `design.md`. Глобальный `warrant` — symlink на этот чекаут: после `npm run build` актуален.
 - Установка: один npm-пакет в корне без workspaces (I-1); `npm i -g <путь или git-url#tag>` даёт `warrant --version`.
 - В этом репозитории `.warrant/warrant.json` ещё нет (задача 10.2), `openspec/config.yaml` ведётся вручную (ADR-0015 п. 7).
-- **Следующий шаг — группы 4 и 6 параллельно, затем 5, 7, 8, 9, 10** (см. «Шаг 2a»).
+- **Следующий шаг — группа 5 (`init`), затем 9 (`status`), затем 10 (критерий выхода, dogfooding, README, PR)** (см. «Шаг 2a»).
 
 ## Что уже решено для фазы 1 (не обсуждать заново)
 
@@ -50,7 +50,7 @@ Skills superpowers из Claude Code убраны. Фаза 1 ведётся **с
 `openspec/changes/phase-1-kernel/`: proposal (решения review — `DECISION` в конце), specs (REQ-KRN-001…027, SCN-KRN-001…072),
 design (D-1…D-10), tasks (10 групп, 47 задач). `openspec validate phase-1-kernel --strict` — зелёный.
 
-### Шаг 2a — apply · в работе, группы 4–10
+### Шаг 2a — apply · в работе, группы 5, 9, 10
 
 Ветка `feature/phase-1-kernel`. Вести через `/opsx:apply phase-1-kernel` по tasks.md; коммит на группу с зелёными тестами.
 Ничего сверх tasks.md: новая потребность — сначала правка tasks/design, потом код. Отклонения от spec/design — вопросом
@@ -65,12 +65,12 @@ design (D-1…D-10), tasks (10 групп, 47 задач). `openspec validate ph
 
 | Группа | Зависит от | Заметки |
 |---|---|---|
-| 4 `fmt` | 2 | `core/canon/hash.ts` уже есть; нужны `order-keys`, `format-json`, команда, проверка (7) в `validate` (4.3 снимает `canonical` из `data.skipped`) |
-| 6 `id` | 2, 3.5 | сканер `core/ids/scan.ts` уже есть; параллельно с 4 |
-| 5 `init` | 4, 7 | `init` вызывает `sync`; делать после 7 |
-| 7 `sync` | 4 | 7.1 сделана; 7.6 закрывает 3.6 (проверка 4 через `sync --check`, снять `generated` из `data.skipped`); hash pack — `packContentHash` (I-7) |
-| 8 `resolve` | 3.1 | golden первыми; параллельно с 7 |
-| 9 `status` | 8, 5 | |
+| 4 `fmt` | 2 | сделана (I-12, I-13) |
+| 6 `id` | 2, 3.5 | сделана (I-14, I-15) |
+| 7 `sync` | 4 | сделана (I-16…I-18); `runSync`/`planSync` в `core/sync/plan.ts`, версия OpenSpec — `core/openspec/version.ts` |
+| 8 `resolve` | 3.1 | сделана (I-19…I-21); `resolveForProject(loaded, classification?)` в `core/resolve/index.ts` — использовать в `status` |
+| 5 `init` | 4, 7 | `init` вызывает `runSync`; JSON писать только через `writeJsonFile` (`core/canon/format-json.ts`); `init change` — имя проверять до `openspec new change` |
+| 9 `status` | 8, 5 | `effective_policy.{hash,sources}` через `resolveForProject`; `openspec status --change <c> --json` через `runOpenspec` |
 | 10 | всё | 10.2: `.warrant/warrant.json` этого репозитория через `warrant init` без перезаписи `config.yaml` |
 
 Конвенции кода, которые субагент должен знать: TypeScript ESM NodeNext (`.js` в импортах), strict +
@@ -84,8 +84,7 @@ design (D-1…D-10), tasks (10 групп, 47 задач). `openspec validate ph
 Прочитай docs/NEXT-SESSION.md, затем openspec/changes/phase-1-kernel/{proposal,design,tasks}.md и specs/kernel/spec.md
 (design.md — включая таблицу «Решения по ходу реализации»). Документы 02–08 и ADR-0006, 0012, 0013, 0015 — по мере
 необходимости. Ветка feature/phase-1-kernel уже есть, группы 1–3 сделаны. Продолжай /opsx:apply phase-1-kernel по той же
-схеме: координатор — ты, субагенты Opus 5 по одной группе. Запусти группы 4 и 6 параллельно, затем 7 и 8 параллельно,
-затем 5, 9, 10. Golden первыми для resolver. Коммит после каждой группы с зелёными тестами; сам проверяй результат
+схеме: координатор — ты, субагенты Opus 5 по одной группе. Группы 4, 6, 7, 8 сделаны. Запусти группу 5, затем 9, затем 10 (последовательно: 9 зависит от 5, 10 — от всего). Коммит после каждой группы с зелёными тестами; сам проверяй результат
 субагента (npm test, npm run typecheck, ручной прогон команды). Отклонения от spec/design — вопросом ко мне, не молча.
 Остановись после группы 10 и покажи результат.
 ```

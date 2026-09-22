@@ -1,0 +1,10 @@
+{
+  "$schema": "warrant://controller-rules/1",
+  "rules": [
+    {
+      "id": "retry",
+      "when": {},
+      "action": "RETRY"
+    }
+  ]
+}

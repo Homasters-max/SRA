@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://change-record/1",
+  "title": "WARRANT change record",
+  "description": "`.warrant/changes/<change>.json` — governance state of one Change: classification, risk and recorded transitions (04 section 9). Written only by the CLI.",
+  "type": "object",
+  "$defs": {
+    "risk_source": {
+      "description": "Where a risk value came from: a deterministic floor rule, a proposer or a named human.",
+      "type": "string",
+      "pattern": "^(floor|proposer:[a-z0-9]+(-[a-z0-9]+)*|human:[A-Za-z0-9._-]+)$"
+    },
+    "risk_entry_data_loss": {
+      "description": "Value and source of the `data_loss` dimension.",
+      "type": "object",
+      "properties": {
+        "value": {
+          "description": "Value of the dimension.",
+          "$ref": "warrant://common/1#/$defs/data_loss"
+        },
+        "from": {
+          "description": "Source of the value.",
+          "$ref": "#/$defs/risk_source"
+        }
+      },
+      "required": ["value", "from"],
+      "additionalProperties": false
+    },
+    "risk_entry_reversibility": {
+      "description": "Value and source of the `reversibility` dimension.",
+      "type": "object",
+      "properties": {
+        "value": {
+          "description": "Value of the dimension.",
+          "$ref": "warrant://common/1#/$defs/reversibility"
+        },
+        "from": {
+          "description": "Source of the value.",
+          "$ref": "#/$defs/risk_source"
+        }
+      },
+      "required": ["value", "from"],
+      "additionalProperties": false
+    },
+    "risk_entry_blast_radius": {
+      "description": "Value and source of the `blast_radius` dimension.",
+      "type": "object",
+      "properties": {
+        "value": {
+          "description": "Value of the dimension.",
+          "$ref": "warrant://common/1#/$defs/blast_radius"
+        },
+        "from": {
+          "description": "Source of the value.",
+          "$ref": "#/$defs/risk_source"
+        }
+      },
+      "required": ["value", "from"],
+      "additionalProperties": false
+    },
+    "risk_entry_security_impact": {
+      "description": "Value and source of the `security_impact` dimension.",
+      "type": "object",
+      "properties": {
+        "value": {
+          "description": "Value of the dimension.",
+          "$ref": "warrant://common/1#/$defs/security_impact"
+        },
+        "from": {
+          "description": "Source of the value.",
+          "$ref": "#/$defs/risk_source"
+        }
+      },
+      "required": ["value", "from"],
+      "additionalProperties": false
+    },
+    "risk_entry_compatibility": {
+      "description": "Value and source of the `compatibility` dimension.",
+      "type": "object",
+      "properties": {
+        "value": {
+          "description": "Value of the dimension.",
+          "$ref": "warrant://common/1#/$defs/compatibility"
+        },
+        "from": {
+          "description": "Source of the value.",
+          "$ref": "#/$defs/risk_source"
+        }
+      },
+      "required": ["value", "from"],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://change-record/1"
+    },
+    "change": {
+      "description": "Change id: the OpenSpec change directory name without the archive date. Equal to the file name without `.json`.",
+      "$ref": "warrant://common/1#/$defs/kebab_id"
+    },
+    "change_state": {
+      "description": "Recorded lifecycle state of the Change.",
+      "$ref": "warrant://common/1#/$defs/change_state"
+    },
+    "classification": {
+      "description": "Profiles and risk assigned to the Change; every value carries its source.",
+      "type": "object",
+      "properties": {
+        "profiles": {
+          "description": "Profile ids selected for this Change.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/kebab_id" }
+        },
+        "risk": {
+          "description": "Value and source per risk dimension (05 section 4).",
+          "type": "object",
+          "properties": {
+            "data_loss": {
+              "description": "Risk of losing or corrupting data.",
+              "$ref": "#/$defs/risk_entry_data_loss"
+            },
+            "reversibility": {
+              "description": "How hard it is to undo the Change.",
+              "$ref": "#/$defs/risk_entry_reversibility"
+            },
+            "blast_radius": {
+              "description": "How far the effect of the Change reaches.",
+              "$ref": "#/$defs/risk_entry_blast_radius"
+            },
+            "security_impact": {
+              "description": "Security consequences of the Change.",
+              "$ref": "#/$defs/risk_entry_security_impact"
+            },
+            "compatibility": {
+              "description": "Effect on existing consumers and contracts.",
+              "$ref": "#/$defs/risk_entry_compatibility"
+            }
+          },
+          "additionalProperties": false
+        },
+        "risk_level": {
+          "description": "Aggregate risk level derived from the dimensions.",
+          "$ref": "warrant://common/1#/$defs/risk_level"
+        }
+      },
+      "additionalProperties": false
+    },
+    "transitions": {
+      "description": "Recorded transitions, oldest first. Each entry is an act, not a derivation.",
+      "type": "array",
+      "items": {
+        "description": "One recorded transition.",
+        "type": "object",
+        "properties": {
+          "to": {
+            "description": "State the Change moved to.",
+            "$ref": "warrant://common/1#/$defs/change_state"
+          },
+          "at": {
+            "description": "RFC 3339 timestamp of the transition.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "by": {
+            "description": "Who recorded the transition, for example `cli:local`, `ci:run/8812` or `human:kat`.",
+            "type": "string",
+            "minLength": 1
+          },
+          "effective_policy_hash": {
+            "description": "Hash of the effective policy the transition was evaluated against.",
+            "$ref": "warrant://common/1#/$defs/sha256"
+          },
+          "gates": {
+            "description": "Verdict of every gate of this transition, keyed by gate id.",
+            "type": "object",
+            "properties": {},
+            "patternProperties": {
+              "^[a-z0-9]+(-[a-z0-9]+)*$": { "$ref": "warrant://common/1#/$defs/gate_verdict" }
+            },
+            "propertyNames": {
+              "anyOf": [
+                { "$ref": "warrant://common/1#/$defs/kebab_id" },
+                { "pattern": "^\\$comment$" }
+              ]
+            },
+            "additionalProperties": false
+          },
+          "evidence": {
+            "description": "Evidence records supporting the transition.",
+            "type": "array",
+            "items": { "$ref": "warrant://common/1#/$defs/evid_id" }
+          },
+          "ref": {
+            "description": "URL of the forge artefact recording the act, for example a pull request comment.",
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": ["to", "at", "by"],
+        "additionalProperties": false
+      }
+    },
+    "unknowns": {
+      "description": "Open questions recorded for this Change (02 section 1).",
+      "type": "array",
+      "items": {
+        "description": "One UNKNOWN.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Stable id `UNK-AREA-NNN`.",
+            "type": "string",
+            "pattern": "^UNK-[A-Z]{2,5}-[0-9]{3}$"
+          },
+          "text": {
+            "description": "The question itself.",
+            "type": "string",
+            "minLength": 1
+          },
+          "blocking": {
+            "description": "Whether implementation is forbidden until the question is resolved.",
+            "type": "boolean"
+          },
+          "resolution": {
+            "description": "How the question was closed, once it was.",
+            "type": "string"
+          }
+        },
+        "required": ["id", "text", "blocking"],
+        "additionalProperties": false
+      }
+    },
+    "assumptions": {
+      "description": "Assumptions the work proceeds on (02 section 1).",
+      "type": "array",
+      "items": {
+        "description": "One ASSUMPTION.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Stable id `ASM-AREA-NNN`.",
+            "type": "string",
+            "pattern": "^ASM-[A-Z]{2,5}-[0-9]{3}$"
+          },
+          "text": {
+            "description": "The assumption itself.",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["id", "text"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["$schema", "change", "change_state"],
+  "additionalProperties": false
+}

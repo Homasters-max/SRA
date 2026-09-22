@@ -1,0 +1,12 @@
+{
+  "$schema": "warrant://config/1",
+  "kernel": "0.1",
+  "openspec": "1.13.x",
+  "packs": {
+    "core-sdd": {
+      "params": {
+        "strict": true
+      }
+    }
+  }
+}

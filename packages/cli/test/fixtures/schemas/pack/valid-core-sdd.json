@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://pack/1",
+  "id": "core-sdd",
+  "version": "0.1.0",
+  "kernel": ">=0.1 <0.2",
+  "description": "Baseline spec-driven workflow for OpenSpec.",
+  "provides": {
+    "openspec_schema": "openspec/schema.json",
+    "openspec_rules": "openspec/rules.json",
+    "templates": [
+      "openspec/templates/proposal.md",
+      "openspec/templates/tasks.md"
+    ],
+    "risk_levels": [
+      "risk/levels.json"
+    ],
+    "risk_floors": [
+      "risk/floors.json"
+    ]
+  }
+}

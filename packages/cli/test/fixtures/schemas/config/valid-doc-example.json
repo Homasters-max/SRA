@@ -1,0 +1,44 @@
+{
+  "$schema": "warrant://config/1",
+  "kernel": "0.1",
+  "openspec": "1.13.x",
+  "packs": {
+    "core-sdd": {
+      "version": "^0.1"
+    },
+    "bdd-tdd": {
+      "version": "^0.1",
+      "params": {
+        "mutation_threshold": 0.7
+      }
+    },
+    "data": {
+      "version": "^0.3",
+      "params": {
+        "reconciliation": "row-count+checksum"
+      }
+    }
+  },
+  "paths": {
+    "adr": "docs/adr",
+    "glossary": "docs/glossary.md",
+    "tests": "tests"
+  },
+  "roles": {
+    "data-owner": [
+      "kat"
+    ]
+  },
+  "identities": {
+    "agents": [
+      {
+        "login": "warrant-bot",
+        "kind": "bot",
+        "description": "CI identity"
+      }
+    ]
+  },
+  "trusted_signers": [
+    "ssh-ed25519 AAAA-example"
+  ]
+}

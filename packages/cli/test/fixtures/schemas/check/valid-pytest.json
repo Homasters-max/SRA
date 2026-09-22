@@ -1,0 +1,16 @@
+{
+  "$schema": "warrant://check/1",
+  "id": "pytest",
+  "version": "1.0.0",
+  "level": "L1",
+  "run": {
+    "command": [
+      "pytest",
+      "--junitxml={out}/junit.xml"
+    ]
+  },
+  "produces": [
+    "test-report"
+  ],
+  "parser": "junit"
+}

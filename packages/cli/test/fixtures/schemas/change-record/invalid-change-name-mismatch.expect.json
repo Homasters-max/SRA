@@ -1,0 +1,6 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/change",
+  "scenario": "REQ-KRN-011",
+  "needsFilePath": true
+}

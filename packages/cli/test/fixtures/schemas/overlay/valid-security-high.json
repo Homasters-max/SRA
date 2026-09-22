@@ -1,0 +1,10 @@
+{
+  "$schema": "warrant://overlay/1",
+  "id": "security-high",
+  "version": "1.0.0",
+  "match": {
+    "security_impact": [
+      "HIGH"
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "warrant://openspec-rules/1",
+  "context": "Python 3.12, PostgreSQL 16, pytest, Docker.",
+  "rules": {
+    "proposal": [
+      "Identify non-goals",
+      "Identify affected boundaries"
+    ],
+    "specs": [
+      "Describe observable behavior only",
+      "Every requirement has a stable ID comment"
+    ],
+    "design": [
+      "Do not introduce infrastructure without justification"
+    ],
+    "tasks": [
+      "Keep tasks independently verifiable",
+      "Reference REQ IDs"
+    ]
+  },
+  "operations": {
+    "apply": {
+      "guidance": [
+        "Run warrant status before marking a task done"
+      ]
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/floors/0/set/data_loss",
+  "scenario": "SCN-KRN-031"
+}

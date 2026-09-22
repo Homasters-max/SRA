@@ -1,0 +1,24 @@
+{
+  "$schema": "warrant://evidence-manifest/1",
+  "change": "add-customer-search",
+  "commit": "abc1234",
+  "versions": {
+    "warrant": "0.1.0",
+    "openspec": "1.13.2",
+    "lock_hash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "effective_policy_hash": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+  },
+  "runs": [
+    "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y",
+    "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6X"
+  ],
+  "evidence": [
+    "EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1A3",
+    "EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1A2"
+  ],
+  "gates": {
+    "tests-passed": "PASS",
+    "evidence-complete": "PASS",
+    "reconciliation-passed": "NOT_APPLICABLE"
+  }
+}

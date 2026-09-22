@@ -1,0 +1,10 @@
+{
+  "$schema": "warrant://overlay/1",
+  "id": "data-critical",
+  "version": "1.0.0",
+  "match": {
+    "data_loss": [
+      "CRITICAL"
+    ]
+  }
+}

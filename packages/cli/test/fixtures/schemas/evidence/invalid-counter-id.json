@@ -1,0 +1,39 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-000921",
+  "claim": {
+    "text": "Ingestion is idempotent",
+    "targets": [
+      "REQ-ING-001",
+      "SCN-ING-003"
+    ]
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "abc1234",
+    "spec_revision": "openspec/specs/ingestion@abc1234",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "pytest",
+    "version": "1.0.0",
+    "run": "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y"
+  },
+  "attestation": {
+    "type": "ci",
+    "ref": "https://ci.example.com/runs/8812"
+  },
+  "context_hash": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "effective_policy_hash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "created_at": "2026-09-22T10:00:00Z",
+  "artifacts": [
+    {
+      "uri": "ci://runs/8812/junit.xml",
+      "sha256": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    }
+  ],
+  "limitations": []
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "warrant://risk-floor/1",
+  "floors": [
+    {
+      "paths": [
+        "**/migrations/**"
+      ],
+      "set": {
+        "data_loss": "MEDIUM",
+        "reversibility": "MODERATE"
+      }
+    },
+    {
+      "paths": [
+        "**/auth/**",
+        "**/security/**"
+      ],
+      "set": {
+        "security_impact": "MEDIUM"
+      }
+    },
+    {
+      "paths": [
+        ".warrant/**",
+        "openspec/schemas/**",
+        "openspec/config.yaml"
+      ],
+      "set": {
+        "blast_radius": "SYSTEM"
+      }
+    }
+  ]
+}

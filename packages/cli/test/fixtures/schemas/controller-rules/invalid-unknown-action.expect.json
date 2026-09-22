@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/rules/0/action",
+  "scenario": "SCN-KRN-029"
+}

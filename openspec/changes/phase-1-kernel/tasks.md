@@ -14,14 +14,14 @@
 
 ## 2. JSON Schemas kernel — тесты первыми (D-2, REQ-KRN-001, REQ-KRN-004…020)
 
-- [ ] 2.1 `src/core/schemas/registry.ts` + загрузчик Ajv 2020 strict с `ajv-formats` и helper, добавляющий `$comment` в каждый объект; тест: все файлы `schemas/*.schema.json` компилируются, `warrant://common/1` не document-schema (SCN-KRN-001…003)
-- [ ] 2.2 Fixtures `test/fixtures/schemas/<name>/{valid-*.json, invalid-*.json}` для каждой схемы REQ-KRN-004…020: валидные — примеры из документов 04–08 и ADR; невалидные — по одному на каждый сценарий отклонения; тест-раннер, который для каждого invalid-файла проверяет JSON Pointer ошибки — **тесты красные до 2.3–2.6**
-- [ ] 2.3 `common.1.schema.json`: enums 02 §2, измерения и значения risk 05 §4, паттерны (`kebab_id`, `semver`, `semver_range`, `sha256`, `ulid_id`, `spec_id`, `transition`, `relative_path`), `policy_body`; затем `config`, `lock`, `areas`, `pack` — тесты 2.2 для них зелёные (SCN-KRN-008…013, 040–041, 010–011)
-- [ ] 2.4 `profile`, `overlay`, `gate`, `check` — тесты зелёные (SCN-KRN-014…021); `gate.waivable` обязателен (SCN-KRN-019); `check.level` без `L2` (SCN-KRN-021)
-- [ ] 2.5 `change-record`, `evidence`, `evidence-manifest`, `controller-rules` — тесты зелёные (SCN-KRN-022…029); ULID-паттерн отклоняет `EVID-000921` (SCN-KRN-025)
-- [ ] 2.6 `risk-floor`, `risk-levels`, `openspec-rules`, `openspec-schema`, `waiver` — тесты зелёные (SCN-KRN-030…039)
-- [ ] 2.7 `src/core/schemas/semantic.ts`: правила после структурной проверки — `openspec-schema.artifacts[].requires` ⊆ объявленных id (`ARTIFACT_UNKNOWN`, SCN-KRN-037), `change-record.change` = имя файла; unit-тесты на оба
-- [ ] 2.8 Проверить `description` у каждого свойства всех схем автоматическим тестом (обход схемы: каждое `properties.*` имеет непустой `description`)
+- [x] 2.1 `src/core/schemas/registry.ts` + загрузчик Ajv 2020 strict с `ajv-formats` и helper, добавляющий `$comment` в каждый объект; тест: все файлы `schemas/*.schema.json` компилируются, `warrant://common/1` не document-schema (SCN-KRN-001…003)
+- [x] 2.2 Fixtures `test/fixtures/schemas/<name>/{valid-*.json, invalid-*.json}` для каждой схемы REQ-KRN-004…020: валидные — примеры из документов 04–08 и ADR; невалидные — по одному на каждый сценарий отклонения; тест-раннер, который для каждого invalid-файла проверяет JSON Pointer ошибки — **тесты красные до 2.3–2.6**
+- [x] 2.3 `common.1.schema.json`: enums 02 §2, измерения и значения risk 05 §4, паттерны (`kebab_id`, `semver`, `semver_range`, `sha256`, `ulid_id`, `spec_id`, `transition`, `relative_path`), `policy_body`; затем `config`, `lock`, `areas`, `pack` — тесты 2.2 для них зелёные (SCN-KRN-008…013, 040–041, 010–011)
+- [x] 2.4 `profile`, `overlay`, `gate`, `check` — тесты зелёные (SCN-KRN-014…021); `gate.waivable` обязателен (SCN-KRN-019); `check.level` без `L2` (SCN-KRN-021)
+- [x] 2.5 `change-record`, `evidence`, `evidence-manifest`, `controller-rules` — тесты зелёные (SCN-KRN-022…029); ULID-паттерн отклоняет `EVID-000921` (SCN-KRN-025)
+- [x] 2.6 `risk-floor`, `risk-levels`, `openspec-rules`, `openspec-schema`, `waiver` — тесты зелёные (SCN-KRN-030…039)
+- [x] 2.7 `src/core/schemas/semantic.ts`: правила после структурной проверки — `openspec-schema.artifacts[].requires` ⊆ объявленных id (`ARTIFACT_UNKNOWN`, SCN-KRN-037), `change-record.change` = имя файла; unit-тесты на оба
+- [x] 2.8 Проверить `description` у каждого свойства всех схем автоматическим тестом (обход схемы: каждое `properties.*` имеет непустой `description`)
 
 ## 3. Команда validate (D-2, D-5, D-7, D-8, REQ-KRN-021)
 

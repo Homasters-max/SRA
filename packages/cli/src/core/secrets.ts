@@ -13,11 +13,13 @@ import type { CliError } from "./errors.js";
 
 /** The seven patterns of design D-8, each with the name used in the message. */
 export const SECRET_PATTERNS: ReadonlyArray<{ name: string; pattern: RegExp }> = [
-  { name: "github-personal-token", pattern: /ghp_[A-Za-z0-9]{36}/ },
-  { name: "github-token", pattern: /gh[ousr]_[A-Za-z0-9]{36}/ },
-  { name: "github-fine-grained-token", pattern: /github_pat_[A-Za-z0-9_]{22,}/ },
-  { name: "api-secret-key", pattern: /sk-[A-Za-z0-9_-]{20,}/ },
-  { name: "aws-access-key-id", pattern: /AKIA[0-9A-Z]{16}/ },
+  // Token prefixes are anchored on the left so a longer word that merely ends
+  // in the prefix (`risk-assessment-…`, `laugh_…`) is not mistaken for one.
+  { name: "github-personal-token", pattern: /(?<![A-Za-z0-9_])ghp_[A-Za-z0-9]{36}/ },
+  { name: "github-token", pattern: /(?<![A-Za-z0-9_])gh[ousr]_[A-Za-z0-9]{36}/ },
+  { name: "github-fine-grained-token", pattern: /(?<![A-Za-z0-9_])github_pat_[A-Za-z0-9_]{22,}/ },
+  { name: "api-secret-key", pattern: /(?<![A-Za-z0-9_-])sk-[A-Za-z0-9_-]{20,}/ },
+  { name: "aws-access-key-id", pattern: /(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}/ },
   { name: "jwt", pattern: /eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}/ },
   { name: "private-key-block", pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ }
 ];

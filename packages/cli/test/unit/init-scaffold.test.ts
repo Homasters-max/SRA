@@ -59,6 +59,11 @@ describe("init scaffold helpers", () => {
     mkdirSync(path.join(root, "openspec", "changes", "archive", "2026-09-01-add-search"), { recursive: true });
     expect(changeNameConflict(root, "add-search")).toBe("openspec/changes/archive/2026-09-01-add-search");
     expect(changeNameConflict(root, "other")).toBeNull();
+    // Only an exact name or a date-prefixed one counts: `search` is not `add-search`.
+    expect(changeNameConflict(root, "search")).toBeNull();
+    mkdirSync(path.join(root, "openspec", "changes", "archive", "moved-by-hand"), { recursive: true });
+    expect(changeNameConflict(root, "moved-by-hand")).toBe("openspec/changes/archive/moved-by-hand");
+    expect(changeNameConflict(root, "hand")).toBeNull();
 
     mkdirSync(path.join(root, "openspec", "changes", "other"), { recursive: true });
     expect(changeNameConflict(root, "other")).toBe("openspec/changes/other");

@@ -10,7 +10,8 @@ amended_by: [WARRANT-ADR-0018, WARRANT-ADR-0020]
 
 > Уточнено [ADR-0018](WARRANT-ADR-0018-frontend-adapters.md) и [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md):
 > slice ведёт Codex (в ручном режиме под hooks и CI; слой ACP — со срезом S1 SEF), а не Claude Code;
-> критерий выхода MVP по смыслу не меняется. (Заметка ADR-0018 говорила «через codex-acp» — уточнено ADR-0020.)
+> критерий выхода MVP по смыслу не меняется; дополнен: finding `FRONTEND_HOOKS_INACTIVE` отсутствует (ADR-0018 п. 5, D-14).
+> (Заметка ADR-0018 говорила «через codex-acp» — уточнено ADR-0020.)
 
 ## Context
 

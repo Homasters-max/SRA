@@ -21,7 +21,9 @@ ADR-0014 описал enforcement для одного frontend — Claude Code. 
 через ACP; реализацию в MVP ведёт Codex; spec и tasks человек пишет вместе с Claude интерактивно и утверждает
 через spec-PR. Рассматриваются также OpenCode и Claude Code как исполнители.
 
-Факты (документация и исходники адаптеров на 2026-09-22; адаптеры не запускались):
+Факты (документация и исходники адаптеров на 2026-09-22; адаптеры не запускались; hooks Codex на `apply_patch` —
+свежее поведение: openai/codex#16732 сообщала «только Bash», закрыта PR #18391; hooks под ACP-адаптером и `codex exec`
+документацией не описаны — spike S8, D-7):
 
 | Агент | Hooks проекта | Запрет до действия | Подсказка после | `request_permission` на каждое действие | Правки через client `fs` |
 |---|---|---|---|---|---|
@@ -53,15 +55,21 @@ prompt или `session/cancel`. Адаптер Codex не транслирует
    `warrant init`; версия CLI фиксируется lock и проверяется в CI.
 5. **Проверка живости hooks.** Каждый вызов guard пишет событие в журнал Run. Edit `tool_call` без парного
    `post`-события guard → finding `FRONTEND_HOOKS_INACTIVE` (один раз за Run) в hints и журнал. Не блокирует.
+   **В MVP без ACP-слоя** ([ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md) п. 4) живость проверяет
+   `warrant verify` / `ci` на `VERIFYING→MERGED`: путь diff под `paths.src` ∪ `paths.tests` без события guard в Runs
+   Change → тот же finding в `status` и отчёте `verify`; не `FAIL` — правки человека без hooks легитимны. Критерий
+   выхода MVP ([ADR-0013](WARRANT-ADR-0013-mvp-refinement.md)): finding отсутствует (D-14). Без этого критерий «нет
+   обойдённых `deny`» выполнялся бы вакуумно при незагруженных hooks (Codex молча пропускает недоверенные).
 6. **Требования к SEF** (proposed, [11 §2](../11-integrations.md)): процесс ACP-адаптера запускается с cwd =
    worktree Change, один процесс на worktree; `request_permission` не считается механизмом запрета.
    Открытые I5 / I6 не закрываются.
-7. **MVP.** Адаптер `codex` (`.codex/hooks.json`: PreToolUse и PostToolUse на `Bash` и `apply_patch`, пути —
+7. **MVP** (proposed до spike S8, D-7)**.** Адаптер `codex` (`.codex/hooks.json`: PreToolUse и PostToolUse на `Bash` и `apply_patch`, пути —
    из текста patch) в ручном режиме под hooks и CI ([ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md) п. 4).
    Адаптер `acp` — со срезом S1 SEF: ACP client — диспетчер SEF (до ADR-0020 здесь стояло «`acp`, если
    оркестратор — ACP client»). Адаптеры `claude` и `opencode` — фаза 7. Сессии
    Claude на этапе spec guard не получают: их защищают топология PR ([ADR-0011](WARRANT-ADR-0011-pr-topology.md)),
-   human review spec-PR и CI.
+   human review spec-PR и CI. `warrant init` проверяет `codex --version ≥ MIN` (константа CLI) при генерации
+   `.codex/hooks.json`; в SEF версия Codex закреплена в `image.pins` (D-7).
 
 ## Consequences
 
@@ -85,3 +93,4 @@ prompt или `session/cancel`. Адаптер Codex не транслирует
 - **Логика в скрипте hook для каждого агента** — отвергнуто: N реализаций разойдутся.
 - **Определение hook с параметрами** — отвергнуто: у Codex каждое изменение сбрасывает trust.
 - **`session/cancel` на любую находку** — отвергнуто: подсказка не блокирует ([ADR-0019](WARRANT-ADR-0019-post-edit-hints.md) п. 4).
+- **Живость hooks только через ACP** — дополнено ревью 2026-09-22 (D-14): в MVP ACP нет, сверка diff ↔ `guard_events[]` в `verify`.

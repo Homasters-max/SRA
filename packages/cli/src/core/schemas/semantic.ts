@@ -81,12 +81,52 @@ function changeRecordRules(json: JsonObject, filePath?: string): CliError[] {
   ];
 }
 
+/** Schemas of policy objects whose `id` must equal the file base name (design Decision 1). */
+const ID_IS_BASENAME: ReadonlySet<string> = new Set([
+  "profile",
+  "overlay",
+  "gate",
+  "check",
+  "risk-levels"
+]);
+
+/**
+ * The rule applies to the object catalogues WARRANT owns — a pack directory or
+ * the project layer — and not to arbitrary JSON a project keeps elsewhere
+ * (schema fixtures, examples in documentation).
+ */
+function inObjectCatalogue(filePath: string): boolean {
+  const p = filePath.split("\\").join("/");
+  return /(^|\/)packs\//.test(p) || p.includes(".warrant/local/");
+}
+
+/**
+ * `id` of a policy object equals the base name of its file (design Decision 1,
+ * I-9): the file name is how `provides`, overrides and diffs address the
+ * object, so the two names may not drift apart.
+ */
+function idIsBasenameRule(json: JsonObject, filePath?: string): CliError[] {
+  if (filePath === undefined || !inObjectCatalogue(filePath)) return [];
+  const id = json["id"];
+  if (typeof id !== "string") return [];
+  const expected = basename(filePath).replace(/\.json$/i, "");
+  if (id === expected) return [];
+  return [
+    withPath(
+      "SEMANTIC_INVALID",
+      `id must equal the file base name (expected "${expected}", found "${id}")`,
+      "/id"
+    )
+  ];
+}
+
 /**
  * Runs the named semantic rules for one schema. Returns an empty array when the
  * schema has no semantic rules.
  */
 export function runSemanticRules(schemaName: string, json: Json, filePath?: string): CliError[] {
   if (!isPlainObject(json)) return [];
+  if (ID_IS_BASENAME.has(schemaName)) return idIsBasenameRule(json, filePath);
   switch (schemaName) {
     case "openspec-schema":
       return openspecSchemaRules(json);

@@ -323,3 +323,146 @@ describe("warrant validate: --no-generated and the lock (I-43)", () => {
     expect(paths).toContain(".warrant/warrant.lock.json#/generated/openspec/config.yaml");
   });
 });
+
+describe("warrant validate: overrides may only strengthen (B1)", () => {
+  /** The pack copy of `risk-high`, so a test override can drop exactly one thing. */
+  const riskHigh = JSON.parse(readFileSync(path.join(CORE_SDD, "overlays", "risk-high.json"), "utf8"));
+
+  it("reports OVERRIDE_WEAKENS for an override that narrows match (SCN-KRN-078)", () => {
+    const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"));
+    write(root, ".warrant/local/risk-high.json", {
+      ...riskHigh,
+      overrides: "core-sdd:risk-high",
+      match: { risk_level: ["HIGH"], profiles: ["never"] }
+    });
+
+    const run = runCli(["validate", "--no-generated"], root);
+    expect(run.status).toBe(3);
+    const finding = run.json?.errors.find((e: { code: string }) => e.code === "OVERRIDE_WEAKENS");
+    expect(finding).toBeDefined();
+    expect(finding.path).toBe(".warrant/local/risk-high.json#/match");
+    expect(finding.message).toContain("match.profiles");
+  });
+
+  it("accepts an override that widens match instead of narrowing it", () => {
+    const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"));
+    write(root, ".warrant/local/risk-high.json", {
+      ...riskHigh,
+      overrides: "core-sdd:risk-high",
+      match: { risk_level: ["HIGH", "MEDIUM"] }
+    });
+
+    const run = runCli(["validate", "--no-generated"], root);
+    expect(run.json?.errors.filter((e: { code: string }) => e.code === "OVERRIDE_WEAKENS")).toEqual([]);
+  });
+
+  it("reports OVERRIDE_WEAKENS for an override that empties extends (SCN-KRN-079)", () => {
+    const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"));
+    const factory = JSON.parse(readFileSync(path.join(CORE_SDD, "profiles", "factory-change.json"), "utf8"));
+    write(root, ".warrant/local/factory-change.json", {
+      ...factory,
+      overrides: "core-sdd:factory-change",
+      extends: []
+    });
+
+    const run = runCli(["validate", "--no-generated"], root);
+    expect(run.status).toBe(3);
+    const finding = run.json?.errors.find(
+      (e: { code: string; path?: string }) =>
+        e.code === "OVERRIDE_WEAKENS" && e.path === ".warrant/local/factory-change.json#/extends"
+    );
+    expect(finding).toBeDefined();
+    expect(finding.message).toContain("extends: feature");
+  });
+
+  it("reports OVERRIDE_WEAKENS when an override drops human-approval (SCN-SDD-010)", () => {
+    const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"));
+    write(root, ".warrant/local/risk-high.json", {
+      ...riskHigh,
+      overrides: "core-sdd:risk-high",
+      gates: { ...riskHigh.gates, "VERIFYING->MERGED": [] }
+    });
+
+    const run = runCli(["validate", "--no-generated"], root);
+    expect(run.status).toBe(3);
+    const finding = run.json?.errors.find((e: { code: string }) => e.code === "OVERRIDE_WEAKENS");
+    expect(finding.message).toContain("gates.VERIFYING->MERGED: human-approval");
+    expect(finding.path).toBe(".warrant/local/risk-high.json");
+  });
+});
+
+describe("warrant validate: a pack directory is never a project layer (B2)", () => {
+  /** A minimal pack manifest that a project could drop into `.warrant/local/`. */
+  function manifest(id: string): object {
+    return {
+      $schema: "warrant://pack/1",
+      id,
+      version: "0.1.0",
+      kernel: ">=0.1 <0.2",
+      description: `Experimental pack ${id}.`,
+      depends_on: {},
+      provides: { overlays: ["overlays/loud.json"] }
+    };
+  }
+
+  const loudOverlay = {
+    $schema: "warrant://overlay/1",
+    id: "loud",
+    version: "1.0.0",
+    description: "An overlay that would apply to every change if it were read.",
+    match: {},
+    artifacts: { required: ["loud-artifact"] }
+  };
+
+  it("reports CONFIG_INVALID and ignores the overlays of a pack nobody enabled (SCN-KRN-080)", () => {
+    const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"));
+    write(root, ".warrant/local/experimental/pack.json", manifest("experimental"));
+    write(root, ".warrant/local/experimental/overlays/loud.json", loudOverlay);
+    write(root, ".warrant/changes/demo.json", {
+      $schema: "warrant://change-record/1",
+      change: "demo",
+      change_state: "PROPOSED"
+    });
+
+    const run = runCli(["validate", "--no-generated"], root);
+    expect(run.status).toBe(3);
+    const finding = run.json?.errors.find(
+      (e: { code: string; path?: string }) =>
+        e.code === "CONFIG_INVALID" && e.path === ".warrant/local/experimental/pack.json"
+    );
+    expect(finding).toBeDefined();
+    expect(finding.message).toContain("experimental");
+
+    // Its overlay contributes to no Change: `resolve` never sees `loud-artifact`.
+    const resolved = runCli(["resolve", "demo"], root);
+    expect(JSON.stringify(resolved.json)).not.toContain("loud-artifact");
+  });
+
+  it("still reads a local directory that carries no pack.json", () => {
+    const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"));
+    write(root, ".warrant/local/overlays/loud.json", loudOverlay);
+
+    const run = runCli(["validate", "--no-generated"], root);
+    expect(run.json?.errors).toEqual([]);
+  });
+});
+
+describe("warrant validate: id equals the file base name (task 3.6)", () => {
+  it("reports SEMANTIC_INVALID for an object whose id is not its file name", () => {
+    const root = project({ "core-sdd": "^0.1" }, path.join(REPO_ROOT, "packs"));
+    write(root, ".warrant/local/overlays/quiet.json", {
+      $schema: "warrant://overlay/1",
+      id: "loud",
+      version: "1.0.0",
+      description: "An overlay stored under the wrong file name.",
+      match: {}
+    });
+
+    const run = runCli(["validate", "--no-generated"], root);
+    expect(run.status).toBe(3);
+    const finding = run.json?.errors.find((e: { code: string }) => e.code === "SEMANTIC_INVALID");
+    expect(finding).toBeDefined();
+    expect(finding.path).toBe(".warrant/local/overlays/quiet.json#/id");
+    expect(finding.message).toContain("quiet");
+  });
+});

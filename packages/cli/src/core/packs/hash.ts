@@ -169,8 +169,10 @@ export function checkLock(input: LockCheckInput): CliError[] {
     }
     const actual = statSync(target).isDirectory() ? packContentHash(target) : bytesHash(readFileSync(target));
     if (entry["hash"] !== actual) {
+      // The path reported is the skill itself: that is the file to look at,
+      // and `warrant sync` is what reconciles the lock with it (SCN-SDD-014).
       errors.push(
-        err("LOCK_MISMATCH", `content of skill ${name} does not match the hash in the lock`, `${LOCK_REL}#/skills/${name}/hash`)
+        err("LOCK_MISMATCH", `content of skill ${name} does not match the hash in the lock; run \`warrant sync\``, rel)
       );
     }
   }

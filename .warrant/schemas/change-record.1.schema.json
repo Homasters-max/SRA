@@ -6,9 +6,9 @@
   "type": "object",
   "$defs": {
     "risk_source": {
-      "description": "Where a risk value came from: a deterministic floor rule, a proposer or a named human.",
+      "description": "Where a risk value came from: a deterministic floor rule (`floor` or `floor:<pack>:<rule-index>`), a proposer (`proposer` or `proposer:<id>`), a named human, or the previously recorded value (`record`, written by `warrant classify` when a repeated run keeps it).",
       "type": "string",
-      "pattern": "^(floor|proposer:[a-z0-9]+(-[a-z0-9]+)*|human:[A-Za-z0-9._-]+)$"
+      "pattern": "^(record|floor(:[a-z0-9]+(-[a-z0-9]+)*:[0-9]+)?|proposer(:[a-z0-9]+(-[a-z0-9]+)*)?|human:[A-Za-z0-9._-]+)$"
     },
     "risk_entry_data_loss": {
       "description": "Value and source of the `data_loss` dimension.",

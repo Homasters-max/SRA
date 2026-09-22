@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -7,7 +7,7 @@ import { canonicalText } from "../../src/core/canon/format-json.js";
 import { bytesHash } from "../../src/core/canon/hash.js";
 import { GENERATED_MARKER } from "../../src/core/openspec/yaml-emit.js";
 import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
-import { CLI_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { CLI_ROOT, REPO_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const tempDirs: string[] = [];
@@ -200,5 +200,86 @@ describe("warrant sync", () => {
       expect(run.json?.data.skipped).toEqual([]);
     },
     60_000
+  );
+});
+
+describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
+  /**
+   * A project laid out like the WARRANT monorepo: the pack and the skills it
+   * declares live inside it, which is the only layout in which a lock — whose
+   * paths are project-relative — can address a skill at all.
+   */
+  function monorepo(): string {
+    const root = makeTempDir("warrant-skills-");
+    tempDirs.push(root);
+    cpSync(path.join(REPO_ROOT, "packs", "core-sdd"), path.join(root, "packs", "core-sdd"), { recursive: true });
+    cpSync(path.join(REPO_ROOT, "sra"), path.join(root, "sra"), { recursive: true });
+    write(root, ".warrant/warrant.json", {
+      $schema: "warrant://config/1",
+      kernel: "0.1",
+      openspec: "1.13.x",
+      packs: { "core-sdd": { version: "^0.1" } }
+    });
+    expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
+    return root;
+  }
+
+  const SKILL_REL = "sra/skills/specification/adversarial-review/SKILL.md";
+
+  it.skipIf(!hasOpenspec)(
+    "records version, path and hash of every declared skill (SCN-SDD-013)",
+    () => {
+      const root = monorepo();
+      const run = runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
+      expect(run.json?.errors).toEqual([]);
+
+      const lock = JSON.parse(readFileSync(path.join(root, ".warrant", "warrant.lock.json"), "utf8"));
+      expect(lock.skills["specification/adversarial-review"]).toEqual({
+        version: "0.1.0",
+        path: SKILL_REL,
+        hash: bytesHash(readFileSync(path.join(root, SKILL_REL)))
+      });
+
+      // A second run still changes nothing (SCN-KRN-061 with skills present).
+      const again = runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
+      expect(again.json?.data.changed).toEqual([]);
+    },
+    120_000
+  );
+
+  it.skipIf(!hasOpenspec)(
+    "reports LOCK_MISMATCH with the skill path after one edited line (SCN-SDD-014)",
+    () => {
+      const root = monorepo();
+      expect(runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") }).status).toBe(0);
+
+      const skill = path.join(root, SKILL_REL);
+      writeFileSync(skill, readFileSync(skill, "utf8") + "\nOne more line, without a sync.\n", "utf8");
+
+      const run = runCli(["validate", "--no-generated"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
+      expect(run.status).toBe(3);
+      const finding = run.json?.errors.find(
+        (e: { code: string; path?: string }) => e.code === "LOCK_MISMATCH" && e.path === SKILL_REL
+      );
+      expect(finding).toBeDefined();
+      expect(finding.message).toContain("specification/adversarial-review");
+    },
+    120_000
+  );
+
+  it.skipIf(!hasOpenspec)(
+    "reports CONFIG_INVALID when the skill on disk is outside the declared range",
+    () => {
+      const root = monorepo();
+      const skill = path.join(root, SKILL_REL);
+      writeFileSync(skill, readFileSync(skill, "utf8").replace(/^version: .*$/m, "version: 2.0.0"), "utf8");
+
+      const run = runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
+      expect(run.status).toBe(3);
+      const finding = run.json?.errors.find((e: { code: string }) => e.code === "CONFIG_INVALID");
+      expect(finding.message).toContain("2.0.0");
+      expect(finding.path).toBe(SKILL_REL);
+    },
+    120_000
   );
 });

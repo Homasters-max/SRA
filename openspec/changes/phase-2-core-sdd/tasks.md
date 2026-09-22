@@ -20,13 +20,13 @@
 
 ## 3. Kernel: classify, B1, B2, skills в lock
 
-- [ ] 3.1 `core/classify/`: чистая функция `classify(input)` по design D-4 (max по порядку enum, монотонность, `from`, `ignored[]`, объединение profiles). Проверка: unit-тесты SCN-KRN-074, SCN-KRN-075, SCN-SDD-006 (match по glob) без git. (REQ-KRN-028)
-- [ ] 3.2 Команда `warrant classify <change> [--base <ref>] [--paths <file>] [--propose <json>]`: diff через `cross-spawn`, запись record через `writeJsonFile`, `effective_policy` в `data` через `resolveForProject`; `USAGE` без git и без `--paths`. Проверка: e2e `classify.test.ts` — SCN-KRN-073, SCN-KRN-076, SCN-KRN-077 в temp-репозитории с `git init`. (REQ-KRN-028)
-- [ ] 3.3 B1: `weakenings()` сравнивает `match` overlay (подмножество по ключам) и `extends` profile (надмножество). Проверка: e2e `validate.test.ts` — SCN-KRN-078, SCN-KRN-079, SCN-SDD-010. (REQ-KRN-021)
-- [ ] 3.4 B2: `loadLocalLayer()` не читает каталоги с `pack.json`; неподключённый — `CONFIG_INVALID`. Проверка: e2e — SCN-KRN-080, `resolve` не видит его overlays. (REQ-KRN-021)
-- [ ] 3.5 `planSync` пишет `lock.skills` (version из frontmatter, path, `bytesHash`), проверяет диапазон `@^0.1`. Проверка: e2e `sync.test.ts` — SCN-SDD-013; `validate` — SCN-SDD-014. (REQ-SDD-008)
+- [x] 3.1 `core/classify/`: чистая функция `classify(input)` по design D-4 (max по порядку enum, монотонность, `from`, `ignored[]`, объединение profiles). Проверка: unit-тесты SCN-KRN-074, SCN-KRN-075, SCN-SDD-006 (match по glob) без git. (REQ-KRN-028)
+- [x] 3.2 Команда `warrant classify <change> [--base <ref>] [--paths <file>] [--propose <json>]`: diff через `cross-spawn`, запись record через `writeJsonFile`, `effective_policy` в `data` через `resolveForProject`; `USAGE` без git и без `--paths`. Проверка: e2e `classify.test.ts` — SCN-KRN-073, SCN-KRN-076, SCN-KRN-077 в temp-репозитории с `git init`. (REQ-KRN-028)
+- [x] 3.3 B1: `weakenings()` сравнивает `match` overlay (подмножество по ключам) и `extends` profile (надмножество). Проверка: e2e `validate.test.ts` — SCN-KRN-078, SCN-KRN-079, SCN-SDD-010. (REQ-KRN-021)
+- [x] 3.4 B2: `loadLocalLayer()` не читает каталоги с `pack.json`; неподключённый — `CONFIG_INVALID`. Проверка: e2e — SCN-KRN-080, `resolve` не видит его overlays. (REQ-KRN-021)
+- [x] 3.5 `planSync` пишет `lock.skills` (version из frontmatter, path, `bytesHash`), проверяет диапазон `@^0.1`. Проверка: e2e `sync.test.ts` — SCN-SDD-013; `validate` — SCN-SDD-014. (REQ-SDD-008)
 
-- [ ] 3.6 Semantic-правило `validate`: для объектов pack и project-слоя (`profiles`, `overlays`, `gates`, `checks`, `risk_levels`) `id === basename` файла (design Decision 1); находка `SEMANTIC_INVALID` с `path`. Проверка: e2e `validate.test.ts` — файл с чужим `id` даёт код 3; unit-тест каталога core-sdd остаётся зелёным. (REQ-KRN-021)
+- [x] 3.6 Semantic-правило `validate`: для объектов pack и project-слоя (`profiles`, `overlays`, `gates`, `checks`, `risk_levels`) `id === basename` файла (design Decision 1); находка `SEMANTIC_INVALID` с `path`. Проверка: e2e `validate.test.ts` — файл с чужим `id` даёт код 3; unit-тест каталога core-sdd остаётся зелёным. (REQ-KRN-021)
 
 ## 4. sync целиком и переезд репозитория
 

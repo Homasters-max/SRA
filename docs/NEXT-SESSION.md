@@ -175,6 +175,25 @@ LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSI
 | `run/1` | 03 §4: `change`, `operation`, `skill`, `write_scope[]`, `context_hash`, `run_state`, `guard_events[]`; `.warrant/runs/current`; путь через `WARRANT_STATE_DIR` (фаза 4; D-2, D-9) | 0014, 0017–0019, 0022 |
 | `skill-result/1` | envelope 07 §4 для `run submit`; `codex exec --output-schema` пишет его (фаза 4; D-5, D-9) | 0013, 0020 |
 
+Черновик первого набора правил (грилинг 2026-09-22; `text` — EN, формулируется при реализации). Критерий отбора:
+правило **о форме** обязано иметь `enforced_by`, иначе это проза (INV-04); правило **о решении** может быть без него —
+доля таких правил видна в `warrant status` (ADR-0022 п. 4).
+
+| id | paths | enforced_by |
+|---|---|---|
+| `generated-not-hand-edited` | `openspec/config.yaml`, `openspec/schemas/**`, `.warrant/warrant.lock.json`, `.warrant/schemas/**`, `AGENTS.md`, `.codex/**`, `packs/*/golden/**/expected/**` | `validate` (drift) |
+| `ids-allocated-by-cli` | `**` | `ids-valid` |
+| `json-canonical` | `.warrant/**/*.json`, `packs/**/*.json`, `packages/cli/schemas/*.json` | `fmt --check` |
+| `state-written-by-cli-only` | `.warrant/changes/**`, `.warrant/evidence/**`, `.warrant/runs/**` | `guard` (фаза 4) |
+| `pack-object-id-equals-basename` | `packs/**`, `.warrant/local/**` | `validate` (semantic) |
+| `no-secrets-in-repo` | `.warrant/**`, `.claude/**`, `.codex/**` | `validate` (проверка 6) |
+| `language-split` | `**` | — |
+| `abstraction-choice-first` | `packs/**`, `packages/cli/schemas/**`, `sra/skills/**` | — |
+
+Правило живёт в том канале, чьи пути защищает, и только в одном. Целиком внутри `openspec/changes/**` — только
+`openspec-rules` (это же проверяет `validate`, ADR-0022 п. 4). Следствие для фазы 3: `context` «Language: Russian…»
+уезжает из `.warrant/local/openspec/rules.json` в правило `language-split` и из `rules.json` удаляется (INV-06).
+
 ### C. Существующие команды
 
 | Команда | REQ | Добавить | ADR | Фаза |
@@ -209,6 +228,48 @@ LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSI
 - Change `phase-3-verification`: A, B, C (без `sync`) и из D — `check`, `gate`, `verify`, `analyze`, `transition`, `link`.
   Первая группа задач — схемы и `validate`: остальное от них зависит.
 - Change фазы 4: `sync`, `run start`, `guard`, адаптер `codex`.
+
+### Карта агента и первые правила — план (грилинг 2026-09-22)
+
+Разбор `oinsio/clear-progress` (запрос «сделать так же у нас») показал: его форма — 23 правила в `.claude/rules/*.md`,
+PostToolUse-хуки с прогоном тестов, рукописный корневой файл — уже отвергнута [ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)
+и [ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md). Взято три вещи: адресность правила по путям, `enforced_by` как
+маркер «держится на prompt», тест на удаление строки.
+
+Порядок работ, каждый шаг зависит от предыдущего:
+
+1. Закрыть фазу 2 (часть группы 5, группа 6), `feature/phase-2-core-sdd` → `main`.
+2. Ребейз `feature/factory-adrs-0016-0022` поверх `main` и влитие. Генерируемое — `warrant.lock.json`,
+   `.warrant/changes/*.json`, `openspec/config.yaml` — **не мержить построчно, пересоздать** (`sync`, `classify`).
+3. Change `agent-session-guide` (`chore`) — состав ниже.
+4. Change `phase-3-verification` по нарезке выше; ADR-0023 пишется внутри него, а не дописывается в отревьюированную ветку.
+
+Change `agent-session-guide` — заодно полигон топологии [ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)
+(`spec/` → `worktree/` → `archive/`, три PR) на трёх файлах, до того как по ней пойдёт фаза 3:
+
+- `scripts/preflight.js` + `npm run preflight`: `typecheck` → `build` → `vitest` → `fmt --check` → `validate` →
+  `openspec validate <change> --strict` (нет на PATH — пропуск с предупреждением) → проверка markdown-ссылок
+  (`docs/**` и карта: файл и якорь существуют). Останов на первом падении. В шапке — «схлопнется в обёртку над
+  `warrant verify` в фазе 3». Проверка ссылок — кандидат в `check`, далее в gate `spec-valid`.
+- `CLAUDE.md` — **временный**, RU, ≤ 45 строк: только карта (навигация «трогаешь X → норма Y §Z», цикл `/opsx:*` и
+  команд `warrant`, `preflight`, формат ветки / коммита / `I-N`) плюс строка «правила — в `rule/1` и `openspec-rules`,
+  здесь их нет». Ни одного правила об артефактах OpenSpec (их канал — `config.yaml`) и ни одного из восьми выше.
+  Удаляется в фазе 4, когда `sync` начнёт генерировать `AGENTS.md`; TTL зафиксирован здесь и задачей в `tasks.md` фазы 4.
+- `.claude/settings.json` — только `permissions.deny` на генерируемые пути и `.warrant/{changes,evidence,runs}/**`,
+  без хуков (наполнять нечем до `guard` и `validate --files`), тот же TTL. Предел известен: `deny` на `Edit` / `Write`
+  не мешает записи через `Bash` ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)), гарантия — CI.
+- `.claude/commands/`: `/decision` (следующий `I-N` строкой в таблицу `design.md`), `/group-done <N>`, `/next-session`.
+  Критерий: файл в `.claude/` автоматизирует **процедуру**; **правило** туда не пишется никогда.
+- Skills, пересказывающие норму (`warrant-adr`, `warrant-doc-edit`, `warrant-schema-change`, `warrant-pack-object`),
+  не пишутся: их содержание — каналы 2 и 3 ADR-0022.
+- Приёмка (`tasks.md`): (1) `preflight` зелёный на чистом дереве и падает на первом шаге при намеренно сломанном файле;
+  (2) карта ≤ 45 строк, построчный проход теста на удаление — в описании PR; (3) grep подтверждает отсутствие дублей
+  с `config.yaml` и восемью правилами; (4) `/decision` даёт верный номер `I-N`; (5) попытка `Edit` по
+  `warrant.lock.json` из сессии отклонена.
+
+Ещё одна правка нормы: `rules.design` в **pack** `core-sdd` (не в local) получает пункт «отклонение от spec фиксируется
+строкой `I-N` в `design.md`» — это часть метода SDD, а не привычка одного репозитория. Цена — меняется
+`packContentHash`, нужен `npm run golden:update`.
 
 ### Не потерять
 

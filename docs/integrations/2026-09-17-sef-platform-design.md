@@ -26,6 +26,9 @@ notes: "Rev 1: разделы согласованы владельцем в bra
   2026-09-17 (rev 1); rev 2 — усиления по ревью `docs/engineering/audit-verification/Q-sef-platform-review-2026-09-17.md`
   (перечень — раздел «Изменения rev 2» в конце; решения владельца — D-S21…D-S28 в бюллетене); `accepted` — после ревью
   этого файла и бюллетеня `decisions/sef-2026-09-17`.
+- **WARRANT (снимок 2026-09-22):** пометки «WARRANT (W-xx)» в §1–§16 и приложение F — согласование с ADR-0016…0022
+  WARRANT (ветка `feature/factory-adrs-0016-0022`, решения D-1…D-25 в `docs/NEXT-SESSION.md`). Текст rev 3 не менялся;
+  пометки — что учесть в rev 4.
 - **Автор:** Claude Opus 5 по заданию владельца «проанализировать и доработать план фабрики с учётом Beads и Gas Town:
   упростить, унифицировать, взять готовую основу, не потеряв расширяемость».
 - **Основание:** требования владельца §1.1; восемь исследований и проба Linux (приложение B, полные отчёты —
@@ -83,6 +86,8 @@ notes: "Rev 1: разделы согласованы владельцем в bra
 | P7  | Расширяемость — через стабильные контракты данных (схемы задачи, контракта, журнала, пакета, политики) и узкие швы модулей. Реестр плагинов — при второй реализации. Сложное — строкой roadmap с заложенной основой (§13) |
 | P8  | Ничего не откладывается молча. Текст, написанный агентом, — недоверенный вход |
 | P9  | SEF меньше задачи: абстракция, фреймворк или инфраструктура добавляются только под доказанную проблему; следующая ревизия делается вычитанием дублирования, не добавлением возможностей. Для каждого класса состояния — один authority (§6.1) |
+
+> **WARRANT (W-01):** WARRANT — инструмент стола и набор argv-гейтов; SEF владеет исполнением, попытками, evidence исполнения, допуском и посадкой (ADR-0020 п. 1–2). P2 и P9 совпадают с INV-04 и INV-06 WARRANT: prompt и запрос прав — не механизм; один факт — один authority. Приложение F — полный список.
 
 ---
 
@@ -148,6 +153,8 @@ SEF разрабатывает свой репозиторий своим же �
 Claude используется только интерактивно с владельцем (R8). `claude -p` в рантайме SEF не запускается; адаптер
 `claude_cli` спит (AVL и SA в SOMA, явный API-профиль).
 
+> **WARRANT (W-01, W-02):** строка «Спека, ADR, план — SEF проверяет форму»: форму spec проверяет WARRANT — `sef work validate` вызывает `warrant validate` и `openspec validate --strict` (argv); SEF не парсит артефакты OpenSpec (ADR-0001, ADR-0020 п. 1). Строка «Задачи с контрактом»: item ссылается на TASK OpenSpec через `source_ref` (W-03).
+
 ### 3.2 Политика: В1 и путь в В2
 
 | Зона × риск | Ревью | Посадка | Запуск |
@@ -162,6 +169,8 @@ Claude используется только интерактивно с вла�
   `protected[]` поднимает класс не ниже `normal` и минимального актора вердикта до `owner` независимо от заявленного
   риска** (заявленный риск — только вход допуска, authority — производный). Класс только повышается (событие
   `risk.escalated`), после чего политика ревью и посадки перерезолвится.
+
+> **WARRANT (W-05):** два уровня risk с разными authority: `risk_level` WARRANT (`LOW|MEDIUM|HIGH`, policy Change, 05 §4) и `risk` item (`trivial|small|normal|complex`, режим попытки). Отображение — данные `.sef/policy.yaml`: нижняя граница `HIGH→complex`, `MEDIUM→normal`, `LOW→small`; `sef work validate` читает `warrant status <change> --json` и отклоняет item ниже границы. `risk_floor` по фактическому diff остаётся у SEF; аналог в WARRANT — later, не дублируется. `HIGH` ⇒ ручная посадка следует из `human-approval` WARRANT (W-12).
 
 - **В2** (только обычная зона): normal/complex — два независимых авторевью и автопосадка по trust ceiling; стол — выборочный
   аудит и разбор инцидентов. Переход — изменение `.sef/policy.yaml` владельцем (событие `policy.changed`).
@@ -185,6 +194,8 @@ Claude используется только интерактивно с вла�
 (пакеты ревью; коммит попытки — из хаба, `refs/sef/attempts/<id>`), `sef-analyze` (отчёты и метрики →
 задачи-улучшения). Стол не редактирует задачи в состоянии «в работе/на ревью» — `sef work validate` предупреждает по
 статусу из control-API (иначе конфликты с посадкой, §5 3).
+
+> **WARRANT (W-18):** INV-03 WARRANT (автор ≠ approver) в транспорте `sef-hub` держится на этом механизме: `sef work approve` и ручная `sef land` принимаются только с реального TTY и owner-токеном из keyring. Это требование WARRANT к SEF (11 §2, ADR-0020 п. 8), не предположение; bot-идентичность ADR-0010 п. 4 — механизм транспорта `github`.
 
 ### 3.4 Независимость ревью
 
@@ -216,6 +227,8 @@ Claude используется только интерактивно с вла�
 Правило модулей: новый модуль `sef.*` заводится только вместе с инвариантом, который он делает проверяемым AST-тестом
 (так у `flow`, `engines`, `gitops`, `journal`, `policy`); дальше не дробить. Модуль — граница контроля, не фреймворк.
 
+> **WARRANT (W-20):** `warrant` и `openspec` CLI (Node) закрепляются в образе пакета (`image.pins`: гейты `verify`, `validate`) и на хосте диспетчера (`gitops.land`: `transition`, `archive`, `analyze`); версии — в `warrant.lock.json` проекта и в `pack_hash` (ADR-0018 п. 4, ADR-0015).
+
 ### 4.2 Процессы
 
 - **Диспетчер `sef`** — один процесс на экземпляр в Linux-контейнере; DBOS: SQLite локально, Postgres на VPS.
@@ -224,6 +237,8 @@ Claude используется только интерактивно с вла�
   доступ — локальный токен из конфига экземпляра; все команды стола (`inbox`, `review`, `decide`, `land`, `stop`,
   `status`, `audit`) — вызовы `app` через него. Без него стол на Windows не видит ни DBOS, ни журнал (SQLite в volume
   с Windows недоступен). Артефакты для ревью стол берёт из хаба (`refs/sef/attempts/<id>`, §4.3), не из volume.
+
+> **WARRANT (W-19):** control-API (или `sef audit <attempt|landing> --json`) нужен `forge sef-hub` WARRANT для верификации refs `sef://…/approval/…`, `…/attempt/<id>/gate/<gate-id>`, `…/landing/<id>`: commit, `manifest_sha`, gate id и результат, актор (`owner`), хэши evidence. WARRANT CLI на столе — клиент через `sef` CLI, не прямой доступ к volume. Вопрос I5 WARRANT закрыт: CLI (argv) в обе стороны (ADR-0020 п. 8, 11; D-19, D-21). Endpoint — S0b.
 - **Модель угроз диспетчера (рамка; окончательная форма — после SP-12).** Диспетчер с docker socket имеет полномочия
   уровня хоста — это trusted control plane, единственная доверенная граница между столом и песочницами; его код —
   core-зона (INV-9). Rootless/выделенный хост песочниц — roadmap, S1 не усложняется. Если SP-12 принимает Docker
@@ -250,6 +265,8 @@ Bare-репозиторий на проект (хаб) — единственн�
 коммитов стола. Размещение хаба (bare на `D:` или volume + git daemon) — спайк SP-1 в S0. Правка `CLAUDE.md`: столу
 разрешены `git pull --ff-only` и `git push` в локальный хаб (§14.4).
 
+> **WARRANT (W-21):** в `sef-hub` агент не имеет capabilities `GIT_COMMIT`, `GIT_PUSH`, `OPEN_PR` (INV-1: коммит — runner, `master` — `gitops.land`); таблица capabilities 04 §6 WARRANT описывает транспорт `github`. Transition record `APPROVED` пишется в коммите снимка approval (W-06), `MERGED` — в коммите посадки последнего item (W-14).
+
 ### 4.4 Контейнеры
 
 | | Контейнер попытки | Контейнер гейтов |
@@ -268,6 +285,8 @@ Node (codex-acp) и Bun (opencode). **Docker Sandboxes (`sbx`) — кандид�
 прокси на хосте, учётки инжектятся заголовками в прокси и в VM не попадают, workspace `mountless`/`clone`/`direct`,
 требует Ubuntu 24.04+ и KVM. Если проходит — закрывает §4.4 egress и roadmap «брокер учёток» готовым (SP-3 — кандидат
 на снятие). До прохождения SP-12: S1 = текущий Docker-бэкенд; после — решение владельца, S1-дефолт или поздний бэкенд.
+
+> **WARRANT (W-09):** рабочая копия попытки не содержит `.warrant/runs/**` и `.warrant/evidence/**` как правок: CLI WARRANT читает `WARRANT_STATE_DIR` → `var/sef/attempts/<id>/warrant/` (подробно — §5 2d, W-09). Hooks Codex (`.codex/hooks.json`) внутри контейнера — ускорение, не граница (P2); authority — reconcile SEF (ADR-0020 п. 2).
 
 ### 4.5 Ресурсы и допуск
 
@@ -298,6 +317,7 @@ Node (codex-acp) и Bun (opencode). **Docker Sandboxes (`sbx`) — кандид�
    же, что посажено; cron-гейт `master` = `pytest .sef/acceptance/active`, каталог и есть индекс), бюджет,
    стоп-условия, non-goals. `sef work validate` (схема, пол риска,
    существование blob'ов тестов, статусы) → `sef work approve`: снимок approval с blob-sha тестов коммитится в хаб.
+   - **WARRANT (W-02, W-03, W-06):** `sef work validate` дополнительно вызывает `warrant validate`, `openspec validate --strict` и `warrant analyze <change> --json` (TASK без item → `MISSING`, TASK с несколькими items → `AMBIGUOUS` → approve отклонён). `sef work approve` в коммите снимка вызывает `warrant transition <change> APPROVED --ref sef://<project>/approval/<work>-r<N>@<commit>`; CLI сам пересчитывает gates `SPECIFIED→APPROVED` (кроме `human-approval`, которым и является этот approve); exit ≠ 0 → approve отклонён. Полей снимка не добавляем (ADR-0020 п. 8, 11).
 1. **Допуск.** Workflow `work` синхронизирует рабочую область, вычисляет ready-фронт, применяет правила допуска (§4.5) и
    ставит задачу в очередь `agents:<слот>`.
 2. **Workflow `task`:**
@@ -307,6 +327,7 @@ Node (codex-acp) и Bun (opencode). **Docker Sandboxes (`sbx`) — кандид�
      `context_pack_sha` — в manifest, сам pack — evidence); execution manifest (§6.2). Событие `attempt.prepared`.
      Repair-попытка стартует от коммита предыдущей попытки (`parent_attempt`, тот же `base_commit`); если `master`
      ушёл — это новая попытка, не repair.
+     - **WARRANT (W-07, W-08):** context pack включает Context Pack WARRANT: `warrant run start <change> --task <TASK> --json` → `rules[]` (правила по путям, пересекающие `write_scope`), `write_scope[]`, `context_hash`; `context_pack_sha` покрывает оба; `write_scope` ⊆ `impact.write` (иначе отказ `sef work validate`). Run создаёт SEF при prepare (I6 закрыт). Base для `scope-valid`, mutation по diff и `spec-approved` = `manifest.base_commit`, передаётся `warrant verify | check --base <commit>` (ADR-0016 п. 2, ADR-0020 п. 15, ADR-0022 п. 6).
    - b) *Исполнение:* контейнер попытки; аттестация оплаты **и репозиторных конфигов движка** до первого вызова модели
      (§7.3); фактическая модель — на каждом ходу; результат `sef/result/1`: `done | abstain | blocked | scope_exceeded |
      needs_decision`, непроверенные допущения, остаток. Форма шагов DBOS: `start` идемпотентен по метке `attempt_id`
@@ -318,6 +339,7 @@ Node (codex-acp) и Bun (opencode). **Docker Sandboxes (`sbx`) — кандид�
      момент рестарта; рестарт стартует с уже изменённой рабочей копии, поэтому воспроизведение попытки = `base_commit`
      + цепочка сессий из журнала; лимит рестартов — профиль; токены рестартов — в бюджет той же попытки; рестарт
      невозможен после начала harvest и при смене контейнера.
+     - **WARRANT (W-22):** если SEF — ACP client: после каждого завершённого edit `tool_call` — `warrant validate --files <locations>` → hints в следующий prompt; запись вне `write_scope` → `session/cancel` + журнал; edit без парного `post`-события guard → `FRONTEND_HOOKS_INACTIVE` в журнал (метрика). `request_permission` механизмом запрета не считается (ADR-0018 п. 1–3, 5; ADR-0019 п. 8).
    - c) *Остановка:* гарантированная остановка контейнера по метке; только после неё — любой повтор (INV-14).
    - d) *Harvest:* на хосте, с отключёнными hooks, по правилам `harvest{}` пакета (§6.3): diff файлов рабочей копии
      против `base_commit` (локальная git-история контейнера отбрасывается; симлинки не разыменовываются, вне дерева —
@@ -328,11 +350,13 @@ Node (codex-acp) и Bun (opencode). **Docker Sandboxes (`sbx`) — кандид�
      `injection_suspect` (инструкции в добавленных комментариях/строках — не блокирует, подсвечивается в пакете ревью и
      метрике). Пересчёт пола риска по фактическому diff (§3.2). Чисто → коммит runner'ом с трейлерами `Sef-Work`,
      `Sef-Task`, `Sef-Attempt`, `Sef-Contract-Hash`, `Sef-Manifest`; публикация в `refs/sef/attempts/<id>`.
+     - **WARRANT (W-09, W-10):** `.warrant/**` в `protected[]` целиком — поэтому Run, `guard_events[]`, hints и evidence попытки живут вне рабочей копии (`WARRANT_STATE_DIR` → `var/sef/attempts/<id>/warrant/`, артефакты попытки по `refs[]`), иначе каждая попытка давала бы `judge_edit`. `protected[]` проекта под WARRANT ⊇ `.warrant/**`, `openspec/schemas/**`, `openspec/config.yaml`, `openspec/specs/**`, `openspec/changes/archive/**`, `AGENTS.md`, `.codex/**`; `warrant validate` → `SEF_PROTECTED_DRIFT`. `openspec/changes/<change>/tasks.md` (чекбоксы TASK) — в `impact.write` каждого item (ADR-0020 п. 13, ADR-0021, ADR-0022 п. 5).
    - e) *Гейты:* очередь `gates`, контейнер гейтов на коммите попытки; перед запуском runner восстанавливает
      acceptance-тесты по blob-sha из снимка approval (`git cat-file`) в `.sef/acceptance/pending/<task>/` и запускает их явным
      путём, затем lane-гейты пакета;
      evidence привязан к `commit`, `manifest_sha` и blob-sha тестов; `infra_flaky` (гейт `ERROR`, сигнатура из списка
      пакета) → один перезапуск.
+     - **WARRANT (W-12, W-13, W-15):** тесты — один гейт: `warrant verify --transition VERIFYING->MERGED --base <commit>` как lane- и integration-гейт; отдельного `pytest`-гейта нет. Acceptance-тесты `.sef/acceptance/{pending,active}/**` входят в `paths.tests` `warrant.json` и запускаются check `tests-passed` внутри `verify` — явный запуск здесь не нужен (двойной прогон); cron-гейт `master` — механизм INV-19, не evidence Change, остаётся. `verify` для `→MERGED` не считает `human-approval` (одобрение = ручная `sef land`, W-14). Судья из base (INV-9): policy-пути WARRANT (`.warrant/**`, `packs/**`, `openspec/schemas/**`, `openspec/config.yaml`) в контейнере гейтов восстанавливаются из `manifest.base_commit`, если `impact.write` item их не включает; если включает — это `factory-change` WARRANT: класс `core`, вердикт `owner`, гейт `factory-golden-passed`. Gate `spec-approved` (транспортно-нейтральный): hash дерева `{proposal.md, design.md, specs/**}` на коммите из ref `APPROVED` ↔ на `manifest.base_commit`; `tasks.md` исключён; расхождение → `STALE` = новая ревизия approval (`INVALID_APPROVAL`) (ADR-0020 п. 9, 10, 13).
    - f) *Ревью по политике:* авторевью — профиль другого семейства по пакету ревью (diff с тестами, контракт из снимка,
      выводы гейтов, отметки `injection_suspect` и protected-файлы выделены; `residue[]`/`questions[]` — после
      валидации схемой и усечения; без транскрипта и отчёта исполнителя, INV-7; diff и остаток передаются как данные с
@@ -341,12 +365,14 @@ Node (codex-acp) и Bun (opencode). **Docker Sandboxes (`sbx`) — кандид�
      одинаковая сигнатура отказа — `(gate_id, нормализованный хвост вывода)` — дважды → эскалация) | `ESCALATE` (во
      входящие стола) | `REJECTED` (в т. ч. `abstain`, пустой diff при `done`). `ACCEPTED` — состояние попытки, **не
      изменение git**: дальше `ready_to_land` (в очереди `landing`) → `landed` — отдельные переходы с событиями.
+     - **WARRANT (W-16):** verdict gates WARRANT — evidence для `evaluate`: `FAIL` non-waivable → `REPAIR`/`ESCALATE` по политике SEF; `WAIT` (`pending_approvals`, `blocking_unknowns`, waivable `FAIL`) → гейт не зелёный, ждать стола. `warrant next` в попытках не используется — controller WARRANT работает для стола (ADR-0020 п. 1, 04 §4 WARRANT). `needs_decision` по `UNKNOWN` Change — см. §6.2 (W-17).
 3. **Workflow `landing`** (очередь = 1): rebase коммитов попытки на текущий `master` хаба; rebase задел файлы diff →
    повторное ревью по политике; интеграционные гейты; политика → авто или ожидание `sef land`; `push --ff-only`; `master`
    хаба ушёл за время гейтов → повтор с rebase (число повторов — конфиг, затем эскалация). Тот же коммит закрывает задачи
    (`resolution`) и добавляет остаток задачами `proposed`; правки `.sef/items/**` посадкой **генерируются заново на
    вершине после каждого rebase**, а не переносятся патчем (иначе конфликт с правками стола на каждой посадке);
    конфликт в items всё же случился → эскалация, не repair. Событие `landed` с полной родословной.
+   - **WARRANT (W-14):** один `MERGED` на Change (D-1). Посадка не последнего item record WARRANT не трогает (между посадками `warrant status` показывает `STALE` — штатно). Посадка последнего item несёт в коммите посадки `APPROVED → IMPLEMENTING → VERIFYING → MERGED` с refs `sef://<project>/attempt/<id>`, `…/attempt/<id>/gate/<gate-id>`, `…/landing/<id>` (актор посадки); следующим коммитом — `warrant archive <change>` (gates `MERGED → ARCHIVED` — integration-гейты; конфликт `openspec archive` → `sef inbox`). Landing — доверенный писатель `openspec/specs/**` и `openspec/changes/archive/**` (как для `.sef/items/**`). Item закрывается, только если TASK отмечен в `tasks.md` (иначе `warrant analyze` → `CONFLICT` → эскалация, не repair) (ADR-0020 п. 11–12, ADR-0021).
 4. **После посадки:** детектор escapes (§9.2) → `escape.detected` → сброс trust ladder класса, заморозка автопосадки,
    `sef revert` готовит revert-коммит. **Stop-the-line (INV-19):** красный интеграционный гейт на `master` (сразу после
    посадки или по cron-гейту патруля) → пауза всей очереди `landing` + задача `proposed` «починить master» с высшим
@@ -386,6 +412,8 @@ closed | cancelled`. **БД DBOS одноразовая:** её потеря →
 намерений и результатов — в хабе (P6). `sef doctor` проверяет согласованность DBOS ↔ журнал ↔ хаб; восстановление
 очередей из журнала — roadmap (§13).
 
+> **WARRANT (W-04):** approval spec: authority — снимок `.sef/approvals/<work>-r<N>.json`; record WARRANT хранит только переход `APPROVED` с `ref`. `change_state` — authority WARRANT (record); статус исполнения item — SEF. Чекбокс TASK в `tasks.md` — WARRANT/OpenSpec, `closed` item — SEF; расхождение ловит `warrant analyze` (`CONFLICT`) при посадке (ADR-0009, ADR-0010, ADR-0020 п. 3, 11).
+
 ### 6.2 Схемы (версия `sef/<name>/1`)
 
 Правила схем: версия в каждом файле; неизвестные поля инструменты **сохраняют**; новая форма — новая версия, не мутация.
@@ -401,6 +429,7 @@ closed | cancelled`. **БД DBOS одноразовая:** её потеря →
   агента. Готовность: неизвестный или неоднозначный id в `blocks` — «не готова»; на готовность влияет только `blocks`
   (`parent`, `discovered_from`, `related` — нет; явно, чтобы не повторить путаницу Beads). Коллизия id при посадке (тот
   же id, разное содержимое) → эскалация.
+  - **WARRANT (W-03):** для задач под WARRANT `source_ref: <change>#TASK-AREA-NNN`; один TASK — один item. Тело item **не дублирует** текст TASK: item несёт только контракт (`impact`, `acceptance`, `budget`, …) и ссылку; бриф собирается в context pack из `tasks.md` и spec (INV-06 WARRANT, P9). `acceptance[].text` SHOULD ссылаться на `SCN-…` OpenSpec — так `warrant analyze` связывает acceptance-тест с требованием (ADR-0020 п. 3).
 - **`sef/approval/1`:** `work`, `revision`, `items: {id: contract_hash}`, `base_commit` (коммит хаба, где живут
   утверждённые контракты и acceptance-тесты — не путать с `manifest.base_commit`), `pack_hash`, `policy_hash`, `budget`,
   `approved_by`, `approved_at`. Изменение контракта, пакета или политики после approve → `INVALID_APPROVAL`, нужна новая
@@ -417,6 +446,7 @@ closed | cancelled`. **БД DBOS одноразовая:** её потеря →
 - **`sef/result/1`:** `status`, `summary` (недоверенное), `unverified_assumptions[]`, `residue[]` (черновики задач),
   `questions[]`, `changed_files[]`, `tests_claimed[]`, `errors[]` — **заявления** агента, harvest и гейты сверяют их с
   фактом (расхождение — сигнал в пакет ревью, не отказ). Читается из файла в рабочей копии (ACP структурированного вывода не даёт); невалидно → `INVALID_OUTPUT`.
+  - **WARRANT (W-17):** `needs_decision` → `question` во входящие; если вопрос — `UNKNOWN` Change WARRANT (`UNK-AREA-NNN` в record), стол отвечает двумя записями: `sef decide` (в context pack следующей попытки) и `warrant unknown resolve` (record; иначе `blocking_unknowns > 0` → `warrant verify` `WAIT`). `abstain`, `scope_exceeded`, `undeclared_file` — классы SEF, WARRANT их не дублирует (04 §4 WARRANT, INV-05).
 - **`sef/event/1`:** `event_id` (ULID), `ts`, `type` (реестр типов; будущие типы — evals, A/B, `drift`, `security` —
   зарезервированы), `actor{kind: owner|desk|runner|engine, id}`, `project`, id родословной, версии (`manifest_sha`,
   `pack_hash`, `policy_hash`, `application_version`), типизированные `data`, `refs[{path, sha256}]`, `usage{tokens,
@@ -442,6 +472,7 @@ closed | cancelled`. **БД DBOS одноразовая:** её потеря →
 - `pack_hash` включает `image.pins`: bump pin'а инвалидирует живые approval'ы (`INVALID_APPROVAL`) — осознанная цена
   K6 (среда — часть конфигурации), для В1 приемлема; слияние `pack` и `policy` в одну hash-границу распространило бы её
   и на политику, поэтому файлы раздельны.
+  - **WARRANT (W-10, W-11):** `protected[]` проекта под WARRANT — см. §5 2d (W-10); `warrant sync` в `.sef/**` не пишет, дублирование ручное, дрейф — `SEF_PROTECTED_DRIFT`. Эталон `engines{<profile>}` для `.codex/hooks.json` и `AGENTS.md` = вывод `warrant sync` на текущем `pack_hash`: шаг сборки пакета запускает `warrant sync` и копирует файлы в `.sef/engines/<profile>/`; иначе после любой правки правил WARRANT каждая попытка падает с `ENGINE_CONFIG_MISMATCH`. Определение hook — постоянная строка `warrant guard --frontend codex`; trust — в образе или слоте (§7.4). `.sef/policy.yaml`: отображение `risk_level` WARRANT → `risk` item (W-05) (ADR-0018 п. 4, ADR-0020 п. 13–14, ADR-0022 п. 5).
 
 ---
 
@@ -483,6 +514,8 @@ slot}`, `billing: subscription|api`, `enabled`, `budget{per_run_usd, per_day_usd
 байт-в-байт совпадают с эталоном пакета (`.sef/engines/<profile>/`); иначе — отказ до вызова модели
 (`ENGINE_CONFIG_MISMATCH`). Те же пути — в `protected[]` (правка исполнителем = `judge_edit`). Результат — в manifest
 (`engine_config_check`).
+
+> **WARRANT (W-11):** два независимых сверения одних файлов: SEF — с эталоном пакета (не подменены в попытке), WARRANT — с результатом генерации `warrant sync` (соответствуют policy). Совместимы, только если эталон собран из `warrant sync` при том же `pack_hash` (§6.3, W-11).
 
 ### 7.4 Слоты авторизации
 
@@ -666,6 +699,8 @@ S0a–S4 — над репозиторием `sef` (самоприменение
 план пишется только для текущего среза; следующий — при его старте. S0 разделён на S0a/S0b (D-S27): один крупный
 «платформенный» срез без сквозной ценности повторял бы церемонию rev 4.
 
+> **WARRANT (W-24):** S0b: эталон `.sef/engines/codex-exec/` собирается через `warrant sync` (W-11); control-API отдаёт JSON для верификации refs (W-19). S1: критерий выхода дополнить — «задача проекта под WARRANT (репозиторий `sef` с `.warrant/` или sample-проект WARRANT) проходит `sef work approve` (→ `APPROVED`) → попытка с Context Pack WARRANT → lane-гейт `warrant verify` → `sef land` → `transition MERGED` → `warrant archive`». Иначе гейты и посадка проектируются без WARRANT и переделываются в S3 (ADR-0020 п. 4; R2).
+
 ---
 
 ## 13. Roadmap с заложенной основой
@@ -693,6 +728,8 @@ S0a–S4 — над репозиторием `sef` (самоприменение
 | Режим ACP-агента (SEF в редакторах) | запрос владельца | `app` |
 | Несколько проектов сверх SEF и SOMA | третий проект | конфиг экземпляра со списком проектов |
 
+> **WARRANT (W-25, W-26):** later-связки с WARRANT: красные acceptance-тесты на `base_commit` (§5 0) — кандидат evidence `red-first` pack `bdd-tdd` (фаза 5 WARRANT) с attestation `sef-gate`; `guard_events[]`, hints и `FRONTEND_HOOKS_INACTIVE` из артефактов попыток — вход контура улучшения WARRANT (12-evolution), экспорт через `sef audit --json` / журнал.
+
 ---
 
 ## 14. Миграция
@@ -706,6 +743,8 @@ S0a–S4 — над репозиторием `sef` (самоприменение
 | `decisions/factory-2026-09-16` | остаётся историей; изменённые решения перечислены в D-S20 |
 | `docs/engineering/PROGRAM.md` | раздел «Фабрика» → срезы S0–S5 |
 | эта спека и `decisions/sef-2026-09-17` | в S0 переносятся в репозиторий `sef`; в EKS SOMA остаётся указатель |
+
+> **WARRANT (W-27):** при принятии rev 4 обновить снимок в WARRANT (`docs/integrations/2026-09-17-sef-platform-design.md`) и перепроверить приложение F; расхождения rev 4 с ADR-0020 — новый ADR WARRANT, не правка черновика (ADR-0020 Consequences).
 
 ### 14.2 Задачи FAC-0 и остаток
 
@@ -792,6 +831,8 @@ SEF-1…67 → `INV-*`, принципы, roadmap или «устарел» — 
 | SP-8 | эфемерный DWH SOMA на попытку для smoke-гейтов (sidecar-сеть гейта) | S5 |
 | SP-9 | control-API: loopback-порт из Docker Desktop, токен, клиент `sef` на Windows (PowerShell), задержки | S0b |
 | SP-10 | одноразовый локальный git в контейнере: режимы Codex/OpenCode без remotes, `git archive` больших деревьев, время подготовки | S1 |
+
+> **WARRANT (W-23):** расширить SP-5: (a) загружаются ли проектные hooks Codex под `codex-acp` и как выдаётся trust в слоте; (b) минимальная версия Codex с hooks на `apply_patch` (openai/codex#16732 закрыт PR #18391 — поведение свежее); (c) hooks и `--output-schema` под `codex exec` (adversarial review на столе, ADR-0020 п. 5). До результата адаптер `codex` в WARRANT — `proposed` (ADR-0018 п. 7, spike S8 WARRANT, D-7).
 
 ---
 

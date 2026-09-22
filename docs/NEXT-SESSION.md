@@ -10,16 +10,28 @@ version: 0.1.0
 
 Файл передачи контекста. Прочитать первым, затем [00-readme](00-readme.md).
 
-## Состояние на 2026-09-22 (день)
+## Состояние на 2026-09-22 (вечер)
 
-- **Фаза 1 закрыта.** PR #1 (`feature/phase-1-kernel` → `main`) отревьюен и смержен merge-коммитом; PR #2 (два fix по ревью) смержен следом.
-  `main` = kernel: 18 схем, семь команд, pack `core-sdd@0.1` в минимальном виде (`provides.profiles/gates/checks/controller_rules` пусты),
-  324+2 теста зелёные на Windows / Node 22 / OpenSpec 1.13.1. Решения по ходу реализации — I-1…I-44 в `design.md` change'а.
-- Ревью PR #1 (три параллельных агента по областям + локальный прогон тестов; CI на репозитории нет) дало 7 замечаний.
-  Два подтверждены и закрыты в PR #2 (регэкспы secret-сканера без левой границы; суффиксный поиск архивной change).
-  Остальные пять — в backlog ниже.
-- Следующий шаг — **проектирование фазы 2** (`/opsx:propose`): change `phase-2-core-sdd`. Change `phase-1-kernel` ещё не заархивирован
-  (`warrant archive` появится позже; `openspec archive phase-1-kernel` — решить при старте фазы 2, см. вопросы ниже).
+- **Фаза 1 закрыта**: PR #1 и PR #2 смержены в `main`; `phase-1-kernel` заархивирован (`openspec/changes/archive/2026-09-22-phase-1-kernel`,
+  main spec `openspec/specs/kernel/spec.md`, REQ-KRN-001…027).
+- **Фаза 2 в работе** на ветке `feature/phase-2-core-sdd` (не запушена). Change `phase-2-core-sdd` создан через `warrant init change`
+  (record `.warrant/changes/phase-2-core-sdd.json`, пока без classification — задача 4.4). Артефакты: proposal, delta specs `kernel`
+  (REQ-KRN-028 `classify`, MODIFIED 021/025, SCN-KRN-073…083) и `core-sdd` (REQ-SDD-001…009, SCN-SDD-001…016), design (D-1…D-11, I-45, I-46),
+  tasks (6 групп, 24 задачи). `openspec validate phase-2-core-sdd --strict` зелёный.
+- **Группа 1 сделана и закоммичена** (B6 + docs + roles/local rules): 333 теста зелёные, `warrant validate --no-generated` и `fmt --check` чистые.
+  Группы 2–6 не начаты. `--no-generated` всё ещё нужен до группы 4.
+- Ревью PR #1 дало backlog B1…B6 (ниже); B1, B2, B6 входят в фазу 2, B6 закрыт группой 1.
+
+### Продолжение — готовый запрос
+
+```text
+Прочитай docs/NEXT-SESSION.md, затем openspec/changes/phase-2-core-sdd/{proposal,design,tasks}.md и specs/{kernel,core-sdd}/spec.md
+(design.md — включая таблицу «Решения по ходу реализации» I-45, I-46 и раздел Context). Ветка feature/phase-2-core-sdd, группа 1 сделана.
+Продолжай /opsx:apply phase-2-core-sdd по схеме фазы 1: координатор — ты, субагент Opus 5 на группу (run_in_background: false, полный prompt
+с путями, REQ/SCN, конвенциями, отчёт ≤ 70 строк с разделом Decisions/deviations). Порядок: 2 → 3 → 4 → 5 → 6 (3 и 4 — после 2).
+После каждой группы сам проверяй npm test, npm run typecheck, warrant validate на репозитории (с группы 4 — без флагов), коммит на группу.
+Отклонения от spec/design — вопросом ко мне, не молча; принятые — I-N в design.md. Остановись после группы 6 и покажи результат.
+```
 
 ## Backlog из ревью фазы 1 (не закрыто, срок привязан к фазам)
 
@@ -30,7 +42,7 @@ version: 0.1.0
 | B3 | `packages/cli/src/core/packs/hash.ts` `checkLock()` | pack, удалённый из `warrant.json`, но оставшийся в lock, не даёт `LOCK_MISMATCH` (`sync --check` при этом видит расхождение) | quick fix, отдельный PR в любой момент |
 | B4 | `packages/cli/src/bin/warrant.ts` `run()` | `process.exit` сразу после записи envelope в stdout; в pipe на Windows большой вывод может обрезаться | **фаза 3**, вместе с CI-матрицей ubuntu + windows (`process.exitCode` вместо `exit`) |
 | B5 | `packages/cli/src/core/openspec/yaml-emit.ts` `emitKey()` | ключи `null` / `true` / `false` пишутся в YAML без кавычек и читаются как не-строки | quick fix, можно вместе с B3 |
-| B6 | `packages/cli/src/core/ids/scan.ts` | после `openspec archive` main spec `openspec/specs/**` и архивная delta `openspec/changes/archive/**` объявляют одни и те же `REQ`/`SCN` → ложный `ID_DUPLICATE` (найдено при архивировании `phase-1-kernel`, G-6). Архив должен считаться «занято», но не «объявлено дважды» | **фаза 2**, группа 3, с SCN в delta spec kernel |
+| B6 | `packages/cli/src/core/ids/scan.ts` | **закрыт группой 1 (I-46)**. После `openspec archive` main spec `openspec/specs/**` и архивная delta `openspec/changes/archive/**` объявляют одни и те же `REQ`/`SCN` → ложный `ID_DUPLICATE` (найдено при архивировании `phase-1-kernel`, G-6). Архив должен считаться «занято», но не «объявлено дважды» | **фаза 2**, группа 3, с SCN в delta spec kernel |
 
 Пункты не дублировать в GitHub issues без решения maintainer'а; эта таблица — единственное место учёта.
 

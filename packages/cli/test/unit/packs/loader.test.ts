@@ -247,3 +247,55 @@ describe("weakenings", () => {
     expect(lost).toEqual(["accepts_attestation: none"]);
   });
 });
+
+describe("loadPacks: rules and evidence kinds (phase 3)", () => {
+  it("collects provides.rules and .warrant/local/rules/ (ADR-0022)", () => {
+    const root = project(
+      { packs: { rules: { version: "^1.0" } } },
+      {
+        ".warrant/local/rules/local-rule.json": {
+          $schema: "warrant://rule/1",
+          id: "local-rule",
+          paths: ["src/**"],
+          text: "Local rule.",
+          enforced_by: "validate"
+        }
+      }
+    );
+    const result = loadPacks(root);
+    expect(result.errors).toEqual([]);
+    // Sorted by id, whatever their source.
+    expect(result.rules.map((r) => `${r.pack}:${r.id}:${r.enforcedBy ?? "-"}`)).toEqual([
+      "rules:json-canonical:fmt --check",
+      "rules:language-split:-",
+      "local:local-rule:validate"
+    ]);
+  });
+
+  it("reports DUPLICATE_OBJECT_ID for a local rule that repeats a pack rule id", () => {
+    const root = project(
+      { packs: { rules: { version: "^1.0" } } },
+      {
+        ".warrant/local/rules/json-canonical.json": {
+          $schema: "warrant://rule/1",
+          id: "json-canonical",
+          paths: ["**"],
+          text: "Again."
+        }
+      }
+    );
+    expect(codes(loadPacks(root).errors)).toEqual(["DUPLICATE_OBJECT_ID"]);
+  });
+
+  it("normalises both forms of evidence_kinds and reads the metrics schema (D-13)", () => {
+    process.env["WARRANT_PACKS_DIR"] = path.join(CLI_ROOT, "..", "..", "packs");
+    const result = loadPacks(project({ packs: { "core-sdd": { version: "^0.2" } } }));
+    expect(result.errors).toEqual([]);
+    const kinds = Object.fromEntries(result.evidenceKinds.map((k) => [k.kind, k.metricsSchema?.path ?? null]));
+    expect(Object.keys(kinds)).toEqual(["test-report", "spec-report", "review", "human-approval"]);
+    expect(kinds["review"]).toBeNull();
+    expect(kinds["test-report"]).toMatch(/packs\/core-sdd\/evidence\/test-report\.metrics\.schema\.json$/);
+    const form = result.evidenceKinds[0]?.metricsSchema?.json as { required: string[] };
+    expect(form.required).toContain("tests");
+  });
+});

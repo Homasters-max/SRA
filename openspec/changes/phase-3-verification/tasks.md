@@ -14,11 +14,11 @@
 
 ## 2. validate и status на новых полях
 
-- [ ] 2.1 `validate` (8) правила `rule/1` из `provides.rules` и `.warrant/local/rules/`: `id === basename`, `RULE_SCOPE`; (10) `LINK_TARGET_INVALID`; (11) семантика waiver (`WAIVER_INVALID`, `WAIVER_EXPIRED` в stderr). Проверка: e2e SCN-KRN-095, 098, 099. (REQ-KRN-021)
-- [ ] 2.2 `validate` (9) `ID_IMMUTABLE` относительно `HEAD` для `specs/**` и Changes ≥ `APPROVED` (D-14); без git — пропуск с предупреждением. Проверка: e2e SCN-KRN-096, 097 в temp-репозитории с коммитом. (REQ-KRN-021)
-- [ ] 2.3 Двухступенчатая валидация (D-13): нормальная форма `evidence_kinds` в loader, компиляция `metrics_schema`, `PACK_FORM_UNKNOWN`; (12) записи и manifest под `.warrant/evidence/**` по схемам и формам, `kind` объявлен pack'ом, `manifest.evidence[]` = файлы каталога. Проверка: e2e SCN-KRN-084 (pack-часть) на рукописной фикстуре evidence; SCN-KRN-092. (REQ-KRN-001, REQ-KRN-021)
-- [ ] 2.4 `status`: `effective_policy.risk_level`, `stale[]` `ABANDONED_DIR_PRESENT` и исключение `CHANGE_DIR_MISSING` для `ABANDONED` (D-22), вычисляемые `amended_by[]`/`superseded_by[]`, `rules{total, unenforced}` в форме без аргумента; `npm run golden:update` (`expected/status.json`). Проверка: e2e SCN-KRN-102, 103, 104; unit `status-stale.test.ts`. (REQ-KRN-027)
-- [ ] 2.5 I-52: `planSync` пишет `skills.*.source: "bundled"` и `path` относительно pack для skill вне проекта; `checkLock` проверяет hash по этому пути; golden-локи получают `skills`. Проверка: e2e SCN-KRN-087; `warrant validate` внутри копии каждого golden `ok: true`. (REQ-KRN-005)
+- [x] 2.1 `validate` (8) правила `rule/1` из `provides.rules` и `.warrant/local/rules/`: `id === basename`, `RULE_SCOPE`; (10) `LINK_TARGET_INVALID`; (11) семантика waiver (`WAIVER_INVALID`, `WAIVER_EXPIRED` в stderr). Проверка: e2e SCN-KRN-095, 098, 099. (REQ-KRN-021)
+- [x] 2.2 `validate` (9) `ID_IMMUTABLE` относительно `HEAD` для `specs/**` и Changes ≥ `APPROVED` (D-14); без git — пропуск с предупреждением. Проверка: e2e SCN-KRN-096, 097 в temp-репозитории с коммитом. (REQ-KRN-021)
+- [x] 2.3 Двухступенчатая валидация (D-13): нормальная форма `evidence_kinds` в loader, компиляция `metrics_schema`, `PACK_FORM_UNKNOWN`; (12) записи и manifest под `.warrant/evidence/**` по схемам и формам, `kind` объявлен pack'ом, `manifest.evidence[]` = файлы каталога. Проверка: e2e SCN-KRN-084 (pack-часть) на рукописной фикстуре evidence; SCN-KRN-092. (REQ-KRN-001, REQ-KRN-021)
+- [x] 2.4 `status`: `effective_policy.risk_level`, `stale[]` `ABANDONED_DIR_PRESENT` и исключение `CHANGE_DIR_MISSING` для `ABANDONED` (D-22), вычисляемые `amended_by[]`/`superseded_by[]`, `rules{total, unenforced}` в форме без аргумента; `npm run golden:update` (`expected/status.json`). Проверка: e2e SCN-KRN-102, 103, 104; unit `status-stale.test.ts`. (REQ-KRN-027)
+- [x] 2.5 I-52: `planSync` пишет `skills.*.source: "bundled"` и `path` относительно pack для skill вне проекта; `checkLock` проверяет hash по этому пути; golden-локи получают `skills`. Проверка: e2e SCN-KRN-087; `warrant validate` внутри копии каждого golden `ok: true`. (REQ-KRN-005)
 
 ## 3. check: evidence, runner, замок
 

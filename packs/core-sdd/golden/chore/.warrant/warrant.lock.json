@@ -9,6 +9,14 @@
       "hash": "sha256:50f2c978a8f0929834a855519a4a829a5540a060af299a56e458e6db1d442181"
     }
   },
+  "skills": {
+    "specification/adversarial-review": {
+      "version": "0.1.0",
+      "path": "sra/skills/specification/adversarial-review/SKILL.md",
+      "hash": "sha256:a0e8e2dfb9524761930ba6dc178cecf1e3b0f74ba1569bad463b1a4f744db373",
+      "source": "bundled"
+    }
+  },
   "generated": {
     ".warrant/schemas/areas.1.schema.json": "sha256:a6854309970294bb368334f9703918b011aaa73e6b68523be04b501300ea122d",
     ".warrant/schemas/change-record.1.schema.json": "sha256:52ca4f219dc9082f1500b657f11f3152e62bb001d232e8b3db424ecd9d2600b5",

@@ -60,6 +60,33 @@ export interface LoadedPack {
   manifestPath: string;
 }
 
+/** One `warrant://rule/1` document: listed in `provides.rules` or found under `.warrant/local/rules/` (ADR-0022). */
+export interface LoadedRule {
+  id: string;
+  /** Pack id, or `local` for `.warrant/local/rules/`. */
+  pack: string;
+  /** Path as reported in errors. */
+  path: string;
+  paths: string[];
+  enforcedBy: string | undefined;
+}
+
+/**
+ * One entry of `provides.evidence_kinds` in normal form (D-13): the string form
+ * `"review"` and the object form `{ kind, metrics_schema }` both become this.
+ */
+export interface EvidenceKind {
+  kind: string;
+  /** Pack that declares the kind. */
+  pack: string;
+  /** The `metrics` form, when the pack declares one; read but not yet compiled. */
+  metricsSchema?: {
+    /** Path as reported in errors. */
+    path: string;
+    json: unknown;
+  };
+}
+
 export interface LoadResult {
   /** Parsed `.warrant/warrant.json`. */
   config: Record<string, unknown>;
@@ -67,6 +94,10 @@ export interface LoadResult {
   packs: LoadedPack[];
   /** Object set after duplicate detection and local overrides. */
   objects: PackObject[];
+  /** Path rules of every pack and of `.warrant/local/rules/`, sorted by id. */
+  rules: LoadedRule[];
+  /** Evidence kinds declared by the enabled packs, in load order. */
+  evidenceKinds: EvidenceKind[];
   /** Every file the loader read and validated, as reported paths. */
   files: string[];
   /** Everything wrong that did not stop the load; `validate` reports them all at once. */

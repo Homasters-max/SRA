@@ -63,3 +63,39 @@ export function listChangeNames(root: string): string[] {
   }
   return entries.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
+
+/** One record as found on disk, whether or not it validates. */
+export interface RecordFile {
+  change: string;
+  /** Path relative to the project root, POSIX separators. */
+  path: string;
+  json: Record<string, unknown>;
+}
+
+/**
+ * Every record that parses to an object, keyed by change name. Lenient on
+ * purpose: cross-record checks (`validate` (9)–(11), back-links of `status`)
+ * look at whatever is there; a record that does not validate is reported by
+ * check (1) of `validate`, not twice.
+ */
+export function readAllRecords(root: string): Map<string, RecordFile> {
+  const out = new Map<string, RecordFile>();
+  for (const change of listChangeNames(root)) {
+    const rel = `.warrant/changes/${change}.json`;
+    try {
+      const json = JSON.parse(readFileSync(path.join(root, ".warrant", "changes", `${change}.json`), "utf8")) as unknown;
+      if (typeof json === "object" && json !== null && !Array.isArray(json)) {
+        out.set(change, { change, path: rel, json: json as Record<string, unknown> });
+      }
+    } catch {
+      // unreadable or malformed: check (1) of `validate` says so
+    }
+  }
+  return out;
+}
+
+/** `change_state` of a record, or undefined when it has none. */
+export function stateOf(record: RecordFile | undefined): string | undefined {
+  const state = record?.json["change_state"];
+  return typeof state === "string" ? state : undefined;
+}

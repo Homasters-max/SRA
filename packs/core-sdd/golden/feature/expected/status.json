@@ -1,4 +1,5 @@
 {
+  "amended_by": [],
   "artifacts": {
     "design": "done",
     "proposal": "done",
@@ -36,6 +37,7 @@
   },
   "effective_policy": {
     "hash": "sha256:d239e1876be3a0e2c79ee47057be949b288e9a29c9f29325410bfc47989a339c",
+    "risk_level": "MEDIUM",
     "sources": [
       "kernel@{CLI_VERSION}",
       "core-sdd@0.2.0:overlay/core-default@1.0.0",
@@ -43,5 +45,6 @@
       "core-sdd@0.2.0:overlay/risk-medium@1.0.0"
     ]
   },
-  "stale": []
+  "stale": [],
+  "superseded_by": []
 }

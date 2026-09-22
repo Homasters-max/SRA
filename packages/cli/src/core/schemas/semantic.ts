@@ -87,7 +87,8 @@ const ID_IS_BASENAME: ReadonlySet<string> = new Set([
   "overlay",
   "gate",
   "check",
-  "risk-levels"
+  "risk-levels",
+  "rule"
 ]);
 
 /**

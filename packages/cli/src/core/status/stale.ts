@@ -10,7 +10,7 @@
 import type { ChangeDirLocation } from "../init/scaffold.js";
 
 /** Codes of `data.stale[]`. They are not `errors[].code`: staleness is a report, not a failure. */
-export const STALE_CODES = ["CHANGE_DIR_MISSING", "ARCHIVED_WITHOUT_TRANSITION"] as const;
+export const STALE_CODES = ["CHANGE_DIR_MISSING", "ARCHIVED_WITHOUT_TRANSITION", "ABANDONED_DIR_PRESENT"] as const;
 
 export type StaleCode = (typeof STALE_CODES)[number];
 
@@ -26,6 +26,19 @@ export function computeStale(
   location: ChangeDirLocation | null,
   changeState: string
 ): StaleEntry[] {
+  // Abandoning removes the change directory after the record (design §10, D-22):
+  // for ABANDONED a missing directory is the expected end state, and a present
+  // one is the half-done abandon. An archived copy is judged as for any state.
+  if (changeState === "ABANDONED" && location?.where !== "archive") {
+    if (location === null) return [];
+    return [
+      {
+        code: "ABANDONED_DIR_PRESENT",
+        message: `record is ABANDONED but the change directory of "${change}" still exists`,
+        path: location.path
+      }
+    ];
+  }
   if (location === null) {
     return [
       {

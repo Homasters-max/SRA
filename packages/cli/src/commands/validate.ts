@@ -1,5 +1,5 @@
 /**
- * `warrant validate` — checks (1), (2), (3), (5) and (6) of REQ-KRN-021.
+ * `warrant validate` — checks (1)–(12) of REQ-KRN-021.
  *
  * Every finding is collected: the command never stops at the first error, so
  * one run tells the whole story (SCN-KRN-043, task 3.7).
@@ -11,7 +11,9 @@
  * Nothing is skipped unconditionally: `config.yaml` is generated whole, so
  * there is no flag to opt out of check (4) (REQ-KRN-025, откат I-43).
  * `data.skipped` lists what this run could not do: `openspec-schema` and
- * `ids-placement` when `openspec` is not on PATH.
+ * `ids-placement` when `openspec` is not on PATH. Check (9) needs git; outside
+ * a git work tree it is skipped with a warning on stderr only, because fixture
+ * projects without git are a normal place to run `validate` (design §14).
  */
 import path from "node:path";
 
@@ -23,6 +25,12 @@ import { requireOpenspec } from "../core/openspec/version.js";
 import { planSync } from "../core/sync/plan.js";
 import { checkLock, LOCK_REL } from "../core/packs/hash.js";
 import { checkIds } from "../core/ids/scan.js";
+import { checkImmutableIds } from "../core/ids/immutable.js";
+import { readAllRecords } from "../core/record/read.js";
+import { checkRuleScope } from "../core/validate/rules.js";
+import { checkLinkTargets } from "../core/validate/links.js";
+import { checkWaivers } from "../core/validate/waivers.js";
+import { checkEvidence } from "../core/validate/evidence.js";
 import { scanSecrets } from "../core/secrets.js";
 import { validateFile } from "../core/schemas/semantic.js";
 import { checkCanonical, SCHEMA_COPIES_PREFIX } from "../core/canon/files.js";
@@ -113,9 +121,15 @@ function checkGenerated(
   return errors;
 }
 
+/** Today as the UTC calendar date `YYYY-MM-DD`, the unit of `waiver.expires_at`. */
+function utcToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function runValidate(
   root: string = defaultRoot(),
-  warn: (text: string) => void = (text) => process.stderr.write(text)
+  warn: (text: string) => void = (text) => process.stderr.write(text),
+  today: string = utcToday()
 ): CommandResult {
   const errors: CliError[] = [];
   const skipped: string[] = [];
@@ -175,6 +189,29 @@ export function runValidate(
 
   // Check (7): canonical form of every `.warrant/**` JSON file (REQ-KRN-022).
   errors.push(...checkCanonical(root));
+
+  // Check (8): path rules (ADR-0022); `id` = file name is a semantic rule of the loader.
+  errors.push(...checkRuleScope(loaded.rules));
+
+  // Check (9): stable ids against HEAD (D-18).
+  const records = readAllRecords(root);
+  const immutable = checkImmutableIds(root, records);
+  errors.push(...immutable.errors);
+  if (immutable.skipped !== undefined) {
+    warn(`validate: check (9) stable ids against HEAD skipped: ${immutable.skipped}
+`);
+  }
+
+  // Check (10): targets of amends / supersedes (ADR-0021).
+  errors.push(...checkLinkTargets(records));
+
+  // Check (11): waiver semantics; an expired ACTIVE waiver is a warning only.
+  const waivers = checkWaivers(root, loaded, records, today);
+  errors.push(...waivers.errors);
+  for (const line of waivers.warnings) warn(line);
+
+  // Check (12): evidence records and manifests, second step of D-13.
+  errors.push(...checkEvidence(root, loaded));
 
   const data = {
     checked: { files: checkedFiles.size, packs: loaded.packs.map((p) => p.id) },

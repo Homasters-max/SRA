@@ -16,6 +16,8 @@ function loaded(objects: PackObject[], packs = [{ id: "p", version: "1.0.0" }]):
       manifestPath: `packs/${p.id}/pack.json`
     })),
     objects,
+    rules: [],
+    evidenceKinds: [],
     files: [],
     errors: []
   };

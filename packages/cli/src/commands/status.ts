@@ -2,10 +2,13 @@
  * `warrant status [change]` (REQ-KRN-027): the record of a Change next to the
  * signals derived from the working tree.
  *
- * Phase 1 reports, it does not judge: gate verdicts and `next` are out of scope
- * and the keys are absent rather than empty (REQ-KRN-027). What is reported per
- * Change is `change_state` and `classification` from the record, the hash and
- * sources of the effective policy, the OpenSpec artifact statuses and `stale[]`.
+ * Gate verdicts and `next` are not reported yet: the keys are absent rather
+ * than empty. What is reported per Change is `change_state` and
+ * `classification` from the record, the hash, sources and `risk_level` of the
+ * effective policy, the OpenSpec artifact statuses, `stale[]` and the computed
+ * back-links `amended_by[]` / `superseded_by[]` (ADR-0021 point 5). Without an
+ * argument `data.rules` counts the path rules and those without `enforced_by`
+ * (ADR-0022 point 4).
  *
  * Nothing here fails because a derived signal is missing: a Change whose
  * directory is gone still gets its record printed, with `artifacts: {}` and the
@@ -16,7 +19,15 @@ import { findChangeDir } from "../core/init/scaffold.js";
 import { openspecAvailable } from "../core/openspec/cli.js";
 import { openspecStatus, type ArtifactStatuses } from "../core/openspec/status.js";
 import { loadPacks } from "../core/packs/loader.js";
-import { listChangeNames, readChangeRecord, type ChangeRecord } from "../core/record/read.js";
+import {
+  listChangeNames,
+  readAllRecords,
+  readChangeRecord,
+  type ChangeRecord,
+  type RecordFile
+} from "../core/record/read.js";
+import { backLinks } from "../core/validate/links.js";
+import { rulesSummary } from "../core/validate/rules.js";
 import { computeStale, type StaleEntry } from "../core/status/stale.js";
 import { resolveForProject, type Classification } from "../core/resolve/index.js";
 import type { LoadResult } from "../core/packs/types.js";
@@ -30,9 +41,13 @@ export interface ChangeStatus {
   /** The record's classification, or `null` when it has none — the key is always present. */
   classification: Record<string, unknown> | null;
   /** `null` only when the policy could not be resolved; the conflict is then in `errors[]`. */
-  effective_policy: { hash: string; sources: unknown } | null;
+  effective_policy: { hash: string; sources: unknown; risk_level: string } | null;
   artifacts: ArtifactStatuses;
   stale: StaleEntry[];
+  /** Records whose `amends` names this Change; computed, never stored in the record. */
+  amended_by: string[];
+  /** Records whose `supersedes` names this Change; computed, never stored in the record. */
+  superseded_by: string[];
 }
 
 function statusOf(
@@ -41,7 +56,8 @@ function statusOf(
   record: ChangeRecord,
   loaded: LoadResult,
   warn: (text: string) => void,
-  hasOpenspec: boolean
+  hasOpenspec: boolean,
+  records: ReadonlyMap<string, RecordFile>
 ): { status: ChangeStatus; errors: CliError[] } {
   const changeState = String(record["change_state"]);
   const location = findChangeDir(root, change);
@@ -69,7 +85,11 @@ function statusOf(
     // A conflict is never hidden: same code and escalation as `resolve` (SCN-KRN-067).
     errors.push({ code: "POLICY_CONFLICT", message: `${change}: ${resolved.result.conflict.message}` });
   } else {
-    effectivePolicy = { hash: resolved.result.policy.hash, sources: resolved.result.policy.sources };
+    effectivePolicy = {
+      hash: resolved.result.policy.hash,
+      sources: resolved.result.policy.sources,
+      risk_level: resolved.result.policy.risk_level
+    };
   }
 
   return {
@@ -79,7 +99,8 @@ function statusOf(
       classification: (record["classification"] as Record<string, unknown> | undefined) ?? null,
       effective_policy: effectivePolicy,
       artifacts,
-      stale
+      stale,
+      ...backLinks(change, records)
     },
     errors
   };
@@ -101,10 +122,13 @@ export function runStatus(
   // in the list form every name came from a file, so it cannot throw that.
   const records = names.map((name) => ({ name, record: readChangeRecord(root, name) }));
 
+  // Back-links look at every record, also in the single form.
+  const all = readAllRecords(root);
+
   const statuses: ChangeStatus[] = [];
   const errors: CliError[] = [];
   for (const { name, record } of records) {
-    const one = statusOf(root, name, record, loaded, warn, hasOpenspec);
+    const one = statusOf(root, name, record, loaded, warn, hasOpenspec, all);
     statuses.push(one.status);
     errors.push(...one.errors);
   }
@@ -122,7 +146,7 @@ export function runStatus(
     return success({ ...only }, change);
   }
 
-  const data = { changes: statuses };
+  const data = { changes: statuses, rules: rulesSummary(loaded.rules) };
   if (errors.length > 0) return failures(errors, exitCode, { ...data, ...escalation });
   return success(data);
 }

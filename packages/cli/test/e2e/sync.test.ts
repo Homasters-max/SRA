@@ -288,6 +288,58 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
   );
 });
 
+describe("warrant sync: a skill that ships with the CLI outside the project (I-52)", () => {
+  const SKILL = "specification/adversarial-review";
+  const IN_PACK = "packs/core-sdd/skills/specification/adversarial-review/SKILL.md";
+
+  /**
+   * A bundle outside the project — `packs/core-sdd` with the skill inside the
+   * pack — and a project that holds no copy of the skill.
+   */
+  function layout(): { root: string; bundle: string } {
+    const bundle = makeTempDir("warrant-bundle-");
+    tempDirs.push(bundle);
+    cpSync(path.join(REPO_ROOT, "packs", "core-sdd"), path.join(bundle, "packs", "core-sdd"), { recursive: true });
+    cpSync(
+      path.join(REPO_ROOT, "sra", "skills", "specification", "adversarial-review"),
+      path.join(bundle, "packs", "core-sdd", "skills", "specification", "adversarial-review"),
+      { recursive: true }
+    );
+    return { root: project(), bundle };
+  }
+
+  it.skipIf(!hasOpenspec)(
+    "locks the skill with source bundled and a bundle-relative path, and validate checks its hash (SCN-KRN-087)",
+    async () => {
+      const { root, bundle } = layout();
+      const env = { WARRANT_PACKS_DIR: path.join(bundle, "packs") };
+      const sync = await runCli(["sync"], root, env);
+      expect(sync.json?.errors).toEqual([]);
+
+      const lock = JSON.parse(readFileSync(path.join(root, ".warrant", "warrant.lock.json"), "utf8"));
+      expect(lock.skills[SKILL]).toEqual({
+        version: "0.1.0",
+        path: IN_PACK,
+        hash: bytesHash(readFileSync(path.join(bundle, IN_PACK))),
+        source: "bundled"
+      });
+      const valid = await runCli(["validate"], root, env);
+      expect(valid.json?.errors).toEqual([]);
+      expect(valid.status).toBe(0);
+
+      const skill = path.join(bundle, IN_PACK);
+      writeFileSync(skill, readFileSync(skill, "utf8") + "\nOne more line, without a sync.\n", "utf8");
+      const drift = await runCli(["validate"], root, env);
+      expect(drift.status).toBe(3);
+      const finding = drift.json?.errors.find(
+        (e: { code: string; message: string }) => e.code === "LOCK_MISMATCH" && e.message.includes(SKILL)
+      );
+      expect(finding?.path).toContain(IN_PACK);
+    },
+    120_000
+  );
+});
+
 describe("warrant sync: YAML scalars that are not strings (B5)", () => {
   it.skipIf(!hasOpenspec)(
     "quotes keys and values a YAML reader would not keep as strings (SCN-KRN-100)",

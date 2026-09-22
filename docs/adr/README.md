@@ -12,5 +12,6 @@
 | [0006](WARRANT-ADR-0006-json-conventions.md) | JSON-конвенции, язык, комментарии | ACCEPTED |
 | [0007](WARRANT-ADR-0007-mvp-scope.md) | Объём MVP | ACCEPTED |
 | [0008](WARRANT-ADR-0008-naming.md) | Название и границы компонентов | ACCEPTED |
+| [0009](WARRANT-ADR-0009-change-record-attestation.md) | Change record и attestation: доверенные писатели состояния | ACCEPTED |
 
 Новый ADR: следующий номер, frontmatter как в существующих, строка в этой таблице.

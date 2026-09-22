@@ -64,7 +64,7 @@ WARRANT передаёт в LATTICE decisions и evidence **как proposals** (
 | ADR проекта | Durable архитектурные решения |
 | Git | Фактическое состояние исходников |
 | Runtime / Data | Фактическое операционное состояние |
-| `.warrant/` | Конфигурация процесса, waivers, evidence |
+| `.warrant/` | Конфигурация процесса, Change records, waivers, evidence |
 | LATTICE | Семантическая идентичность, связи, происхождение |
 
 Всё остальное — отчёты, dashboards, индексы, графы, traceability matrix, effective policy — **projections**.
@@ -107,6 +107,7 @@ project/
 │   ├── warrant.json                единственная точка конфигурации
 │   ├── warrant.lock.json           зафиксированные версии и хэши packs
 │   ├── local/                      project-local pack (overrides, свои gates/checks)
+│   ├── changes/<change>.json       Change record: classification, change_state, журнал переходов
 │   ├── waivers/                    WAV-*.json
 │   ├── evidence/<change>/          manifest.json + ссылки на raw evidence
 │   └── runs/                       RUN-*.json (MAY быть вне git — см. 06a)
@@ -125,6 +126,7 @@ project/
 | `openspec/specs/`, `openspec/changes/` | OpenSpec | Обычный Change |
 | `openspec/schemas/`, `openspec/config.yaml` | WARRANT (через pack) | `factory-change` |
 | `.warrant/warrant.json`, `.warrant/local/` | WARRANT | `factory-change` |
+| `.warrant/changes/` | WARRANT (запись только CLI) | Переходы через `warrant` ([04 §9](04-lifecycle.md)); агент MUST NOT писать напрямую |
 | `.warrant/waivers/` | WARRANT | Waiver lifecycle ([05](05-policy.md)) |
 | `.warrant/evidence/`, `.warrant/runs/` | WARRANT (запись только CLI/CI) | Агент MUST NOT писать напрямую |
 | ADR | Architecture | Change с ADR |

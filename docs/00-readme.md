@@ -60,11 +60,14 @@ Evidence показывает результат.
 | [10-pack-bdd-tdd](10-pack-bdd-tdd.md) | BDD / TDD / mutation | Pack | proposed | later |
 | [10-pack-arch](10-pack-arch.md) | ADR, C4, glossary | Pack | proposed | later |
 | [10-pack-brownfield](10-pack-brownfield.md) | Legacy, characterization | Pack | proposed | later |
-| [11-integrations](11-integrations.md) | LATTICE, SEF, JEV, SRA | Integration | proposed | deferred |
+| [10-pack-security](10-pack-security.md) | Security overlays, threat model, security checks | Pack | proposed | later |
+| [11-integrations](11-integrations.md) | Форма интеграции; LATTICE, SEF, JEV, SRA | Integration | proposed | deferred |
+| [integrations/](integrations/00-readme.md) | Контракты компонентов SEF: LATTICE, proposals, SRA, JEV | Integration | proposed | deferred |
+| [../lattice/](../lattice/README.md) | Заготовка отдельного проекта LATTICE: реестр решений, объектная модель, план slice | Component | normative | later |
 | [12-evolution](12-evolution.md) | Развитие самой системы, метрики | Kernel | normative | later |
 | [13-roadmap](13-roadmap.md) | MVP, фазы, открытые вопросы | — | informative | MVP |
 
-Решения, принятые при проектировании — [adr/](adr/). Исходные черновики — [archive/2026-09-22](archive/2026-09-22/README.md).
+Решения, принятые при проектировании — [adr/](adr/). Исходные черновики — `archive/2026-09-22.zip`.
 
 **Порядок чтения:** 01 → 02 → 03 → 04 → 05 → 06 → 06a → 07 → 08, далее packs по необходимости.
 
@@ -135,3 +138,6 @@ Status: proposed · Maturity: later
 | **Controller** | Детерминированная таблица решений: какая операция следующая. |
 | **Context Pack** | Набор контекста, передаваемый агенту в Run. Имеет `context_hash`. |
 | **Skill** | Единица reasoning (владелец — SRA). WARRANT задаёт только контракт вызова. |
+| **Change record** | Файл `.warrant/changes/<change>.json`: classification, `change_state`, журнал переходов. Пишет только CLI. |
+| **Attestation** | Кто ручается за происхождение evidence: `ci`, `human-review`, `signature`, `none`. |
+| **Proposal (integration)** | Предложение мутации canonical state другого компонента. Не мутация. Единый envelope для SRA, JEV, WARRANT, human. |

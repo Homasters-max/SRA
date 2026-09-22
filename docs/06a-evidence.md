@@ -37,6 +37,7 @@ Evidence:  claim "customer_id остаётся уникальным после �
     "dataset_snapshot": null
   },
   "produced_by": { "type": "check", "id": "pytest", "version": "1.0.0", "run": "RUN-000417" },
+  "attestation": { "type": "ci", "ref": "ci://runs/8812" },
   "context_hash": "sha256:…",
   "effective_policy_hash": "sha256:…",
   "created_at": "2026-09-22T10:00:00Z",
@@ -50,6 +51,7 @@ Evidence:  claim "customer_id остаётся уникальным после �
 | `kind` | Из каталога kinds, объявленных packs (`test-report`, `schema-diff`, `review`, `human-approval`, …) |
 | `level` | L0 / L1 / L2 по источнику |
 | `produced_by.type` | `check` (L0/L1), `skill` (L2), `human` |
+| `attestation` | Кто ручается за происхождение записи (§3) |
 | `limitations` | Что evidence **не** доказывает (scope, выборка, окружение) |
 
 ## 3. Кто создаёт evidence
@@ -57,6 +59,30 @@ Evidence:  claim "customer_id остаётся уникальным после �
 - Evidence MUST записываться только CLI или CI. Агент MUST NOT писать в `.warrant/evidence/` напрямую.
 - Skill MAY **предложить** evidence (результат review); CLI записывает его как `level: L2`, `produced_by.type: skill`.
 - Hashes, timestamps, commit SHA MUST вычисляться инфраструктурой, а не LLM.
+
+### Attestation
+
+Решение — [WARRANT-ADR-0009](adr/WARRANT-ADR-0009-change-record-attestation.md). Доверие evidence определяется
+тем, **где оно произведено**, а не подписью. Два класса:
+
+| Класс | Примеры | Правило |
+|---|---|---|
+| Воспроизводимое (L0 / L1) | tests, `analyze`, `openspec validate` | Не подписывается. Локальная запись — черновик, CI пересчитывает и замещает её. |
+| Невоспроизводимое | human approval, L2 review, rollback rehearsal, runtime observation | Требует attestation. |
+
+| `attestation.type` | Кто ручается | `ref` |
+|---|---|---|
+| `ci` | Запись создана CLI внутри CI-запуска | id запуска |
+| `human-review` | Человек через PR review / approval API | URL review |
+| `signature` | Подпись зарегистрированного ключа (`warrant.json` → `trusted_signers`) | id подписи |
+| `none` | Локальный запуск CLI | — |
+
+- Gate объявляет допустимые типы: `"accepts_attestation": ["ci", "human-review"]`. По умолчанию `none` не засчитывается
+  для gates перехода `VERIFYING → MERGED` (INV-10).
+- L2 review для risk `HIGH` MUST выполняться отдельным Run в CI (attestation `ci`); для `MEDIUM` MAY выполняться локально
+  с записью `"limitations": ["produced locally, unattested"]`.
+- Ключи подписи MUST NOT выдаваться агентам: агент, подписывающий собственное evidence, нарушает INV-03. Ключи — у CI и людей.
+- `signature` — Maturity: later (кандидат: keyless signing, Sigstore / gitsign) для runtime и data evidence, произведённого вне CI.
 
 ## 4. Статусы
 

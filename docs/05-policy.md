@@ -176,6 +176,15 @@ resolver композирует их по правилам §5.
 
 Точные наборы задаются overlay-файлами `risk-low.json`, `risk-medium.json`, `risk-high.json` в pack core-sdd.
 
+Overlay MAY срабатывать не только по `risk_level`, но и по значению отдельного измерения:
+
+```json
+{ "$schema": "warrant://overlay/1", "id": "security-high", "match": { "security_impact": ["HIGH"] } }
+```
+
+Resolver сопоставляет `match` с любым полем classification одинаково. Так pack `security` усиливает policy по
+`security_impact`, не вводя ни profile, ни нового уровня risk ([10-pack-security](10-pack-security.md)).
+
 ## 5. Композиция
 
 ### Порядок overlays

@@ -196,4 +196,47 @@ Approval — gate `human-approval` с evidence вида `human`. Минимал�
 - любой waiver;
 - понижение risk ниже вычисленного floor.
 
-В MVP approval фиксируется через PR review; CLI читает его как evidence.
+В MVP approval фиксируется через PR review; CLI читает его как evidence с attestation `human-review` ([06a §3](06a-evidence.md)).
+
+## 9. Change record
+
+Status: normative · Maturity: MVP · Решение — [WARRANT-ADR-0009](adr/WARRANT-ADR-0009-change-record-attestation.md)
+
+Governance-состояние Change (classification, risk, `change_state`) принадлежит WARRANT, а не OpenSpec (INV-06, [03 §2](03-architecture.md)).
+Оно хранится в `.warrant/changes/<change>.json`. Имя файла — ID Change без даты ([02 §3](02-vocabulary.md)), поэтому archive OpenSpec его не меняет.
+
+```json
+{
+  "$schema": "warrant://change-record/1",
+  "change": "add-customer-search",
+  "change_state": "APPROVED",
+  "classification": {
+    "profiles": ["feature"],
+    "risk": {
+      "data_loss":       { "value": "NONE",   "from": "proposer:llm" },
+      "reversibility":   { "value": "EASY",   "from": "proposer:llm" },
+      "blast_radius":    { "value": "LOCAL",  "from": "floor" },
+      "security_impact": { "value": "MEDIUM", "from": "floor" },
+      "compatibility":   { "value": "COMPATIBLE", "from": "human:<login>" }
+    },
+    "risk_level": "MEDIUM"
+  },
+  "transitions": [
+    { "to": "SPECIFIED", "at": "2026-09-22T09:00:00Z", "by": "cli:local", "effective_policy_hash": "sha256:…" },
+    { "to": "APPROVED",  "at": "2026-09-22T11:00:00Z", "by": "ci:run/8812", "effective_policy_hash": "sha256:…",
+      "gates": { "spec-valid": "PASS", "human-approval": "PASS" }, "evidence": ["EVID-000919"] }
+  ]
+}
+```
+
+Правила:
+
+- Запись MUST выполняться только CLI. Агент и skills MUST NOT редактировать файл напрямую (как для evidence, [06a §3](06a-evidence.md)).
+- Файл MUST коммититься: один Change — один файл, diff читаем, конфликтов нет.
+- Каждое значение classification MUST хранить источник (`floor`, `proposer:*`, `human:*`), чтобы `resolve --explain` был воспроизводим ([05 §4](05-policy.md)).
+- Переход вперёд MUST записываться вместе с verdicts gates перехода и ссылками на evidence. Переход в `APPROVED` и `MERGED`
+  MUST опираться на evidence с attestation `human-review` или `ci`; запись, сделанная `cli:local`, для этих состояний невалидна.
+- `ABANDONED` и `APPROVED` ниоткуда не выводятся и MUST быть записаны явно. Остальные состояния также записываются, но
+  `warrant status` MUST сверять запись с производными сигналами (наличие artifacts, worktree, merge в git, каталог archive)
+  и сообщать `STALE`, если они расходятся. Запись — акт перехода; вычисление — проверка, что акт всё ещё соответствует реальности.
+- Файл — не второй source спецификации: он не содержит ни требований, ни tasks ([03 §8](03-architecture.md)).

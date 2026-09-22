@@ -114,8 +114,8 @@ Lock MUST генерироваться CLI и MUST NOT редактироват�
 | `arch` | profile architecture, ADR, C4, glossary | later | [10-pack-arch](10-pack-arch.md) |
 | `data` | profiles data-change / migration, contracts, compatibility, rollback | later | [09-pack-data](09-pack-data.md) |
 | `brownfield` | characterization, baseline spec | later | [10-pack-brownfield](10-pack-brownfield.md) |
-| `security` | security overlay, threat review | deferred | — |
-| `lattice`, `sef`, `jev` | интеграционные адаптеры | deferred | [11-integrations](11-integrations.md) |
+| `security` | overlays по `security_impact`, threat-model, security checks, threat review | later | [10-pack-security](10-pack-security.md) |
+| `lattice`, `jev`, `sef` | интеграционные адаптеры: proposal channel, read model, проекция маркеров | deferred | [11-integrations](11-integrations.md), [integrations/](integrations/00-readme.md) |
 
 ## 7. Правка конфигурации агентом (LLM)
 

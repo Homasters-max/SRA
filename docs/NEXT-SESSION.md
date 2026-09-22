@@ -37,10 +37,13 @@ version: 0.1.0
 Skills superpowers из Claude Code убраны. Фаза 1 ведётся **самим OpenSpec** в этом репозитории: это одновременно
 закрывает S2 (мы увидим `config.yaml` и schema изнутри) и даёт первые артефакты для будущего `factory-change`.
 
-### Шаг 1 — поставить OpenSpec и провести спайк S2
+### Шаг 1 — подключить OpenSpec и провести спайк S2
+
+OpenSpec 1.13.1 уже установлен глобально (`@fission-ai/openspec@1.13.1`, проверено `openspec --version`).
+Повторно не ставить — только инициализировать в репозитории:
 
 ```bash
-npm i -g @fission-ai/openspec@1.13.1 && openspec init
+openspec init
 ```
 
 Изучить сгенерированные `openspec/config.yaml`, `openspec/schemas/`, slash-команды (`/opsx:*` или `/openspec:*`
@@ -66,7 +69,8 @@ Change `phase-1-kernel` через штатные команды OpenSpec (propo
 
 ```text
 Прочитай docs/NEXT-SESSION.md, затем docs/00-readme.md, 13-roadmap.md, adr/WARRANT-ADR-0006, 0007, 0009–0014,
-затем 02, 03, 04, 05, 06, 06a, 08. Выполни Шаг 1 (OpenSpec 1.13.1, спайк S2 → ADR-0015). Затем создай OpenSpec
+затем 02, 03, 04, 05, 06, 06a, 08. OpenSpec 1.13.1 уже установлен глобально — только `openspec init`.
+Выполни Шаг 1 (спайк S2 → ADR-0015). Затем создай OpenSpec
 Change phase-1-kernel по Шагу 2 и остановись после proposal + specs на моё review. Спорные места — вопросом ко мне.
 ```
 

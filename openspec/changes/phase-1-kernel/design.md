@@ -37,7 +37,7 @@ packs/core-sdd/               pack.json, openspec/{schema.json,rules.json,templa
 ```
 
 `npm i -g <git-url>#<tag>` устанавливает **корневой** пакет, поэтому `bin`, `prepare`, зависимости и `files` объявлены в корне;
-`prepare` запускает `tsc -p packages/cli/tsconfig.json`. `files` перечисляет `packages/cli/{package.json,dist,schemas}` и `packs`,
+`prepare` запускает `node scripts/build.js` (tsc по пути, fallback — см. I-11). `files` перечисляет `packages/cli/{package.json,dist,schemas}` и `packs`,
 иначе `.gitignore` исключил бы `dist/` из tarball. Bundled packs находятся по пути `<корень установленного пакета>/packs`,
 вычисляемому от `import.meta.url` CLI (пять уровней вверх от `dist/core/packs/`), а не от cwd. Это же закрывает `UNK-KRN-003`:
 источники packs — bundled + `.warrant/local/`. Версия CLI — `version` корневого `package.json` (`src/version.ts`).

@@ -147,8 +147,65 @@ Roadmap [13 §2](13-roadmap.md): schema `warrant-sdd`, profiles, core gates и c
 | G-21 | `capabilities.forbidden: ["PRODUCTION_WRITE"]` только у `factory-change`; approvals — роль `maintainer` на `SPECIFIED->APPROVED` у всех трёх |
 
 Фаза 3 (verification, CI-матрица **ubuntu-latest + windows-latest**: `npm test`, `npm i -g` из чекаута, `warrant validate` на sample-проекте;
-WARRANT на Linux ещё не запускался ни разу), затем 4 (Claude Code frontend). Vertical slice по ADR-0013 — после фазы 4.
+WARRANT на Linux ещё не запускался ни разу), затем 4 (frontend Codex, ADR-0018 / ADR-0020). Vertical slice по ADR-0013 — после фазы 4.
 LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSION.md)).
+
+## Долг схем и CLI после ADR-0016…0022 — вход для фаз 3–4
+
+Ветка `feature/factory-adrs-0016-0022` (поверх phase-2; мёржить после неё). Решения записаны только в документах;
+все затронутые схемы — `additionalProperties: false`, поэтому до правки новые поля не пройдут `validate`.
+Все правки — **добавление необязательных полей**, версия `/1` не меняется.
+
+### A. Существующие схемы (фаза 3)
+
+| Схема | REQ | Добавить | ADR |
+|---|---|---|---|
+| `evidence.1` | REQ-KRN-012 | `metrics` (форму задаёт pack для kind); `subject.base_commit` | 0016 |
+| `pack.1` → `provides` | REQ-KRN-006 | `rules[]`; объявление JSON Schema `metrics` для каждого kind (сейчас `evidence_kinds` — список строк) | 0016, 0022 |
+| `check.1` | REQ-KRN-010 | `execution{exclusive, timeout_s, local, max_paths, guard_prefixes}`; `run.scoped_command` | 0017 |
+| `config.1` | REQ-KRN-004 | `defaults{check_timeout_s}` | 0017 |
+| `waiver.1` | REQ-KRN-019 | `targets[]` (частичный waiver; форму target задаёт pack gate) | 0016 |
+| `change-record.1` | REQ-KRN-011 | `amends[]`, `supersedes[]` | 0021 |
+
+### B. Новая схема
+
+| Схема | Содержание | ADR |
+|---|---|---|
+| `rule/1` | `{ $schema, id, paths[], text, enforced_by? }`; новый REQ в kernel spec | 0022 |
+
+### C. Существующие команды
+
+| Команда | REQ | Добавить | ADR | Фаза |
+|---|---|---|---|---|
+| `validate` | REQ-KRN-021 | `--files`; stable ID изменён / удалён относительно `HEAD`; висячие REQ / SCN; pragma mutation-инструментов; правила с `paths` только в `openspec/changes/**` — ошибка; `AGENTS.md` побайтно и ≤ 16 KiB; цель `amends` / `supersedes` в допустимом состоянии | 0019, 0021, 0022 | 3 |
+| `status` | REQ-KRN-027 | вычисляемые `amended_by[]` / `superseded_by[]`; доля правил без `enforced_by` | 0021, 0022 | 3 |
+| `sync` | REQ-KRN-025 | `.codex/hooks.json` (постоянная строка `warrant guard --frontend codex`), `AGENTS.md` | 0018, 0022 | 4 |
+
+### D. Новые команды — требования с первого дня
+
+| Команда | Требования | Фаза |
+|---|---|---|
+| `check` | замок `exclusive` в `git-common-dir`, `BUSY` (код 2), `--wait`, `--paths` + `scoped_command`, `timeout_s`, режим `local` | 3 (0017) |
+| `gate` / `verify` | `metrics.threshold` сверяется с effective param → `STALE`; частичный waiver исключает `targets`, не даёт `WAIVED`; `scope-valid` запрещает архив, record и evidence архивных Changes | 3 (0016, 0021) |
+| `analyze` | `STALE` для неприменимого target waiver; обратные ссылки | 3 (0016, 0021) |
+| `transition` | `ABANDONED` удаляет каталог Change и замораживает record | 3 (0021) |
+| `link` | `--amends` / `--supersedes`, до `APPROVED` | 3 (0021) |
+| `run start` | Context Pack и JSON-вывод с `rules[]` по `write_scope` | 4 (0022) |
+| `guard` | нормализованный контракт pre / post, `--frontend codex`; без Run → `deny`; `guard_prefixes`; hints через `additionalContext`, текст правил раз за Run; `guard_events[]` | 4 (0017–0019, 0022) |
+
+### E. Не фазы 3–4
+
+| Что | Когда |
+|---|---|
+| `attestation_type` `sef-approval`, `sef-gate` (enum в `common.1`); gate `spec-approved`; `analyze` TASK ↔ sef item; `SEF_PROTECTED_DRIFT`; forge `sef-hub` | срез S1 SEF (ADR-0020, proposed; черновик SEF предварительный) |
+| pack `bdd-tdd`: check `mutation`, parser в mutation-testing-report-schema, фильтр по diff, lint pragma | фаза 5 (0016); инструмент — spike S7 |
+| floor по размеру diff, pack `ui`, `dismissed[]` в skill-result | later по триггерам ([13 §3](13-roadmap.md)) |
+
+### Нарезка
+
+- Change `phase-3-verification`: A, B, C (без `sync`) и из D — `check`, `gate`, `verify`, `analyze`, `transition`, `link`.
+  Первая группа задач — схемы и `validate`: остальное от них зависит.
+- Change фазы 4: `sync`, `run start`, `guard`, адаптер `codex`.
 
 ## Чего не делать
 

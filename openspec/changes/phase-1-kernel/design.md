@@ -178,7 +178,7 @@ checks, controller — фаза 2 добавляет файлы и строки 
 
 ## Решения по ходу реализации
 
-Зафиксированы при apply групп 1–3 (I-1…I-11), 4 и 6 (I-12…I-15), 7 и 8 (I-16…I-21), 2026-09-22; нормативные документы не затронуты, ADR не требуется.
+Зафиксированы при apply групп 1–3 (I-1…I-11), 4 и 6 (I-12…I-15), 7 и 8 (I-16…I-21), 5 (I-22…I-31), 2026-09-22; нормативные документы не затронуты, ADR не требуется.
 
 | # | Решение | Где |
 |---|---|---|
@@ -203,6 +203,16 @@ checks, controller — фаза 2 добавляет файлы и строки 
 | I-19 | Resolver: `collectLayers(loaded, classification, riskLevel)` — слой `risk` требует уже вычисленного уровня; без classification слой `risk` не собирается вовсе (SCN-KRN-068), хотя `MEDIUM` выведен. Неизвестный profile или цикл `extends` → `CONFIG_INVALID`. `low.when_all` и `match` по измерению требуют наличия измерения (fail closed). `classification.profiles` дедуплицируется и сортируется до раскрытия `extends` | `core/resolve/{layers,risk-level}.ts` |
 | I-20 | Результат `resolve`: все массивы отсортированы (строки лексикографически, `approvals` по `role@at`, ключи `gates` лексикографически), ключи всегда присутствуют (пустые массивы / объекты); `explain[].item` — `risk_level:<L>`, `artifact.{required,recommended,forbidden}:<id>`, `gate:<id>` (без перехода, как в 05 §6), `capability.forbidden:<x>`, `approval:<role>@<at>`, `evidence:<kind>`; `explain` в `data` только с `--explain`; `sources` для `.warrant/local` дедуплицируются по hash содержимого. Конфликт: `errors[0] = POLICY_CONFLICT`, `data = { controller_action: ESCALATE, conflicts[] }`, код 2 | `core/resolve/merge.ts`, `commands/resolve.ts` |
 | I-21 | Golden cases: `input.json = { packs[], classification?, local? }` — раннер строит temp-проект и прогоняет реальный loader; `expected.json` — результат без `hash` (`kernel@{CLI_VERSION}` и `sha256:<hash>` нормализуются раннером), для `policy-conflict` — объект конфликта. Fixture-packs `policy` и `policy-conflict`; golden-файлы без `$schema` вне `.warrant/**` и вне набора `fmt`. `--classification <file>` валидируется оборачиванием в минимальный record; файл имеет приоритет над record | `test/golden/resolve/`, `test/fixtures/packs/{policy,policy-conflict}` |
+| I-22 | `init` пишет только свои файлы (`warrant.json`, `local/areas.json`, `local/openspec/rules.json`, четыре `.gitkeep`) и затем вызывает `runSync`: копии схем, файлы OpenSpec и lock создаёт только `sync` (I-17), логика не дублируется | `commands/init.ts` |
+| I-23 | Порядок `init`: `ALREADY_INITIALIZED` → `openspec --version` → версия bundled pack → запись → `sync`; повторный `init` отказывает одинаково с `openspec` на PATH и без него | `commands/init.ts` |
+| I-24 | Нет `openspec` на PATH → `OPENSPEC_FAILED`, код 3, до любой записи (как I-16) | `commands/init.ts` |
+| I-25 | `warrant.json.openspec` = `<major>.<minor>.x` от точной версии `openspec --version` (minor может менять форму `config.yaml`, patch — нет); `packs.core-sdd.version` = `^<version из packs/core-sdd/pack.json>`; bundled pack без версии → `INTERNAL` | `core/init/scaffold.ts` |
+| I-26 | `--force` переписывает все init-owned файлы и ничего больше; содержимое `changes/`, `waivers/`, `evidence/`, `runs/` не удаляется. Без `--force` существующие init-owned файлы (кроме `warrant.json`) остаются и не попадают в `data.created[]` | `commands/init.ts` |
+| I-27 | `data` `init` = `{ created[], sync }`: `created[]` — записанные init-owned файлы плюс `changed[]` из `sync` (POSIX-пути); `sync` — полный payload `{ schema, changed, generated, stale }`. Ошибка `sync` пробрасывается со своим кодом, `data` сохраняется | `commands/init.ts` |
+| I-28 | `init change`: порядок `requireConfigPath` → kebab-case (`USAGE`) → `CHANGE_NAME_TAKEN` → `config.yaml` с ключом `schema` (`CONFIG_INVALID`) → `openspec new change` (`OPENSPEC_FAILED`) → record. Конфликт имени учитывает также `openspec/changes/<name>/` и `archive/<name>` (сверх двух источников spec — чтобы не затирать ручной каталог); `errors[0].path` — конфликтующий путь | `core/init/scaffold.ts` |
+| I-29 | `data` `init change` = `{ change, record, openspec_dir }`, `change` в envelope; record = `{ $schema, change, change_state: PROPOSED, transitions: [{ to: PROPOSED, at: <UTC ISO 8601>, by: "cli:local" }] }` через `writeJsonFile` | `core/init/scaffold.ts` |
+| I-30 | Имя схемы OpenSpec берётся из `openspec/config.yaml` регулярным выражением `^schema: <value>$` (в кавычках или без), не YAML-парсером: `yaml` — только dev-зависимость, `sync` пишет ключ в колонке 0 | `core/init/scaffold.ts` |
+| I-31 | Тесты: fake `openspec` на PATH (паттерн из `sync.test.ts`) пишет marker-файл — доказательство, что `openspec new change` не вызывался при `CHANGE_NAME_TAKEN` (SCN-KRN-055) и `openspec --version` — при повторном `init` | `test/e2e/init.test.ts` |
 
 ## Open Questions
 

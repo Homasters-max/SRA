@@ -46,5 +46,23 @@
     ]
   },
   "stale": [],
-  "superseded_by": []
+  "superseded_by": [],
+  "verification": {
+    "controller_action": "CONTINUE",
+    "findings": [
+      {
+        "code": "NO_EVIDENCE",
+        "gate": "spec-valid",
+        "kind": "spec-report",
+        "message": "no admissible spec-report record; run the check that produces it"
+      }
+    ],
+    "gates": {
+      "ids-valid": "PASS",
+      "required-artifacts-present": "PASS",
+      "spec-valid": "BLOCKED"
+    },
+    "rule": null,
+    "transition": "PROPOSED->SPECIFIED"
+  }
 }

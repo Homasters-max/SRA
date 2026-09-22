@@ -102,7 +102,7 @@ describe("warrant status <change>", () => {
     expect(Array.isArray(run.json?.data.effective_policy.sources)).toBe(true);
   });
 
-  it("omits verdicts and next entirely (REQ-KRN-027)", async () => {
+  it("carries the verification of the next transition last (REQ-KRN-027)", async () => {
     const root = project();
     const run = await runCli(["status", "add-search"], root, env("status-fresh"));
     expect(Object.keys(run.json?.data)).toEqual([
@@ -113,8 +113,11 @@ describe("warrant status <change>", () => {
       "artifacts",
       "stale",
       "amended_by",
-      "superseded_by"
+      "superseded_by",
+      "verification"
     ]);
+    expect(Object.keys(run.json?.data.verification)).toEqual(["transition", "gates", "findings", "controller_action", "rule"]);
+    expect(run.json?.data.verification.transition).toBe("PROPOSED->SPECIFIED");
     // `rules` belongs to the form without an argument only (SCN-KRN-104).
     expect(run.json?.data.rules).toBeUndefined();
   });

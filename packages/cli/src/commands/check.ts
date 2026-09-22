@@ -17,8 +17,6 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import spawnCjs from "cross-spawn";
-
 import { writeJsonFile } from "../core/canon/format-json.js";
 import { canonicalHash } from "../core/canon/hash.js";
 import { acquireLock, lockPath } from "../core/check/lock.js";
@@ -28,14 +26,9 @@ import { EXIT, WarrantError, type CliError, type ExitCode } from "../core/errors
 import { attestationFromEnv } from "../core/evidence/attestation.js";
 import { buildManifest } from "../core/evidence/manifest.js";
 import { findParser, parserNames } from "../core/evidence/parsers/index.js";
-import {
-  buildCheckRecord,
-  collectArtifacts,
-  NO_GIT_COMMIT,
-  NO_GIT_LIMITATION,
-  type EvidenceStatus
-} from "../core/evidence/record.js";
+import { buildCheckRecord, collectArtifacts, type EvidenceStatus } from "../core/evidence/record.js";
 import { evidenceDir, listRecordIds, MANIFEST_FILE, projectUri, rawDir, readManifest } from "../core/evidence/store.js";
+import { readGitFacts, type GitFacts } from "../core/gates/diff.js";
 import { allocateUlid } from "../core/ids/allocate.js";
 import { openspecVersion } from "../core/openspec/version.js";
 import { LOCK_REL } from "../core/packs/hash.js";
@@ -48,9 +41,6 @@ import { failures, success, type CommandResult } from "../io/output.js";
 import { CLI_VERSION } from "../version.js";
 import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
 
-// `cross-spawn` is CommonJS with `export =`; the same spawner as `classify` for git.
-const spawn = spawnCjs as unknown as typeof import("cross-spawn");
-
 export interface CheckOptions {
   /** `--paths a,b`: run `run.scoped_command` over these paths. */
   paths?: string | undefined;
@@ -60,9 +50,6 @@ export interface CheckOptions {
 
 /** Default of `execution.timeout_s` when neither the check nor `warrant.json` sets one (D-17). */
 export const DEFAULT_TIMEOUT_S = 1800;
-
-/** Base branch of the default `--base` (design §9: a constant until a failure mode says otherwise). */
-export const BASE_BRANCH = "main";
 
 /** The forward chain of 04 §2; `ABANDONED` has no successor. */
 const FORWARD = ["PROPOSED", "SPECIFIED", "APPROVED", "IMPLEMENTING", "VERIFYING", "MERGED", "ARCHIVED"] as const;
@@ -114,48 +101,6 @@ export function checksForTransition(loaded: LoadResult, policy: EffectivePolicy,
   return loaded.objects
     .filter((o) => o.kind === "check" && strings(effectiveCheck(o)["produces"]).some((kind) => kinds.has(kind)))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-}
-
-function git(args: string[], cwd: string): { ok: boolean; stdout: string } {
-  const proc = spawn.sync("git", args, { cwd, encoding: "utf8" });
-  return { ok: proc.error == null && proc.status === 0, stdout: (proc.stdout ?? "").trim() };
-}
-
-interface GitFacts {
-  /** Absolute `git rev-parse --git-common-dir`, or null outside git. */
-  commonDir: string | null;
-  /** HEAD, or {@link NO_GIT_COMMIT} outside git or before the first commit. */
-  commit: string;
-  baseCommit?: string;
-  limitations: string[];
-}
-
-/** The git facts a record needs (design §6, §9); `--base` that does not resolve is `USAGE`. */
-function gitFacts(root: string, baseRef: string | undefined): GitFacts {
-  const common = git(["rev-parse", "--git-common-dir"], root);
-  const head = common.ok ? git(["rev-parse", "--verify", "--quiet", "HEAD"], root) : { ok: false, stdout: "" };
-  const facts: GitFacts = {
-    commonDir: common.ok && common.stdout !== "" ? path.resolve(root, common.stdout) : null,
-    commit: head.ok && head.stdout !== "" ? head.stdout : NO_GIT_COMMIT,
-    limitations: []
-  };
-  if (facts.commit === NO_GIT_COMMIT) facts.limitations.push(NO_GIT_LIMITATION);
-
-  if (baseRef !== undefined) {
-    const base =
-      facts.commonDir === null
-        ? { ok: false, stdout: "" }
-        : git(["rev-parse", "--verify", "--quiet", `${baseRef}^{commit}`], root);
-    if (!base.ok || base.stdout === "") {
-      throw new WarrantError("USAGE", `--base ${JSON.stringify(baseRef)} does not name a commit of this repository`);
-    }
-    facts.baseCommit = base.stdout;
-  } else if (facts.commit !== NO_GIT_COMMIT) {
-    const base = git(["merge-base", "HEAD", BASE_BRANCH], root);
-    if (base.ok && base.stdout !== "") facts.baseCommit = base.stdout;
-    else facts.limitations.push(`no base: merge-base(HEAD, ${BASE_BRANCH}) unknown`);
-  }
-  return facts;
 }
 
 /** Everything the per-check step shares. */
@@ -362,6 +307,72 @@ function readLock(root: string): Record<string, unknown> | undefined {
   }
 }
 
+/** What a batch of checks left behind: one entry per check and the failures among them. */
+export interface ChecksRun {
+  entries: Record<string, unknown>[];
+  errors: CliError[];
+  /** Failed checks with the kinds they would have produced (for `verify`, REQ-VER-006). */
+  failures: { check: string; code: string; kinds: string[] }[];
+  /** Highest exit code of the failures; 0 when every record was written. */
+  exitCode: ExitCode;
+  /** Holder of the exclusive lock, when a check found it taken. */
+  holder?: unknown;
+}
+
+export interface ChecksParams {
+  root: string;
+  change: string;
+  loaded: LoadResult;
+  policy: EffectivePolicy;
+  selected: PackObject[];
+  facts: GitFacts;
+  paths: string[] | undefined;
+  env: NodeJS.ProcessEnv;
+  warn: (text: string) => void;
+}
+
+/**
+ * Runs the selected checks one after another and writes their records; shared
+ * by `check` and `verify`. A failed check does not stop the others.
+ */
+export async function executeChecks(params: ChecksParams): Promise<ChecksRun> {
+  const { root, loaded, policy } = params;
+  let versions: ReturnType<Context["versions"]> | undefined;
+  const ctx: Context = {
+    root,
+    change: params.change,
+    loaded,
+    policyHash: policy.hash,
+    git: params.facts,
+    paths: params.paths,
+    env: params.env,
+    warn: params.warn,
+    versions: () => {
+      if (versions !== undefined) return versions;
+      const lock = readLock(root);
+      versions = {
+        warrant: CLI_VERSION,
+        openspec: manifestOpenspecVersion(root, lock, params.warn),
+        ...(lock === undefined ? {} : { lock_hash: canonicalHash(lock) }),
+        effective_policy_hash: policy.hash
+      };
+      return versions;
+    }
+  };
+
+  const run: ChecksRun = { entries: [], errors: [], failures: [], exitCode: EXIT.OK };
+  for (const object of params.selected) {
+    const outcome = await runOne(ctx, object);
+    run.entries.push(outcome.entry);
+    if (outcome.ok) continue;
+    run.errors.push(outcome.error.toCliError());
+    run.failures.push({ check: object.id, code: outcome.error.code, kinds: strings(effectiveCheck(object)["produces"]) });
+    run.exitCode = Math.max(run.exitCode, outcome.error.exitCode) as ExitCode;
+    if (outcome.holder !== undefined && run.holder === undefined) run.holder = outcome.holder;
+  }
+  return run;
+}
+
 export async function runCheck(
   change: string,
   ids: string[],
@@ -408,43 +419,8 @@ export async function runCheck(
   const paths = opts.paths === undefined ? undefined : splitPaths(opts.paths);
   if (paths !== undefined && paths.length === 0) throw new WarrantError("USAGE", "--paths lists no path");
 
-  const facts = gitFacts(root, opts.base);
-  let versions: ReturnType<Context["versions"]> | undefined;
-  const ctx: Context = {
-    root,
-    change,
-    loaded,
-    policyHash: policy.hash,
-    git: facts,
-    paths,
-    env,
-    warn,
-    versions: () => {
-      if (versions !== undefined) return versions;
-      const lock = readLock(root);
-      versions = {
-        warrant: CLI_VERSION,
-        openspec: manifestOpenspecVersion(root, lock, warn),
-        ...(lock === undefined ? {} : { lock_hash: canonicalHash(lock) }),
-        effective_policy_hash: policy.hash
-      };
-      return versions;
-    }
-  };
-
-  const entries: Record<string, unknown>[] = [];
-  const errors: CliError[] = [];
-  let exitCode: ExitCode = EXIT.OK;
-  let holder: unknown;
-  for (const object of selected) {
-    const outcome = await runOne(ctx, object);
-    entries.push(outcome.entry);
-    if (outcome.ok) continue;
-    errors.push(outcome.error.toCliError());
-    exitCode = Math.max(exitCode, outcome.error.exitCode) as ExitCode;
-    if (outcome.holder !== undefined && holder === undefined) holder = outcome.holder;
-  }
-
+  const run = await executeChecks({ root, change, loaded, policy, selected, facts: readGitFacts(root, opts.base), paths, env, warn });
+  const { entries, errors, exitCode, holder } = run;
   const data: Record<string, unknown> = { transition, checks: entries };
   if (holder !== undefined) data["holder"] = holder;
   if (errors.length > 0) return failures(errors, exitCode, data, change);

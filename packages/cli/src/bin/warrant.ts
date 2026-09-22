@@ -13,6 +13,8 @@ import { runResolve } from "../commands/resolve.js";
 import { runStatus } from "../commands/status.js";
 import { runClassify } from "../commands/classify.js";
 import { runCheck } from "../commands/check.js";
+import { runGate } from "../commands/gate.js";
+import { runVerify } from "../commands/verify.js";
 
 export type Runner = (args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -129,6 +131,38 @@ register(
       .argument("[ids...]")
       .option("--paths <a,b>", "run run.scoped_command over these comma-separated paths")
       .option("--base <ref>", "base commit of the evidence (default: merge-base of HEAD and main)")
+);
+
+register(
+  "gate",
+  "evaluate the gates of a transition and the controller",
+  (args, opts) =>
+    runGate(args[0] as string, args.slice(1), {
+      ...(typeof opts["transition"] === "string" ? { transition: opts["transition"] } : {}),
+      ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {})
+    }),
+  (c) =>
+    c
+      .argument("<change>")
+      .argument("[ids...]")
+      .option("--transition <FROM->TO>", "transition to evaluate (default: the next forward one)")
+      .option("--base <ref>", "base commit of the diff (default: merge-base of HEAD and main)")
+);
+register(
+  "verify",
+  "run the checks of a transition, then its gates and the controller",
+  (args, opts) =>
+    runVerify(args[0] as string, {
+      ...(typeof opts["transition"] === "string" ? { transition: opts["transition"] } : {}),
+      ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {}),
+      ...(typeof opts["paths"] === "string" ? { paths: opts["paths"] } : {})
+    }),
+  (c) =>
+    c
+      .argument("<change>")
+      .option("--transition <FROM->TO>", "transition to verify (default: the next forward one)")
+      .option("--base <ref>", "base commit of the evidence and the diff (default: merge-base of HEAD and main)")
+      .option("--paths <a,b>", "run run.scoped_command of the checks over these comma-separated paths")
 );
 
 async function main(): Promise<void> {

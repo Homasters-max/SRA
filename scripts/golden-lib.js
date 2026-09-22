@@ -35,8 +35,10 @@ export const FAKE_OPENSPEC_VERSION = "1.13.1";
 const PATH_KEY = Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
 
 /**
- * Fake `openspec` на PATH: отвечает на `--version` и на `status --change <c>
- * --json` телом, вычисленным по содержимому самой фикстуры.
+ * Fake `openspec` на PATH: отвечает на `--version`, на `status --change <c>
+ * --json` телом, вычисленным по содержимому самой фикстуры, и на `validate <c>
+ * --strict --json` валидным отчётом в форме OpenSpec 1.13.1 (I-78) — его
+ * читает check `openspec-validate` в `warrant verify` (SCN-SDD-020).
  *
  * Зачем не настоящий бинарь: `expected/*.json` не должны зависеть от того,
  * установлен ли OpenSpec на машине и какой именно (фаза 1, `status.test.ts`).
@@ -51,6 +53,14 @@ function fakeOpenspecDir(dir) {
 const path = require("path");
 const args = process.argv.slice(2);
 if (args.includes("--version")) { process.stdout.write(${JSON.stringify(FAKE_OPENSPEC_VERSION)} + "\\n"); process.exit(0); }
+if (args[0] === "validate") {
+  process.stdout.write(JSON.stringify({
+    items: [{ id: args[1], type: "change", valid: true, issues: [], durationMs: 0 }],
+    summary: { totals: { items: 1, passed: 1, failed: 0 }, byType: { change: { items: 1, passed: 1, failed: 0 } } },
+    version: "1.0"
+  }) + "\\n");
+  process.exit(0);
+}
 const i = args.indexOf("--change");
 const change = i === -1 ? "" : args[i + 1];
 const dir = path.join(process.cwd(), "openspec", "changes", change);
@@ -173,9 +183,30 @@ export function normalise(value, { cliVersion, projectRoot }) {
   return JSON.parse(text);
 }
 
+/** Переход, который проверяет golden `verify` (P-18): фикстуры не git, поэтому только он. */
+export const GOLDEN_TRANSITION = "PROPOSED->SPECIFIED";
+
 /**
- * Полная процедура одной фикстуры: `sync`, `resolve --explain`, `status`.
- * Возвращает нормализованные `data` обеих команд.
+ * Снимок `warrant verify` (REQ-SDD-009, design §16): verdicts, решение
+ * controller'а, коды findings и исход checks — без ULID записей, путей и
+ * времени. `effective_policy` остаётся: его hash стабилен вне git (G-10).
+ */
+export function verifySnapshot(data) {
+  const out = { transition: data.transition, gates: data.gates, controller_action: data.controller_action };
+  if (data.next !== undefined) out.next = data.next;
+  out.rule = data.rule;
+  out.findings = data.findings.map((f) => (f.gate === undefined ? { code: f.code } : { code: f.code, gate: f.gate }));
+  out.checks = data.checks.map((c) => ({ id: c.id, kind: c.kind, evidence_status: c.evidence_status }));
+  out.effective_policy = data.effective_policy;
+  return out;
+}
+
+/**
+ * Полная процедура одной фикстуры: `sync`, `resolve --explain`, `status`,
+ * `verify --transition PROPOSED->SPECIFIED`. Всё — в копии: evidence, которое
+ * пишет `verify`, не попадает в `packs/core-sdd/golden/**` (SCN-SDD-015).
+ * `status` идёт до `verify` и показывает фикстуру как она есть, без evidence.
+ * Возвращает нормализованные `data` команд.
  */
 export async function runGolden(name, tempRoot) {
   const { root, env } = prepareGolden(name, tempRoot);
@@ -193,13 +224,21 @@ export async function runGolden(name, tempRoot) {
   if (status.status !== 0) {
     throw new Error(`golden ${name}: warrant status failed (${status.status})\n${status.stdout}${status.stderr}`);
   }
+  // В CI сам прогон идёт под GitHub Actions; снимок — локальный запуск.
+  const verify = await runCli(["verify", name, "--transition", GOLDEN_TRANSITION], root, { ...env, GITHUB_ACTIONS: "" });
+  if (verify.json === undefined) {
+    throw new Error(`golden ${name}: warrant verify printed no envelope (${verify.status})\n${verify.stdout}${verify.stderr}`);
+  }
 
   const context = { cliVersion: version, projectRoot: root };
   return {
     root,
     changed: sync.json.data.changed,
     resolve: normalise(resolve.json.data, context),
-    status: normalise(status.json.data, context)
+    status: normalise(status.json.data, context),
+    verify: normalise(verifySnapshot(verify.json.data), context),
+    verifyExit: verify.status,
+    verifyErrors: verify.json.errors
   };
 }
 

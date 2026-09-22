@@ -1,0 +1,22 @@
+{
+  "checks": [
+    {
+      "evidence_status": "PROVEN",
+      "id": "openspec-validate",
+      "kind": "spec-report"
+    }
+  ],
+  "controller_action": "CONTINUE",
+  "effective_policy": {
+    "hash": "sha256:ceb629a615498f44cde43b0fdd1abc812c0ebca7725a67c3f84a3d7c43933507",
+    "risk_level": "LOW"
+  },
+  "findings": [],
+  "gates": {
+    "ids-valid": "PASS",
+    "required-artifacts-present": "PASS",
+    "spec-valid": "PASS"
+  },
+  "rule": null,
+  "transition": "PROPOSED->SPECIFIED"
+}

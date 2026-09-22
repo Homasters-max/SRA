@@ -29,11 +29,11 @@
 
 ## 4. gate, controller, verify
 
-- [ ] 4.1 `core/gates/`: `diff.ts` (base, изменённые пути, `--diff-filter`, ancestry; D-9), `prefilter.ts` (D-12: commit, base, threshold, `scoped:`, waiver `ACTIVE`), `verdict.ts` (алгоритм 06 §3, `BLOCKED/NO_EVIDENCE`, `WAIVED_BY`, `WAIVER_IGNORED`, `ATTESTATION_REQUIRED`). Проверка: unit-тесты verdict на таблице случаев SCN-VER-012…018. (REQ-VER-003)
-- [ ] 4.2 Калькуляторы L0 (D-8): `required-artifacts-present`, `ids-valid`, `blocking-unknowns-resolved`, `branch-isolated`, `evidence-complete`, `scope-valid` (множества путей по переходу, D-15), `factory-golden-passed` (`applies_when`), `analyze-clean` → `BLOCKED/NO_INPUT`; чужой gate без калькулятора → `BLOCKED/NO_INPUT`. Проверка: e2e SCN-VER-014, 019, 020, 021, 022, 023 в temp-репозитории. (REQ-VER-004)
-- [ ] 4.3 `core/controller/` (D-11) и команда `warrant gate <change> [id...] [--transition] [--base]` с кодом выхода по `controller_action`. Проверка: unit SCN-VER-024, 025, 026; e2e `gate` печатает `gates`, `findings`, `transition`. (REQ-VER-003, REQ-VER-005)
-- [ ] 4.4 Команда `warrant verify <change> [--transition] [--base] [--paths]`: check → gate → controller, ошибки checks не прерывают gates, `max` кодов. Проверка: e2e SCN-VER-027, 028. (REQ-VER-006)
-- [ ] 4.5 `status.verification` через gate engine без runner'а (D-12 design); golden: fake `openspec validate`, `expected/verify.json`, сравнение в `golden.test.ts`; `golden:update`. Проверка: e2e SCN-KRN-101; SCN-SDD-020; SCN-SDD-015 (двойной прогон без diff). (REQ-KRN-027, REQ-SDD-009)
+- [x] 4.1 `core/gates/`: `diff.ts` (base, изменённые пути, `--diff-filter`, ancestry; D-9), `prefilter.ts` (D-12: commit, base, threshold, `scoped:`, waiver `ACTIVE`), `verdict.ts` (алгоритм 06 §3, `BLOCKED/NO_EVIDENCE`, `WAIVED_BY`, `WAIVER_IGNORED`, `ATTESTATION_REQUIRED`). Проверка: unit-тесты verdict на таблице случаев SCN-VER-012…018. (REQ-VER-003)
+- [x] 4.2 Калькуляторы L0 (D-8): `required-artifacts-present`, `ids-valid`, `blocking-unknowns-resolved`, `branch-isolated`, `evidence-complete`, `scope-valid` (множества путей по переходу, D-15), `factory-golden-passed` (`applies_when`), `analyze-clean` → `BLOCKED/NO_INPUT`; чужой gate без калькулятора → `BLOCKED/NO_INPUT`. Проверка: e2e SCN-VER-014, 019, 020, 021, 022, 023 в temp-репозитории. (REQ-VER-004)
+- [x] 4.3 `core/controller/` (D-11) и команда `warrant gate <change> [id...] [--transition] [--base]` с кодом выхода по `controller_action`. Проверка: unit SCN-VER-024, 025, 026; e2e `gate` печатает `gates`, `findings`, `transition`. (REQ-VER-003, REQ-VER-005)
+- [x] 4.4 Команда `warrant verify <change> [--transition] [--base] [--paths]`: check → gate → controller, ошибки checks не прерывают gates, `max` кодов. Проверка: e2e SCN-VER-027, 028. (REQ-VER-006)
+- [x] 4.5 `status.verification` через gate engine без runner'а (D-12 design); golden: fake `openspec validate`, `expected/verify.json`, сравнение в `golden.test.ts`; `golden:update`. Проверка: e2e SCN-KRN-101; SCN-SDD-020; SCN-SDD-015 (двойной прогон без diff). (REQ-KRN-027, REQ-SDD-009)
 
 ## 5. transition, archive, classify --set
 

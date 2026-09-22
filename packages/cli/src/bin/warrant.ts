@@ -8,6 +8,8 @@ import { requireConfigPath } from "../commands/context.js";
 import { runValidate } from "../commands/validate.js";
 import { runFmt } from "../commands/fmt.js";
 import { runId } from "../commands/id.js";
+import { runSync } from "../commands/sync.js";
+import { runResolve } from "../commands/resolve.js";
 
 export type Runner = (args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -71,9 +73,21 @@ register(
   (args, opts) => runId(args, { ...(typeof opts["change"] === "string" ? { change: opts["change"] as string } : {}) }),
   (c) => c.argument("[args...]").option("--change <name>")
 );
-register("sync", "generate OpenSpec files and lock", needsConfig, (c) => c.option("--check"));
-register("resolve", "compute effective policy", needsConfig, (c) =>
-  c.argument("<change>").option("--explain").option("--classification <file>")
+register(
+  "sync",
+  "generate OpenSpec files and lock",
+  (_args, opts) => runSync({ check: opts["check"] as boolean | undefined }),
+  (c) => c.option("--check")
+);
+register(
+  "resolve",
+  "compute effective policy",
+  (args, opts) =>
+    runResolve(args[0] as string, {
+      ...(opts["explain"] === true ? { explain: true } : {}),
+      ...(typeof opts["classification"] === "string" ? { classification: opts["classification"] } : {})
+    }),
+  (c) => c.argument("<change>").option("--explain").option("--classification <file>")
 );
 register("status", "show change status", needsConfig, (c) => c.argument("[change]"));
 

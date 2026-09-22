@@ -1,0 +1,11 @@
+{
+  "packs": [
+    "policy"
+  ],
+  "classification": {
+    "profiles": [
+      "feature",
+      "chore"
+    ]
+  }
+}

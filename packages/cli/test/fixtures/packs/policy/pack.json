@@ -1,0 +1,24 @@
+{
+  "$schema": "warrant://pack/1",
+  "id": "policy",
+  "version": "1.0.0",
+  "kernel": ">=0.1 <0.2",
+  "description": "Fixture pack: profiles, a default overlay and risk overlays for the resolver golden cases.",
+  "depends_on": {},
+  "provides": {
+    "profiles": [
+      "profiles/chore.json",
+      "profiles/data-change.json",
+      "profiles/feature.json",
+      "profiles/hotfix.json"
+    ],
+    "overlays": [
+      "overlays/baseline.json",
+      "overlays/risk-high.json",
+      "overlays/risk-medium.json"
+    ],
+    "risk_levels": [
+      "risk/levels.json"
+    ]
+  }
+}

@@ -5,15 +5,21 @@
  * one run tells the whole story (SCN-KRN-043, task 3.7).
  *
  * Check (7), the canonical form, shares its file set with `warrant fmt`
- * (`core/canon/files.ts`) so the two can never disagree.
+ * (`core/canon/files.ts`) so the two can never disagree; check (4) shares its
+ * planner with `warrant sync` (`core/sync/plan.ts`) for the same reason.
  *
- * Not implemented yet and therefore always listed in `data.skipped`:
- *   - `generated` (check 4)  — closes with task 3.6, after `sync` exists.
+ * Nothing is skipped unconditionally. `data.skipped` lists what this run could
+ * not do: `generated` when `--no-generated` was given (design Migration Plan),
+ * `openspec-schema` and `ids-placement` when `openspec` is not on PATH.
  */
 import path from "node:path";
 
-import { EXIT, type CliError } from "../core/errors.js";
+import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { walkFiles, loadPacks, reportPath } from "../core/packs/loader.js";
+import type { LoadResult } from "../core/packs/types.js";
+import { openspecAvailable, runOpenspec } from "../core/openspec/cli.js";
+import { requireOpenspec } from "../core/openspec/version.js";
+import { planSync } from "../core/sync/plan.js";
 import { checkLock, LOCK_REL } from "../core/packs/hash.js";
 import { checkIds } from "../core/ids/scan.js";
 import { scanSecrets } from "../core/secrets.js";
@@ -31,6 +37,79 @@ function sortErrors(errors: CliError[]): CliError[] {
     if (a.code !== b.code) return a.code < b.code ? -1 : 1;
     return a.message < b.message ? -1 : a.message > b.message ? 1 : 0;
   });
+}
+
+/**
+ * Check (4) of REQ-KRN-021: the generated OpenSpec files equal what `sync`
+ * would write, `openspec schema validate` passes, and every `rules` key names
+ * an artifact of the schema (ADR-0015).
+ *
+ * The byte comparison and the `rules` check need no `openspec` on PATH, so
+ * they always run; only the version gate and `openspec schema validate` are
+ * skipped when the binary is absent.
+ */
+function checkGenerated(
+  root: string,
+  loaded: LoadResult,
+  skipped: string[],
+  warn: (text: string) => void
+): CliError[] {
+  const errors: CliError[] = [];
+  const available = openspecAvailable();
+
+  let version: string | null = null;
+  if (available) {
+    try {
+      version = requireOpenspec(loaded.config, root);
+    } catch (thrown) {
+      errors.push(
+        thrown instanceof WarrantError
+          ? thrown.toCliError()
+          : { code: "OPENSPEC_FAILED", message: (thrown as Error).message }
+      );
+    }
+  }
+
+  // The lock belongs to check (2); passing null keeps it out of this plan.
+  const plan = planSync({ root, loaded, openspecVersion: null });
+  errors.push(...plan.errors);
+
+  for (const file of plan.files) {
+    if (!file.changed) continue;
+    errors.push({
+      code: "GENERATED_DRIFT",
+      message: "file differs from what `warrant sync` would generate; run `warrant sync`",
+      path: file.path
+    });
+  }
+
+  const artifacts = new Set(plan.artifacts);
+  for (const key of Object.keys(plan.rules.rules ?? {})) {
+    if (artifacts.has(key)) continue;
+    const source = plan.ruleSources[key] ?? ".warrant/local/openspec/rules.json";
+    errors.push({
+      code: "RULES_ARTIFACT_UNKNOWN",
+      message: `rules key "${key}" is not an artifact of schema ${plan.schema || "(unknown)"}`,
+      path: `${source}#/rules/${key}`
+    });
+  }
+
+  if (version !== null && plan.schema !== "") {
+    const run = runOpenspec(["schema", "validate", plan.schema, "--json"], root);
+    const valid = typeof run.json === "object" && run.json !== null ? (run.json as { valid?: unknown }).valid : undefined;
+    if (!run.ok || valid === false) {
+      errors.push({
+        code: "OPENSPEC_SCHEMA_INVALID",
+        message: `openspec rejected schema ${plan.schema}: ${(run.stderr || run.stdout).trim().split("\n")[0] ?? ""}`,
+        path: `openspec/schemas/${plan.schema}/schema.yaml`
+      });
+    }
+  } else if (version === null) {
+    skipped.push("openspec-schema");
+    warn("validate: check (4) `openspec schema validate` skipped: `openspec` is not on PATH\n");
+  }
+
+  return errors;
 }
 
 export interface ValidateOptions {
@@ -74,13 +153,15 @@ export function runValidate(
   errors.push(...checkLock({ projectRoot: root, config: loaded.config, packs: loaded.packs }));
   checkedFiles.add(LOCK_REL);
 
-  // Check (4): not implemented until `sync` exists (task 3.6).
-  skipped.push("generated");
-  warn(
-    opts.generated === false
-      ? "validate: check (4) generated files skipped (--no-generated)\n"
-      : "validate: check (4) generated files is not implemented yet (task 3.6); skipped\n"
-  );
+  // Check (4): generated OpenSpec files, byte for byte (task 3.6, SCN-KRN-045).
+  // A failed load already told the whole story; planning on top of it would
+  // only repeat it, so the check is skipped without a second word.
+  if (opts.generated === false) {
+    skipped.push("generated");
+    warn("validate: check (4) generated files skipped (--no-generated)\n");
+  } else if (loaded.errors.length === 0) {
+    errors.push(...checkGenerated(root, loaded, skipped, warn));
+  }
 
   // Check (5): stable ids.
   const ids = checkIds(root);

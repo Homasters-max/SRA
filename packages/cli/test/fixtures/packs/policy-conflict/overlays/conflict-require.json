@@ -1,0 +1,16 @@
+{
+  "$schema": "warrant://overlay/1",
+  "id": "conflict-require",
+  "version": "1.0.0",
+  "description": "Requires adr for the feature profile.",
+  "match": {
+    "profiles": [
+      "feature"
+    ]
+  },
+  "artifacts": {
+    "required": [
+      "adr"
+    ]
+  }
+}

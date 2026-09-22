@@ -1,0 +1,16 @@
+{
+  "$schema": "warrant://overlay/1",
+  "id": "risk-medium",
+  "version": "1.0.0",
+  "description": "Applies at MEDIUM risk.",
+  "match": {
+    "risk_level": [
+      "MEDIUM"
+    ]
+  },
+  "artifacts": {
+    "recommended": [
+      "design"
+    ]
+  }
+}

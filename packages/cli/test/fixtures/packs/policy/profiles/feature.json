@@ -1,0 +1,19 @@
+{
+  "$schema": "warrant://profile/1",
+  "id": "feature",
+  "version": "1.0.0",
+  "description": "Ordinary feature work.",
+  "artifacts": {
+    "required": [
+      "design"
+    ],
+    "recommended": [
+      "adr"
+    ]
+  },
+  "gates": {
+    "VERIFYING->MERGED": [
+      "tests-passed"
+    ]
+  }
+}

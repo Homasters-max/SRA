@@ -30,7 +30,7 @@
 - [x] 3.3 Проверка (2): lock ↔ config — версии в диапазонах, hash packs / skills / generated совпадают (`LOCK_MISMATCH`); тест с изменённым файлом pack после lock
 - [x] 3.4 `src/core/secrets.ts` с паттернами D-8; проверка (6) по `.warrant/**` и `.claude/**`; тест: `ghp_` + 36 символов → `SECRET_LIKE`, в `errors[]` нет самой строки (SCN-KRN-048)
 - [x] 3.5 `src/core/ids/scan.ts` (сканер комментариев по D-5) и проверка (5) через `openspec show --json`: формат, размещение, уникальность, AREA в реестре; тесты: ID над заголовком → `ID_PLACEMENT` (SCN-KRN-046), неизвестная AREA → `AREA_UNKNOWN` (SCN-KRN-047), дубликат → `ID_DUPLICATE`; e2e-тест пропускается без `openspec` на PATH
-- [ ] 3.6 Проверка (4): побайтное сравнение `openspec/config.yaml` и `openspec/schemas/<schema>/**` с результатом генерации (`GENERATED_DRIFT`, SCN-KRN-045), вызов `openspec schema validate --json` (`OPENSPEC_SCHEMA_INVALID`), ключи `rules` ⊆ artifacts (`RULES_ARTIFACT_UNKNOWN`); флаг `--no-generated` (D-Migration); зависит от 7.x — реализуется как вызов `sync --check` и закрывается после группы 7
+- [x] 3.6 Проверка (4): побайтное сравнение `openspec/config.yaml` и `openspec/schemas/<schema>/**` с результатом генерации (`GENERATED_DRIFT`, SCN-KRN-045), вызов `openspec schema validate --json` (`OPENSPEC_SCHEMA_INVALID`), ключи `rules` ⊆ artifacts (`RULES_ARTIFACT_UNKNOWN`); флаг `--no-generated` (D-Migration); зависит от 7.x — реализуется как вызов `sync --check` и закрывается после группы 7
 - [x] 3.7 e2e: `warrant validate` на `packs/core-sdd/` из корня monorepo → `ok: true` (SCN-KRN-043); все находки собираются за один вызов, а не до первой ошибки
 
 ## 4. Команда fmt (D-3, REQ-KRN-022)
@@ -54,19 +54,19 @@
 ## 7. Команда sync (D-4, D-7, D-9, REQ-KRN-025)
 
 - [x] 7.1 Pack `core-sdd` минимум: `pack.json`, `openspec/schema.json` (граф `warrant-sdd`, `instruction` = текст `spec-driven` + правила WARRANT по ADR-0015 п. 4), `openspec/rules.json`, `openspec/templates/{proposal,spec,design,tasks}.md`, `risk/levels.json`, `risk/floors.json`; `warrant validate` на pack зелёный (задача 3.7 остаётся зелёной)
-- [ ] 7.2 `src/core/openspec/yaml-emit.ts`; unit-тесты: round-trip через `yaml.parse` на config с многострочным `context`, строках с `:` и `#`, пустой строке, числе в строке; первая строка — маркер (SCN-KRN-063)
-- [ ] 7.3 Слияние `rules.json` pack + project (ADR-0015 п. 2): конкатенация `context`, объединение списков с сохранением порядка и удалением точных дублей; unit-тест SCN-KRN-062
-- [ ] 7.4 Команда `sync`: loader → merge → emit `config.yaml`, `schema.yaml`, копии templates → копии схем в `.warrant/schemas/` → lock с hash каждого pack, skill, generated; запись только при изменении байтов; `--check` → код 1; e2e: идемпотентность (`data.changed = []`, git чист — SCN-KRN-061), `PACK_NOT_FOUND` без записи (SCN-KRN-064), `openspec schema validate warrant-sdd --json` → `valid: true` (SCN-KRN-063)
-- [ ] 7.5 Проверка версии `openspec --version` против `warrant.json.openspec` до любого вызова (`OPENSPEC_VERSION`); тест с подменённым PATH-скриптом, печатающим другую версию
-- [ ] 7.6 Закрыть задачу 3.6: `validate` проверка (4) через `sync --check`; e2e с отредактированным `config.yaml` → `GENERATED_DRIFT` (SCN-KRN-045)
+- [x] 7.2 `src/core/openspec/yaml-emit.ts`; unit-тесты: round-trip через `yaml.parse` на config с многострочным `context`, строках с `:` и `#`, пустой строке, числе в строке; первая строка — маркер (SCN-KRN-063)
+- [x] 7.3 Слияние `rules.json` pack + project (ADR-0015 п. 2): конкатенация `context`, объединение списков с сохранением порядка и удалением точных дублей; unit-тест SCN-KRN-062
+- [x] 7.4 Команда `sync`: loader → merge → emit `config.yaml`, `schema.yaml`, копии templates → копии схем в `.warrant/schemas/` → lock с hash каждого pack, skill, generated; запись только при изменении байтов; `--check` → код 1; e2e: идемпотентность (`data.changed = []`, git чист — SCN-KRN-061), `PACK_NOT_FOUND` без записи (SCN-KRN-064), `openspec schema validate warrant-sdd --json` → `valid: true` (SCN-KRN-063)
+- [x] 7.5 Проверка версии `openspec --version` против `warrant.json.openspec` до любого вызова (`OPENSPEC_VERSION`); тест с подменённым PATH-скриптом, печатающим другую версию
+- [x] 7.6 Закрыть задачу 3.6: `validate` проверка (4) через `sync --check`; e2e с отредактированным `config.yaml` → `GENERATED_DRIFT` (SCN-KRN-045)
 
 ## 8. Команда resolve — golden первыми (D-6, REQ-KRN-026)
 
-- [ ] 8.1 Fixture-packs `test/fixtures/packs/` (base overlay, profiles `feature`/`chore` с `extends`, overlays `risk-medium`/`risk-high`, конфликтующая пара) и golden cases `test/golden/resolve/<case>/{input.json,expected.json}` из D-6; тест-раннер сравнивает результат без `hash` — **красный до 8.2–8.4**
-- [ ] 8.2 `src/core/resolve/layers.ts`: сбор слоёв `default → project → profiles (extends, без циклов) → risk (match)`; unit-тесты на `match` по `risk_level`, измерению и `profiles`
-- [ ] 8.3 `src/core/resolve/risk-level.ts`: `risk_level` из record или по `risk/levels.json`, `UNKNOWN` → не ниже `MEDIUM`, без classification → `MEDIUM`; unit-тесты (SCN-KRN-068)
-- [ ] 8.4 `src/core/resolve/merge.ts`: объединение по 05 §5, `recommended` − `required`, `approvals` по `(role, at)`, `POLICY_CONFLICT` с источниками, `explain[]`, `sources[]`, `hash` без `explain`/`sources`; golden зелёные (SCN-KRN-066, 067, 069); тест стабильности `hash` (SCN-KRN-065)
-- [ ] 8.5 Команда `resolve <change> [--explain] [--classification <file>]`: чтение record, `CHANGE_NOT_FOUND`, конфликт → `data.controller_action: ESCALATE`, код 2; e2e на fixture-проекте
+- [x] 8.1 Fixture-packs `test/fixtures/packs/` (base overlay, profiles `feature`/`chore` с `extends`, overlays `risk-medium`/`risk-high`, конфликтующая пара) и golden cases `test/golden/resolve/<case>/{input.json,expected.json}` из D-6; тест-раннер сравнивает результат без `hash` — **красный до 8.2–8.4**
+- [x] 8.2 `src/core/resolve/layers.ts`: сбор слоёв `default → project → profiles (extends, без циклов) → risk (match)`; unit-тесты на `match` по `risk_level`, измерению и `profiles`
+- [x] 8.3 `src/core/resolve/risk-level.ts`: `risk_level` из record или по `risk/levels.json`, `UNKNOWN` → не ниже `MEDIUM`, без classification → `MEDIUM`; unit-тесты (SCN-KRN-068)
+- [x] 8.4 `src/core/resolve/merge.ts`: объединение по 05 §5, `recommended` − `required`, `approvals` по `(role, at)`, `POLICY_CONFLICT` с источниками, `explain[]`, `sources[]`, `hash` без `explain`/`sources`; golden зелёные (SCN-KRN-066, 067, 069); тест стабильности `hash` (SCN-KRN-065)
+- [x] 8.5 Команда `resolve <change> [--explain] [--classification <file>]`: чтение record, `CHANGE_NOT_FOUND`, конфликт → `data.controller_action: ESCALATE`, код 2; e2e на fixture-проекте
 
 ## 9. Команда status (REQ-KRN-027)
 

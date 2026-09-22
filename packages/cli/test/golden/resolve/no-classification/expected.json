@@ -1,0 +1,45 @@
+{
+  "sources": [
+    "kernel@{CLI_VERSION}",
+    "policy@1.0.0:overlay/baseline@1.0.0"
+  ],
+  "risk_level": "MEDIUM",
+  "artifacts": {
+    "required": [
+      "proposal",
+      "specs"
+    ],
+    "recommended": [],
+    "forbidden": []
+  },
+  "gates": {
+    "VERIFYING->MERGED": [
+      "tests-passed"
+    ]
+  },
+  "capabilities": {
+    "forbidden": []
+  },
+  "approvals": [],
+  "evidence": {
+    "required": []
+  },
+  "explain": [
+    {
+      "item": "risk_level:MEDIUM",
+      "from": "default:no-classification"
+    },
+    {
+      "item": "artifact.required:proposal",
+      "from": "overlay/baseline"
+    },
+    {
+      "item": "artifact.required:specs",
+      "from": "overlay/baseline"
+    },
+    {
+      "item": "gate:tests-passed",
+      "from": "overlay/baseline"
+    }
+  ]
+}

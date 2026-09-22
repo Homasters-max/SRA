@@ -1,0 +1,80 @@
+{
+  "sources": [
+    "kernel@{CLI_VERSION}",
+    "policy@1.0.0:overlay/baseline@1.0.0",
+    "policy@1.0.0:profile/feature@1.0.0",
+    "policy@1.0.0:overlay/risk-high@1.0.0"
+  ],
+  "risk_level": "HIGH",
+  "artifacts": {
+    "required": [
+      "design",
+      "proposal",
+      "specs"
+    ],
+    "recommended": [
+      "adr"
+    ],
+    "forbidden": []
+  },
+  "gates": {
+    "VERIFYING->MERGED": [
+      "adversarial-review",
+      "tests-passed"
+    ]
+  },
+  "capabilities": {
+    "forbidden": []
+  },
+  "approvals": [
+    {
+      "role": "security",
+      "at": "APPROVED->IMPLEMENTING"
+    }
+  ],
+  "evidence": {
+    "required": []
+  },
+  "explain": [
+    {
+      "item": "risk_level:HIGH",
+      "from": "risk-levels/levels: high.when_any data_loss=HIGH"
+    },
+    {
+      "item": "artifact.required:design",
+      "from": "profile/feature"
+    },
+    {
+      "item": "artifact.required:design",
+      "from": "overlay/risk-high"
+    },
+    {
+      "item": "artifact.required:proposal",
+      "from": "overlay/baseline"
+    },
+    {
+      "item": "artifact.required:specs",
+      "from": "overlay/baseline"
+    },
+    {
+      "item": "artifact.recommended:adr",
+      "from": "profile/feature"
+    },
+    {
+      "item": "gate:adversarial-review",
+      "from": "overlay/risk-high"
+    },
+    {
+      "item": "gate:tests-passed",
+      "from": "overlay/baseline"
+    },
+    {
+      "item": "gate:tests-passed",
+      "from": "profile/feature"
+    },
+    {
+      "item": "approval:security@APPROVED->IMPLEMENTING",
+      "from": "overlay/risk-high"
+    }
+  ]
+}

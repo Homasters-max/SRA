@@ -1,0 +1,17 @@
+{
+  "packs": [
+    "policy",
+    "policy-conflict"
+  ],
+  "classification": {
+    "profiles": [
+      "feature"
+    ],
+    "risk": {
+      "data_loss": {
+        "value": "HIGH",
+        "from": "human:kat"
+      }
+    }
+  }
+}

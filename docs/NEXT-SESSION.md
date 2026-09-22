@@ -14,8 +14,9 @@ version: 0.2.0
 
 - **Фаза 1 закрыта**: PR #1 и PR #2 смержены в `main`; `phase-1-kernel` заархивирован (`openspec/changes/archive/2026-09-22-phase-1-kernel`,
   main spec `openspec/specs/kernel/spec.md`, REQ-KRN-001…027).
-- **Фаза 2 реализована целиком** на ветке `feature/phase-2-core-sdd` — группы 1–6 tasks.md, коммит на группу. PR в `main` открывает
-  maintainer (задача 6.3), tag `v0.2.0` — после merge. Версии: CLI **0.2.0**, pack `core-sdd` остаётся **0.1.0** (G-20).
+- **Фаза 2 закрыта**: PR #3 смержен в `main` (`7b12534`), tag `v0.2.0`; `phase-2-core-sdd` заархивирован stock `openspec archive`
+  (`openspec/changes/archive/2026-09-22-phase-2-core-sdd`, main specs `openspec/specs/{kernel,core-sdd}/spec.md`). `warrant status`
+  на архивном change даёт `ARCHIVED_WITHOUT_TRANSITION` — ожидаемо до `warrant archive` фазы 3. Версии: CLI **0.2.0**, pack `core-sdd` **0.1.0** (G-20).
 - Change `phase-2-core-sdd`: proposal, delta specs `kernel` (REQ-KRN-028 `classify`, MODIFIED 021/025, SCN-KRN-073…083) и `core-sdd`
   (REQ-SDD-001…009, SCN-SDD-001…016), design (D-1…D-11, I-45…I-65), tasks (6 групп, 24 задачи).
 - **Итог фазы 2:**
@@ -70,8 +71,12 @@ evidence `spec-report` (I-47), CI-матрица ubuntu-latest + windows-latest,
 В фазе 2 параллельные сессии работали в одном рабочем каталоге и переключали ветку посреди работы: коммит `d2d8fd3`
 «tasks — mark group 2 done» ушёл в `feature/factory-adrs-0016-0022`, где поверх него лёг чужой коммит; на
 `feature/phase-2-core-sdd` галочки пришлось проставить повторно. **Правило: одна ветка — один worktree**
-(`git worktree add`). Фаза 2 доделана в отдельном worktree `D:\project\SRA-phase2`. При слиянии `factory-adrs`
-ожидать конфликт в `openspec/changes/phase-2-core-sdd/tasks.md` и в этом файле.
+(`git worktree add`). Фаза 2 доделана в отдельном worktree `D:\project\SRA-phase2` (удалён после архивирования).
+`d2d8fd3` из истории не вырезан (ветка запушена, поверх неё живёт `feature/agent-rules-plan`); вместо этого `main` после
+архива слит в `feature/factory-adrs-0016-0022`, конфликт modify/delete по `openspec/changes/phase-2-core-sdd/tasks.md` разрешён
+в пользу удаления (все галочки уже в архиве). `feature/agent-rules-plan` перед PR должна влить `factory-adrs` (или `main`) —
+тогда тот же файл разрешится автоматически. В этом файле при слиянии ожидать конфликт раздела «Состояние»: брать версию `main`
+как основу и переносить пункты про ADR-0016…0022.
 
 ## Backlog из ревью фазы 1 (не закрыто, срок привязан к фазам)
 

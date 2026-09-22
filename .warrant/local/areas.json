@@ -5,5 +5,8 @@
   },
   "SDD": {
     "capability": "core-sdd"
+  },
+  "VER": {
+    "capability": "verification"
   }
 }

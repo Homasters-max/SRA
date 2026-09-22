@@ -81,6 +81,34 @@ floor (G-3). Группа 5 — CI-матрица ubuntu-latest + windows-latest
 Отклонения от spec/design — вопросом ко мне, не молча; принятые — I-N в design.md.
 ```
 
+### Решения grilling 2026-09-22 по фазе 3 (P-1…P-20) — приняты maintainer'ом
+
+Два раунда; proposal/design `phase-3-verification` ссылаются на них. Исполнено до propose: PR #5 (`feature/agent-rules-plan` → `main`,
+только docs), worktree `D:\project\SRA-phase3` на ветке `spec/phase-3-verification`, `warrant init change phase-3-verification`.
+
+| # | Решение |
+|---|---|
+| P-1 | Change `agent-session-guide` (шаг 3 плана «Карта агента») **пропущен**: `preflight` становится `warrant verify`, `CLAUDE.md`/`settings.json` с TTL до фазы 4 не стоят отдельного change; полигон ADR-0011 — сама фаза 3 (P-2) |
+| P-2 | Топология ADR-0011 на фазе 3: сначала PR `feature/agent-rules-plan` → `main`; затем `spec/phase-3-verification` (proposal/specs/design/tasks → PR → review → merge), `worktree/phase-3-verification` (код → PR), `archive/phase-3-verification`; один worktree на ветку |
+| P-3 | Новые REQ команд исполнения — новая capability `openspec/specs/verification/spec.md`, AREA `VER`; правки схем, `validate`, `status`, `classify` — delta `kernel` |
+| P-4 | Ядро: схемы A целиком как поля (`waiver.targets[]`, `amends/supersedes`, `execution.*` — валидируются, не исполняются), `rule/1` + `provides.rules` + проверки правил в `validate` и доля без `enforced_by` в `status`, D-13, `validate` (c) D-18 и цель `amends`/`supersedes`, `status` (`risk_level`, verdicts, `next`, D-22, `amended_by[]`), `check`, `gate` (D-11, D-12), `verify`, `transition` (в т.ч. `ABANDONED`), `archive`, controller, evidence `spec-report` + `test-report`, human-источник classification, CI-матрица, B3/B4/B5, I-52/57/59/64, ADR-0023. В `phase-3b`: `link`, поведение `targets[]`, `warrant waive`, `spec-approved`, исполнение `execution.local`/`guard_prefixes`, `analyze`, `validate --files`, проверки (d) висячие REQ/SCN и (f) pragma, `AGENTS.md` побайтно, понижение ниже floor |
+| P-5 | Human-источник: `warrant classify <change> --set <dim>=<value> [--set profile=<id>] --by <login>`, `login` ∈ `roles.*`, `from: human:<login>`; только повышение/подтверждение; понижение ниже floor → отказ `BELOW_FLOOR` (форма approval — 3b) |
+| P-6 | `transition` **принуждает**: вычисляет gates перехода, отказывает, если хоть один не в `PASS`/`WAIVED`/`NOT_APPLICABLE`; при успехе пишет `gates{}`, `evidence[]`, `effective_policy_hash`; `APPROVED`/`MERGED` без `--ref` → `USAGE`; без `--force`; переходы назад — без gates, записываются |
+| P-7 | Нет ни одной допустимой записи нужного kind → `BLOCKED` (controller `verify-incomplete`); запись есть, статус ≠ требуемому → `FAIL`. L0-gates без `requires_evidence` CLI считает сам; `BLOCKED` только без входа (не git, нет `openspec`) |
+| P-8 | Команды `next` нет: `verify` и `status` печатают `controller_action`, `next`, `rule`; правила pack (три) не расширяются; входы 04 §4 вычисляются |
+| P-9 | Группа 1 = CI-матрица (ubuntu + windows, Node 22, `npm i -g @fission-ai/openspec@1.13.1`, `npm i -g` из чекаута, `warrant validate` на fixture-проекте) + B3/B4/B5 + схемы A/B; группа 2 = `validate`/`status`; дальше по запросу |
+| P-10 | CLI `0.3.0` + tag `v0.3.0`; pack `core-sdd` `0.2.0`, `kernel: ">=0.1 <0.4"`; `evidence_kinds` принимает строку и объект `{kind, metrics_schema}` |
+| P-11 | I-52: skill вне проекта пишется в lock как `{ version, hash, source: "bundled", path: <относительно pack> }`; `source` — новое необязательное поле |
+| P-12 | ADR-0023 «Frontend разработки самого WARRANT» в группе 1: код репозитория WARRANT в MVP пишут сессии Claude Code без guard; норма ADR-0018/0020 — для проектов под WARRANT и slice; адаптер `claude` — кандидат фазы 4 по S8; `amends: [ADR-0018]`; строки 12 §7 (первая и третья) закрываются |
+| P-13 | Record `phase-2-core-sdd` остаётся `ARCHIVED_WITHOUT_TRANSITION` (ретро-запись подделала бы акт, ADR-0009) |
+| P-14 | Плейсхолдеры `run.command`/`scoped_command`: `{out}`, `{paths}`, `{change}`; env-контрактов нет; `{base}` не вводится |
+| P-15 | Attestation по окружению: локально `none`, под `GITHUB_ACTIONS` — `ci` с `ref` = URL run'а; workflow impl-PR запускает `warrant verify --transition VERIFYING->MERGED` и выгружает `.warrant/evidence/<change>/` artifact'ом; человек кладёт записи в archive-PR и пишет `transition MERGED --ref <run-url>`. Для `MERGED` «текущий commit» = commit evidence (`--commit <sha>`, default — свежайшая запись), обязан быть предком HEAD, все записи перехода на одном commit; L0-gates на том же commit, base = `merge-base(main, commit)` |
+| P-16 | `analyze-clean` и `adversarial-review` для change фазы 3 закрываются двумя waiver-файлами maintainer'а в `.warrant/waivers/` (`risk: HIGH`, `expires_at` — конец фазы 4); `validate` получает семантику waiver: gate существует и `waivable`, change существует, `approved_by` ∈ `roles`, дата в будущем (иначе `EXPIRED`); gate даёт `WAIVED` шагом 4 |
+| P-17 | Evidence `human-approval` создаёт `warrant transition <change> APPROVED\|MERGED --ref <URL review> --by <login>` (`produced_by: {human, <login>}`, `attestation: {human-review, ref}`); `--by` ∈ роли `approvals[]` policy; ссылку верифицирует `ci` (фаза 4) |
+| P-18 | Критерий выхода фазы 3: (1) три golden получают `expected/verify.json` для `PROPOSED->SPECIFIED` (fake `openspec validate`); (2) `phase-3-verification` проходит `PROPOSED→…→ARCHIVED` только через `transition`/`archive` по P-2 с waiver'ами P-16 и CI-evidence P-15; (3) CI-матрица зелёная; (4) `status` репозитория — `stale[]` только у `phase-2-core-sdd`. Vertical slice — критерий MVP после фазы 4 (13 §2 поправить) |
+| P-19 | `.warrant/evidence/<change>/manifest.json` + `<EVID>.json` коммитятся; raw — `{out}` = `.warrant/evidence/<change>/raw/<check-id>/`, не коммитится (`.gitignore`), запись ссылается `artifacts[{uri, sha256}]`; gate берёт свежайшую допустимую запись по kind, чистки нет; `WARRANT_STATE_DIR` переносит только `evidence/` и `runs/` |
+| P-20 | Сигнатуры: `check <change> [id...] [--paths] [--base]`, `gate <change> [id...] [--transition] [--base]`, `verify <change> [--transition] [--base] [--paths]`; переход по умолчанию — следующий вперёд от `change_state`; код выхода `verify`/`gate` по `controller_action` (gate `FAIL` → `WAIT` → 2); `check` — 0 при записанном evidence (и `NOT_PROVEN`), 2 `BUSY`, 3 таймаут/конфигурация |
+
 ### Организационное — одна ветка, один worktree
 
 В фазе 2 параллельные сессии работали в одном рабочем каталоге и переключали ветку посреди работы: коммит `d2d8fd3`

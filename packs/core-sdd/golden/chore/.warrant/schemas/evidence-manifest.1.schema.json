@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://evidence-manifest/1",
+  "title": "WARRANT evidence manifest",
+  "description": "`.warrant/evidence/<change>/manifest.json` — one manifest per Change listing its runs, evidence and gate verdicts (06a section 5).",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://evidence-manifest/1"
+    },
+    "change": {
+      "description": "Change id this manifest belongs to.",
+      "$ref": "warrant://common/1#/$defs/kebab_id"
+    },
+    "commit": {
+      "description": "Commit the manifest was written against.",
+      "type": "string",
+      "minLength": 1
+    },
+    "versions": {
+      "description": "Versions and hashes that make the manifest reproducible.",
+      "type": "object",
+      "properties": {
+        "warrant": {
+          "description": "Exact version of the WARRANT CLI.",
+          "$ref": "warrant://common/1#/$defs/semver"
+        },
+        "openspec": {
+          "description": "Exact version of OpenSpec.",
+          "$ref": "warrant://common/1#/$defs/semver"
+        },
+        "lock_hash": {
+          "description": "Content hash of `.warrant/warrant.lock.json`.",
+          "$ref": "warrant://common/1#/$defs/sha256"
+        },
+        "effective_policy_hash": {
+          "description": "Hash of the effective policy in force.",
+          "$ref": "warrant://common/1#/$defs/sha256"
+        }
+      },
+      "required": ["warrant", "openspec"],
+      "additionalProperties": false
+    },
+    "runs": {
+      "description": "Runs that produced the evidence of this Change.",
+      "type": "array",
+      "items": { "$ref": "warrant://common/1#/$defs/run_id" }
+    },
+    "evidence": {
+      "description": "Evidence records belonging to this Change.",
+      "type": "array",
+      "items": { "$ref": "warrant://common/1#/$defs/evid_id" }
+    },
+    "gates": {
+      "description": "Verdict of every evaluated gate, keyed by gate id.",
+      "type": "object",
+      "properties": {},
+      "patternProperties": {
+        "^[a-z0-9]+(-[a-z0-9]+)*$": { "$ref": "warrant://common/1#/$defs/gate_verdict" }
+      },
+      "propertyNames": {
+        "anyOf": [
+          { "$ref": "warrant://common/1#/$defs/kebab_id" },
+          { "pattern": "^\\$comment$" }
+        ]
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["$schema", "change", "commit", "versions"],
+  "additionalProperties": false
+}

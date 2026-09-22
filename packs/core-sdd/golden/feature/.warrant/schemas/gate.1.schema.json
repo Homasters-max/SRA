@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://gate/1",
+  "title": "WARRANT gate",
+  "description": "Gate — a transition rule that aggregates evidence into a `gate_verdict` (06 section 3).",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://gate/1"
+    },
+    "id": {
+      "description": "Gate id, unique across the packs enabled in a project.",
+      "$ref": "warrant://common/1#/$defs/kebab_id"
+    },
+    "version": {
+      "description": "Exact version of this gate.",
+      "$ref": "warrant://common/1#/$defs/semver"
+    },
+    "overrides": {
+      "description": "Pack object this local gate replaces, as `<pack>:<id>` (08 section 4).",
+      "$ref": "warrant://common/1#/$defs/overrides_ref"
+    },
+    "description": {
+      "description": "What this gate asserts, in one sentence.",
+      "type": "string"
+    },
+    "level": {
+      "description": "Verification level of the evidence this gate aggregates.",
+      "$ref": "warrant://common/1#/$defs/level"
+    },
+    "applies_when": {
+      "description": "Conditions under which the gate is evaluated; otherwise the verdict is NOT_APPLICABLE.",
+      "type": "object",
+      "properties": {
+        "changed_paths": {
+          "description": "Glob patterns over changed paths that activate this gate.",
+          "type": "array",
+          "items": {
+            "description": "Glob pattern relative to the project root.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "requires_evidence": {
+      "description": "Evidence that MUST be present with the given status for the gate to pass.",
+      "type": "array",
+      "items": {
+        "description": "One evidence requirement.",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "description": "Evidence kind from the catalogue declared by packs.",
+            "$ref": "warrant://common/1#/$defs/kebab_id"
+          },
+          "status": {
+            "description": "Status the evidence must carry.",
+            "$ref": "warrant://common/1#/$defs/evidence_status"
+          }
+        },
+        "required": ["kind", "status"],
+        "additionalProperties": false
+      }
+    },
+    "waivable": {
+      "description": "Whether an ACTIVE waiver may replace a failing verdict. No default is implied (INV-10).",
+      "type": "boolean"
+    },
+    "accepts_attestation": {
+      "description": "Attestation types accepted for the evidence of this gate.",
+      "type": "array",
+      "items": { "$ref": "warrant://common/1#/$defs/attestation_type" }
+    }
+  },
+  "required": ["$schema", "id", "version", "level", "waivable"],
+  "additionalProperties": false
+}

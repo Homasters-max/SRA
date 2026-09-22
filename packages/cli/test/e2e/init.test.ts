@@ -44,9 +44,9 @@ function fakeOpenspec(marker: string): string {
 describe("warrant init", () => {
   it.skipIf(!hasOpenspec)(
     "creates the project skeleton and leaves it valid (SCN-KRN-042, SCN-KRN-052)",
-    () => {
+    async () => {
       const root = project();
-      const run = runCli(["init"], root);
+      const run = await runCli(["init"], root);
       expect(run.json?.errors).toEqual([]);
       expect(run.status).toBe(0);
 
@@ -76,18 +76,18 @@ describe("warrant init", () => {
       expect(config.openspec).toMatch(/^\d+\.\d+\.x$/);
       expect(config.packs["core-sdd"]?.version).toMatch(/^\^/);
 
-      const validate = runCli(["validate"], root);
+      const validate = await runCli(["validate"], root);
       expect(validate.json?.errors).toEqual([]);
       expect(validate.json?.ok).toBe(true);
       expect(validate.status).toBe(0);
 
       // A second sync changes nothing: `init` left a fully synced project.
-      expect(runCli(["sync", "--check"], root).status).toBe(0);
+      expect((await runCli(["sync", "--check"], root)).status).toBe(0);
     },
     120_000
   );
 
-  it("refuses a second init without --force, without calling openspec (SCN-KRN-053)", () => {
+  it("refuses a second init without --force, without calling openspec (SCN-KRN-053)", async () => {
     const root = project(false);
     mkdirSync(path.join(root, ".warrant"), { recursive: true });
     const configAbs = path.join(root, ".warrant", "warrant.json");
@@ -95,7 +95,7 @@ describe("warrant init", () => {
     writeFileSync(configAbs, before, "utf8");
 
     const marker = path.join(root, "openspec-was-called.txt");
-    const run = runCli(["init"], root, { [PATH_KEY]: fakeOpenspec(marker) + path.delimiter + (process.env[PATH_KEY] ?? "") });
+    const run = await runCli(["init"], root, { [PATH_KEY]: fakeOpenspec(marker) + path.delimiter + (process.env[PATH_KEY] ?? "") });
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("ALREADY_INITIALIZED");
     expect(readFileSync(configAbs, "utf8")).toBe(before);
@@ -104,36 +104,36 @@ describe("warrant init", () => {
 
   it.skipIf(!hasOpenspec)(
     "rewrites the files it owns with --force (SCN-KRN-053)",
-    () => {
+    async () => {
       const root = project();
-      expect(runCli(["init"], root).status).toBe(0);
+      expect((await runCli(["init"], root)).status).toBe(0);
       const configAbs = path.join(root, ".warrant", "warrant.json");
       writeFileSync(configAbs, '{\n  "$schema": "warrant://config/1"\n}\n', "utf8");
 
-      const forced = runCli(["init", "--force"], root);
+      const forced = await runCli(["init", "--force"], root);
       expect(forced.json?.errors).toEqual([]);
       expect(forced.status).toBe(0);
       expect(forced.json?.data.created).toContain(".warrant/warrant.json");
       const config = JSON.parse(readFileSync(configAbs, "utf8")) as { packs?: Record<string, unknown> };
       expect(config.packs?.["core-sdd"]).toBeDefined();
-      expect(runCli(["validate"], root).json?.ok).toBe(true);
+      expect((await runCli(["validate"], root)).json?.ok).toBe(true);
     },
     120_000
   );
 
-  it("fails with OPENSPEC_FAILED and writes nothing when openspec is absent", () => {
+  it("fails with OPENSPEC_FAILED and writes nothing when openspec is absent", async () => {
     const root = project(false);
     const empty = makeTempDir("warrant-no-openspec-");
     tempDirs.push(empty);
-    const run = runCli(["init"], root, { [PATH_KEY]: empty });
+    const run = await runCli(["init"], root, { [PATH_KEY]: empty });
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("OPENSPEC_FAILED");
     expect(existsSync(path.join(root, ".warrant"))).toBe(false);
   });
 
-  it("rejects an unknown sub-command", () => {
+  it("rejects an unknown sub-command", async () => {
     const root = project(false);
-    const run = runCli(["init", "foo"], root);
+    const run = await runCli(["init", "foo"], root);
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("USAGE");
   });
@@ -142,11 +142,11 @@ describe("warrant init", () => {
 describe("warrant init change", () => {
   it.skipIf(!hasOpenspec)(
     "creates the OpenSpec change and a PROPOSED record (SCN-KRN-054)",
-    () => {
+    async () => {
       const root = project();
-      expect(runCli(["init"], root).status).toBe(0);
+      expect((await runCli(["init"], root)).status).toBe(0);
 
-      const run = runCli(["init", "change", "add-search"], root);
+      const run = await runCli(["init", "change", "add-search"], root);
       expect(run.json?.errors).toEqual([]);
       expect(run.status).toBe(0);
       expect(run.json?.change).toBe("add-search");
@@ -165,14 +165,14 @@ describe("warrant init change", () => {
       expect(record.transitions[0]?.to).toBe("PROPOSED");
 
       // Its own name is now taken.
-      const again = runCli(["init", "change", "add-search"], root);
+      const again = await runCli(["init", "change", "add-search"], root);
       expect(again.status).toBe(3);
       expect(again.json?.errors[0].code).toBe("CHANGE_NAME_TAKEN");
     },
     120_000
   );
 
-  it("refuses a name held by the archive before calling openspec (SCN-KRN-055)", () => {
+  it("refuses a name held by the archive before calling openspec (SCN-KRN-055)", async () => {
     const root = project(false);
     mkdirSync(path.join(root, ".warrant"), { recursive: true });
     writeFileSync(
@@ -184,7 +184,7 @@ describe("warrant init change", () => {
     writeFileSync(path.join(root, "openspec", "config.yaml"), "schema: warrant-sdd\n", "utf8");
 
     const marker = path.join(root, "openspec-was-called.txt");
-    const run = runCli(["init", "change", "add-search"], root, {
+    const run = await runCli(["init", "change", "add-search"], root, {
       [PATH_KEY]: fakeOpenspec(marker) + path.delimiter + (process.env[PATH_KEY] ?? "")
     });
     expect(run.status).toBe(3);
@@ -193,11 +193,11 @@ describe("warrant init change", () => {
     expect(existsSync(path.join(root, "openspec", "changes", "add-search"))).toBe(false);
   });
 
-  it("rejects a name that is not kebab-case", () => {
+  it("rejects a name that is not kebab-case", async () => {
     const root = project(false);
     mkdirSync(path.join(root, ".warrant"), { recursive: true });
     writeFileSync(path.join(root, ".warrant", "warrant.json"), "{}\n", "utf8");
-    const run = runCli(["init", "change", "Add_Search"], root);
+    const run = await runCli(["init", "change", "Add_Search"], root);
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("USAGE");
   });

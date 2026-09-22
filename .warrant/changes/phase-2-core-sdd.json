@@ -1,0 +1,24 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "phase-2-core-sdd",
+  "change_state": "PROPOSED",
+  "classification": {
+    "profiles": [
+      "chore",
+      "factory-change"
+    ],
+    "risk": {
+      "blast_radius": {
+        "value": "SYSTEM",
+        "from": "floor:core-sdd:2"
+      }
+    }
+  },
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-09-22T12:48:37.320Z",
+      "by": "cli:local"
+    }
+  ]
+}

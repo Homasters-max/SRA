@@ -1,0 +1,25 @@
+{
+  "$schema": "warrant://overlay/1",
+  "id": "risk-high",
+  "version": "1.0.0",
+  "description": "HIGH risk requires an adversarial review before approval and a human approval before merge.",
+  "match": {
+    "risk_level": [
+      "HIGH"
+    ]
+  },
+  "gates": {
+    "SPECIFIED->APPROVED": [
+      "adversarial-review"
+    ],
+    "VERIFYING->MERGED": [
+      "human-approval"
+    ]
+  },
+  "approvals": [
+    {
+      "role": "maintainer",
+      "at": "VERIFYING->MERGED"
+    }
+  ]
+}

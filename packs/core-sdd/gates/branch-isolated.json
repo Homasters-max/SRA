@@ -1,0 +1,8 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "branch-isolated",
+  "version": "1.0.0",
+  "description": "Implementation happens on its own branch (ADR-0011).",
+  "level": "L0",
+  "waivable": true
+}

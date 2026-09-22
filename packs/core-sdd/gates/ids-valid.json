@@ -1,0 +1,8 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "ids-valid",
+  "version": "1.0.0",
+  "description": "IDs are unique, well formed and not reused.",
+  "level": "L0",
+  "waivable": false
+}

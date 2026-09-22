@@ -10,6 +10,8 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
+import semver from "semver";
+
 import { bytesHash } from "../canon/hash.js";
 import { canonicalText } from "../canon/format-json.js";
 import type { CliError } from "../errors.js";
@@ -178,6 +180,107 @@ function currentBytes(absolute: string): Buffer | undefined {
   }
 }
 
+/** One skill a pack declares, resolved to a file on disk. */
+interface ResolvedSkill {
+  /** `<namespace>/<name>`, the key used in the lock. */
+  name: string;
+  /** Exact version taken from the SKILL.md frontmatter. */
+  version: string;
+  /** Absolute path of SKILL.md. */
+  absolute: string;
+  /** Path relative to the project root, POSIX — set only when the file is inside the project. */
+  rel: string | undefined;
+}
+
+/**
+ * `version` of a SKILL.md frontmatter.
+ *
+ * The frontmatter is a small, flat YAML block (`name`, `version`,
+ * `description`), so a line scan is enough and the CLI keeps no YAML parser in
+ * its runtime dependencies.
+ */
+export function skillFrontmatterVersion(text: string): string | undefined {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (match === null) return undefined;
+  for (const line of (match[1] as string).split(/\r?\n/)) {
+    const field = /^version:\s*(.+?)\s*$/.exec(line);
+    if (field !== null) return (field[1] as string).replace(/^["']|["']$/g, "");
+  }
+  return undefined;
+}
+
+/**
+ * Locates the SKILL.md of one `provides.skills` entry (`<ns>/<name>@<range>`).
+ *
+ * Search order, first hit wins: the pack's own `skills/` directory, the
+ * project's `sra/skills/`, and — for a pack developed in the WARRANT monorepo —
+ * the `sra/skills/` next to `packs/`. Only a file inside the project root can
+ * be written into the lock, because `warrant://lock/1` stores project-relative
+ * paths; a skill that lives beside the CLI is resolved and version-checked but
+ * not locked (see the report of group 3: this is a maintainer question).
+ */
+function resolveSkill(pack: LoadedPack, root: string, spec: string, errors: CliError[]): ResolvedSkill | undefined {
+  const at = spec.lastIndexOf("@");
+  const name = at > 0 ? spec.slice(0, at) : spec;
+  const range = at > 0 ? spec.slice(at + 1) : "*";
+  const segments = name.split("/");
+
+  const candidates = [
+    path.join(pack.dir, "skills", ...segments, "SKILL.md"),
+    path.join(root, "sra", "skills", ...segments, "SKILL.md"),
+    path.join(pack.dir, "..", "..", "sra", "skills", ...segments, "SKILL.md")
+  ];
+  const absolute = candidates.find((candidate) => existsSync(candidate));
+  if (absolute === undefined) {
+    errors.push(
+      err(
+        "PACK_NOT_FOUND",
+        `pack ${pack.id} provides skill "${spec}", but no SKILL.md was found for it`,
+        `sra/skills/${name}/SKILL.md`
+      )
+    );
+    return undefined;
+  }
+
+  const reported = reportPath(absolute, root);
+  const version = skillFrontmatterVersion(readFileSync(absolute, "utf8"));
+  if (version === undefined) {
+    errors.push(err("CONFIG_INVALID", `skill "${name}" has no \`version\` in its frontmatter`, reported));
+    return undefined;
+  }
+  if (!semver.satisfies(version, range, { includePrerelease: true })) {
+    errors.push(
+      err(
+        "CONFIG_INVALID",
+        `pack ${pack.id} requires skill "${name}" ${range}, but the file on disk is ${version}`,
+        reported
+      )
+    );
+    return undefined;
+  }
+
+  const relative = path.relative(root, absolute);
+  const inProject = !relative.startsWith("..") && !path.isAbsolute(relative);
+  return { name, version, absolute, rel: inProject ? relative.split(path.sep).join("/") : undefined };
+}
+
+/** `lock.skills` for every skill the enabled packs declare and the project holds. */
+function planSkills(root: string, packs: LoadedPack[], errors: CliError[]): Record<string, unknown> {
+  const skills: Record<string, unknown> = {};
+  for (const pack of packs) {
+    for (const spec of providedList(pack, "skills")) {
+      const resolved = resolveSkill(pack, root, spec, errors);
+      if (resolved === undefined || resolved.rel === undefined) continue;
+      skills[resolved.name] = {
+        version: resolved.version,
+        path: resolved.rel,
+        hash: bytesHash(readFileSync(resolved.absolute))
+      };
+    }
+  }
+  return skills;
+}
+
 /** Builds the full plan. Never writes and never throws for project data. */
 export function planSync(input: PlanInput): SyncPlan {
   const { root, loaded, openspecVersion } = input;
@@ -316,12 +419,15 @@ export function planSync(input: PlanInput): SyncPlan {
     for (const file of [...files].sort((a, b) => (a.path < b.path ? -1 : 1))) {
       generated[file.path] = bytesHash(file.bytes);
     }
-    // `skills` is omitted: phase 1 ships none, and the schema makes it optional.
+    // `skills` stays out of the lock when no enabled pack declares one that
+    // lives inside the project: the schema makes the key optional.
+    const skills = planSkills(root, loaded.packs, errors);
     const lock = {
       $schema: "warrant://lock/1",
       kernel: CLI_VERSION,
       openspec: openspecVersion,
       packs,
+      ...(Object.keys(skills).length > 0 ? { skills } : {}),
       generated
     };
     add(LOCK_REL, Buffer.from(canonicalText(lock).text, "utf8"), lock);

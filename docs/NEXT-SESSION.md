@@ -1,26 +1,90 @@
 ---
 id: WARRANT-NEXT
-title: WARRANT — следующий шаг: фаза 1 Kernel
+title: WARRANT — следующий шаг: фаза 3 verification
 status: informative
 maturity: MVP
-version: 0.1.0
+version: 0.2.0
 ---
 
 # WARRANT — что делать в следующей сессии
 
 Файл передачи контекста. Прочитать первым, затем [00-readme](00-readme.md).
 
-## Состояние на 2026-09-22 (ночь)
+## Состояние на 2026-09-22 (вечер)
 
-- Документы 01–08 отгриллены в MVP-scope (ADR-0010…0015); открытых spikes нет.
-- Change `phase-1-kernel` на ветке `feature/phase-1-kernel`: **все 10 групп сделаны**; фаза 1 завершена, ждёт review PR.
-  Все семь команд фазы 1 реализованы: `init` (в т. ч. `init change`), `validate` (все семь проверок), `fmt`, `id`, `sync`, `resolve`, `status`.
-  Решения по ходу реализации — I-1…I-42 в `design.md`. Глобальный `warrant` — symlink на этот чекаут: после `npm run build` актуален.
-- Критерий выхода (10.1) закреплён e2e-тестом `exit-criterion.test.ts`: `openspec init` → `warrant init` → `init change demo` → `validate` ok → `status demo` `stale: []`.
-- 10.2 сделано (вариант 2, I-43): `.warrant/warrant.json` и lock созданы `warrant init`, `openspec/config.yaml` восстановлен из git (ADR-0015 п. 7);
-  `--no-generated` теперь пропускает и hash `openspec/**` в проверке (2). `openspec/schemas/warrant-sdd/**` сгенерирован и закоммичен, но не используется до фазы 2.
-  Dogfooding нашёл дефект сканера ID (I-44). `warrant validate --no-generated` и `warrant fmt --check` на репозитории — чисто.
-- 10.3 сделано; 10.4 — PR из `feature/phase-1-kernel` в `main`.
+- **Фаза 1 закрыта**: PR #1 и PR #2 смержены в `main`; `phase-1-kernel` заархивирован (`openspec/changes/archive/2026-09-22-phase-1-kernel`,
+  main spec `openspec/specs/kernel/spec.md`, REQ-KRN-001…027).
+- **Фаза 2 реализована целиком** на ветке `feature/phase-2-core-sdd` — группы 1–6 tasks.md, коммит на группу. PR в `main` открывает
+  maintainer (задача 6.3), tag `v0.2.0` — после merge. Версии: CLI **0.2.0**, pack `core-sdd` остаётся **0.1.0** (G-20).
+- Change `phase-2-core-sdd`: proposal, delta specs `kernel` (REQ-KRN-028 `classify`, MODIFIED 021/025, SCN-KRN-073…083) и `core-sdd`
+  (REQ-SDD-001…009, SCN-SDD-001…016), design (D-1…D-11, I-45…I-65), tasks (6 групп, 24 задачи).
+- **Итог фазы 2:**
+  - pack `core-sdd` наполнен: overlays `core-default`, `risk-low/medium/high`; profiles `feature`, `chore`, `factory-change`;
+    12 gates; checks `openspec-validate`, `tests-passed`; `controller/rules.json` (три правила); skill-stub
+    `sra/skills/specification/adversarial-review/SKILL.md` через `provides.skills`;
+  - команда `warrant classify` (REQ-KRN-028): floor rules по diff/путям, `--propose`, `from`/`ignored[]`;
+  - `openspec/config.yaml` генерируется целиком, флаг `--no-generated` удалён (G-5, откат I-43);
+  - репозиторий переехал на schema `warrant-sdd`; собственная classification записана (`factory-change`, `SYSTEM`, `risk_level: HIGH`);
+  - три golden-фикстуры + `npm run golden:update` + e2e `golden.test.ts`;
+  - **B1, B2, B6 закрыты** (таблица ниже); B3, B4, B5 остаются.
+- Прогон 6.1 на выходе фазы: `npm test` — 387 passed / 37 файлов, `typecheck`, `build`, `warrant validate` `ok: true`,
+  `fmt --check` и `sync --check` — `changed: []`, `openspec validate phase-2-core-sdd --strict` зелёный,
+  `golden:update` — `written: []`, повторный `npm test` не меняет рабочее дерево (SCN-SDD-015).
+- Решения по ходу реализации **I-45…I-65** — таблица «Решения по ходу реализации» в
+  [openspec/changes/phase-2-core-sdd/design.md](../openspec/changes/phase-2-core-sdd/design.md). Долг, переходящий в фазу 3:
+
+  | # | Долг |
+  |---|---|
+  | I-52 | skill, найденный вне корня проекта (bundled pack вне monorepo), проверяется по версии, но в lock не пишется (`warrant://lock/1` хранит пути относительно проекта). Решить: считать отсутствие skill в проекте ошибкой — или ввести источник `bundled` без пути |
+  | I-57 | `warrant status` не печатает `risk_level` (REQ-KRN-027 фазы 1 — только `effective_policy.{hash,sources}`). Расширить REQ-KRN-027 в фазе 3 вместе с verdicts и `next` |
+  | I-59 | `packContentHash` исключает каталог `golden/` pack'а (иначе у лока фикстуры нет неподвижной точки). Пересмотреть, если golden начнёт влиять на policy |
+  | I-64 | тестовый `runCli` и `scripts/golden-lib.js` асинхронные (`spawn` + Promise) из-за таймаутов репортёра vitest; короткие `spawnSync` остались для `git` и `openspecAvailable()` |
+
+### Вход в фазу 3 (verification) — [13 §2](13-roadmap.md)
+
+- Исполнение gates и checks, а не только их данные: команды `check`, `gate`, `verify`, `transition`, `archive`, `waive`;
+  controller выносит verdict по `controller/rules.json`.
+- `classify`: human-источник classification и понижение ниже floor с подтверждением (отложено из G-3).
+- Evidence `spec-report` (I-47): kind объявлен pack'ом и требуется gate `spec-valid`, но никто его пока не производит —
+  в фазе 3 check должен его писать.
+- **CI-матрица `ubuntu-latest` + `windows-latest`**: `npm test`, `npm i -g` из чекаута, `warrant validate` на sample-проекте.
+  WARRANT на Linux не запускался **ни разу** — это главный риск фазы 3.
+- Backlog B3, B4, B5 (B4 — `process.exitCode` вместо `process.exit`, вместе с CI-матрицей).
+
+### Продолжение — готовый запрос
+
+```text
+Прочитай docs/NEXT-SESSION.md, затем openspec/changes/phase-2-core-sdd/design.md (таблица I-45…I-65) и docs/13-roadmap.md §2.
+Фаза 2 закрыта, ветка feature/phase-2-core-sdd смержена в main, tag v0.2.0 поставлен.
+Шаг 1: заархивируй phase-2-core-sdd стоковым `openspec archive` (как G-6) и убедись, что `warrant validate` на репозитории ok: true
+(B6/I-46 это уже покрывает). Шаг 2: /opsx:propose новый change `phase-3-verification` — исполнение gates/checks/controller
+(`check`, `gate`, `verify`, `transition`, `archive`, `waive`), human-источник classification и понижение ниже floor,
+evidence `spec-report` (I-47), CI-матрица ubuntu-latest + windows-latest, backlog B3/B4/B5 и долг I-52, I-57, I-59, I-64.
+Потолок как в фазе 2: ≤ 6 групп, ~30 задач (G-8). Схема работы прежняя: координатор — ты (Fable), субагент Opus 5 на группу,
+отчёт ≤ 70 строк с разделом Decisions/deviations. Одна ветка — один worktree (git worktree add), см. «Организационное».
+Отклонения от spec/design — вопросом ко мне, не молча; принятые — I-N в design.md.
+```
+
+### Организационное — одна ветка, один worktree
+
+В фазе 2 параллельные сессии работали в одном рабочем каталоге и переключали ветку посреди работы: коммит `d2d8fd3`
+«tasks — mark group 2 done» ушёл в `feature/factory-adrs-0016-0022`, где поверх него лёг чужой коммит; на
+`feature/phase-2-core-sdd` галочки пришлось проставить повторно. **Правило: одна ветка — один worktree**
+(`git worktree add`). Фаза 2 доделана в отдельном worktree `D:\project\SRA-phase2`. При слиянии `factory-adrs`
+ожидать конфликт в `openspec/changes/phase-2-core-sdd/tasks.md` и в этом файле.
+
+## Backlog из ревью фазы 1 (не закрыто, срок привязан к фазам)
+
+| # | Где | Дефект | Когда закрыть |
+|---|---|---|---|
+| B1 | `packages/cli/src/core/packs/loader.ts` `weakenings()` | **закрыт группой 3**. strengthen-only не сравнивал `match` overlay и `extends` profile: override мог сузить применение политики без `OVERRIDE_WEAKENS` (SCN-KRN-078, SCN-KRN-079, SCN-SDD-010) | — |
+| B2 | `packages/cli/src/core/packs/loader.ts` `loadLocalLayer()` | **закрыт группой 3**. Каталог pack в `.warrant/local/<id>/`, не включённый в `warrant.json`, всасывался в project-слой как pack `local`; теперь `CONFIG_INVALID` (SCN-KRN-080) | — |
+| B3 | `packages/cli/src/core/packs/hash.ts` `checkLock()` | pack, удалённый из `warrant.json`, но оставшийся в lock, не даёт `LOCK_MISMATCH` (`sync --check` при этом видит расхождение) | quick fix, отдельный PR в любой момент |
+| B4 | `packages/cli/src/bin/warrant.ts` `run()` | `process.exit` сразу после записи envelope в stdout; в pipe на Windows большой вывод может обрезаться | **фаза 3**, вместе с CI-матрицей ubuntu + windows (`process.exitCode` вместо `exit`) |
+| B5 | `packages/cli/src/core/openspec/yaml-emit.ts` `emitKey()` | ключи `null` / `true` / `false` пишутся в YAML без кавычек и читаются как не-строки | quick fix, можно вместе с B3 |
+| B6 | `packages/cli/src/core/ids/scan.ts` | **закрыт группой 1 фазы 2 (I-46)**. После `openspec archive` main spec `openspec/specs/**` и архивная delta `openspec/changes/archive/**` объявляют одни и те же `REQ`/`SCN` → ложный `ID_DUPLICATE` (найдено при архивировании `phase-1-kernel`, G-6). Архив должен считаться «занято», но не «объявлено дважды» | — |
+
+Пункты не дублировать в GitHub issues без решения maintainer'а; эта таблица — единственное место учёта.
 
 ## Что уже решено для фазы 1 (не обсуждать заново)
 
@@ -39,8 +103,9 @@ version: 0.1.0
 
 ## Порядок работы — через OpenSpec (dogfooding)
 
-Skills superpowers из Claude Code убраны. Фаза 1 ведётся **самим OpenSpec** в этом репозитории: это одновременно
-закрывает S2 (мы увидим `config.yaml` и schema изнутри) и даёт первые артефакты для будущего `factory-change`.
+Skills superpowers из Claude Code убраны. Репозиторий ведётся **самим OpenSpec**: это закрыло S2 (`config.yaml` и schema
+видны изнутри) и дало первые артефакты для `factory-change`. Фазы 1 и 2 пройдены по этой схеме — она проверена, менять её
+в фазе 3 не нужно.
 
 ### Шаг 1 — спайк S2 · выполнен
 
@@ -57,7 +122,7 @@ design (D-1…D-10), tasks (10 групп, 47 задач). `openspec validate ph
 Ничего сверх tasks.md: новая потребность — сначала правка tasks/design, потом код. Отклонения от spec/design — вопросом
 к maintainer'у, не молча; принятые — в таблицу «Решения по ходу реализации» design.md (I-N).
 
-**Модели и схема работы (проверена на группах 1–3).** Сессия (координатор) — Fable 5.1: читает spec/design/tasks целиком,
+**Модели и схема работы (проверена на фазах 1 и 2).** Сессия (координатор) — Fable 5.1: читает spec/design/tasks целиком,
 пишет субагенту полный prompt (пути, REQ/SCN, конвенции кода, что уже есть), принимает отчёт, сам гоняет `npm test` и
 `npm run typecheck`, делает ручную проверку команды, коммитит. Субагент — Agent tool, `model: "opus"`, одна группа задач,
 `run_in_background: false`, отчёт ≤ 70 строк с разделом «Decisions/deviations». Sonnet не использовать.
@@ -90,17 +155,44 @@ design (D-1…D-10), tasks (10 групп, 47 задач). `openspec validate ph
 Остановись после группы 10 и покажи результат.
 ```
 
-### Шаг 3 — не раньше конца фазы 1
+### Шаг 3 — фаза 2 `core-sdd` · выполнен
 
-Фаза 2 (core-sdd целиком, golden feature/chore), затем 3 (verification, CI) и 4 (Claude Code frontend).
-В фазе 3 вместе с `warrant ci` — CI-матрица **ubuntu-latest + windows-latest**: `npm test`, `npm i -g` из чекаута,
-`warrant validate` на sample-проекте. До этого WARRANT на Linux не запускался ни разу; код кроссплатформенный
-по замыслу (`path`, `cross-spawn`, POSIX-пути в lock), но это не проверено.
-Vertical slice по ADR-0013 — после фазы 4. LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSION.md)).
+Roadmap [13 §2](13-roadmap.md): schema `warrant-sdd`, profiles, core gates и checks, templates, controller rules, risk;
+критерий выхода — golden `feature`, `chore`, `factory-change` (ADR-0013). Расхождение roadmap с `bugfix` устранено группой 1: 13 §2 и 08 §6 приведены к G-1, G-2.
+Источники нормы: [05](05-policy.md), [06](06-verification.md), [08](08-packs.md), ADR-0013, ADR-0015. Шаблоны — 13 §5 (proposal, spec, design, tasks, waiver, experiment).
+
+Решения grilling 2026-09-22 (G-1…G-21), приняты maintainer'ом; proposal/design фазы 2 ссылаются на них:
+
+| # | Решение |
+|---|---|
+| G-1 | Golden фазы 2 = fixture-change в `packs/core-sdd/golden/<profile>/` + snapshot `resolve --explain` и `status`; прогон gates — фаза 3 (roadmap 13 §2 уточнить) |
+| G-2 | Profiles 0.1: `feature`, `chore`, `factory-change` (ADR-0013); roadmap 13 §2 и 08 §6 поправить в этом change, без нового ADR |
+| G-3 | `warrant classify` в фазе 2: floor rules по diff + `--propose <json>`; human-подтверждение и понижение ниже floor — фаза 3 |
+| G-4 | Gates/checks/controller rules кладутся как данные pack (все gates из 04 §5 + `factory-golden-passed`), исполнение — фаза 3; checks только `openspec-validate` и формат для `tests-passed` |
+| G-5 | `--no-generated` удаляется: `config.yaml` полностью генерируется из pack rules + `.warrant/local/openspec/rules.json` |
+| G-6 | `phase-1-kernel` архивируется stock `openspec archive` до propose фазы 2 |
+| G-7 | B1, B2 — delta spec kernel (SCN на `OVERRIDE_WEAKENS`, `CONFIG_INVALID`), чинятся в той же группе, где появляются реальные overlays |
+| G-8 | Потолок: ≤ 6 групп, ~30 задач; не влезает — второй change; схема «координатор Fable + субагенты Opus»; `warrant validate` без флагов зелёный после каждой группы |
+| G-9 | Artifacts `warrant-sdd` остаются четырьмя; waiver — JSON через будущий `warrant waive`, experiment — с profile (13 §5 поправить); `chore` = proposal + tasks при `skip_specs` |
+| G-10 | Golden в pack, тест `golden.test.ts` в CLI; project-слой в `sources` — content hash (как в фазе 1), не git-sha |
+| G-11 | `classify <change> [--base main] [--paths <file>] [--propose <json>]` пишет `classification` с источником каждого значения; повторный запуск не понижает записанное |
+| G-12 | `risk-high` в core-sdd только `adversarial-review` + `human-approval` на `VERIFYING->MERGED`; чужие gates добавляют свои packs overlay'ями по `match.risk_level`; `risk-low` пустой |
+| G-13 | Общий слой — overlay `core-default` с пустым `match`, а не profile `base` |
+| G-14 | `controller/rules.json`: три правила (blocking UNKNOWN → WAIT/clarify, POLICY_CONFLICT → ESCALATE, gate FAIL → WAIT) |
+| G-15 | `sra/skills/specification/adversarial-review/SKILL.md` — stub + `provides.skills`, чтобы lock/validate/sync прошли путь skill |
+| G-16 | Change фазы 2 ведётся через `warrant init change` + `classify`; AREA `SDD` для REQ/SCN pack'а |
+| G-17 | Gates по переходам: `feature` = 04 §5; `chore` без `adversarial-review`/`blocking-unknowns-resolved`; `factory-change` = feature + `factory-golden-passed`; общие (`spec-valid`, `ids-valid`) в `core-default`; 06 §4 `worktree-ready` → `branch-isolated` |
+| G-18 | «Language: Russian» переезжает из pack rules в `.warrant/local/openspec/rules.json`; pack языково-нейтрален |
+| G-19 | Группы: 1 docs + delta spec + init change; 2 данные pack; 3 kernel (`classify`, B1/B2, semantic); 4 `sync` + переезд; 5 golden; 6 выход |
+| G-20 | Pack остаётся `0.1.0`; CLI `0.2.0` + tag `v0.2.0` в конце фазы 2 |
+| G-21 | `capabilities.forbidden: ["PRODUCTION_WRITE"]` только у `factory-change`; approvals — роль `maintainer` на `SPECIFIED->APPROVED` у всех трёх |
+
+Все решения G-1…G-21 реализованы. Дальше — фаза 3 (verification, см. «Вход в фазу 3» выше), затем 4 (Claude Code frontend). Vertical slice по ADR-0013 — после фазы 4.
+LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSION.md)).
 
 ## Чего не делать
 
-- Не реализовывать `check`, `gate`, `verify`, `analyze`, `guard`, `ci` в фазе 1: это фазы 3–4.
+- Не реализовывать `guard`, `ci`, `analyze` в фазе 3: это фаза 4 (`check`, `gate`, `verify`, `transition`, `archive`, `waive` — фаза 3).
 - Не добавлять profiles `bugfix`, `refactor`, `experiment`: без failure mode (ADR-0013).
 - Не трогать `docs/integrations/`, `lattice/`: не на критическом пути.
 - Не изобретать второй формат конфигурации: `warrant.json` — единственная точка (08 §3).

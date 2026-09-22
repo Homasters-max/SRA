@@ -1,0 +1,39 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "chore",
+  "change_state": "PROPOSED",
+  "classification": {
+    "profiles": [
+      "chore"
+    ],
+    "risk": {
+      "data_loss": {
+        "value": "NONE",
+        "from": "proposer:golden"
+      },
+      "reversibility": {
+        "value": "EASY",
+        "from": "proposer:golden"
+      },
+      "blast_radius": {
+        "value": "LOCAL",
+        "from": "proposer:golden"
+      },
+      "security_impact": {
+        "value": "NONE",
+        "from": "proposer:golden"
+      },
+      "compatibility": {
+        "value": "COMPATIBLE",
+        "from": "proposer:golden"
+      }
+    }
+  },
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-09-22T00:00:00Z",
+      "by": "cli:local"
+    }
+  ]
+}

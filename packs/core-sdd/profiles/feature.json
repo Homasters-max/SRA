@@ -1,0 +1,60 @@
+{
+  "$schema": "warrant://profile/1",
+  "id": "feature",
+  "version": "1.0.0",
+  "description": "Full spec-driven flow for user-visible behaviour: proposal, specs, design and tasks.",
+  "match": {
+    "paths": []
+  },
+  "artifacts": {
+    "required": [
+      "proposal",
+      "specs",
+      "design",
+      "tasks"
+    ]
+  },
+  "gates": {
+    "APPROVED->IMPLEMENTING": [
+      "branch-isolated"
+    ],
+    "MERGED->ARCHIVED": [
+      "spec-valid",
+      "required-artifacts-present",
+      "analyze-clean"
+    ],
+    "PROPOSED->SPECIFIED": [
+      "required-artifacts-present",
+      "spec-valid",
+      "ids-valid"
+    ],
+    "SPECIFIED->APPROVED": [
+      "spec-valid",
+      "required-artifacts-present",
+      "ids-valid",
+      "blocking-unknowns-resolved",
+      "adversarial-review",
+      "human-approval"
+    ],
+    "VERIFYING->MERGED": [
+      "tests-passed",
+      "scope-valid",
+      "analyze-clean",
+      "ids-valid",
+      "evidence-complete"
+    ]
+  },
+  "approvals": [
+    {
+      "role": "maintainer",
+      "at": "SPECIFIED->APPROVED"
+    }
+  ],
+  "evidence": {
+    "required": [
+      "test-report",
+      "review",
+      "human-approval"
+    ]
+  }
+}

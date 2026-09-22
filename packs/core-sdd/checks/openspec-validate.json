@@ -1,0 +1,18 @@
+{
+  "$schema": "warrant://check/1",
+  "id": "openspec-validate",
+  "version": "1.0.0",
+  "description": "Runs the strict OpenSpec validation of the change and its specs.",
+  "level": "L1",
+  "run": {
+    "command": [
+      "openspec",
+      "validate",
+      "--strict",
+      "--json"
+    ]
+  },
+  "produces": [
+    "spec-report"
+  ]
+}

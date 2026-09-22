@@ -281,6 +281,33 @@ export function weakenings(kind: ObjectKind, original: unknown, override: unknow
     for (const item of missing(origApprovals, overApprovals)) lost.push(`approvals: ${item}`);
   }
 
+  if (kind === "overlay") {
+    // `match` сужает область действия overlay: каждый его ключ — дополнительное
+    // условие, каждое значение внутри ключа — разрешённый вариант. Поэтому
+    // override не слабее только тогда, когда он не добавил ни одного ключа и
+    // не убрал ни одного значения у общего ключа (design Decision 7).
+    const origMatch = isPlainObject(original["match"]) ? original["match"] : {};
+    const overMatch = isPlainObject(override["match"]) ? override["match"] : {};
+    for (const key of Object.keys(overMatch).sort()) {
+      if (key === "$comment") continue;
+      const values = asStringArray(overMatch[key]);
+      if (!(key in origMatch)) {
+        for (const value of values) lost.push(`match.${key}: narrowed to ${value}`);
+        continue;
+      }
+      for (const value of missing(asStringArray(origMatch[key]), values)) {
+        lost.push(`match.${key}: ${value}`);
+      }
+    }
+  }
+
+  if (kind === "profile") {
+    // `extends` только добавляет слои, поэтому override должен быть надмножеством.
+    for (const item of missing(asStringArray(original["extends"]), asStringArray(override["extends"]))) {
+      lost.push(`extends: ${item}`);
+    }
+  }
+
   if (kind === "gate") {
     const evidenceKey = (e: unknown): string =>
       isPlainObject(e) ? `${String(e["kind"])}/${String(e["status"])}` : JSON.stringify(e);
@@ -397,12 +424,49 @@ const KIND_BY_SCHEMA: Readonly<Record<string, ObjectKind>> = {
  * a policy object join the object set with pack id `local`; anything else
  * (`areas.json`, `openspec/rules.json`) is only validated.
  */
-function loadLocalLayer(projectRoot: string, packDirs: Set<string>, collected: Collected, files: string[]): void {
+function loadLocalLayer(
+  projectRoot: string,
+  packDirs: Set<string>,
+  enabledPacks: ReadonlySet<string>,
+  collected: Collected,
+  files: string[]
+): void {
   const localRoot = path.join(projectRoot, LOCAL_DIR);
   if (!existsSync(localRoot)) return;
 
+  // B2: каталог с `pack.json` — это pack, а не слой проекта, и читается только
+  // через `packs` в `warrant.json`. Неподключённый pack — ошибка конфигурации,
+  // его файлы не попадают в project-слой ни при каких условиях (SCN-KRN-080).
+  const packLike = new Set<string>(packDirs);
+  let entries: string[] = [];
+  try {
+    entries = readdirSync(localRoot).sort();
+  } catch {
+    entries = [];
+  }
+  for (const name of entries) {
+    const dir = path.join(localRoot, name);
+    const manifest = path.join(dir, "pack.json");
+    let isDirectory = false;
+    try {
+      isDirectory = statSync(dir).isDirectory();
+    } catch {
+      continue;
+    }
+    if (!isDirectory || !existsSync(manifest)) continue;
+    packLike.add(dir);
+    if (packDirs.has(dir) || enabledPacks.has(name)) continue;
+    collected.errors.push(
+      err(
+        "CONFIG_INVALID",
+        `${reportPath(dir, projectRoot)}/ holds a pack manifest, but pack "${name}" is not enabled in ${CONFIG_REL.split(path.sep).join("/")}; enable it or move the files out of ${LOCAL_DIR.split(path.sep).join("/")}/`,
+        reportPath(manifest, projectRoot)
+      )
+    );
+  }
+
   const inLoadedPack = (abs: string): boolean => {
-    for (const dir of packDirs) {
+    for (const dir of packLike) {
       if (abs === dir || abs.startsWith(dir + path.sep)) return true;
     }
     return false;
@@ -455,13 +519,24 @@ function loadLocalLayer(projectRoot: string, packDirs: Set<string>, collected: C
 
     const lost = weakenings(kind, target.json, json);
     if (lost.length > 0) {
-      collected.errors.push(
-        err(
-          "OVERRIDE_WEAKENS",
-          `override of ${kind} "${targetId}" drops: ${lost.join("; ")}; an override may only strengthen (05 section 5)`,
-          reported
-        )
-      );
+      // Находки по `match` и `extends` указывают на своё поле — SCN-KRN-078,
+      // SCN-KRN-079 требуют увидеть в `path`, что именно ослаблено.
+      const groups = new Map<string, string[]>();
+      for (const item of lost) {
+        const field = item.startsWith("match.") ? "#/match" : item.startsWith("extends:") ? "#/extends" : "";
+        const bucket = groups.get(field);
+        if (bucket === undefined) groups.set(field, [item]);
+        else bucket.push(item);
+      }
+      for (const [field, items] of [...groups.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+        collected.errors.push(
+          err(
+            "OVERRIDE_WEAKENS",
+            `override of ${kind} "${targetId}" drops: ${items.join("; ")}; an override may only strengthen (05 section 5)`,
+            `${reported}${field}`
+          )
+        );
+      }
       continue;
     }
 
@@ -559,7 +634,13 @@ export function loadPacks(projectRoot: string): LoadResult {
   const packs = topologicalOrder(found, errors);
   const collected: Collected = { objects: new Map(), errors };
   for (const pack of packs) loadProvides(pack, projectRoot, collected, files);
-  loadLocalLayer(projectRoot, new Set(packs.map((p) => p.dir)), collected, files);
+  loadLocalLayer(
+    projectRoot,
+    new Set(packs.map((p) => p.dir)),
+    new Set(packRequests(config).map((r) => r.id)),
+    collected,
+    files
+  );
 
   return {
     config,

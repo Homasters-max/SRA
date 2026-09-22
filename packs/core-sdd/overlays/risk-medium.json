@@ -1,0 +1,16 @@
+{
+  "$schema": "warrant://overlay/1",
+  "id": "risk-medium",
+  "version": "1.0.0",
+  "description": "MEDIUM risk requires an adversarial review of the specification before approval.",
+  "match": {
+    "risk_level": [
+      "MEDIUM"
+    ]
+  },
+  "gates": {
+    "SPECIFIED->APPROVED": [
+      "adversarial-review"
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "artifacts": {
+    "design": "done",
+    "proposal": "done",
+    "specs": "done",
+    "tasks": "done"
+  },
+  "change": "feature",
+  "change_state": "PROPOSED",
+  "classification": {
+    "profiles": [
+      "feature"
+    ],
+    "risk": {
+      "blast_radius": {
+        "from": "proposer:golden",
+        "value": "COMPONENT"
+      },
+      "compatibility": {
+        "from": "proposer:golden",
+        "value": "COMPATIBLE"
+      },
+      "data_loss": {
+        "from": "proposer:golden",
+        "value": "NONE"
+      },
+      "reversibility": {
+        "from": "proposer:golden",
+        "value": "MODERATE"
+      },
+      "security_impact": {
+        "from": "proposer:golden",
+        "value": "LOW"
+      }
+    }
+  },
+  "effective_policy": {
+    "hash": "sha256:d239e1876be3a0e2c79ee47057be949b288e9a29c9f29325410bfc47989a339c",
+    "sources": [
+      "kernel@{CLI_VERSION}",
+      "core-sdd@0.1.0:overlay/core-default@1.0.0",
+      "core-sdd@0.1.0:profile/feature@1.0.0",
+      "core-sdd@0.1.0:overlay/risk-medium@1.0.0"
+    ]
+  },
+  "stale": []
+}

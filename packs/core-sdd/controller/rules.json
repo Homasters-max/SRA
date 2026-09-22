@@ -1,0 +1,27 @@
+{
+  "$schema": "warrant://controller-rules/1",
+  "rules": [
+    {
+      "id": "policy-conflict",
+      "when": {
+        "policy_conflict": true
+      },
+      "action": "ESCALATE"
+    },
+    {
+      "id": "gate-failed",
+      "when": {
+        "gate_verdict": "FAIL"
+      },
+      "action": "WAIT"
+    },
+    {
+      "id": "blocking-unknown",
+      "when": {
+        "blocking_unknowns": ">0"
+      },
+      "action": "WAIT",
+      "next": "clarify"
+    }
+  ]
+}

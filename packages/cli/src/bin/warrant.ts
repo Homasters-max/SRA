@@ -11,6 +11,7 @@ import { runId } from "../commands/id.js";
 import { runSync } from "../commands/sync.js";
 import { runResolve } from "../commands/resolve.js";
 import { runStatus } from "../commands/status.js";
+import { runClassify } from "../commands/classify.js";
 
 export type Runner = (args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -55,12 +56,11 @@ register(
 register(
   "validate",
   "validate configuration, packs, schemas, ids and generated files",
-  (_args, opts) => {
+  () => {
     // CONFIG_MISSING first, exactly as for the other config-bound commands (SCN-KRN-007).
     requireConfigPath();
-    return runValidate({ generated: opts["generated"] as boolean | undefined });
-  },
-  (c) => c.option("--no-generated", "skip check (4), byte comparison of generated OpenSpec files")
+    return runValidate();
+  }
 );
 register(
   "fmt",
@@ -89,6 +89,22 @@ register(
       ...(typeof opts["classification"] === "string" ? { classification: opts["classification"] } : {})
     }),
   (c) => c.argument("<change>").option("--explain").option("--classification <file>")
+);
+register(
+  "classify",
+  "compute and record the classification of a change",
+  (args, opts) =>
+    runClassify(args[0] as string, {
+      ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {}),
+      ...(typeof opts["paths"] === "string" ? { paths: opts["paths"] } : {}),
+      ...(typeof opts["propose"] === "string" ? { propose: opts["propose"] } : {})
+    }),
+  (c) =>
+    c
+      .argument("<change>")
+      .option("--base <ref>", "git ref to diff HEAD against (default: main)")
+      .option("--paths <file>", "file with one changed path per line, instead of git")
+      .option("--propose <json>", "proposer's profiles and risk values as JSON")
 );
 register(
   "status",

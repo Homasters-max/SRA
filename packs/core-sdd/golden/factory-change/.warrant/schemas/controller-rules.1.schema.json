@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://controller-rules/1",
+  "title": "WARRANT controller rules",
+  "description": "Controller decision table (04 section 4). Rules are ordered: the first matching rule wins, so the JSON array order is significant.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://controller-rules/1"
+    },
+    "rules": {
+      "description": "Ordered decision rules; the first rule whose `when` matches produces the action.",
+      "type": "array",
+      "items": {
+        "description": "One decision rule.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Rule id, unique within the table.",
+            "$ref": "warrant://common/1#/$defs/kebab_id"
+          },
+          "when": {
+            "description": "Controller inputs that must match. An empty object always matches. Values are booleans, enum strings or comparisons such as `>0`.",
+            "type": "object",
+            "properties": {},
+            "patternProperties": {
+              "^[a-z][a-z0-9_]*$": {
+                "description": "Expected value of one controller input.",
+                "type": ["boolean", "string"]
+              }
+            },
+            "propertyNames": {
+              "anyOf": [
+                { "pattern": "^[a-z][a-z0-9_]*$" },
+                { "pattern": "^\\$comment$" }
+              ]
+            },
+            "additionalProperties": false
+          },
+          "action": {
+            "description": "Action the controller returns when the rule matches.",
+            "$ref": "warrant://common/1#/$defs/controller_action"
+          },
+          "next": {
+            "description": "Operation the agent should run next, for example `clarify` or `verify`.",
+            "$ref": "warrant://common/1#/$defs/kebab_id"
+          }
+        },
+        "required": ["id", "when", "action"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["$schema", "rules"],
+  "additionalProperties": false
+}

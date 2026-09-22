@@ -1,0 +1,14 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "human-approval",
+  "version": "1.0.0",
+  "description": "A human with the required role has approved the change.",
+  "level": "L0",
+  "requires_evidence": [
+    {
+      "kind": "human-approval",
+      "status": "PROVEN"
+    }
+  ],
+  "waivable": false
+}

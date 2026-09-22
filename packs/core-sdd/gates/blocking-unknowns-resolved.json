@@ -1,0 +1,8 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "blocking-unknowns-resolved",
+  "version": "1.0.0",
+  "description": "No blocking UNKNOWN is left open.",
+  "level": "L0",
+  "waivable": false
+}

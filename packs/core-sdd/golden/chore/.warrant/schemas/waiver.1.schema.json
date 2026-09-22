@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://waiver/1",
+  "title": "WARRANT waiver",
+  "description": "An explicit, time-limited exception from one gate for one Change (05 section 7). A waiver is not a policy change.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://waiver/1"
+    },
+    "id": {
+      "description": "Waiver id `WAV-<year>-NNN` (02 section 3).",
+      "type": "string",
+      "pattern": "^WAV-[0-9]{4}-[0-9]{3}$"
+    },
+    "change": {
+      "description": "Change this waiver applies to.",
+      "$ref": "warrant://common/1#/$defs/kebab_id"
+    },
+    "gate": {
+      "description": "Gate this waiver applies to. Gates with `waivable: false` cannot be waived.",
+      "$ref": "warrant://common/1#/$defs/kebab_id"
+    },
+    "reason": {
+      "description": "Why the gate cannot be satisfied.",
+      "type": "string",
+      "minLength": 1
+    },
+    "risk": {
+      "description": "Risk accepted by granting this waiver.",
+      "$ref": "warrant://common/1#/$defs/risk_level"
+    },
+    "compensating_controls": {
+      "description": "Measures reducing the accepted risk.",
+      "type": "array",
+      "items": {
+        "description": "One compensating control.",
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "owner": {
+      "description": "Role or person accountable for the accepted risk.",
+      "type": "string",
+      "minLength": 1
+    },
+    "approved_by": {
+      "description": "Human who approved the waiver, as `human:<login>`. An agent may propose but not approve.",
+      "type": "string",
+      "pattern": "^human:[A-Za-z0-9._-]+$"
+    },
+    "expires_at": {
+      "description": "Date after which the waiver becomes EXPIRED and the gate is re-evaluated.",
+      "type": "string",
+      "format": "date"
+    },
+    "waiver_state": {
+      "description": "State of the waiver.",
+      "$ref": "warrant://common/1#/$defs/waiver_state"
+    }
+  },
+  "required": [
+    "$schema",
+    "id",
+    "change",
+    "gate",
+    "reason",
+    "owner",
+    "approved_by",
+    "expires_at",
+    "waiver_state"
+  ],
+  "additionalProperties": false
+}

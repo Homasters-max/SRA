@@ -1,6 +1,6 @@
 {
   "name": "warrant",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "WARRANT — specification governance CLI over OpenSpec",
   "license": "UNLICENSED",
@@ -13,7 +13,8 @@
     "scripts/build.js",
     "packages/cli/dist",
     "packages/cli/schemas",
-    "packs"
+    "packs",
+    "!packs/core-sdd/golden"
   ],
   "engines": {
     "node": ">=20.19"
@@ -22,6 +23,7 @@
     "prepare": "npm run build",
     "build": "node scripts/build.js",
     "test": "npm run build && vitest run --config packages/cli/vitest.config.ts",
+    "golden:update": "npm run build && node scripts/golden-update.js",
     "typecheck": "node scripts/build.js --noEmit"
   },
   "dependencies": {
@@ -30,12 +32,14 @@
     "canonicalize": "^2.1.0",
     "commander": "^13.1.0",
     "cross-spawn": "^7.0.6",
+    "picomatch": "^4.0.7",
     "semver": "^7.8.5",
     "ulid": "^2.4.0"
   },
   "devDependencies": {
     "@types/cross-spawn": "^6.0.6",
     "@types/node": "^22.15.0",
+    "@types/picomatch": "^4.0.3",
     "@types/semver": "^7.8.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4",

@@ -1,0 +1,24 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "factory-golden-passed",
+  "version": "1.0.0",
+  "description": "The golden changes of the WARRANT factory still resolve to the expected policy (12).",
+  "level": "L1",
+  "applies_when": {
+    "changed_paths": [
+      ".warrant/**",
+      "openspec/schemas/**",
+      "openspec/config.yaml",
+      "packs/**",
+      "packages/cli/schemas/**",
+      "sra/skills/**"
+    ]
+  },
+  "requires_evidence": [
+    {
+      "kind": "test-report",
+      "status": "PROVEN"
+    }
+  ],
+  "waivable": false
+}

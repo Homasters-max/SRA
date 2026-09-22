@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://lock/1",
+  "title": "WARRANT lock file",
+  "description": "`.warrant/warrant.lock.json` — resolved versions and content hashes written by `warrant sync`. Generated: never edit by hand (08 section 3).",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://lock/1"
+    },
+    "kernel": {
+      "description": "Exact kernel (CLI) version that produced this lock.",
+      "$ref": "warrant://common/1#/$defs/semver"
+    },
+    "openspec": {
+      "description": "Exact OpenSpec version observed on PATH when the lock was written.",
+      "$ref": "warrant://common/1#/$defs/semver"
+    },
+    "packs": {
+      "description": "Resolved packs keyed by pack id.",
+      "type": "object",
+      "properties": {},
+      "patternProperties": {
+        "^[a-z0-9]+(-[a-z0-9]+)*$": {
+          "description": "Resolved version, source and content hash of one pack.",
+          "type": "object",
+          "properties": {
+            "version": {
+              "description": "Exact version of the pack.",
+              "$ref": "warrant://common/1#/$defs/semver"
+            },
+            "source": {
+              "description": "Where the pack was loaded from, for example `bundled` or `.warrant/local`.",
+              "type": "string",
+              "minLength": 1
+            },
+            "hash": {
+              "description": "Content hash of the pack.",
+              "$ref": "warrant://common/1#/$defs/sha256"
+            }
+          },
+          "required": ["version", "source", "hash"],
+          "additionalProperties": false
+        }
+      },
+      "propertyNames": {
+        "anyOf": [
+          { "$ref": "warrant://common/1#/$defs/kebab_id" },
+          { "pattern": "^\\$comment$" }
+        ]
+      },
+      "additionalProperties": false
+    },
+    "skills": {
+      "description": "Resolved skills keyed by `namespace/name`.",
+      "type": "object",
+      "properties": {},
+      "patternProperties": {
+        "^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*$": {
+          "description": "Resolved version, path and content hash of one skill.",
+          "type": "object",
+          "properties": {
+            "version": {
+              "description": "Exact version of the skill.",
+              "$ref": "warrant://common/1#/$defs/semver"
+            },
+            "path": {
+              "description": "Path to the skill relative to the project root.",
+              "$ref": "warrant://common/1#/$defs/relative_path"
+            },
+            "hash": {
+              "description": "Content hash of the skill.",
+              "$ref": "warrant://common/1#/$defs/sha256"
+            }
+          },
+          "required": ["version", "path", "hash"],
+          "additionalProperties": false
+        }
+      },
+      "propertyNames": {
+        "anyOf": [
+          { "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*$" },
+          { "pattern": "^\\$comment$" }
+        ]
+      },
+      "additionalProperties": false
+    },
+    "generated": {
+      "description": "Content hash of every file WARRANT generates, keyed by path relative to the project root.",
+      "type": "object",
+      "properties": {},
+      "patternProperties": {
+        "^(?!\\$)(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$": {
+          "description": "Byte hash of the generated file.",
+          "$ref": "warrant://common/1#/$defs/sha256"
+        }
+      },
+      "propertyNames": {
+        "anyOf": [
+          { "$ref": "warrant://common/1#/$defs/relative_path" },
+          { "pattern": "^\\$comment$" }
+        ]
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["$schema", "kernel", "openspec", "packs"],
+  "additionalProperties": false
+}

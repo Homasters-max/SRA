@@ -46,10 +46,10 @@ const FEATURE_HIGH = {
 };
 
 describe("warrant resolve", () => {
-  it("is deterministic and names the source of every gate with --explain (SCN-KRN-065)", () => {
+  it("is deterministic and names the source of every gate with --explain (SCN-KRN-065)", async () => {
     const root = project(["policy"], "demo", { classification: FEATURE_HIGH });
-    const a = runCli(["resolve", "demo", "--explain"], root, ENV);
-    const b = runCli(["resolve", "demo", "--explain"], root, ENV);
+    const a = await runCli(["resolve", "demo", "--explain"], root, ENV);
+    const b = await runCli(["resolve", "demo", "--explain"], root, ENV);
     expect(a.status).toBe(0);
     expect(a.json?.ok).toBe(true);
     expect(a.json?.change).toBe("demo");
@@ -66,9 +66,9 @@ describe("warrant resolve", () => {
     ]);
   });
 
-  it("omits explain unless --explain is given (REQ-KRN-026)", () => {
+  it("omits explain unless --explain is given (REQ-KRN-026)", async () => {
     const root = project(["policy"], "demo", { classification: FEATURE_HIGH });
-    const run = runCli(["resolve", "demo"], root, ENV);
+    const run = await runCli(["resolve", "demo"], root, ENV);
     expect(run.status).toBe(0);
     expect(Object.keys(run.json?.data)).toEqual([
       "hash",
@@ -82,9 +82,9 @@ describe("warrant resolve", () => {
     ]);
   });
 
-  it("unions the gates of the profile and the risk overlay (SCN-KRN-066)", () => {
+  it("unions the gates of the profile and the risk overlay (SCN-KRN-066)", async () => {
     const root = project(["policy"], "demo", { classification: FEATURE_HIGH });
-    const run = runCli(["resolve", "demo"], root, ENV);
+    const run = await runCli(["resolve", "demo"], root, ENV);
     expect(run.json?.data.risk_level).toBe("HIGH");
     expect(run.json?.data.gates).toEqual({
       "VERIFYING->MERGED": ["adversarial-review", "tests-passed"]
@@ -92,9 +92,9 @@ describe("warrant resolve", () => {
     expect(run.json?.data.approvals).toEqual([{ role: "security", at: "APPROVED->IMPLEMENTING" }]);
   });
 
-  it("escalates a policy conflict with exit code 2 (SCN-KRN-067)", () => {
+  it("escalates a policy conflict with exit code 2 (SCN-KRN-067)", async () => {
     const root = project(["policy", "policy-conflict"], "demo", { classification: FEATURE_HIGH });
-    const run = runCli(["resolve", "demo"], root, ENV);
+    const run = await runCli(["resolve", "demo"], root, ENV);
     expect(run.status).toBe(2);
     expect(run.json?.ok).toBe(false);
     expect(run.json?.errors[0].code).toBe("POLICY_CONFLICT");
@@ -104,9 +104,9 @@ describe("warrant resolve", () => {
     ]);
   });
 
-  it("falls back to MEDIUM and to default plus project only, without classification (SCN-KRN-068)", () => {
+  it("falls back to MEDIUM and to default plus project only, without classification (SCN-KRN-068)", async () => {
     const root = project(["policy"], "demo", {});
-    const run = runCli(["resolve", "demo", "--explain"], root, ENV);
+    const run = await runCli(["resolve", "demo", "--explain"], root, ENV);
     expect(run.status).toBe(0);
     expect(run.json?.data.risk_level).toBe("MEDIUM");
     expect(run.json?.data.sources).toEqual([
@@ -119,7 +119,7 @@ describe("warrant resolve", () => {
     });
   });
 
-  it("takes the classification from --classification and matches the golden case (SCN-KRN-069)", () => {
+  it("takes the classification from --classification and matches the golden case (SCN-KRN-069)", async () => {
     const golden = JSON.parse(
       readFileSync(path.join(GOLDEN_DIR, "feature-high-adds-review", "expected.json"), "utf8")
     );
@@ -130,7 +130,7 @@ describe("warrant resolve", () => {
     const root = project(["policy"], "demo", { classification: { profiles: ["chore"] } });
     write(root, "classification.json", input.classification);
 
-    const run = runCli(["resolve", "demo", "--explain", "--classification", "classification.json"], root, ENV);
+    const run = await runCli(["resolve", "demo", "--explain", "--classification", "classification.json"], root, ENV);
     expect(run.status).toBe(0);
     const { hash, sources, ...rest } = run.json?.data as Record<string, unknown>;
     expect(hash).toMatch(/^sha256:[0-9a-f]{64}$/);
@@ -145,33 +145,33 @@ describe("warrant resolve", () => {
     });
   });
 
-  it("reports CHANGE_NOT_FOUND with exit code 3", () => {
+  it("reports CHANGE_NOT_FOUND with exit code 3", async () => {
     const root = project(["policy"], "demo", {});
-    const run = runCli(["resolve", "nosuch"], root, ENV);
+    const run = await runCli(["resolve", "nosuch"], root, ENV);
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("CHANGE_NOT_FOUND");
     expect(run.json?.errors[0].path).toBe(".warrant/changes/nosuch.json");
   });
 
-  it("reports CONFIG_MISSING outside a project (SCN-KRN-007)", () => {
+  it("reports CONFIG_MISSING outside a project (SCN-KRN-007)", async () => {
     const root = makeTempDir("warrant-resolve-bare-");
     tempDirs.push(root);
-    const run = runCli(["resolve", "demo"], root, ENV);
+    const run = await runCli(["resolve", "demo"], root, ENV);
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("CONFIG_MISSING");
   });
 
-  it("reports CONFIG_MISSING for a missing --classification file", () => {
+  it("reports CONFIG_MISSING for a missing --classification file", async () => {
     const root = project(["policy"], "demo", {});
-    const run = runCli(["resolve", "demo", "--classification", "nope.json"], root, ENV);
+    const run = await runCli(["resolve", "demo", "--classification", "nope.json"], root, ENV);
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("CONFIG_MISSING");
   });
 
-  it("rejects a --classification file that does not match the schema", () => {
+  it("rejects a --classification file that does not match the schema", async () => {
     const root = project(["policy"], "demo", {});
     write(root, "bad.json", { risk: { data_loss: "HIGH" } });
-    const run = runCli(["resolve", "demo", "--classification", "bad.json"], root, ENV);
+    const run = await runCli(["resolve", "demo", "--classification", "bad.json"], root, ENV);
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("SCHEMA_VIOLATION");
     expect(run.json?.errors[0].path).toContain("bad.json");

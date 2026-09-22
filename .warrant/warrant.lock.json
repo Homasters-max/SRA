@@ -1,17 +1,24 @@
 {
   "$schema": "warrant://lock/1",
-  "kernel": "0.1.0",
+  "kernel": "0.2.0",
   "openspec": "1.13.1",
   "packs": {
     "core-sdd": {
       "version": "0.1.0",
       "source": "bundled",
-      "hash": "sha256:1ecd9e68114257eca60c9cf35cfc67aa3fb5dca0e18a6b8b351e4d524e7b2f2b"
+      "hash": "sha256:6d5fdc0c64cd218baac8d8be7516c909b186e50f8c95d114c268e7306f7765f0"
+    }
+  },
+  "skills": {
+    "specification/adversarial-review": {
+      "version": "0.1.0",
+      "path": "sra/skills/specification/adversarial-review/SKILL.md",
+      "hash": "sha256:a0e8e2dfb9524761930ba6dc178cecf1e3b0f74ba1569bad463b1a4f744db373"
     }
   },
   "generated": {
     ".warrant/schemas/areas.1.schema.json": "sha256:a6854309970294bb368334f9703918b011aaa73e6b68523be04b501300ea122d",
-    ".warrant/schemas/change-record.1.schema.json": "sha256:b5c4f263db5d204223edba47cd5cbc30ad1970b91cfe3405729d066684fb01b3",
+    ".warrant/schemas/change-record.1.schema.json": "sha256:8cb0e313a3f90624534b6882020ae1d01b8f02ed4e847dcbf9133a8dc0a5f89f",
     ".warrant/schemas/check.1.schema.json": "sha256:a17c4b4e210ca906caef87beadf0f943c13cac434ab358c29e8142e3c4574988",
     ".warrant/schemas/common.1.schema.json": "sha256:207c36e2472cb1465ebe3c43c77dabdcc59ee895ebf76cffdaf097b596e05041",
     ".warrant/schemas/config.1.schema.json": "sha256:e685826f1a7af93386928af9d7be4336b3f3fcc9dea098d499b68dbaedf77b57",
@@ -28,7 +35,7 @@
     ".warrant/schemas/risk-floor.1.schema.json": "sha256:ef10883aea0f0da08f25d3749225889fcec4fb29ed0efe2f88423da8dc7511ec",
     ".warrant/schemas/risk-levels.1.schema.json": "sha256:7517af13d686af3009c8e355a9881182c5d6fc6b5f8317e0933bbcafaa5c5f26",
     ".warrant/schemas/waiver.1.schema.json": "sha256:5e201057887712add0f4ab731fe7bb6d86a2af4e40b0d234545d9632f5ba2685",
-    "openspec/config.yaml": "sha256:c7675f2475bbdf1fd8f8ed98e38616d30adae1a1e4e5b0cc05608136c53c346b",
+    "openspec/config.yaml": "sha256:6508f4abffc2c59cee3625822846ac644d660b454290d174ac9e50b1c9cb7130",
     "openspec/schemas/warrant-sdd/schema.yaml": "sha256:b608edc3b6b8532fc4a9d3f5cdbc0b702e8882a6999f75ae9453a8fb4ad05189",
     "openspec/schemas/warrant-sdd/templates/design.md": "sha256:6ccc87f5017fb190e69e8759dd4e20d5ac3320cc4dabf152708bf8f2aa5205f8",
     "openspec/schemas/warrant-sdd/templates/proposal.md": "sha256:7869a6a2aae2437faf8d65d5592b9119942c1380e45df97502a2c5969ba99705",

@@ -124,7 +124,7 @@ Profiles ссылаются только на ID. Определение gate с
 | `ids-valid` | L0 | нет | core-sdd | ID уникальны, формат верен, не переиспользованы |
 | `branch-isolated` | L0 | да | core-sdd | Implementation на отдельной ветке ([ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)) |
 | `tests-passed` | L1 | нет | core-sdd | Required tests проходят |
-| `scope-valid` | L0 | нет | core-sdd | Diff затрагивает только разрешённые пути; архив, record и evidence архивных Changes — только `factory-change` ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) |
+| `scope-valid` | L0 | нет | core-sdd | Diff затрагивает только разрешённые пути; архив, record и evidence архивных Changes — только `factory-change`; archive-PR — только свой каталог архива и `specs/**` ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md), D-15) |
 | `analyze-clean` | L0 | да | core-sdd | Нет `UNSATISFIED`, `CONFLICT`, `ORPHAN` |
 | `evidence-complete` | L0 | нет | core-sdd | Все `evidence.required` присутствуют |
 | `human-approval` | L0 | нет | core-sdd | Approval от человека с нужной ролью |

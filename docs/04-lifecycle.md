@@ -147,6 +147,8 @@ archive            → warrant archive → ветка archive/<change> → PR и
 - Транзиции record едут в *следующем* PR ([§9](#9-change-record)); между PR `warrant status` показывает `STALE` штатно.
 - `openspec archive` MUST вызываться только через `warrant archive`: OpenSpec сам не проверяет граф artifacts
   и архивирует пустой Change (spike S2).
+- Отказ от Change — ветка `abandon/<change>`: `warrant transition … ABANDONED` и удаление каталога одним коммитом →
+  PR или push как для archive ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md) п. 8).
 
 ## 6. Enforcement
 
@@ -283,4 +285,5 @@ Governance-состояние Change (classification, risk, `change_state`) пр
 - Файл — не второй source спецификации: он не содержит ни требований, ни tasks ([03 §8](03-architecture.md)).
 - Необязательные `amends[]` (цель в `MERGED` / `ARCHIVED`) и `supersedes[]` (цель в `ABANDONED`) пишет `warrant link`;
   обратные `amended_by[]` / `superseded_by[]` не хранятся — их вычисляют `status` и `analyze`. После `ARCHIVED` или
-  `ABANDONED` файл неизменен ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)).
+  `ABANDONED` файл неизменен ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)). `status` сверяет `ABANDONED` с
+  каталогом: `ABANDONED_DIR_PRESENT`, `DIR_MISSING_WITHOUT_TRANSITION` (D-22).

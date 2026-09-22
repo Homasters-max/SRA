@@ -27,9 +27,12 @@ amends: [WARRANT-ADR-0020]
 1. **Неизменно после `ARCHIVED`:** `openspec/changes/archive/<dir>/**`, record `.warrant/changes/<change>.json`,
    evidence `.warrant/evidence/<change>/**`. Единственное исключение — `factory-change` с целью «миграция формата»
    (например, обновление OpenSpec), по правилу INV-08.
-2. **Принуждение — `scope-valid`.** Пути п. 1 входят в набор, запрещённый любому profile, кроме `factory-change`.
-   В `sef-hub` они входят в `protected[]` (ADR-0020 п. 13, `SEF_PROTECTED_DRIFT`). Раннюю подсказку даёт
-   `validate --files` ([ADR-0019](WARRANT-ADR-0019-post-edit-hints.md)). Нового gate нет.
+2. **Принуждение — `scope-valid`.** Пути п. 1 входят в набор, запрещённый любому profile, кроме `factory-change`, —
+   для spec-PR и impl-PR. Archive-PR (переход `MERGED → ARCHIVED`) может создать ровно свой каталог
+   `openspec/changes/archive/<date>-<change>/` и изменить `openspec/specs/**` как результат `openspec archive`;
+   чужие каталоги архива, records и evidence — запрещены (D-15; без этого штатный archive-PR ронял бы `scope-valid`).
+   В `sef-hub` они входят в `protected[]` (ADR-0020 п. 13, `SEF_PROTECTED_DRIFT`); landing — доверенный писатель
+   архива. Раннюю подсказку даёт `validate --files` ([ADR-0019](WARRANT-ADR-0019-post-edit-hints.md)). Нового gate нет.
 3. **Связь хранится в Change record** (владелец метаданных governance, INV-06). Текст в proposal допустим для человека,
    authority — record. `.openspec.yaml` не используется (ADR-0015: WARRANT его только читает).
 4. **Два поля.** `amends[]` — исправление Change в состоянии `MERGED` или `ARCHIVED` (его дельты уже в `specs/` или в
@@ -41,9 +44,13 @@ amends: [WARRANT-ADR-0020]
 6. **Связь необязательна.** Эвристик нет: любой REQ в `specs/` когда-то добавлен архивным Change, поэтому «правка
    старого REQ» ≠ «исправление ошибки». Решение — человека; связь служит трассировке и аудиту.
 7. **Отката из `MERGED` нет**; исправление — новый Change с `amends`, в том числе пока цель ещё не в `ARCHIVED`.
-8. **`ABANDONED`.** `warrant transition <change> ABANDONED` замораживает record (как п. 1) и тем же коммитом удаляет
-   `openspec/changes/<change>/`. Артефакты — в истории git; имя закреплено record (ADR-0012 п. 6). Агент каталог
-   сам не удаляет.
+8. **`ABANDONED`.** `warrant transition <change> ABANDONED` замораживает record (как п. 1) и удаляет
+   `openspec/changes/<change>/`; оба изменения едут одним коммитом. Артефакты — в истории git; имя закреплено record
+   (ADR-0012 п. 6). Агент каталог сам не удаляет. Механизм (D-22): CLI не коммитит, поэтому «тем же коммитом» — правило
+   ветки, а расхождение ловят `warrant status` и `ci` как `stale[]`: `ABANDONED_DIR_PRESENT` (record `ABANDONED`,
+   каталог есть) и `DIR_MISSING_WITHOUT_TRANSITION` (каталога нет, record не `ABANDONED` и не в archive). В транспорте
+   `github` переход и удаление едут в ветке `abandon/<change>` → PR или push в `main` как для archive
+   ([ADR-0011](WARRANT-ADR-0011-pr-topology.md) п. 2 — четвёртый префикс ветки).
 9. **Команда** `warrant link <change> --amends|--supersedes <target>` — до `APPROVED` (после — метаданные меняются
    только новой ревизией approval, ср. ADR-0020 п. 9). Флаг при создании Change — later.
 
@@ -53,6 +60,8 @@ amends: [WARRANT-ADR-0020]
 - `change-record.1` получает `amends[]`, `supersedes[]`; `scope-valid` — пути архива; `warrant link` — новая команда.
   Реализация — фаза 3, как и долг ADR-0016…0020.
 - ADR-0020 п. 13: список путей для `protected[]` расширен путями п. 1.
+- REQ-KRN-027 (`status`): правила `stale[]` `ABANDONED_DIR_PRESENT`, `DIR_MISSING_WITHOUT_TRANSITION`; ADR-0011 п. 2: ветка
+  `abandon/<change>`; `scope-valid` знает вид PR (D-15, D-22).
 
 ## Alternatives
 
@@ -64,3 +73,5 @@ amends: [WARRANT-ADR-0020]
 - **Эвристика или обязательная связь** — отвергнуто: срабатывала бы на любую правку spec.
 - **Откат `MERGED → IMPLEMENTING`** — отвергнуто: код уже в `main`.
 - **Брошенный каталог — в архив** — отвергнуто: `openspec archive` влил бы его дельты в `specs/`.
+- **Запрет путей архива без исключения для archive-PR** — уточнено ревью 2026-09-22 (D-15).
+- **«Тем же коммитом» без проверки** — дополнено (D-22): CLI не коммитит, нужна сверка в `status`/`ci`.

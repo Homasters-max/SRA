@@ -43,6 +43,6 @@
 
 ## 6. Выход фазы 2
 
-- [ ] 6.1 Полный прогон: `npm test`, `npm run typecheck`, `npm run build`, `warrant validate` и `warrant fmt --check` на репозитории, `warrant sync --check` `changed: []`; SCN-SDD-001, SCN-SDD-015. Проверка: всё зелёное в одном отчёте.
-- [ ] 6.2 `package.json` `0.2.0`, README (команда `classify`, golden), `docs/NEXT-SESSION.md` (состояние, вход в фазу 3: исполнение gates, CI-матрица, B3/B4/B5). Проверка: `warrant --version` печатает `0.2.0`. (G-20)
+- [x] 6.1 Полный прогон: `npm test`, `npm run typecheck`, `npm run build`, `warrant validate` и `warrant fmt --check` на репозитории, `warrant sync --check` `changed: []`; SCN-SDD-001, SCN-SDD-015. Проверка: всё зелёное в одном отчёте.
+- [x] 6.2 `package.json` `0.2.0`, README (команда `classify`, golden), `docs/NEXT-SESSION.md` (состояние, вход в фазу 3: исполнение gates, CI-матрица, B3/B4/B5). Проверка: `warrant --version` печатает `0.2.0`. (G-20)
 - [ ] 6.3 PR `feature/phase-2-core-sdd` → `main` с описанием решений I-45…I-N; после merge — tag `v0.2.0`. Проверка: PR открыт, тесты зелёные на ветке.

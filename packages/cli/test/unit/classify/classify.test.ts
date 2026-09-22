@@ -146,3 +146,76 @@ describe("classify", () => {
     expect(result.classification.risk?.security_impact).toEqual({ value: "HIGH", from: "floor:other:0" });
   });
 });
+
+describe("classify: human source (REQ-KRN-028, P-5)", () => {
+  it("writes a human value and profile with from human:<login> (SCN-KRN-105)", () => {
+    const result = classify({
+      changed: [],
+      floors: [FLOOR_SYSTEM],
+      profiles: [],
+      human: { login: "kat", risk: { security_impact: "HIGH" }, profiles: ["feature"] }
+    });
+    expect(result.classification.risk?.security_impact).toEqual({ value: "HIGH", from: "human:kat" });
+    expect(result.classification.profiles).toEqual(["feature"]);
+    expect(result.profiles).toEqual([{ id: "feature", from: "human:kat" }]);
+    expect(result.belowFloor).toEqual([]);
+  });
+
+  it("reports a human value below the floor instead of merging it (SCN-KRN-106)", () => {
+    const result = classify({
+      changed: [".warrant/local/areas.json"],
+      floors: [FLOOR_SYSTEM],
+      profiles: [],
+      human: { login: "kat", risk: { blast_radius: "LOCAL" } }
+    });
+    expect(result.belowFloor).toEqual([
+      { dimension: "blast_radius", value: "LOCAL", floor: "SYSTEM", from: "floor:core-sdd:2" }
+    ]);
+    expect(result.classification.risk?.blast_radius).toEqual({ value: "SYSTEM", from: "floor:core-sdd:2" });
+  });
+
+  it("confirms the floor value under the human's name", () => {
+    const result = classify({
+      changed: [".warrant/local/areas.json"],
+      floors: [FLOOR_SYSTEM],
+      profiles: [],
+      human: { login: "kat", risk: { blast_radius: "SYSTEM" } }
+    });
+    expect(result.classification.risk?.blast_radius).toEqual({ value: "SYSTEM", from: "human:kat" });
+    expect(result.belowFloor).toEqual([]);
+  });
+
+  it("takes the maximum of floor, proposer and human", () => {
+    const result = classify({
+      changed: [],
+      floors: [],
+      profiles: [],
+      propose: { risk: { data_loss: "HIGH", compatibility: "COMPATIBLE" } },
+      human: { login: "kat", risk: { data_loss: "LOW", compatibility: "BREAKING" } }
+    });
+    expect(result.classification.risk?.data_loss).toEqual({ value: "HIGH", from: "proposer" });
+    expect(result.classification.risk?.compatibility).toEqual({ value: "BREAKING", from: "human:kat" });
+    expect(result.ignored).toEqual([
+      { dimension: "data_loss", proposed: "LOW", kept: "HIGH", reason: "below-proposer", from: "human:kat" },
+      { dimension: "compatibility", proposed: "COMPATIBLE", kept: "BREAKING", reason: "below-human" }
+    ]);
+  });
+
+  it("never lowers a recorded value (monotonic)", () => {
+    const result = classify({
+      changed: [],
+      floors: [],
+      profiles: [],
+      previous: { risk: { security_impact: { value: "HIGH", from: "proposer" } }, profiles: ["chore"] },
+      human: { login: "kat", risk: { security_impact: "LOW" }, profiles: ["chore", "feature"] }
+    });
+    expect(result.classification.risk?.security_impact).toEqual({ value: "HIGH", from: "record" });
+    expect(result.ignored).toEqual([
+      { dimension: "security_impact", proposed: "LOW", kept: "HIGH", reason: "below-record", from: "human:kat" }
+    ]);
+    expect(result.profiles).toEqual([
+      { id: "chore", from: "record" },
+      { id: "feature", from: "human:kat" }
+    ]);
+  });
+});

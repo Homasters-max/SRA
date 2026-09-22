@@ -21,13 +21,17 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Every login named in `roles` of `warrant.json`. */
-function roleMembers(config: Record<string, unknown>): Set<string> {
+/**
+ * Logins named in `roles` of `warrant.json`: of the given roles only, or of
+ * every role when `only` is omitted.
+ */
+export function roleMembers(config: Record<string, unknown>, only?: readonly string[]): Set<string> {
   const members = new Set<string>();
   const roles = config["roles"];
   if (!isPlainObject(roles)) return members;
   for (const [role, logins] of Object.entries(roles)) {
     if (role === "$comment" || !Array.isArray(logins)) continue;
+    if (only !== undefined && !only.includes(role)) continue;
     for (const login of logins) if (typeof login === "string") members.add(login);
   }
   return members;

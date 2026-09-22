@@ -15,6 +15,8 @@ import { runClassify } from "../commands/classify.js";
 import { runCheck } from "../commands/check.js";
 import { runGate } from "../commands/gate.js";
 import { runVerify } from "../commands/verify.js";
+import { runTransition } from "../commands/transition.js";
+import { runArchive } from "../commands/archive.js";
 
 export type Runner = (args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -39,6 +41,11 @@ async function run(name: string, runner: Runner, args: string[], opts: Record<st
   // No `process.exit`: the exit code is set after stdout accepted the whole
   // envelope, and Node ends the process once the pipe has drained (B4).
   await emitToProcess(name, result);
+}
+
+/** Commander collector of a repeatable option. */
+function collect(value: string, previous: string[]): string[] {
+  return [...previous, value];
 }
 
 function register(name: string, description: string, runner: Runner, configure?: (cmd: Command) => void): void {
@@ -102,7 +109,9 @@ register(
     runClassify(args[0] as string, {
       ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {}),
       ...(typeof opts["paths"] === "string" ? { paths: opts["paths"] } : {}),
-      ...(typeof opts["propose"] === "string" ? { propose: opts["propose"] } : {})
+      ...(typeof opts["propose"] === "string" ? { propose: opts["propose"] } : {}),
+      ...(Array.isArray(opts["set"]) && opts["set"].length > 0 ? { set: opts["set"] as string[] } : {}),
+      ...(typeof opts["by"] === "string" ? { by: opts["by"] } : {})
     }),
   (c) =>
     c
@@ -110,6 +119,8 @@ register(
       .option("--base <ref>", "git ref to diff HEAD against (default: main)")
       .option("--paths <file>", "file with one changed path per line, instead of git")
       .option("--propose <json>", "proposer's profiles and risk values as JSON")
+      .option("--set <dim=value>", "a human value: <dimension>=<value> or profile=<id> (repeatable; needs --by)", collect, [])
+      .option("--by <login>", "login of the human behind --set; must be listed in roles of warrant.json")
 );
 register(
   "status",
@@ -163,6 +174,30 @@ register(
       .option("--transition <FROM->TO>", "transition to verify (default: the next forward one)")
       .option("--base <ref>", "base commit of the evidence and the diff (default: merge-base of HEAD and main)")
       .option("--paths <a,b>", "run run.scoped_command of the checks over these comma-separated paths")
+);
+
+register(
+  "transition",
+  "record a transition of a change, if 04 section 2 and its gates allow it",
+  (args, opts) =>
+    runTransition(args[0] as string, args[1] as string, {
+      ...(typeof opts["ref"] === "string" ? { ref: opts["ref"] } : {}),
+      ...(typeof opts["by"] === "string" ? { by: opts["by"] } : {}),
+      ...(typeof opts["commit"] === "string" ? { commit: opts["commit"] } : {})
+    }),
+  (c) =>
+    c
+      .argument("<change>")
+      .argument("<state>")
+      .option("--ref <url>", "URL of the act on the forge (review, CI run); required for APPROVED and MERGED")
+      .option("--by <login>", "the approving human, when the transition has gate human-approval")
+      .option("--commit <sha>", "MERGED: the commit of the evidence (default: that of the freshest record)")
+);
+register(
+  "archive",
+  "validate, gate and archive a MERGED change, then record ARCHIVED",
+  (args) => runArchive(args[0] as string),
+  (c) => c.argument("<change>")
 );
 
 async function main(): Promise<void> {

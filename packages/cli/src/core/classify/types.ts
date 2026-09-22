@@ -26,6 +26,14 @@ export interface Proposal {
   risk?: Partial<Record<RiskDimension, string>>;
 }
 
+/** `--set <dim>=<value>` / `--set profile=<id>` with `--by <login>`: values of a human (P-5). */
+export interface HumanValues {
+  /** Login of the human; the source is written as `human:<login>`. */
+  login: string;
+  profiles?: string[];
+  risk?: Partial<Record<RiskDimension, string>>;
+}
+
 export interface ClassifyInput {
   /** Изменённые пути, POSIX, относительно корня проекта. */
   changed: string[];
@@ -34,6 +42,8 @@ export interface ClassifyInput {
   propose?: Proposal;
   /** `classification` уже записанной record. */
   previous?: Classification;
+  /** Values set by a human; they may raise or confirm, never go below the floor. */
+  human?: HumanValues;
 }
 
 /** Предложенное значение, которое не попало в classification. */
@@ -41,14 +51,25 @@ export interface IgnoredValue {
   dimension: RiskDimension;
   proposed: string;
   kept: string;
-  /** Почему предложение отклонено: победитель пришёл из floor или из record. */
-  reason: "below-floor" | "below-record";
+  /** Почему предложение отклонено: победитель пришёл из floor, из record, от human или (для human) от proposer. */
+  reason: "below-floor" | "below-record" | "below-human" | "below-proposer";
+  /** Present for a human value only: `human:<login>`; a proposer's value has no `from` here. */
+  from?: string;
+}
+
+/** A human value below the floor: `classify` refuses the whole call (`BELOW_FLOOR`). */
+export interface BelowFloor {
+  dimension: RiskDimension;
+  value: string;
+  floor: string;
+  /** `floor:<pack>:<rule-index>` of the floor. */
+  from: string;
 }
 
 /** Profile итоговой classification вместе с источником (схема record хранит только id). */
 export interface ProfileOrigin {
   id: string;
-  /** `record`, `match:<pack>:<profile>` или `proposer`. */
+  /** `record`, `human:<login>`, `match:<pack>:<profile>` или `proposer`. */
   from: string;
 }
 
@@ -58,4 +79,6 @@ export interface ClassifyResult {
   /** Те же profiles, но с источником — для `data`. */
   profiles: ProfileOrigin[];
   ignored: IgnoredValue[];
+  /** Human values below the floor; non-empty means the result must not be written. */
+  belowFloor: BelowFloor[];
 }

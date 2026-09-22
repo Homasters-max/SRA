@@ -10,6 +10,12 @@
  * Запись идёт через `writeJsonFile`, `transitions[]` не трогается: classify —
  * не переход (04 §9). Если изменённые пути получить нечем, ничего не пишется
  * вовсе (SCN-KRN-076).
+ *
+ * `--set <dim>=<value>` / `--set profile=<id>` (repeatable) with `--by <login>`
+ * are the human source (P-5): the login must hold a role in `roles` of
+ * `warrant.json` (`ROLE_REQUIRED`), `--set` without `--by` is `USAGE`, a value
+ * below the floor is `BELOW_FLOOR` and nothing is written. A frozen record
+ * (`ARCHIVED`, `ABANDONED`) is `RECORD_FROZEN` (REQ-VER-007).
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -17,11 +23,21 @@ import path from "node:path";
 import spawnCjs from "cross-spawn";
 
 import { writeJsonFile } from "../core/canon/format-json.js";
-import { classify, type FloorRule, type ProfileMatch, type Proposal } from "../core/classify/index.js";
+import {
+  classify,
+  dimensionValueOrder,
+  type FloorRule,
+  type HumanValues,
+  type ProfileMatch,
+  type Proposal
+} from "../core/classify/index.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { loadPacks } from "../core/packs/loader.js";
+import type { LoadResult } from "../core/packs/types.js";
 import { readChangeRecord } from "../core/record/read.js";
+import { assertNotFrozen } from "../core/record/write.js";
 import { resolveForProject, RISK_DIMENSIONS, type Classification, type RiskDimension } from "../core/resolve/index.js";
+import { roleMembers } from "../core/validate/waivers.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
 
@@ -36,6 +52,57 @@ export interface ClassifyOptions {
   paths?: string | undefined;
   /** JSON предложения proposer'а: `{"profiles": [...], "risk": {...}}`. */
   propose?: string | undefined;
+  /** `--set <dim>=<value>` / `--set profile=<id>`, repeatable: the human's values. */
+  set?: string[] | undefined;
+  /** `--by <login>`: the human behind `--set`. */
+  by?: string | undefined;
+}
+
+/** Parsed `--set` values; `USAGE` for anything that is not `<dimension>=<value>` or `profile=<id>`. */
+export function parseSets(sets: readonly string[]): { profiles: string[]; risk: Partial<Record<RiskDimension, string>> } {
+  const profiles: string[] = [];
+  const risk: Partial<Record<RiskDimension, string>> = {};
+  for (const raw of sets) {
+    const eq = raw.indexOf("=");
+    const key = eq < 0 ? "" : raw.slice(0, eq).trim();
+    const value = eq < 0 ? "" : raw.slice(eq + 1).trim();
+    if (key === "" || value === "") throw new WarrantError("USAGE", `--set ${JSON.stringify(raw)} is not <dimension>=<value> or profile=<id>`);
+    if (key === "profile") {
+      if (!profiles.includes(value)) profiles.push(value);
+      continue;
+    }
+    if (!(RISK_DIMENSIONS as readonly string[]).includes(key)) {
+      throw new WarrantError("USAGE", `--set: "${key}" is not a risk dimension (${RISK_DIMENSIONS.join(", ")}) or profile`);
+    }
+    const dimension = key as RiskDimension;
+    const allowed = dimensionValueOrder(dimension);
+    if (!allowed.includes(value)) {
+      throw new WarrantError("USAGE", `--set: ${dimension} must be one of ${allowed.join(", ")}, not "${value}"`);
+    }
+    const previous = risk[dimension];
+    if (previous !== undefined && previous !== value) {
+      throw new WarrantError("USAGE", `--set: ${dimension} is set twice (${previous}, ${value})`);
+    }
+    risk[dimension] = value;
+  }
+  return { profiles, risk };
+}
+
+/** The human source of the call, checked against `roles` and the declared profiles. */
+function humanValues(loaded: LoadResult, sets: ReturnType<typeof parseSets>, login: string): HumanValues {
+  if (!roleMembers(loaded.config).has(login)) {
+    throw new WarrantError("ROLE_REQUIRED", `${login} is not listed in any role of .warrant/warrant.json; --set needs a login from roles`, {
+      path: ".warrant/warrant.json"
+    });
+  }
+  const declared = new Set(loaded.objects.filter((o) => o.kind === "profile").map((o) => o.id));
+  for (const id of sets.profiles) {
+    if (!declared.has(id)) throw new WarrantError("USAGE", `--set profile=${id}: no profile "${id}" in the enabled packs or .warrant/local/`);
+  }
+  const human: HumanValues = { login };
+  if (sets.profiles.length > 0) human.profiles = sets.profiles;
+  if (Object.keys(sets.risk).length > 0) human.risk = sets.risk;
+  return human;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -180,8 +247,16 @@ export function runClassify(
   requireConfigPath(root);
 
   const record = readChangeRecord(root, change);
+  assertNotFrozen(record, change);
 
   // Всё, что может сказать «не буду», говорит это до первой записи.
+  const sets = opts.set !== undefined && opts.set.length > 0 ? parseSets(opts.set) : undefined;
+  const login = opts.by !== undefined && opts.by !== "" ? opts.by : undefined;
+  if (sets !== undefined && login === undefined) throw new WarrantError("USAGE", "--set needs --by <login> of a member of roles");
+  if (sets === undefined && login !== undefined) throw new WarrantError("USAGE", "--by applies only together with --set");
+  if (login !== undefined && !/^[A-Za-z0-9._-]+$/.test(login)) {
+    throw new WarrantError("USAGE", `--by ${JSON.stringify(login)} is not a login ([A-Za-z0-9._-]+)`);
+  }
   const proposal = opts.propose !== undefined && opts.propose !== "" ? parseProposal(opts.propose) : undefined;
   const changed =
     opts.paths !== undefined && opts.paths !== ""
@@ -190,6 +265,7 @@ export function runClassify(
 
   const loaded = loadPacks(root);
   if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
+  const human = sets !== undefined && login !== undefined ? humanValues(loaded, sets, login) : undefined;
 
   const result = classify({
     changed,
@@ -198,8 +274,17 @@ export function runClassify(
     ...(proposal === undefined ? {} : { propose: proposal }),
     ...(isPlainObject(record["classification"])
       ? { previous: record["classification"] as Classification }
-      : {})
+      : {}),
+    ...(human === undefined ? {} : { human })
   });
+  if (result.belowFloor.length > 0) {
+    const errors: CliError[] = result.belowFloor.map((b) => ({
+      code: "BELOW_FLOOR",
+      message: `--set ${b.dimension}=${b.value} is below the floor ${b.floor} (${b.from}); lowering below the floor is not supported`,
+      path: `#/classification/risk/${b.dimension}`
+    }));
+    return failures(errors, EXIT.CONFIG, { changed, below_floor: result.belowFloor }, change);
+  }
 
   const updated = { ...record, classification: result.classification };
   writeJsonFile(path.join(root, ".warrant", "changes", `${change}.json`), updated);

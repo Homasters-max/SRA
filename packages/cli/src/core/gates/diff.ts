@@ -178,3 +178,60 @@ export function currentBranch(root: string, facts: GitFacts): Availability<strin
 export function isAncestor(root: string, commit: string, of = "HEAD"): boolean {
   return git(["merge-base", "--is-ancestor", commit, of], root).ok;
 }
+
+/** The full sha of `ref` when it names a commit of this repository, else null. */
+export function resolveCommit(root: string, ref: string): string | null {
+  const run = git(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], root);
+  const sha = run.stdout.trim();
+  return run.ok && sha !== "" ? sha : null;
+}
+
+/**
+ * Base of a merged commit (design §9: `merge-base(main, <commit>)` as it was
+ * before `<commit>` was merged). Once `<commit>` is merged, `main` contains it
+ * and the literal merge-base is `<commit>` itself — an empty diff, and every
+ * record's `base_commit` stale. So the base is taken against the state of the
+ * base line just before the merge: `M` is the oldest commit on the
+ * first-parent line of `of` that contains `<commit>` (the merge commit that
+ * brought it in), and the base is `merge-base(M^1, <commit>)`, the fork point
+ * the impl-PR was checked against. When `<commit>` itself lies on that line
+ * (fast-forward), `M^1` is its parent. Null when no base can be found.
+ */
+export function forkPointOf(root: string, commit: string, of = "HEAD"): string | null {
+  const chain = git(["rev-list", "--first-parent", of], root);
+  if (!chain.ok) return null;
+  const line = chain.stdout.split("\n").map((l) => l.trim()).filter((l) => l !== "");
+  if (line.length === 0 || !isAncestor(root, commit, line[0] as string)) {
+    const base = git(["merge-base", of, commit], root);
+    return base.ok && base.stdout.trim() !== "" ? base.stdout.trim() : null;
+  }
+  // Containment is monotonic along the first-parent line (newest first): binary
+  // search for the oldest commit that still contains `commit`.
+  let lo = 0;
+  let hi = line.length - 1;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (isAncestor(root, commit, line[mid] as string)) lo = mid;
+    else hi = mid - 1;
+  }
+  const merge = line[lo] as string;
+  const parent = git(["rev-parse", "--verify", "--quiet", `${merge}^1`], root);
+  if (!parent.ok || parent.stdout.trim() === "") return null;
+  const base = git(["merge-base", parent.stdout.trim(), commit], root);
+  return base.ok && base.stdout.trim() !== "" ? base.stdout.trim() : null;
+}
+
+/**
+ * Git facts of a `MERGED` transition (design §9, REQ-VER-007): the evaluated
+ * commit is `<commit>`, not HEAD, and the base is {@link forkPointOf} it on the
+ * first-parent line of HEAD. `commit` must already be a full sha.
+ */
+export function mergedCommitFacts(root: string, commit: string): GitFacts {
+  const common = git(["rev-parse", "--git-common-dir"], root);
+  const commonDir = common.ok && common.stdout.trim() !== "" ? path.resolve(root, common.stdout.trim()) : null;
+  const facts: GitFacts = { commonDir, commit, limitations: [] };
+  const base = forkPointOf(root, commit);
+  if (base !== null) facts.baseCommit = base;
+  else facts.limitations.push(`no base: fork point of ${commit} unknown`);
+  return facts;
+}

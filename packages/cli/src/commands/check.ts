@@ -24,7 +24,7 @@ import { expandArgv, splitPaths } from "../core/check/placeholders.js";
 import { runCommand } from "../core/check/runner.js";
 import { EXIT, WarrantError, type CliError, type ExitCode } from "../core/errors.js";
 import { attestationFromEnv } from "../core/evidence/attestation.js";
-import { buildManifest } from "../core/evidence/manifest.js";
+import { buildManifest, type ManifestVersions } from "../core/evidence/manifest.js";
 import { findParser, parserNames } from "../core/evidence/parsers/index.js";
 import { buildCheckRecord, collectArtifacts, type EvidenceStatus } from "../core/evidence/record.js";
 import { evidenceDir, listRecordIds, MANIFEST_FILE, projectUri, rawDir, readManifest } from "../core/evidence/store.js";
@@ -114,7 +114,7 @@ interface Context {
   env: NodeJS.ProcessEnv;
   warn: (text: string) => void;
   /** Lazily computed `manifest.versions`. */
-  versions: () => { warrant: string; openspec: string; lock_hash?: string; effective_policy_hash: string };
+  versions: () => ManifestVersions;
 }
 
 type CheckOutcome =
@@ -256,24 +256,15 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
     createdAt: new Date().toISOString()
   });
 
-  const dir = evidenceDir(ctx.root, ctx.change, ctx.env);
-  const file = path.join(dir, `${id}.json`);
-  const reported = projectUri(ctx.root, file);
-  const checked = validateFile(record, reported);
-  if (!checked.ok) {
-    throw new WarrantError("INTERNAL", `the record of check ${object.id} does not match its schema: ${checked.errors[0]?.message ?? ""}`);
-  }
-  mkdirSync(dir, { recursive: true });
-  writeJsonFile(file, record);
-  writeJsonFile(
-    path.join(dir, MANIFEST_FILE),
-    buildManifest(readManifest(dir), {
-      change: ctx.change,
-      commit: ctx.git.commit,
-      versions: ctx.versions(),
-      evidence: listRecordIds(dir)
-    })
-  );
+  const reported = storeRecord({
+    root: ctx.root,
+    change: ctx.change,
+    env: ctx.env,
+    record,
+    commit: ctx.git.commit,
+    versions: ctx.versions(),
+    what: `check ${object.id}`
+  });
 
   const entry: Record<string, unknown> = {
     id: object.id,
@@ -285,6 +276,61 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
   if (parsed.metrics !== undefined) entry["metrics"] = parsed.metrics;
   entry["limitations"] = limitations;
   return { ok: true, entry };
+}
+
+export interface StoreParams {
+  root: string;
+  change: string;
+  env: NodeJS.ProcessEnv;
+  /** The record, already built; its `id` names the file. */
+  record: Record<string, unknown>;
+  /** `manifest.commit`: the commit the record speaks of. */
+  commit: string;
+  versions: ManifestVersions;
+  /** What produced the record, for the error message. */
+  what: string;
+}
+
+/**
+ * Validates a record against `warrant://evidence/1`, writes it to
+ * `<state>/evidence/<change>/<id>.json` and rewrites the manifest (design §6).
+ * Shared by `check` and by `transition`, which writes `human-approval`.
+ * Returns the reported path of the record.
+ */
+export function storeRecord(params: StoreParams): string {
+  const dir = evidenceDir(params.root, params.change, params.env);
+  const file = path.join(dir, `${String(params.record["id"])}.json`);
+  const reported = projectUri(params.root, file);
+  const checked = validateFile(params.record, reported);
+  if (!checked.ok) {
+    throw new WarrantError("INTERNAL", `the record of ${params.what} does not match its schema: ${checked.errors[0]?.message ?? ""}`);
+  }
+  mkdirSync(dir, { recursive: true });
+  writeJsonFile(file, params.record);
+  writeJsonFile(
+    path.join(dir, MANIFEST_FILE),
+    buildManifest(readManifest(dir), {
+      change: params.change,
+      commit: params.commit,
+      versions: params.versions,
+      evidence: listRecordIds(dir)
+    })
+  );
+  return reported;
+}
+
+/**
+ * `manifest.versions` of this CLI run: the CLI, OpenSpec (PATH, then lock,
+ * else `0.0.0`), the lock hash and the effective policy hash.
+ */
+export function manifestVersions(root: string, policyHash: string, warn: (text: string) => void): ManifestVersions {
+  const lock = readLock(root);
+  return {
+    warrant: CLI_VERSION,
+    openspec: manifestOpenspecVersion(root, lock, warn),
+    ...(lock === undefined ? {} : { lock_hash: canonicalHash(lock) }),
+    effective_policy_hash: policyHash
+  };
 }
 
 /** Version of OpenSpec for the manifest: the binary on PATH, else the lock's; `0.0.0` when neither is known. */
@@ -337,7 +383,7 @@ export interface ChecksParams {
  */
 export async function executeChecks(params: ChecksParams): Promise<ChecksRun> {
   const { root, loaded, policy } = params;
-  let versions: ReturnType<Context["versions"]> | undefined;
+  let versions: ManifestVersions | undefined;
   const ctx: Context = {
     root,
     change: params.change,
@@ -348,14 +394,7 @@ export async function executeChecks(params: ChecksParams): Promise<ChecksRun> {
     env: params.env,
     warn: params.warn,
     versions: () => {
-      if (versions !== undefined) return versions;
-      const lock = readLock(root);
-      versions = {
-        warrant: CLI_VERSION,
-        openspec: manifestOpenspecVersion(root, lock, params.warn),
-        ...(lock === undefined ? {} : { lock_hash: canonicalHash(lock) }),
-        effective_policy_hash: policy.hash
-      };
+      versions ??= manifestVersions(root, policy.hash, params.warn);
       return versions;
     }
   };

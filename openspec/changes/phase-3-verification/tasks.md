@@ -37,10 +37,10 @@
 
 ## 5. transition, archive, classify --set
 
-- [ ] 5.1 `core/record/write.ts`: матрица переходов 04 §2, `appendTransition`, `RECORD_FROZEN` для `ARCHIVED`/`ABANDONED` (в `transition` и `classify`). Проверка: unit-тесты матрицы; e2e SCN-VER-035 (вторая часть). (REQ-VER-007)
-- [ ] 5.2 Команда `warrant transition <change> <STATE> [--ref] [--by] [--commit]`: gates перехода → `GATES_NOT_PASSED`; `USAGE` без `--ref` для `APPROVED`/`MERGED`; evidence `human-approval` по `--ref --by` с проверкой роли (`ROLE_REQUIRED`, D-10); `MERGED` на commit evidence, `COMMIT_NOT_MERGED` (D-9); переходы назад без gates; `ABANDONED` удаляет каталог. Проверка: e2e SCN-VER-029…035 в temp-репозитории с ветками и merge. (REQ-VER-007)
-- [ ] 5.3 Команда `warrant archive <change>`: `STATE_INVALID`, `openspec validate --strict`, gates `MERGED->ARCHIVED`, `openspec archive --yes --json`, transition `ARCHIVED`. Проверка: e2e SCN-VER-036, 037, 038 (`skipIf(!openspecAvailable())`). (REQ-VER-008)
-- [ ] 5.4 `classify --set <dim>=<value> --set profile=<id> --by <login>`: роль из `roles`, `from: human:<login>`, `BELOW_FLOOR`, `ROLE_REQUIRED`. Проверка: unit-тесты `classify()` с источником human; e2e SCN-KRN-105, 106, 107. (REQ-KRN-028)
+- [x] 5.1 `core/record/write.ts`: матрица переходов 04 §2, `appendTransition`, `RECORD_FROZEN` для `ARCHIVED`/`ABANDONED` (в `transition` и `classify`). Проверка: unit-тесты матрицы; e2e SCN-VER-035 (вторая часть). (REQ-VER-007)
+- [x] 5.2 Команда `warrant transition <change> <STATE> [--ref] [--by] [--commit]`: gates перехода → `GATES_NOT_PASSED`; `USAGE` без `--ref` для `APPROVED`/`MERGED`; evidence `human-approval` по `--ref --by` с проверкой роли (`ROLE_REQUIRED`, D-10); `MERGED` на commit evidence, `COMMIT_NOT_MERGED` (D-9); переходы назад без gates; `ABANDONED` удаляет каталог. Проверка: e2e SCN-VER-029…035 в temp-репозитории с ветками и merge. (REQ-VER-007)
+- [x] 5.3 Команда `warrant archive <change>`: `STATE_INVALID`, `openspec validate --strict`, gates `MERGED->ARCHIVED`, `openspec archive --yes --json`, transition `ARCHIVED`. Проверка: e2e SCN-VER-036, 037, 038 (`skipIf(!openspecAvailable())`). (REQ-VER-008)
+- [x] 5.4 `classify --set <dim>=<value> --set profile=<id> --by <login>`: роль из `roles`, `from: human:<login>`, `BELOW_FLOOR`, `ROLE_REQUIRED`. Проверка: unit-тесты `classify()` с источником human; e2e SCN-KRN-105, 106, 107. (REQ-KRN-028)
 
 ## 6. Выход фазы 3
 

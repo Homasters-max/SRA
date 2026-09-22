@@ -34,7 +34,7 @@ describe.skipIf(!openspecAvailable())("phase-1 exit criterion", () => {
 
   it(
     "openspec init --tools none",
-    () => {
+    async () => {
       expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
     },
     TIMEOUT
@@ -42,8 +42,8 @@ describe.skipIf(!openspecAvailable())("phase-1 exit criterion", () => {
 
   it(
     "warrant init",
-    () => {
-      const run = runCli(["init"], root);
+    async () => {
+      const run = await runCli(["init"], root);
       expect(run.json?.errors).toEqual([]);
       expect(run.status).toBe(0);
     },
@@ -52,8 +52,8 @@ describe.skipIf(!openspecAvailable())("phase-1 exit criterion", () => {
 
   it(
     "warrant init change demo",
-    () => {
-      const run = runCli(["init", "change", "demo"], root);
+    async () => {
+      const run = await runCli(["init", "change", "demo"], root);
       expect(run.json?.errors).toEqual([]);
       expect(run.status).toBe(0);
       expect(run.json?.change).toBe("demo");
@@ -63,8 +63,8 @@ describe.skipIf(!openspecAvailable())("phase-1 exit criterion", () => {
 
   it(
     "warrant validate",
-    () => {
-      const run = runCli(["validate"], root);
+    async () => {
+      const run = await runCli(["validate"], root);
       expect(run.json?.errors).toEqual([]);
       expect(run.json?.ok).toBe(true);
       expect(run.status).toBe(0);
@@ -74,8 +74,8 @@ describe.skipIf(!openspecAvailable())("phase-1 exit criterion", () => {
 
   it(
     "warrant status demo",
-    () => {
-      const run = runCli(["status", "demo"], root);
+    async () => {
+      const run = await runCli(["status", "demo"], root);
       expect(run.json?.errors).toEqual([]);
       expect(run.status).toBe(0);
       expect(run.json?.data.stale).toEqual([]);
@@ -87,9 +87,9 @@ describe.skipIf(!openspecAvailable())("phase-1 exit criterion", () => {
 
   it(
     "warrant fmt --check and warrant sync --check are clean after init",
-    () => {
-      expect(runCli(["fmt", "--check"], root).status).toBe(0);
-      expect(runCli(["sync", "--check"], root).status).toBe(0);
+    async () => {
+      expect((await runCli(["fmt", "--check"], root)).status).toBe(0);
+      expect((await runCli(["sync", "--check"], root)).status).toBe(0);
     },
     TIMEOUT
   );

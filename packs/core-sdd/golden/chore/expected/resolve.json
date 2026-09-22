@@ -1,0 +1,144 @@
+{
+  "approvals": [
+    {
+      "at": "SPECIFIED->APPROVED",
+      "role": "maintainer"
+    }
+  ],
+  "artifacts": {
+    "forbidden": [],
+    "recommended": [
+      "design"
+    ],
+    "required": [
+      "proposal",
+      "tasks"
+    ]
+  },
+  "capabilities": {
+    "forbidden": []
+  },
+  "evidence": {
+    "required": []
+  },
+  "explain": [
+    {
+      "from": "risk-levels/levels: low.when_all",
+      "item": "risk_level:LOW"
+    },
+    {
+      "from": "profile/chore",
+      "item": "artifact.required:proposal"
+    },
+    {
+      "from": "profile/chore",
+      "item": "artifact.required:tasks"
+    },
+    {
+      "from": "profile/chore",
+      "item": "artifact.recommended:design"
+    },
+    {
+      "from": "profile/chore",
+      "item": "gate:branch-isolated"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/chore",
+      "item": "gate:required-artifacts-present"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/chore",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/chore",
+      "item": "gate:required-artifacts-present"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "profile/chore",
+      "item": "gate:human-approval"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/chore",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/chore",
+      "item": "gate:required-artifacts-present"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/chore",
+      "item": "gate:scope-valid"
+    },
+    {
+      "from": "profile/chore",
+      "item": "gate:tests-passed"
+    },
+    {
+      "from": "profile/chore",
+      "item": "approval:maintainer@SPECIFIED->APPROVED"
+    }
+  ],
+  "gates": {
+    "APPROVED->IMPLEMENTING": [
+      "branch-isolated"
+    ],
+    "MERGED->ARCHIVED": [
+      "ids-valid",
+      "required-artifacts-present",
+      "spec-valid"
+    ],
+    "PROPOSED->SPECIFIED": [
+      "ids-valid",
+      "required-artifacts-present",
+      "spec-valid"
+    ],
+    "SPECIFIED->APPROVED": [
+      "human-approval",
+      "ids-valid",
+      "required-artifacts-present",
+      "spec-valid"
+    ],
+    "VERIFYING->MERGED": [
+      "ids-valid",
+      "scope-valid",
+      "tests-passed"
+    ]
+  },
+  "hash": "sha256:ceb629a615498f44cde43b0fdd1abc812c0ebca7725a67c3f84a3d7c43933507",
+  "risk_level": "LOW",
+  "sources": [
+    "kernel@{CLI_VERSION}",
+    "core-sdd@0.1.0:overlay/core-default@1.0.0",
+    "core-sdd@0.1.0:profile/chore@1.0.0",
+    "core-sdd@0.1.0:overlay/risk-low@1.0.0"
+  ]
+}

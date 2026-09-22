@@ -1,0 +1,234 @@
+{
+  "approvals": [
+    {
+      "at": "SPECIFIED->APPROVED",
+      "role": "maintainer"
+    },
+    {
+      "at": "VERIFYING->MERGED",
+      "role": "maintainer"
+    }
+  ],
+  "artifacts": {
+    "forbidden": [],
+    "recommended": [],
+    "required": [
+      "design",
+      "proposal",
+      "specs",
+      "tasks"
+    ]
+  },
+  "capabilities": {
+    "forbidden": [
+      "PRODUCTION_WRITE"
+    ]
+  },
+  "evidence": {
+    "required": [
+      "human-approval",
+      "review",
+      "test-report"
+    ]
+  },
+  "explain": [
+    {
+      "from": "risk-levels/levels: high.when_any blast_radius=SYSTEM",
+      "item": "risk_level:HIGH"
+    },
+    {
+      "from": "profile/feature",
+      "item": "artifact.required:design"
+    },
+    {
+      "from": "profile/feature",
+      "item": "artifact.required:proposal"
+    },
+    {
+      "from": "profile/feature",
+      "item": "artifact.required:specs"
+    },
+    {
+      "from": "profile/feature",
+      "item": "artifact.required:tasks"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:branch-isolated"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:analyze-clean"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:required-artifacts-present"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:required-artifacts-present"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:adversarial-review"
+    },
+    {
+      "from": "overlay/risk-high",
+      "item": "gate:adversarial-review"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:blocking-unknowns-resolved"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:human-approval"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:required-artifacts-present"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:analyze-clean"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:evidence-complete"
+    },
+    {
+      "from": "profile/factory-change",
+      "item": "gate:factory-golden-passed"
+    },
+    {
+      "from": "overlay/risk-high",
+      "item": "gate:human-approval"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:scope-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:tests-passed"
+    },
+    {
+      "from": "profile/factory-change",
+      "item": "capability.forbidden:PRODUCTION_WRITE"
+    },
+    {
+      "from": "profile/feature",
+      "item": "approval:maintainer@SPECIFIED->APPROVED"
+    },
+    {
+      "from": "overlay/risk-high",
+      "item": "approval:maintainer@VERIFYING->MERGED"
+    },
+    {
+      "from": "profile/feature",
+      "item": "evidence:human-approval"
+    },
+    {
+      "from": "profile/feature",
+      "item": "evidence:review"
+    },
+    {
+      "from": "profile/feature",
+      "item": "evidence:test-report"
+    }
+  ],
+  "gates": {
+    "APPROVED->IMPLEMENTING": [
+      "branch-isolated"
+    ],
+    "MERGED->ARCHIVED": [
+      "analyze-clean",
+      "ids-valid",
+      "required-artifacts-present",
+      "spec-valid"
+    ],
+    "PROPOSED->SPECIFIED": [
+      "ids-valid",
+      "required-artifacts-present",
+      "spec-valid"
+    ],
+    "SPECIFIED->APPROVED": [
+      "adversarial-review",
+      "blocking-unknowns-resolved",
+      "human-approval",
+      "ids-valid",
+      "required-artifacts-present",
+      "spec-valid"
+    ],
+    "VERIFYING->MERGED": [
+      "analyze-clean",
+      "evidence-complete",
+      "factory-golden-passed",
+      "human-approval",
+      "ids-valid",
+      "scope-valid",
+      "tests-passed"
+    ]
+  },
+  "hash": "sha256:af9374fea32ab0fa81f8b3562f57b3d56eeb69c8d6b2a8161ee7f08a78fad6c1",
+  "risk_level": "HIGH",
+  "sources": [
+    "kernel@{CLI_VERSION}",
+    "core-sdd@0.1.0:overlay/core-default@1.0.0",
+    "core-sdd@0.1.0:profile/feature@1.0.0",
+    "core-sdd@0.1.0:profile/factory-change@1.0.0",
+    "core-sdd@0.1.0:overlay/risk-high@1.0.0"
+  ]
+}

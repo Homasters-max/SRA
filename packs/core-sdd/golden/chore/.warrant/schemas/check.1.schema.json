@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://check/1",
+  "title": "WARRANT check",
+  "description": "Check — a deterministic executable verification that produces evidence (06 section 2). A check MUST NOT use an LLM, so level L2 is rejected.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://check/1"
+    },
+    "id": {
+      "description": "Check id, unique across the packs enabled in a project.",
+      "$ref": "warrant://common/1#/$defs/kebab_id"
+    },
+    "version": {
+      "description": "Exact version of this check.",
+      "$ref": "warrant://common/1#/$defs/semver"
+    },
+    "overrides": {
+      "description": "Pack object this local check replaces, as `<pack>:<id>` (08 section 4).",
+      "$ref": "warrant://common/1#/$defs/overrides_ref"
+    },
+    "description": {
+      "description": "What this check verifies, in one sentence.",
+      "type": "string"
+    },
+    "level": {
+      "description": "Verification level: L0 (structural) or L1 (executable). L2 belongs to skills, not checks.",
+      "type": "string",
+      "enum": ["L0", "L1"]
+    },
+    "run": {
+      "description": "How the check is executed.",
+      "type": "object",
+      "properties": {
+        "command": {
+          "description": "Argv of the command; the placeholder `{out}` is replaced by the run output directory.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "description": "One argv element.",
+            "type": "string"
+          }
+        }
+      },
+      "required": ["command"],
+      "additionalProperties": false
+    },
+    "produces": {
+      "description": "Evidence kinds this check produces.",
+      "type": "array",
+      "items": { "$ref": "warrant://common/1#/$defs/kebab_id" }
+    },
+    "parser": {
+      "description": "Name of the parser turning the command output into evidence, for example `junit`.",
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": ["$schema", "id", "version", "level"],
+  "additionalProperties": false
+}

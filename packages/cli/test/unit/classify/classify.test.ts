@@ -70,6 +70,17 @@ describe("classify", () => {
     ]);
   });
 
+  it("keeps the floor as source when a re-run finds the same floor again (I-56)", () => {
+    const result = classify({
+      changed: [".warrant/local/areas.json"],
+      floors: [FLOOR_SYSTEM],
+      profiles: [],
+      previous: { risk: { blast_radius: { value: "SYSTEM", from: "floor:core-sdd:2" } } }
+    });
+
+    expect(result.classification.risk?.blast_radius?.from).toMatch(/^floor:/);
+  });
+
   it("keeps the recorded source when the proposer repeats the same value", () => {
     const result = classify({
       changed: [],

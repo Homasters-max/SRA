@@ -87,9 +87,9 @@ function project(change = "add-search"): string {
 }
 
 describe("warrant status <change>", () => {
-  it("reports a fresh change with no stale signals (SCN-KRN-070)", () => {
+  it("reports a fresh change with no stale signals (SCN-KRN-070)", async () => {
     const root = project();
-    const run = runCli(["status", "add-search"], root, env("status-fresh"));
+    const run = await runCli(["status", "add-search"], root, env("status-fresh"));
     expect(run.json?.errors).toEqual([]);
     expect(run.status).toBe(0);
     expect(run.json?.change).toBe("add-search");
@@ -102,9 +102,9 @@ describe("warrant status <change>", () => {
     expect(Array.isArray(run.json?.data.effective_policy.sources)).toBe(true);
   });
 
-  it("omits verdicts and next entirely (REQ-KRN-027)", () => {
+  it("omits verdicts and next entirely (REQ-KRN-027)", async () => {
     const root = project();
-    const run = runCli(["status", "add-search"], root, env("status-fresh"));
+    const run = await runCli(["status", "add-search"], root, env("status-fresh"));
     expect(Object.keys(run.json?.data)).toEqual([
       "change",
       "change_state",
@@ -115,7 +115,7 @@ describe("warrant status <change>", () => {
     ]);
   });
 
-  it("flags an archived directory whose record is not ARCHIVED (SCN-KRN-071)", () => {
+  it("flags an archived directory whose record is not ARCHIVED (SCN-KRN-071)", async () => {
     const root = project();
     cpSync(
       path.join(root, "openspec", "changes", "add-search"),
@@ -135,7 +135,7 @@ describe("warrant status <change>", () => {
       })
     );
 
-    const run = runCli(["status", "add-search"], root, env("status-fresh"));
+    const run = await runCli(["status", "add-search"], root, env("status-fresh"));
     expect(run.status).toBe(0);
     expect(run.json?.errors).toEqual([]);
     const stale = run.json?.data.stale as { code: string; path: string }[];
@@ -145,7 +145,7 @@ describe("warrant status <change>", () => {
     expect(run.json?.data.artifacts).toEqual({});
   });
 
-  it("stays quiet about an archived directory once the record is ARCHIVED", () => {
+  it("stays quiet about an archived directory once the record is ARCHIVED", async () => {
     const root = project();
     cpSync(
       path.join(root, "openspec", "changes", "add-search"),
@@ -154,15 +154,15 @@ describe("warrant status <change>", () => {
     );
     rmSync(path.join(root, "openspec", "changes", "add-search"), { recursive: true, force: true });
     write(root, ".warrant/changes/add-search.json", record("add-search", "ARCHIVED"));
-    const run = runCli(["status", "add-search"], root, env("status-fresh"));
+    const run = await runCli(["status", "add-search"], root, env("status-fresh"));
     expect(run.status).toBe(0);
     expect(run.json?.data.stale).toEqual([]);
   });
 
-  it("flags a record whose change directory is gone", () => {
+  it("flags a record whose change directory is gone", async () => {
     const root = project();
     rmSync(path.join(root, "openspec", "changes", "add-search"), { recursive: true, force: true });
-    const run = runCli(["status", "add-search"], root, env("status-fresh"));
+    const run = await runCli(["status", "add-search"], root, env("status-fresh"));
     expect(run.status).toBe(0);
     const stale = run.json?.data.stale as { code: string; path: string }[];
     expect(stale).toEqual([
@@ -175,24 +175,24 @@ describe("warrant status <change>", () => {
     expect(run.json?.data.artifacts).toEqual({});
   });
 
-  it("rejects a change without a record (SCN-KRN-072)", () => {
+  it("rejects a change without a record (SCN-KRN-072)", async () => {
     const root = project();
-    const run = runCli(["status", "nosuch"], root, env("status-fresh"));
+    const run = await runCli(["status", "nosuch"], root, env("status-fresh"));
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("CHANGE_NOT_FOUND");
     expect(run.json?.errors[0].path).toBe(".warrant/changes/nosuch.json");
   });
 
-  it("reports the record without artifacts when openspec is not on PATH", () => {
+  it("reports the record without artifacts when openspec is not on PATH", async () => {
     const root = project();
-    const run = runCli(["status", "add-search"], root, env(null));
+    const run = await runCli(["status", "add-search"], root, env(null));
     expect(run.status).toBe(0);
     expect(run.json?.data.artifacts).toEqual({});
     expect(run.stderr).toContain("`openspec` is not on PATH");
     expect(run.json?.data.change_state).toBe("PROPOSED");
   });
 
-  it("escalates a policy conflict instead of hiding it (SCN-KRN-067)", () => {
+  it("escalates a policy conflict instead of hiding it (SCN-KRN-067)", async () => {
     const root = project();
     write(root, ".warrant/warrant.json", {
       $schema: "warrant://config/1",
@@ -207,7 +207,7 @@ describe("warrant status <change>", () => {
         classification: { profiles: ["feature"], risk: { data_loss: { value: "HIGH", from: "human:kat" } } }
       })
     );
-    const run = runCli(["status", "add-search"], root, env("status-fresh"));
+    const run = await runCli(["status", "add-search"], root, env("status-fresh"));
     expect(run.status).toBe(2);
     expect(run.json?.errors[0].code).toBe("POLICY_CONFLICT");
     expect(run.json?.data.controller_action).toBe("ESCALATE");
@@ -218,12 +218,12 @@ describe("warrant status <change>", () => {
 });
 
 describe("warrant status", () => {
-  it("reports every record, sorted by name (task 9.3)", () => {
+  it("reports every record, sorted by name (task 9.3)", async () => {
     const root = project("add-search");
     write(root, ".warrant/changes/zz-cleanup.json", record("zz-cleanup", "SPECIFIED"));
     write(root, ".warrant/changes/aa-rename.json", record("aa-rename"));
 
-    const run = runCli(["status"], root, env("status-fresh"));
+    const run = await runCli(["status"], root, env("status-fresh"));
     expect(run.json?.errors).toEqual([]);
     expect(run.status).toBe(0);
     expect(run.json?.change).toBeUndefined();
@@ -234,10 +234,10 @@ describe("warrant status", () => {
     expect((changes[0]?.stale[0] as { code: string }).code).toBe("CHANGE_DIR_MISSING");
   });
 
-  it("reports an empty list for a project without records", () => {
+  it("reports an empty list for a project without records", async () => {
     const root = project();
     rmSync(path.join(root, ".warrant", "changes"), { recursive: true, force: true });
-    const run = runCli(["status"], root, env("status-fresh"));
+    const run = await runCli(["status"], root, env("status-fresh"));
     expect(run.status).toBe(0);
     expect(run.json?.data).toEqual({ changes: [] });
   });

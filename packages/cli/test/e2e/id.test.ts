@@ -36,7 +36,7 @@ function project(): string {
 }
 
 describe("warrant id", () => {
-  it("allocates the next number counting archive (SCN-KRN-056)", () => {
+  it("allocates the next number counting archive (SCN-KRN-056)", async () => {
     const root = project();
     write(root, "openspec/specs/kernel/spec.md", "### Requirement: A\n<!-- id: REQ-KRN-007 -->\n\nSHALL a.\n");
     write(
@@ -44,7 +44,7 @@ describe("warrant id", () => {
       "openspec/changes/archive/2026-01-01-old/specs/kernel/spec.md",
       "### Requirement: B\n<!-- id: REQ-KRN-012 -->\n\nSHALL b.\n"
     );
-    const run = runCli(["id", "REQ", "KRN"], root);
+    const run = await runCli(["id", "REQ", "KRN"], root);
     expect(run.status).toBe(0);
     expect(run.json?.command).toBe("id");
     expect(run.json?.ok).toBe(true);
@@ -52,31 +52,31 @@ describe("warrant id", () => {
     expect(run.json?.errors).toEqual([]);
   });
 
-  it("reports AREA_UNKNOWN with exit code 3 (SCN-KRN-057)", () => {
-    const run = runCli(["id", "REQ", "ZZZ"], project());
+  it("reports AREA_UNKNOWN with exit code 3 (SCN-KRN-057)", async () => {
+    const run = await runCli(["id", "REQ", "ZZZ"], project());
     expect(run.status).toBe(3);
     expect(run.json?.ok).toBe(false);
     expect(run.json?.errors[0].code).toBe("AREA_UNKNOWN");
   });
 
-  it("gives two distinct Crockford ULIDs for EVID (SCN-KRN-058)", () => {
+  it("gives two distinct Crockford ULIDs for EVID (SCN-KRN-058)", async () => {
     const root = project();
-    const first = runCli(["id", "EVID"], root);
-    const second = runCli(["id", "EVID"], root);
+    const first = await runCli(["id", "EVID"], root);
+    const second = await runCli(["id", "EVID"], root);
     expect(first.json?.data.id).toMatch(/^EVID-[0-9A-HJKMNP-TV-Z]{26}$/);
     expect(second.json?.data.id).toMatch(/^EVID-[0-9A-HJKMNP-TV-Z]{26}$/);
     expect(first.json?.data.id).not.toBe(second.json?.data.id);
-    expect(runCli(["id", "RUN"], root).json?.data.id).toMatch(/^RUN-[0-9A-HJKMNP-TV-Z]{26}$/);
+    expect((await runCli(["id", "RUN"], root)).json?.data.id).toMatch(/^RUN-[0-9A-HJKMNP-TV-Z]{26}$/);
   });
 
-  it("gives WAV-<year>-NNN", () => {
+  it("gives WAV-<year>-NNN", async () => {
     const root = project();
-    const run = runCli(["id", "WAV"], root);
+    const run = await runCli(["id", "WAV"], root);
     expect(run.status).toBe(0);
     expect(run.json?.data.id).toMatch(/^WAV-\d{4}-001$/);
   });
 
-  it("renumbers inside the change only (SCN-KRN-059)", () => {
+  it("renumbers inside the change only (SCN-KRN-059)", async () => {
     const root = project();
     write(root, ".warrant/changes/add-search.json", {
       $schema: "warrant://change-record/1",
@@ -87,7 +87,7 @@ describe("warrant id", () => {
     write(root, "tests/search.test.ts", "// REQ-KRN-007\n");
     write(root, "docs/other.md", "REQ-KRN-007\n");
 
-    const run = runCli(["id", "renumber", "REQ-KRN-007", "REQ-KRN-013", "--change", "add-search"], root);
+    const run = await runCli(["id", "renumber", "REQ-KRN-007", "REQ-KRN-013", "--change", "add-search"], root);
     expect(run.status).toBe(0);
     expect(run.json?.change).toBe("add-search");
     expect(run.json?.data.old).toBe("REQ-KRN-007");
@@ -97,7 +97,7 @@ describe("warrant id", () => {
     expect(read(root, "docs/other.md")).toBe("REQ-KRN-007\n");
   });
 
-  it("refuses to renumber a MERGED change (SCN-KRN-060)", () => {
+  it("refuses to renumber a MERGED change (SCN-KRN-060)", async () => {
     const root = project();
     write(root, ".warrant/changes/add-search.json", {
       $schema: "warrant://change-record/1",
@@ -105,22 +105,22 @@ describe("warrant id", () => {
       change_state: "MERGED"
     });
     write(root, "openspec/changes/add-search/tasks.md", "REQ-KRN-007\n");
-    const run = runCli(["id", "renumber", "REQ-KRN-007", "REQ-KRN-013", "--change", "add-search"], root);
+    const run = await runCli(["id", "renumber", "REQ-KRN-007", "REQ-KRN-013", "--change", "add-search"], root);
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("ID_IMMUTABLE");
     expect(read(root, "openspec/changes/add-search/tasks.md")).toBe("REQ-KRN-007\n");
   });
 
-  it("reports CONFIG_MISSING without .warrant/ (SCN-KRN-007)", () => {
+  it("reports CONFIG_MISSING without .warrant/ (SCN-KRN-007)", async () => {
     const root = makeTempDir("warrant-id-bare-");
     tempDirs.push(root);
-    const run = runCli(["id", "REQ", "KRN"], root);
+    const run = await runCli(["id", "REQ", "KRN"], root);
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("CONFIG_MISSING");
   });
 
-  it("reports USAGE for an unknown kind", () => {
-    const run = runCli(["id", "FOO"], project());
+  it("reports USAGE for an unknown kind", async () => {
+    const run = await runCli(["id", "FOO"], project());
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("USAGE");
   });

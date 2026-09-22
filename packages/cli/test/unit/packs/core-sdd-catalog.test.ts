@@ -79,6 +79,26 @@ describe("pack core-sdd: каталог", () => {
     expect([...onDisk].sort()).toEqual([...declared].sort());
   });
 
+  it("golden/ — единственный каталог pack вне provides, и он осознанно вне (REQ-SDD-009, I-59)", () => {
+    // `golden/` не объект policy, а мини-проекты, которыми pack проверяет сам
+    // себя: loader их не читает, `packContentHash` исключает (иначе лок фикстуры
+    // менял бы хэш, который он же записывает). Тест «нет файлов вне provides»
+    // смотрит только каталоги объектов, поэтому исключение фиксируется здесь.
+    const objectDirs = new Set(Object.values(OBJECT_DIRS));
+    const extra = readdirSync(PACK_DIR, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && !objectDirs.has(e.name) && e.name !== "openspec")
+      .map((e) => e.name)
+      .sort();
+    expect(extra).toEqual(["golden"]);
+    for (const name of ["chore", "factory-change", "feature"]) {
+      expect(existsSync(path.join(PACK_DIR, "golden", name, "expected", "resolve.json"))).toBe(true);
+      expect(existsSync(path.join(PACK_DIR, "golden", name, "expected", "status.json"))).toBe(true);
+      expect(existsSync(path.join(PACK_DIR, "golden", name, ".warrant", "warrant.lock.json"))).toBe(true);
+    }
+    const flat = Object.values(provides).flat();
+    expect(flat.some((rel) => typeof rel === "string" && rel.startsWith("golden/"))).toBe(false);
+  });
+
   it("каждый объект проходит свою схему и id равен имени файла (Decision 1)", () => {
     for (const key of ["overlays", "profiles", "gates", "checks"]) {
       for (const rel of provides[key] as string[]) {

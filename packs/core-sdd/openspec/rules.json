@@ -1,6 +1,6 @@
 {
   "$schema": "warrant://openspec-rules/1",
-  "context": "Language: Russian\nAll artifacts must be written in Russian.\nKeep OpenSpec structural headings and SHALL/MUST keywords in English.",
+  "context": "This project is governed by WARRANT: every change carries a classification and passes the gates its effective policy requires.",
   "rules": {
     "design": [
       "Record each decision with its rejected alternatives",

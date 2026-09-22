@@ -1,0 +1,209 @@
+{
+  "approvals": [
+    {
+      "at": "SPECIFIED->APPROVED",
+      "role": "maintainer"
+    }
+  ],
+  "artifacts": {
+    "forbidden": [],
+    "recommended": [],
+    "required": [
+      "design",
+      "proposal",
+      "specs",
+      "tasks"
+    ]
+  },
+  "capabilities": {
+    "forbidden": []
+  },
+  "evidence": {
+    "required": [
+      "human-approval",
+      "review",
+      "test-report"
+    ]
+  },
+  "explain": [
+    {
+      "from": "risk-levels/levels: default",
+      "item": "risk_level:MEDIUM"
+    },
+    {
+      "from": "profile/feature",
+      "item": "artifact.required:design"
+    },
+    {
+      "from": "profile/feature",
+      "item": "artifact.required:proposal"
+    },
+    {
+      "from": "profile/feature",
+      "item": "artifact.required:specs"
+    },
+    {
+      "from": "profile/feature",
+      "item": "artifact.required:tasks"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:branch-isolated"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:analyze-clean"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:required-artifacts-present"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:required-artifacts-present"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:adversarial-review"
+    },
+    {
+      "from": "overlay/risk-medium",
+      "item": "gate:adversarial-review"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:blocking-unknowns-resolved"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:human-approval"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:required-artifacts-present"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:spec-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:analyze-clean"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:evidence-complete"
+    },
+    {
+      "from": "overlay/core-default",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:ids-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:scope-valid"
+    },
+    {
+      "from": "profile/feature",
+      "item": "gate:tests-passed"
+    },
+    {
+      "from": "profile/feature",
+      "item": "approval:maintainer@SPECIFIED->APPROVED"
+    },
+    {
+      "from": "profile/feature",
+      "item": "evidence:human-approval"
+    },
+    {
+      "from": "profile/feature",
+      "item": "evidence:review"
+    },
+    {
+      "from": "profile/feature",
+      "item": "evidence:test-report"
+    }
+  ],
+  "gates": {
+    "APPROVED->IMPLEMENTING": [
+      "branch-isolated"
+    ],
+    "MERGED->ARCHIVED": [
+      "analyze-clean",
+      "ids-valid",
+      "required-artifacts-present",
+      "spec-valid"
+    ],
+    "PROPOSED->SPECIFIED": [
+      "ids-valid",
+      "required-artifacts-present",
+      "spec-valid"
+    ],
+    "SPECIFIED->APPROVED": [
+      "adversarial-review",
+      "blocking-unknowns-resolved",
+      "human-approval",
+      "ids-valid",
+      "required-artifacts-present",
+      "spec-valid"
+    ],
+    "VERIFYING->MERGED": [
+      "analyze-clean",
+      "evidence-complete",
+      "ids-valid",
+      "scope-valid",
+      "tests-passed"
+    ]
+  },
+  "hash": "sha256:d239e1876be3a0e2c79ee47057be949b288e9a29c9f29325410bfc47989a339c",
+  "risk_level": "MEDIUM",
+  "sources": [
+    "kernel@{CLI_VERSION}",
+    "core-sdd@0.1.0:overlay/core-default@1.0.0",
+    "core-sdd@0.1.0:profile/feature@1.0.0",
+    "core-sdd@0.1.0:overlay/risk-medium@1.0.0"
+  ]
+}

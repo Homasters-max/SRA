@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://openspec-schema/1",
+  "title": "WARRANT OpenSpec workflow schema source",
+  "description": "Source of `openspec/schemas/<name>/schema.yaml`: the artifact dependency graph of an OpenSpec workflow (ADR-0015 point 4). Every `requires` entry MUST name an artifact declared in the same file.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://openspec-schema/1"
+    },
+    "name": {
+      "description": "Schema name as OpenSpec resolves it, for example `warrant-sdd`.",
+      "$ref": "warrant://common/1#/$defs/kebab_id"
+    },
+    "version": {
+      "description": "Schema version as an integer, incremented on every incompatible change.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "description": {
+      "description": "What this workflow is for, in one sentence.",
+      "type": "string"
+    },
+    "artifacts": {
+      "description": "Artifacts of the workflow, in dependency order.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "description": "One workflow artifact.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Artifact id, referenced by `requires` and by the `rules` keys.",
+            "$ref": "warrant://common/1#/$defs/kebab_id"
+          },
+          "generates": {
+            "description": "Path the artifact generates inside the change directory, for example `proposal.md`.",
+            "$ref": "warrant://common/1#/$defs/relative_path"
+          },
+          "description": {
+            "description": "What this artifact contains, in one sentence.",
+            "type": "string",
+            "minLength": 1
+          },
+          "template": {
+            "description": "Template file relative to the schema `templates/` directory.",
+            "$ref": "warrant://common/1#/$defs/relative_path"
+          },
+          "instruction": {
+            "description": "Instruction given to the agent producing this artifact.",
+            "type": "string"
+          },
+          "requires": {
+            "description": "Artifact ids that must be complete before this artifact is produced.",
+            "type": "array",
+            "items": { "$ref": "warrant://common/1#/$defs/kebab_id" }
+          }
+        },
+        "required": ["id", "generates", "description", "template"],
+        "additionalProperties": false
+      }
+    },
+    "apply": {
+      "description": "How implementation of a Change is tracked once planning is complete.",
+      "type": "object",
+      "properties": {
+        "requires": {
+          "description": "Artifact ids that must be complete before implementation may start.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/kebab_id" }
+        },
+        "tracks": {
+          "description": "File whose checkboxes track implementation progress, for example `tasks.md`.",
+          "$ref": "warrant://common/1#/$defs/relative_path"
+        },
+        "instruction": {
+          "description": "Instruction given to the agent during implementation.",
+          "type": "string"
+        }
+      },
+      "required": ["tracks"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["$schema", "name", "version", "description", "artifacts"],
+  "additionalProperties": false
+}

@@ -1,0 +1,48 @@
+{
+  "artifacts": {
+    "design": "done",
+    "proposal": "done",
+    "specs": "done",
+    "tasks": "done"
+  },
+  "change": "factory-change",
+  "change_state": "PROPOSED",
+  "classification": {
+    "profiles": [
+      "factory-change"
+    ],
+    "risk": {
+      "blast_radius": {
+        "from": "floor:core-sdd:2",
+        "value": "SYSTEM"
+      },
+      "compatibility": {
+        "from": "proposer:golden",
+        "value": "COMPATIBLE"
+      },
+      "data_loss": {
+        "from": "proposer:golden",
+        "value": "NONE"
+      },
+      "reversibility": {
+        "from": "proposer:golden",
+        "value": "MODERATE"
+      },
+      "security_impact": {
+        "from": "proposer:golden",
+        "value": "LOW"
+      }
+    }
+  },
+  "effective_policy": {
+    "hash": "sha256:af9374fea32ab0fa81f8b3562f57b3d56eeb69c8d6b2a8161ee7f08a78fad6c1",
+    "sources": [
+      "kernel@{CLI_VERSION}",
+      "core-sdd@0.1.0:overlay/core-default@1.0.0",
+      "core-sdd@0.1.0:profile/feature@1.0.0",
+      "core-sdd@0.1.0:profile/factory-change@1.0.0",
+      "core-sdd@0.1.0:overlay/risk-high@1.0.0"
+    ]
+  },
+  "stale": []
+}

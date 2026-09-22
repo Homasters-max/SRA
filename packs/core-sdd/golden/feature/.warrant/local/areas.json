@@ -1,0 +1,6 @@
+{
+  "$schema": "warrant://areas/1",
+  "GLD": {
+    "capability": "golden"
+  }
+}

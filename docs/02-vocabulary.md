@@ -13,7 +13,9 @@ version: 0.1.0
 
 ## 1. Эпистемические маркеры
 
-Каждое утверждение, выдаваемое агентом или записываемое в artifact, MUST иметь один из шести маркеров:
+Каждый finding в result envelope skill ([07 §4](07-skills.md)) и каждый блок `UNKNOWN` / `ASSUMPTION` / `DECISION`
+в artifact MUST иметь один из шести маркеров. Остальная проза artifacts маркеров не несёт: до approval она —
+`PROPOSAL` по умолчанию, а качество маркировки внутри неё — критерий L2-review, не машинной проверки ([01 §2](01-principles.md)).
 
 | Маркер | Значение | Пример |
 |---|---|---|
@@ -56,11 +58,17 @@ PROPOSAL   → DECISION    только субъектом с authority
 - `blocking: false` — работа продолжается с явно записанным `ASSUMPTION`.
 - Вопрос SHOULD задаваться только если ответ способен изменить spec, design, test, risk или data semantics.
 
-### Запись в Markdown
+### Где хранятся UNKNOWN и ASSUMPTION
+
+Source of truth — Change record ([04 §9](04-lifecycle.md)): массивы `unknowns[]` и `assumptions[]`, запись через
+`warrant unknown add | resolve` и `warrant assumption add`. Gate `blocking-unknowns-resolved` читает только record.
+`DECISION`, закрывающий UNKNOWN, MUST нести `ref` на комментарий maintainer в PR; `FACT` / `ASSUMPTION` от агента ref не требуют.
+
+Запись в Markdown — projection для читателя, не источник:
 
 ```markdown
-> **UNKNOWN** `UNK-012` · blocking — Можно ли переписывать исторические записи?
-> **ASSUMPTION** `ASM-004` — Источник отдаёт время в UTC.
+> **UNKNOWN** `UNK-CUS-012` · blocking — Можно ли переписывать исторические записи?
+> **ASSUMPTION** `ASM-CUS-004` — Источник отдаёт время в UTC.
 ```
 
 ### Связь с LATTICE
@@ -133,22 +141,33 @@ path/line  = provenance only (не является идентичностью)
 | `TASK` | Task | `TASK-ING-002` |
 | `ADR` | Architecture Decision (проекта) | `ADR-004` |
 | `DCT` | Data Contract | `DCT-ORDERS` |
-| `UNK` | Unknown | `UNK-012` |
-| `ASM` | Assumption | `ASM-004` |
-| `EVID` | Evidence | `EVID-000921` |
-| `RUN` | Run | `RUN-000417` |
+| `UNK` | Unknown | `UNK-CUS-012` |
+| `ASM` | Assumption | `ASM-CUS-004` |
+| `EVID` | Evidence | `EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1A3` |
+| `RUN` | Run | `RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y` |
 | `WAV` | Waiver | `WAV-2026-004` |
 
-Формат: `PREFIX-AREA-NNN`, где `AREA` — короткий код capability (2–5 латинских букв). Для сквозных
-объектов (`EVID`, `RUN`, `WAV`) `AREA` не используется.
+Два формата ([WARRANT-ADR-0012](adr/WARRANT-ADR-0012-id-allocation.md)):
+
+| Класс | Формат | Объекты | Почему |
+|---|---|---|---|
+| Spec-уровень | `PREFIX-AREA-NNN`, `AREA` — код capability из реестра `.warrant/local/areas.json` (2–5 латинских букв) | `REQ`, `SCN`, `TASK`, `UNK`, `ASM` | Читаемость для людей и LLM |
+| Сквозные | `PREFIX-<ULID>` (26 символов Crockford base32) | `EVID`, `RUN` | Создаются на каждом прогоне; счётчик без координации ломается |
+| Waiver | `WAV-<year>-NNN` | `WAV` | Редки, создаются человеком на `main` |
 
 Идентификатор Change — имя каталога OpenSpec change **без даты**. При archive OpenSpec добавляет
-префикс даты к каталогу; идентичность Change от этого не меняется.
+префикс даты к каталогу; идентичность Change от этого не меняется. Имя Change MUST NOT переиспользоваться:
+создание отказывает, если имя есть в `.warrant/changes/` или `openspec/changes/archive/*-<name>`.
 
 ### Правила
 
 - ID MUST выдаваться CLI (`warrant id`), а не придумываться LLM.
-- ID MUST NOT переиспользоваться, даже после удаления объекта.
+- ID MUST NOT переиспользоваться, даже после удаления объекта. Реестра нет: следующий NNN = max по `main`
+  (`openspec/specs/**` + `openspec/changes/**`, включая archive) + 1.
+- ID spec-уровня становится **immutable с момента `MERGED`** spec-PR. До этого при коллизии с base-веткой
+  `warrant id renumber <old> <new>` переписывает ссылки внутри Change; после — переименование запрещено.
+- `AREA` MUST быть объявлена в `.warrant/local/areas.json` (`{ "CUS": { "capability": "customer-search" } }`),
+  1:1 с каталогом `openspec/specs/<capability>/`. Неизвестная AREA — ошибка `ids-valid`.
 - ID нужен только там, где существует traceability. Не засорять ID каждый абзац.
 
 ### Размещение ID в artifacts
@@ -169,8 +188,13 @@ The system SHALL produce the same logical result when ingestion is repeated for 
 
 Для файловых artifacts (ADR, data contract, документы) — frontmatter `id:`.
 
-Совместимость HTML-комментариев с `openspec validate` и archive MUST быть подтверждена spike до MVP
-([13-roadmap](13-roadmap.md)).
+Совместимость подтверждена spike S1 на OpenSpec 1.13.1 ([WARRANT-ADR-0004](adr/WARRANT-ADR-0004-stable-ids.md)).
+Правила размещения, которые проверяет `ids-valid`:
+
+- комментарий стоит **непосредственно под** своим заголовком уровня 3 / 4 (над заголовком он приклеится к предыдущему требованию);
+- после комментария есть непустое тело (комментарий не считается телом; иначе `--strict` даёт exit 1);
+- комментарий не стоит между `## ADDED Requirements` и первым `### Requirement:` (при archive он теряется);
+- комментарий закрыт (`<!--` без `-->` вырезает всё после себя).
 
 ## 4. Именование
 

@@ -74,14 +74,18 @@ Projection MUST быть вычислимой из источников и MUST 
 
 ```text
 Change: add-customer-search
-  RUN-000101  agent=A  run_state=FAILED
-  RUN-000102  agent=B  run_state=FAILED
-  RUN-000103  agent=A  run_state=SUCCEEDED
+  RUN-01J8Z3KQ…  agent=A  run_state=FAILED
+  RUN-01J8Z3M5…  agent=B  run_state=FAILED
+  RUN-01J8Z3N7…  agent=A  run_state=SUCCEEDED
 ```
 
 Change — единица работы и спецификации. Run — одна попытка агента выполнить операцию.
-Run содержит: `change_id`, operation, agent, model, `context_hash`, `effective_policy_hash`,
-версии skills, worktree, время, `run_state`, ссылки на evidence. Это позволяет оценивать качество самой фабрики.
+
+Schema `warrant://run/1` (MVP): `change`, `operation`, `skill` (`namespace/name@version`), `model`, `context_hash`,
+`effective_policy_hash`, `write_scope[]`, `branch`, `started_at`, `finished_at`, `run_state`, `evidence[]`,
+`guard_events[]` (отказы `warrant guard`, [ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)).
+Активный Run указан в `.warrant/runs/current` — единственный источник `write_scope` для hook.
+Это позволяет оценивать качество самой фабрики.
 
 ## 5. Development ≠ Runtime
 
@@ -106,18 +110,24 @@ project/
 ├── .warrant/
 │   ├── warrant.json                единственная точка конфигурации
 │   ├── warrant.lock.json           зафиксированные версии и хэши packs
-│   ├── local/                      project-local pack (overrides, свои gates/checks)
-│   ├── changes/<change>.json       Change record: classification, change_state, журнал переходов
+│   ├── local/                      project-local pack (overrides, свои gates/checks, areas.json, openspec/rules.json)
+│   ├── changes/<change>.json       Change record: classification, change_state, unknowns, журнал переходов
 │   ├── waivers/                    WAV-*.json
-│   ├── evidence/<change>/          manifest.json + ссылки на raw evidence
-│   └── runs/                       RUN-*.json (MAY быть вне git — см. 06a)
+│   ├── evidence/<change>/          manifest.json + записи EVID-*.json
+│   └── runs/                       RUN-*.json + current (в git в MVP; внешнее хранение — later)
+│
+├── .claude/                        генерируется warrant sync для frontend Claude Code (ADR-0014)
+│   ├── settings.json               permissions.deny + hook warrant guard
+│   └── agents/warrant-reviewer.md  subagent для review-Run
 │
 ├── <adr path>                      по умолчанию docs/adr/, задаётся в warrant.json
-├── tests/
-└── src/
+├── tests/                          warrant.json → paths.tests
+└── src/                            warrant.json → paths.src
 ```
 
 Пути, отличные от OpenSpec, MUST задаваться в `warrant.json` → `paths`, а не зашиваться в packs.
+Ветки: `spec/<change>`, `worktree/<change>`, `archive/<change>` — имя ветки задаёт mapping PR → Change
+([ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)).
 
 ## 7. Владение каталогами
 
@@ -125,10 +135,11 @@ project/
 |---|---|---|
 | `openspec/specs/`, `openspec/changes/` | OpenSpec | Обычный Change |
 | `openspec/schemas/`, `openspec/config.yaml` | WARRANT (через pack) | `factory-change` |
-| `.warrant/warrant.json`, `.warrant/local/` | WARRANT | `factory-change` |
+| `.warrant/warrant.json`, `.warrant/warrant.lock.json`, `.warrant/local/` | WARRANT | `factory-change` |
+| `.claude/settings.json`, `.claude/agents/` | WARRANT (генерируется `warrant sync`) | `factory-change` |
 | `.warrant/changes/` | WARRANT (запись только CLI) | Переходы через `warrant` ([04 §9](04-lifecycle.md)); агент MUST NOT писать напрямую |
 | `.warrant/waivers/` | WARRANT | Waiver lifecycle ([05](05-policy.md)) |
-| `.warrant/evidence/`, `.warrant/runs/` | WARRANT (запись только CLI/CI) | Агент MUST NOT писать напрямую |
+| `.warrant/evidence/`, `.warrant/runs/` | WARRANT (запись только CLI) | Агент MUST NOT писать напрямую; CI не пишет ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)) |
 | ADR | Architecture | Change с ADR |
 | `tests/`, `src/` | Engineering | Обычный Change |
 

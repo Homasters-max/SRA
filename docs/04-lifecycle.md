@@ -42,14 +42,16 @@ design исправляется, и работа продолжается. Во�
 `IMPLEMENTING → SPECIFIED`) разрешён; переход вперёд — только через gates, указанные для перехода
 в effective policy.
 
-| Переход | Типичные gates (из core-sdd) |
-|---|---|
-| `SPECIFIED → APPROVED` | `spec-valid`, `required-artifacts-present`, `blocking-unknowns-resolved`, `human-approval` |
-| `APPROVED → IMPLEMENTING` | `worktree-ready` |
-| `VERIFYING → MERGED` | `tests-passed`, `scope-valid`, `analyze-clean`, `evidence-complete` |
-| `MERGED → ARCHIVED` | `spec-valid` |
+| Переход | Gates профиля `feature` (core-sdd@0.1) | Где вычисляется |
+|---|---|---|
+| `PROPOSED → SPECIFIED` | `required-artifacts-present`, `spec-valid`, `ids-valid` | локально |
+| `SPECIFIED → APPROVED` | `spec-valid`, `required-artifacts-present`, `ids-valid`, `blocking-unknowns-resolved`, `adversarial-review`, `human-approval` | CI на spec-PR (кроме `human-approval` — branch protection) |
+| `APPROVED → IMPLEMENTING` | `branch-isolated` | локально |
+| `VERIFYING → MERGED` | `tests-passed`, `scope-valid`, `analyze-clean`, `ids-valid`, `evidence-complete` | CI на impl-PR |
+| `MERGED → ARCHIVED` | `spec-valid`, `required-artifacts-present`, `analyze-clean` | `warrant archive` + CI на archive-PR |
 
 Конкретный набор определяет effective policy ([05](05-policy.md)), каталог — [06](06-verification.md).
+Каждый переход привязан к виду PR ([ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)).
 
 ## 3. Operations
 
@@ -83,18 +85,30 @@ Controller — **таблица решений**, а не workflow engine. Пр�
 {
   "$schema": "warrant://controller-rules/1",
   "rules": [
-    { "id": "policy-conflict",    "when": { "policy_conflict": true },            "action": "ESCALATE" },
-    { "id": "gate-failed-hard",   "when": { "gate_verdict": "FAIL", "gate_waivable": false }, "action": "STOP" },
-    { "id": "blocking-unknown",   "when": { "blocking_unknowns": ">0" },          "action": "WAIT", "next": "clarify" },
-    { "id": "missing-artifact",   "when": { "missing_required_artifacts": ">0" }, "action": "CONTINUE", "next": "specify" },
-    { "id": "approval-pending",   "when": { "pending_approvals": ">0" },          "action": "WAIT" },
-    { "id": "impl-incomplete",    "when": { "open_tasks": ">0" },                 "action": "CONTINUE", "next": "implement" },
-    { "id": "verify-incomplete",  "when": { "unevaluated_gates": ">0" },          "action": "CONTINUE", "next": "verify" },
-    { "id": "gaps",               "when": { "analyze_findings": ">0" },           "action": "CONTINUE", "next": "converge" },
-    { "id": "done",               "when": {},                                     "action": "CONTINUE", "next": "archive" }
+    { "id": "policy-conflict",      "when": { "policy_conflict": true },            "action": "ESCALATE" },
+    { "id": "gate-failed-hard",     "when": { "gate_verdict": "FAIL", "gate_waivable": false }, "action": "STOP" },
+    { "id": "gate-failed-waivable", "when": { "gate_verdict": "FAIL", "gate_waivable": true },  "action": "WAIT" },
+    { "id": "blocking-unknown",     "when": { "blocking_unknowns": ">0" },          "action": "WAIT", "next": "clarify" },
+    { "id": "missing-artifact",     "when": { "missing_required_artifacts": ">0" }, "action": "CONTINUE", "next": "specify" },
+    { "id": "approval-pending",     "when": { "pending_approvals": ">0" },          "action": "WAIT" },
+    { "id": "impl-incomplete",      "when": { "open_tasks": ">0" },                 "action": "CONTINUE", "next": "implement" },
+    { "id": "awaiting-attestation", "when": { "gates_awaiting_attestation": ">0" }, "action": "WAIT" },
+    { "id": "verify-incomplete",    "when": { "unevaluated_gates": ">0" },          "action": "CONTINUE", "next": "verify" },
+    { "id": "gaps",                 "when": { "analyze_findings": ">0" },           "action": "CONTINUE", "next": "converge" },
+    { "id": "done",                 "when": {},                                     "action": "CONTINUE", "next": "archive" }
   ]
 }
 ```
+
+Определения входов (вычисляет CLI, все — из record, effective policy и evidence):
+
+| Вход | Значение |
+|---|---|
+| `pending_approvals` | Gates с evidence kind `human-approval` без валидного evidence |
+| `gates_awaiting_attestation` | Gates, чей `accepts_attestation` не содержит `none`, при отсутствии evidence с допустимой attestation (ждём CI или review; локальный `verify` их не закроет) |
+| `unevaluated_gates` | Gates перехода с verdict `BLOCKED` или ещё не вычисленные, кроме двух категорий выше |
+
+`gate-failed-waivable` даёт `WAIT`, а не проваливается до `done`: человек либо чинит причину, либо оформляет waiver.
 
 Controller MUST быть чистой функцией: одинаковое состояние Change + effective policy → одинаковый результат.
 
@@ -110,17 +124,23 @@ SPEC → IMPLEMENT → VERIFY → ANALYZE → converged? ── yes → MERGE �
 
 Status: normative · Maturity: MVP
 
+Решение — [WARRANT-ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md). Два PR на Change плюс archive:
+
 ```text
-propose / specify  → main        (агент видит все authoritative specs и другие changes)
-implement          → worktree    (worktree/<change>)
-merge              → main        (через PR, CI — последняя инстанция)
-archive            → main
+propose / specify  → ветка spec/<change> от актуального main → PR → human review → merge   (SPECIFIED → APPROVED)
+implement          → ветка worktree/<change> (worktree SHOULD) → PR → CI gates → merge      (VERIFYING → MERGED)
+archive            → warrant archive → ветка archive/<change> → PR или push в main          (MERGED → ARCHIVED)
 ```
 
-- Proposal SHOULD создаваться на `main`, а не в worktree: иначе агент видит только локальный delta
-  и теряет контекст других изменений.
-- Implementation MUST выполняться в отдельном worktree / ветке.
-- Merge MUST проходить через CI, который заново вычисляет gates.
+- Ветка spec MUST создаваться от актуального `main`: агент должен видеть все authoritative specs и другие changes.
+  «На main» означает контекст, а не commit target.
+- Implementation MUST выполняться в отдельной ветке `worktree/<change>`; отдельный git worktree — SHOULD.
+  Gate `branch-isolated` проверяет ветку, потому что CI не видит worktree.
+- Impl-PR валиден, только если в base есть merged spec-PR с approving review — так INV-01 проверяется машиной.
+- Merge MUST проходить через CI, который заново вычисляет gates; ни одного коммита в `main` вне PR.
+- Транзиции record едут в *следующем* PR ([§9](#9-change-record)); между PR `warrant status` показывает `STALE` штатно.
+- `openspec archive` MUST вызываться только через `warrant archive`: OpenSpec сам не проверяет граф artifacts
+  и архивирует пустой Change (spike S2).
 
 ## 6. Enforcement
 
@@ -128,31 +148,35 @@ Prompt не является enforcement (INV-04). Принуждение рас
 
 | Слой | Что принуждает | Maturity |
 |---|---|---|
-| **CLI** `warrant` | Разрешает переходы состояний, пишет evidence и runs | MVP |
-| **CI** | Заново вычисляет L0/L1, блокирует merge | MVP |
-| **Pre-tool hooks** frontend'а | Блокируют запрещённые действия (запись в `.warrant/evidence/`, production) | MVP (Claude Code) |
-| **Permissions** | Ограничивают инструменты, пути, доступ к production | MVP |
+| **CLI** `warrant` | Разрешает переходы состояний, пишет record, evidence и runs | MVP |
+| **CI** `warrant ci` | Заново вычисляет L0/L1, верифицирует refs, блокирует merge. Не пишет в репозиторий ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)) | MVP |
+| **Форж** (GitHub) | Bot-идентичность агента без права merge; branch protection на `main`; required review | MVP |
+| **Static deny** frontend'а | `permissions.deny` в `.claude/settings.json`, генерируется `warrant sync` | MVP (Claude Code) |
+| **Hook** `warrant guard` | `PreToolUse` на `Edit|Write|Bash`: отказ вне `write_scope` активного Run | MVP (Claude Code) |
 
 WARRANT **agent-agnostic**: вся логика в CLI, который общается JSON. Frontends (Claude Code — первый;
 далее агенты через ACP или API) — адаптеры, которые вызывают CLI и транслируют capabilities в свои
-механизмы (permissions, hooks, sandbox).
+механизмы (permissions, hooks, sandbox). Детали для Claude Code — [ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md).
+
+Известный предел: deny на `Edit` / `Write` не мешает записи через shell. Гарантия — не hook, а CI: запись
+без верифицируемого ref не проходит `warrant ci`.
 
 ### Capabilities
 
-| Capability | Spec author | Implementer | Verifier |
-|---|---|---|---|
-| `READ_REPO`, `READ_SPEC` | ✓ | ✓ | ✓ |
-| `WRITE_SPEC` | ✓ | — | — |
-| `WRITE_CODE` | — | ✓ | — |
-| `RUN_TEST` | — | ✓ | ✓ |
-| `RUN_DATA_CHECK` | — | — | ✓ |
-| `READ_EVIDENCE` | — | — | ✓ |
-| `GIT_COMMIT` | ✓ | ✓ | — |
-| `GIT_PUSH`, `MERGE`, `PRODUCTION_WRITE` | — | — | — |
+| Capability | Spec author | Implementer | Verifier | Принуждение в MVP |
+|---|---|---|---|---|
+| `READ_REPO`, `READ_SPEC`, `READ_EVIDENCE` | ✓ | ✓ | ✓ | informative: чтение не ограничивается |
+| `WRITE_SPEC` | ✓ | — | — | `write_scope` Run + static deny |
+| `WRITE_CODE` | — | ✓ | — | `write_scope` Run |
+| `RUN_TEST` | — | ✓ | ✓ | — |
+| `RUN_DATA_CHECK` | — | — | ✓ | pack `data`, later |
+| `GIT_COMMIT` | ✓ | ✓ | — | — |
+| `GIT_PUSH` (только `spec/<change>`, `worktree/<change>`) | ✓ | ✓ | — | права GitHub App + hook |
+| `OPEN_PR` | ✓ | ✓ | — | права GitHub App |
+| `MERGE`, push в `main`, `PRODUCTION_WRITE` | — | — | — | branch protection; у бота нет права merge |
 
 Роли и capabilities — часть policy; profile MAY запрещать capabilities, но MUST NOT разрешать то,
-что запрещено вышестоящим overlay ([05](05-policy.md)). `MERGE` и `PRODUCTION_WRITE` агентам по умолчанию
-не выдаются.
+что запрещено вышестоящим overlay ([05](05-policy.md)). `MERGE` и `PRODUCTION_WRITE` агентам не выдаются.
 
 ## 7. CLI
 
@@ -168,22 +192,30 @@ WARRANT **agent-agnostic**: вся логика в CLI, который обща�
 }
 ```
 
-| Команда | Назначение |
-|---|---|
-| `warrant status [change]` | Состояние Change, effective policy, verdicts, следующая операция |
-| `warrant classify <change>` | Классификация (path rules + proposal) |
-| `warrant resolve <change>` | Вычислить effective policy (с объяснением источников) |
-| `warrant next <change>` | Ответ controller |
-| `warrant check [id]` | Запустить check(s), записать evidence |
-| `warrant gate [id]` | Вычислить verdict(s) |
-| `warrant verify <change>` | `check` + `gate` для всех требований effective policy текущего перехода |
-| `warrant analyze <change>` | Детерминированный анализ согласованности |
-| `warrant waive` | Создать / отозвать waiver |
-| `warrant id <prefix> <area>` | Выдать новый stable ID |
-| `warrant validate` | Проверить конфигурацию, packs, JSON Schema, IDs |
-| `warrant fmt` | Привести JSON к каноническому виду |
-| `warrant sync` | Сгенерировать `openspec/config.yaml` и schema из packs, обновить lock |
-| `warrant init` | Инициализировать `.warrant/` и mapping схем для редакторов |
+| Команда | Назначение | Maturity |
+|---|---|---|
+| `warrant init` | Инициализировать `.warrant/`, `.claude/`, mapping схем для редакторов. Bootstrap-Change без policy gates | MVP |
+| `warrant init change <name>` | `openspec new change --schema warrant-sdd --json` + record в `PROPOSED`; отказ при повторном имени | MVP |
+| `warrant status [change]` | Состояние Change, effective policy, verdicts, `STALE`, следующая операция | MVP |
+| `warrant classify <change> [--propose <json>]` | Классификация: path rules + proposal агента + human overrides | MVP |
+| `warrant resolve <change> [--explain]` | Вычислить effective policy с происхождением каждого требования | MVP |
+| `warrant next <change>` | Ответ controller | MVP |
+| `warrant run start\|submit\|finish` | Создать Run и Context Pack, принять result envelope skill, закрыть Run | MVP |
+| `warrant guard` | Hook: разрешить / отклонить запись по `write_scope` активного Run | MVP |
+| `warrant unknown add\|resolve`, `warrant assumption add` | Записать UNKNOWN / ASSUMPTION / DECISION в record | MVP |
+| `warrant check [id]` | Запустить check(s), записать evidence | MVP |
+| `warrant gate [id]` | Вычислить verdict(s) | MVP |
+| `warrant verify <change>` | `check` + `gate` для всех требований effective policy текущего перехода | MVP |
+| `warrant analyze <change>` | Детерминированный анализ согласованности | MVP |
+| `warrant transition <change> <state> --ref <url>` | Записать переход; `APPROVED` / `MERGED` только с верифицируемым ref | MVP |
+| `warrant sync-state <change>` | Прочитать форж (review, merge, CI run) и записать соответствующие переходы с refs | MVP |
+| `warrant archive <change>` | `openspec validate --strict` → gates `MERGED → ARCHIVED` → `openspec archive --yes --json` | MVP |
+| `warrant ci` | Всё для CI: Change и переход из ветки, пересчёт L0/L1, верификация refs, JSON, exit 1 при `FAIL` | MVP |
+| `warrant id <prefix> <area>`, `warrant id renumber <old> <new>` | Выдать stable ID; перенумеровать до `MERGED` при коллизии | MVP |
+| `warrant validate` | Конфигурация, packs, JSON Schema, IDs, сгенерированные YAML, отсутствие токенов | MVP |
+| `warrant fmt` | Привести JSON к каноническому виду | MVP |
+| `warrant sync` | Сгенерировать `openspec/config.yaml`, schema, `.claude/**` из packs; обновить lock | MVP |
+| `warrant waive` | Создать / отозвать waiver | later ([ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md)) |
 
 Коды выхода: `0` — ok; `1` — verdict FAIL / STOP; `2` — WAIT / ESCALATE; `3` — ошибка конфигурации.
 

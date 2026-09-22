@@ -66,6 +66,7 @@ Evidence показывает результат.
 | [../lattice/](../lattice/README.md) | Заготовка отдельного проекта LATTICE: реестр решений, объектная модель, план slice | Component | normative | later |
 | [12-evolution](12-evolution.md) | Развитие самой системы, метрики | Kernel | normative | later |
 | [13-roadmap](13-roadmap.md) | MVP, фазы, открытые вопросы | — | informative | MVP |
+| [NEXT-SESSION](NEXT-SESSION.md) | Следующий шаг: план фазы 1 Kernel, что решено, чего не делать | — | informative | MVP |
 
 Решения, принятые при проектировании — [adr/](adr/). Исходные черновики — `archive/2026-09-22.zip`.
 

@@ -10,7 +10,7 @@ version: 0.1.0
 
 ## 1. MVP
 
-MVP = **kernel + pack `core-sdd` + один vertical slice** (WARRANT-ADR-0007).
+MVP = **kernel + pack `core-sdd` + один vertical slice** (WARRANT-ADR-0007, уточнён [ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md): sample-проект Python + pytest, slice ведёт агент под hooks, фаза 4 входит в MVP).
 
 Vertical slice — одно реальное FEATURE-изменение, проведённое от intent до archive:
 
@@ -30,7 +30,7 @@ OpenSpec + warrant-sdd schema + profile feature
 | **1. Kernel** | JSON Schemas контрактов, CLI: `init`, `validate`, `fmt`, `id`, `sync`, `resolve`, `status` | `warrant validate` работает на core-sdd |
 | **2. core-sdd** | schema `warrant-sdd`, profiles, core gates и checks, templates, controller rules, risk | Golden: feature, bugfix, chore |
 | **3. Verification** | `check`, `gate`, `analyze`, evidence manifest, CI integration | Vertical slice пройден |
-| **4. Frontend** | Claude Code: hooks, permissions, skills-адаптеры | Агент проходит slice без ручных обходов |
+| **4. Frontend** (MVP) | Claude Code: static deny, `warrant guard`, reviewer-subagent (ADR-0014) | Агент проходит slice; в `guard_events[]` нет обойдённых `deny` |
 | **5. bdd-tdd, arch** | Gherkin/SCN, red-first, ADR, glossary, adversarial review | Снижение spec defects после implementation |
 | **6. data** | Contracts, compatibility engine, migration, rollback | Golden: breaking-data-change |
 | **7. Orchestration** | Вызов агентов через ACP / API, retry policy, context packs | Два frontends на одном CLI |
@@ -41,11 +41,11 @@ OpenSpec + warrant-sdd schema + profile feature
 
 | Spike | Вопрос |
 |---|---|
-| S1 | Проходят ли `<!-- id: … -->` через `openspec validate` и archive (merge delta по имени заголовка)? |
-| S2 | Какая версия OpenSpec фиксируется; как устроены project-local schema и `config.yaml` в ней |
+| S1 | ~~HTML-комментарии ID через `openspec validate` и archive~~ — **закрыт** на OpenSpec 1.13.1: проходят при размещении строго под заголовком с непустым телом ([ADR-0012 §7](adr/WARRANT-ADR-0012-id-allocation.md)) |
+| S2 | Версия — 1.13.1 (ADR-0012). **Открыт**: устройство project-local schema и `config.yaml`, что именно генерирует `warrant sync`. Первый пункт плана фазы 1 ([NEXT-SESSION](NEXT-SESSION.md)) |
 | S3 | ~~Хранение `classification` и `change_state`~~ — **закрыт**: `.warrant/changes/<change>.json` ([04 §9](04-lifecycle.md), ADR-0009). Остаток вопроса ушёл в S2: есть ли у OpenSpec собственные metadata Change, которые стоит читать |
-| S4 | Язык и распространение CLI (одиночный бинарь vs пакет) — важно для ACP/API-агентов |
-| S5 | Как Claude Code hooks / permissions выражают capabilities и `write_scope` |
+| S4 | ~~Язык и распространение CLI~~ — **закрыт**: TypeScript на Node, monorepo, `npm i -g <git-tag>` ([ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md)) |
+| S5 | ~~Claude Code hooks / permissions~~ — **закрыт**: static deny из `warrant sync` + hook `warrant guard`, reviewer как subagent ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)) |
 | S6 | Принимает ли LATTICE внешние stable ID (`REQ-ING-001`) как identity, или выдаёт свои и нужен mapping. Формат ID фиксируется в фазе 1, поэтому вопрос — до MVP, а не в фазе 9. Proposed ответ: identity LATTICE = `<context>/<name>`, name = stable ID WARRANT без mapping ([integrations/06 D1](../lattice/docs/03-substrate-decisions.md)) |
 
 ## 4. Не входит в MVP

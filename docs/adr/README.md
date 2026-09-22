@@ -7,11 +7,16 @@
 | [0001](WARRANT-ADR-0001-openspec-kernel.md) | OpenSpec — specification lifecycle kernel | ACCEPTED |
 | [0002](WARRANT-ADR-0002-kernel-and-packs.md) | Модель Kernel + Packs | ACCEPTED |
 | [0003](WARRANT-ADR-0003-vocabulary-axes.md) | Шесть маркеров, раздельные оси статусов | ACCEPTED |
-| [0004](WARRANT-ADR-0004-stable-ids.md) | Stable ID через HTML-комментарии | PROPOSED (spike S1) |
+| [0004](WARRANT-ADR-0004-stable-ids.md) | Stable ID через HTML-комментарии | ACCEPTED (S1 закрыт) |
 | [0005](WARRANT-ADR-0005-enforcement.md) | Enforcement в CLI и CI | ACCEPTED |
 | [0006](WARRANT-ADR-0006-json-conventions.md) | JSON-конвенции, язык, комментарии | ACCEPTED |
 | [0007](WARRANT-ADR-0007-mvp-scope.md) | Объём MVP | ACCEPTED |
 | [0008](WARRANT-ADR-0008-naming.md) | Название и границы компонентов | ACCEPTED |
-| [0009](WARRANT-ADR-0009-change-record-attestation.md) | Change record и attestation: доверенные писатели состояния | ACCEPTED |
+| [0009](WARRANT-ADR-0009-change-record-attestation.md) | Change record и attestation: доверенные писатели состояния | ACCEPTED (уточнён 0010) |
+| [0010](WARRANT-ADR-0010-trust-by-reference.md) | Доверие по верифицируемой ссылке; CI не пишет в репозиторий; bot-идентичность агента; форж GitHub | ACCEPTED |
+| [0011](WARRANT-ADR-0011-pr-topology.md) | Два PR на Change + archive; транзиции record в следующем PR; `warrant archive` | ACCEPTED |
+| [0012](WARRANT-ADR-0012-id-allocation.md) | Выдача ID: NNN immutable с MERGED, ULID для EVID/RUN, реестр AREA | ACCEPTED |
+| [0013](WARRANT-ADR-0013-mvp-refinement.md) | Уточнение MVP: sample-проект, TypeScript, агент ведёт slice, core-sdd@0.1 = feature/chore/factory-change | ACCEPTED |
+| [0014](WARRANT-ADR-0014-claude-code-enforcement.md) | Enforcement в Claude Code: static deny + `warrant guard`, review как subagent | ACCEPTED |
 
 Новый ADR: следующий номер, frontmatter как в существующих, строка в этой таблице.

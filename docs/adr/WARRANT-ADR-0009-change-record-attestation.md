@@ -4,7 +4,11 @@ title: Change record и attestation — доверенные писатели с
 adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
+amended_by: [WARRANT-ADR-0010]
 ---
+
+> Уточнено [ADR-0010](WARRANT-ADR-0010-trust-by-reference.md): пункт 4 «authoritative записи делают CLI внутри CI»
+> заменён на «authoritative запись = запись с верифицируемым ref». CI не пишет в репозиторий; он верифицирует ссылки.
 
 ## Context
 

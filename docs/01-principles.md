@@ -32,6 +32,25 @@ Constitution меняется редко и только через Change с п
 | **INV-10** | Неразрешимый конфликт или неизвестное значение MUST разрешаться консервативно (fail closed). |
 | **INV-11** | ИИ MUST NOT быть единственным approver для: destructive migration, security-critical change, production data mutation, architecture-breaking decision, изменения policy. |
 
+### Чем инвариант принуждается в MVP
+
+Инвариант без механизма — пожелание. Таблица честно фиксирует, что принуждается машиной, а что остаётся
+критерием review или проектным правилом.
+
+| ID | Механизм в MVP | Предел |
+|---|---|---|
+| INV-01 | Impl-PR валиден, только если в base есть merged spec-PR с approving review ([ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)); `scope-valid` | — |
+| INV-02 | Алгоритм gate: `requires_evidence` считает только PROVEN нужного kind; L2 — отдельный gate, не замена ([06 §3](06-verification.md)) | — |
+| INV-03 | Агент — отдельная bot-идентичность; `human-approval` проверяет `review.author ∈ roles.maintainer` и `≠ pr.author` ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)) | Требует GitHub App |
+| INV-04 | Сам является правилом о механизмах; см. [04 §6](04-lifecycle.md) | — |
+| INV-05 | Только для `UNKNOWN`: gate `blocking-unknowns-resolved` читает Change record. Маркеры в прозе — критерий L2-review, машиной не проверяются | Частично |
+| INV-06 | Проектное правило; `warrant validate` ловит только дубли ID объектов конфигурации | Design-time |
+| INV-07 | `write_scope` в Run + `warrant guard` + static deny ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)); подделка без ref не проходит CI | Shell не закрывается полностью |
+| INV-08 | Policy-пути → profile `factory-change` → `human-approval` на merge | — |
+| INV-09 | Не принуждается в MVP: нет pack `data` | Later |
+| INV-10 | Resolver и gate-алгоритм: неизвестное → `MEDIUM`/`FAIL`/`ESCALATE` | — |
+| INV-11 | Только класс «изменение policy» (через INV-08); остальные классы — packs `data`, `security`, `arch` | Later |
+
 ## 3. Правило выбора абстракции
 
 Перед добавлением любой новой сущности задаются вопросы **по порядку**. Первый положительный ответ определяет форму:

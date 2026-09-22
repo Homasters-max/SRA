@@ -153,7 +153,8 @@ Gates без `requires_evidence` SHALL вычисляться CLI из сост�
 `artifacts.required` effective policy имеет статус `done` по `openspec status --json` (для `chore` со `skip_specs` — `skipped`
 засчитывается для `specs`); `ids-valid` — проверка (5) `validate` без находок; `blocking-unknowns-resolved` — в record нет `unknowns[]`
 с `blocking: true` без `resolution`; `branch-isolated` — текущая ветка git существует и не равна base (`main`); `evidence-complete` —
-для каждого kind из `evidence.required` есть допустимая запись; `scope-valid` — пути diff `base...HEAD` входят в множество, разрешённое
+для каждого kind из `evidence.required` у Change есть хотя бы одна запись на любом commit (свежесть проверяют gates, читающие
+этот kind), либо на gate, требующий этот kind в `requires_evidence`, есть `ACTIVE` waiver этого Change (I-96); `scope-valid` — пути diff `base...HEAD` входят в множество, разрешённое
 переходу ([ADR-0011](../../../../docs/adr/WARRANT-ADR-0011-pr-topology.md), D-15): для `SPECIFIED->APPROVED` — `openspec/changes/<change>/**`
 и `.warrant/changes/<change>.json`; для `VERIFYING->MERGED` — всё, кроме `openspec/specs/**`, `openspec/changes/archive/**`,
 records и evidence других Changes, и кроме policy-путей (`match.paths` profile `factory-change`), если `factory-change` не в profiles;
@@ -246,7 +247,9 @@ record и evidence этого Change. Каждый FAIL SHALL сопровожд
 `login` ∈ `roles[<role>]` для `role` из `approvals[]` перехода, и команда SHALL до вычисления gates записать evidence kind `human-approval`
 (`produced_by: { "type": "human", "id": "<login>" }`, `attestation: { "type": "human-review", "ref": <--ref> }`, `evidence_status: "PROVEN"`).
 Для `MERGED` оцениваемый commit SHALL быть `--commit` или commit самой свежей записи evidence Change; он SHALL быть предком HEAD
-(иначе `COMMIT_NOT_MERGED`, код 3); все записи перехода SHALL быть на этом commit; base = `merge-base(main, commit)`.
+(иначе `COMMIT_NOT_MERGED`, код 3); все записи перехода SHALL быть на этом commit; base — точка ответвления: для merge-коммита M, первого на first-parent линии
+HEAD, содержащего commit, base = `merge-base(M^1, commit)`; commit, ещё не влитый в first-parent линию, — `merge-base(main, commit)`
+(I-97; impl-PR вливается merge-коммитом, squash и rebase дают `COMMIT_NOT_MERGED`).
 Запись transition SHALL содержать `to`, `at`, `by: "cli:local"`, `effective_policy_hash`, `gates{}`, `evidence[]` (id записей,
 на которых вынесены verdicts), `ref` при наличии. Переход назад (`VERIFYING->IMPLEMENTING`, `IMPLEMENTING->SPECIFIED`) SHALL записываться
 без gates. `ABANDONED` SHALL удалить `openspec/changes/<change>/` и записать переход; после `ABANDONED` и `ARCHIVED` любая команда,

@@ -1,7 +1,9 @@
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const pkg = require("../package.json") as { version: string };
+// The installable package is the repository root (design D-1): three levels up
+// from both `src/` and `dist/`.
+const pkg = require("../../../package.json") as { version: string };
 
 /** Full CLI version (semver). */
 export const CLI_VERSION: string = pkg.version;

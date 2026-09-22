@@ -1,40 +1,6 @@
 {
   "name": "@warrant/cli",
-  "version": "0.1.0",
   "private": true,
-  "description": "WARRANT kernel CLI: schemas, validate, fmt, id, sync, resolve, status",
-  "license": "UNLICENSED",
-  "type": "module",
-  "engines": {
-    "node": ">=20.19"
-  },
-  "bin": {
-    "warrant": "dist/bin/warrant.js"
-  },
-  "files": [
-    "dist",
-    "schemas"
-  ],
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "npm run build && vitest run",
-    "test:watch": "vitest"
-  },
-  "dependencies": {
-    "ajv": "^8.17.1",
-    "ajv-formats": "^3.0.1",
-    "canonicalize": "^2.1.0",
-    "commander": "^13.1.0",
-    "cross-spawn": "^7.0.6",
-    "semver": "^7.8.5",
-    "ulid": "^2.4.0"
-  },
-  "devDependencies": {
-    "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^22.15.0",
-    "@types/semver": "^7.8.0",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.4",
-    "yaml": "^2.8.0"
-  }
+  "description": "WARRANT kernel CLI: schemas, validate, fmt, id, sync, resolve, status. Not an npm package of its own: dependencies, build and bin live in the repository root package.json (design D-1).",
+  "type": "module"
 }

@@ -28,19 +28,23 @@
 ### 1. Layout monorepo и установка через git-tag
 
 ```text
-package.json                  workspace root; "bin": {"warrant": "packages/cli/dist/bin/warrant.js"}; "prepare": build
-packages/cli/                 @warrant/cli (private), TypeScript ESM, tsc → dist/
+package.json                  единственный npm-пакет: deps, "bin": {"warrant": "packages/cli/dist/bin/warrant.js"}, "prepare": build, "files"
+packages/cli/                 каталог кода CLI (не workspace и не пакет), TypeScript ESM, tsc → dist/
   schemas/                    JSON Schema kernel: <name>.<major>.schema.json + common.1.schema.json
   src/                        bin/, commands/, core/{schemas,canon,ids,resolve,sync,packs,openspec,secrets}, io/
   test/                       vitest: unit, golden/resolve/<case>/{input.json,expected.json}, e2e (temp dirs)
 packs/core-sdd/               pack.json, openspec/{schema.json,rules.json,templates/*.md}, risk/{levels,floors}.json
 ```
 
-`npm i -g <git-url>#<tag>` устанавливает **корневой** пакет, поэтому `bin` и `prepare` объявлены в корне;
-`prepare` вызывает `npm -w packages/cli run build`. Bundled packs находятся по пути `<корень установленного пакета>/packs`,
-вычисляемому от `import.meta.url` CLI, а не от cwd. Это же закрывает `UNK-KRN-003`: источники packs — bundled + `.warrant/local/`.
+`npm i -g <git-url>#<tag>` устанавливает **корневой** пакет, поэтому `bin`, `prepare`, зависимости и `files` объявлены в корне;
+`prepare` запускает `tsc -p packages/cli/tsconfig.json`. `files` перечисляет `packages/cli/{package.json,dist,schemas}` и `packs`,
+иначе `.gitignore` исключил бы `dist/` из tarball. Bundled packs находятся по пути `<корень установленного пакета>/packs`,
+вычисляемому от `import.meta.url` CLI (пять уровней вверх от `dist/core/packs/`), а не от cwd. Это же закрывает `UNK-KRN-003`:
+источники packs — bundled + `.warrant/local/`. Версия CLI — `version` корневого `package.json` (`src/version.ts`).
 
-**Alternatives considered:** `packages/cli` как самостоятельный пакет с копией `packs/` — отвергнуто: две копии pack в репозитории.
+**Alternatives considered:** npm workspaces (`packages/*`) — отвергнуто после проверки (задача 1.5): npm отвечает
+`Workspaces not supported for global packages`, глобальная установка корня невозможна, а установка `packages/cli` даёт лишь
+symlink на локальный чекаут без `packs/`. `packages/cli` как самостоятельный пакет с копией `packs/` — отвергнуто: две копии pack в репозитории.
 
 ### 2. JSON Schema: draft 2020-12, Ajv, общий `common`
 
@@ -171,6 +175,23 @@ checks, controller — фаза 2 добавляет файлы и строки 
 Новый код; миграции нет. Откат — удаление ветки. В этом репозитории `openspec/config.yaml` остаётся ручным до фазы 2 (ADR-0015 п. 7),
 поэтому `warrant validate` на самом репозитории в фазе 1 запускается с флагом `--no-generated` (пропуск проверки 4 из REQ-KRN-021);
 флаг документируется как временный и удаляется в фазе 2.
+
+## Решения по ходу реализации
+
+Зафиксированы при apply групп 1–3 (2026-09-22); нормативные документы не затронуты, ADR не требуется.
+
+| # | Решение | Где |
+|---|---|---|
+| I-1 | Один npm-пакет в корне, без workspaces (см. D-1, Alternatives) | `package.json`, `packages/cli/package.json` |
+| I-2 | Зависимость `semver` для диапазонов версий packs и `kernel`; ручной парсер диапазонов не пишется | `core/packs/loader.ts` |
+| I-3 | Проверка размещения ID (5) — только `REQ`/`SCN` в `openspec/specs/**` и `openspec/changes/<c>/specs/**`: `TASK`/`UNK`/`ASM` не попадают в `openspec show --json`, для них — формат, AREA, уникальность | `core/ids/scan.ts` |
+| I-4 | `.warrant/schemas/**` исключены из проверки (1): это копии JSON Schema с `$schema` draft 2020-12; целостность — по hash в lock (`sync`) | `commands/validate.ts` |
+| I-5 | Отсутствие `warrant.lock.json` при наличии `warrant.json` → `LOCK_MISMATCH` с подсказкой `warrant sync`, не `CONFIG_MISSING` | `core/packs/hash.ts` |
+| I-6 | Пока проверки (4) и (7) не реализованы (задачи 3.6, 4.3), `validate` всегда кладёт `generated` и `canonical` в `data.skipped` и предупреждает в stderr — вывод не притворяется полным | `commands/validate.ts` |
+| I-7 | Hash pack для lock = `canonicalHash({ files: { "<posix path>": "sha256:<bytes>" } })` по всем файлам pack; `sync` обязан использовать ту же функцию `packContentHash` | `core/packs/hash.ts` |
+| I-8 | `.warrant/local/`: каждый `*.json` проверяется схемой; объектами policy (pack `local`) становятся только документы `profile`/`overlay`/`gate`/`check`, классифицируемые по `$schema`, без соглашения о каталогах; pack по `warrant.json` также ищется в `.warrant/local/<id>/pack.json` | `core/packs/loader.ts` |
+| I-9 | Объекты без `id` (`risk-floor`, `risk-levels`) получают id = имя файла без расширения; override `accepts_attestation` может только сужать список | `core/packs/loader.ts` |
+| I-10 | Задача 7.1 (минимум `packs/core-sdd`) и hash из 4.1 выполнены в группе 3: без них не проверить SCN-KRN-043 и lock | `packs/core-sdd/`, `core/canon/hash.ts` |
 
 ## Open Questions
 

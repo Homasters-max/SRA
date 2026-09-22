@@ -10,16 +10,16 @@ version: 0.1.0
 
 Файл передачи контекста. Прочитать первым, затем [00-readme](00-readme.md).
 
-## Состояние на 2026-09-22
+## Состояние на 2026-09-22 (вечер)
 
-- Документы 01–08 отгриллены в MVP-scope. Результат — ADR-0010…0014 ([adr/](adr/README.md)); документы 01–04 приведены в соответствие.
-- Спайки: S1 закрыт (ADR-0012 §7, OpenSpec 1.13.1), S2 закрыт ([ADR-0015](adr/WARRANT-ADR-0015-openspec-sync-contract.md)), S3 закрыт (ADR-0009, остаток — ADR-0015), S4 закрыт (ADR-0013: TypeScript), S5 закрыт (ADR-0014), S6 — proposed через LATTICE. Открытых spikes нет.
-- Кода нет. Ни одной JSON Schema `warrant://*` нет.
-- OpenSpec инициализирован в репозитории (`openspec init --tools claude`, schema `spec-driven`, `config.yaml` вручную — ADR-0015 п. 7).
-- Change `phase-1-kernel`: `proposal.md`, `specs/kernel/spec.md` (REQ-KRN-001…027, SCN-KRN-001…072), `design.md`, `tasks.md`
-  написаны, `openspec validate --strict` проходит. Семь вопросов review закрыты (`DECISION` в proposal).
-  `.warrant/local/areas.json` создан вручную (`KRN` → `kernel`). **Следующий шаг — apply** на ветке `feature/phase-1-kernel`
-  (`/opsx:apply phase-1-kernel`), группы задач 1 → 10, тесты первыми для schemas и resolver.
+- Документы 01–08 отгриллены в MVP-scope (ADR-0010…0015); открытых spikes нет.
+- Change `phase-1-kernel` в apply на ветке `feature/phase-1-kernel`, **группы 1–3 из 10 сделаны** (три коммита, 151 тест зелёный):
+  каркас CLI и envelope; 18 JSON Schema `warrant://<name>/1` с fixtures на SCN-KRN-001…041; `warrant validate`
+  (проверки 1, 2, 3, 5, 6 из REQ-KRN-021), loader packs, lock, сканер ID, secrets. Досрочно: задача 7.1 (минимум `packs/core-sdd`)
+  и `canonicalHash` из 4.1. Решения по ходу реализации — таблица I-1…I-10 в `design.md`.
+- Установка: один npm-пакет в корне без workspaces (I-1); `npm i -g <путь или git-url#tag>` даёт `warrant --version`.
+- В этом репозитории `.warrant/warrant.json` ещё нет (задача 10.2), `openspec/config.yaml` ведётся вручную (ADR-0015 п. 7).
+- **Следующий шаг — группы 4 и 6 параллельно, затем 5, 7, 8, 9, 10** (см. «Шаг 2a»).
 
 ## Что уже решено для фазы 1 (не обсуждать заново)
 
@@ -50,26 +50,44 @@ Skills superpowers из Claude Code убраны. Фаза 1 ведётся **с
 `openspec/changes/phase-1-kernel/`: proposal (решения review — `DECISION` в конце), specs (REQ-KRN-001…027, SCN-KRN-001…072),
 design (D-1…D-10), tasks (10 групп, 47 задач). `openspec validate phase-1-kernel --strict` — зелёный.
 
-### Шаг 2a — apply · следующий
+### Шаг 2a — apply · в работе, группы 4–10
 
-Ветка `feature/phase-1-kernel`. Вести через `/opsx:apply phase-1-kernel` группами задач 1 → 10 из tasks.md:
-каркас → schemas (тесты первыми) → validate → fmt → init → id → sync → resolve (golden первыми) → status → критерий выхода.
-Коммит на группу. Ничего сверх tasks.md: новая потребность — сначала правка tasks/design, потом код.
+Ветка `feature/phase-1-kernel`. Вести через `/opsx:apply phase-1-kernel` по tasks.md; коммит на группу с зелёными тестами.
+Ничего сверх tasks.md: новая потребность — сначала правка tasks/design, потом код. Отклонения от spec/design — вопросом
+к maintainer'у, не молча; принятые — в таблицу «Решения по ходу реализации» design.md (I-N).
 
-**Модели.** Сессия (координатор) — Fable 5.1: держит spec/design целиком, принимает отклонения, делает review
-результата субагентов и коммиты. Субагенты через Agent tool с `model: "opus"` (Opus 5) — по одной группе задач
-tasks.md на субагента, с полным контекстом в prompt (пути к spec/design, номера REQ/SCN, что уже сделано).
-Параллельно можно запускать только независимые группы: 4 (`fmt`) и 6 (`id`) после 2; 8 (`resolve`, golden) после 3.1.
-Группы 2, 3, 7 — последовательно. Sonnet не использовать: слишком много связей между группами.
+**Модели и схема работы (проверена на группах 1–3).** Сессия (координатор) — Fable 5.1: читает spec/design/tasks целиком,
+пишет субагенту полный prompt (пути, REQ/SCN, конвенции кода, что уже есть), принимает отчёт, сам гоняет `npm test` и
+`npm run typecheck`, делает ручную проверку команды, коммитит. Субагент — Agent tool, `model: "opus"`, одна группа задач,
+`run_in_background: false`, отчёт ≤ 70 строк с разделом «Decisions/deviations». Sonnet не использовать.
+
+Порядок и зависимости:
+
+| Группа | Зависит от | Заметки |
+|---|---|---|
+| 4 `fmt` | 2 | `core/canon/hash.ts` уже есть; нужны `order-keys`, `format-json`, команда, проверка (7) в `validate` (4.3 снимает `canonical` из `data.skipped`) |
+| 6 `id` | 2, 3.5 | сканер `core/ids/scan.ts` уже есть; параллельно с 4 |
+| 5 `init` | 4, 7 | `init` вызывает `sync`; делать после 7 |
+| 7 `sync` | 4 | 7.1 сделана; 7.6 закрывает 3.6 (проверка 4 через `sync --check`, снять `generated` из `data.skipped`); hash pack — `packContentHash` (I-7) |
+| 8 `resolve` | 3.1 | golden первыми; параллельно с 7 |
+| 9 `status` | 8, 5 | |
+| 10 | всё | 10.2: `.warrant/warrant.json` этого репозитория через `warrant init` без перезаписи `config.yaml` |
+
+Конвенции кода, которые субагент должен знать: TypeScript ESM NodeNext (`.js` в импортах), strict +
+`exactOptionalPropertyTypes`; `WarrantError(code, message, {path})` из `core/errors.ts`; `success/failure/failures` из `io/output.ts`;
+команды регистрируются в `src/bin/warrant.ts` через `register`; e2e через `test/helpers/cli.ts` (`runCli`, `makeTempDir`);
+тесты, которым нужен `openspec`, — `it.skipIf(!openspecAvailable())` из `core/openspec/cli.ts`.
 
 Готовый запрос:
 
 ```text
-Прочитай docs/NEXT-SESSION.md, затем openspec/changes/phase-1-kernel/{proposal,design,tasks}.md и specs/kernel/spec.md.
-Документы 02–08 и ADR-0006, 0012, 0013, 0015 — по мере необходимости. Создай ветку feature/phase-1-kernel и выполняй
-tasks.md через /opsx:apply phase-1-kernel, группа за группой, начиная с 1. Тесты первыми для schemas и resolver.
-Коммит после каждой группы с зелёными тестами. Отклонения от spec/design — вопросом ко мне, не молча.
-Остановись после группы 3 (validate работает на packs/core-sdd) и покажи результат.
+Прочитай docs/NEXT-SESSION.md, затем openspec/changes/phase-1-kernel/{proposal,design,tasks}.md и specs/kernel/spec.md
+(design.md — включая таблицу «Решения по ходу реализации»). Документы 02–08 и ADR-0006, 0012, 0013, 0015 — по мере
+необходимости. Ветка feature/phase-1-kernel уже есть, группы 1–3 сделаны. Продолжай /opsx:apply phase-1-kernel по той же
+схеме: координатор — ты, субагенты Opus 5 по одной группе. Запусти группы 4 и 6 параллельно, затем 7 и 8 параллельно,
+затем 5, 9, 10. Golden первыми для resolver. Коммит после каждой группы с зелёными тестами; сам проверяй результат
+субагента (npm test, npm run typecheck, ручной прогон команды). Отклонения от spec/design — вопросом ко мне, не молча.
+Остановись после группы 10 и покажи результат.
 ```
 
 ### Шаг 3 — не раньше конца фазы 1

@@ -5,18 +5,39 @@
   "description": "WARRANT — specification governance CLI over OpenSpec",
   "license": "UNLICENSED",
   "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
   "bin": {
     "warrant": "packages/cli/dist/bin/warrant.js"
   },
+  "files": [
+    "packages/cli/package.json",
+    "packages/cli/dist",
+    "packages/cli/schemas",
+    "packs"
+  ],
   "engines": {
     "node": ">=20.19"
   },
   "scripts": {
-    "prepare": "npm -w packages/cli run build",
-    "build": "npm -w packages/cli run build",
-    "test": "npm -w packages/cli run test"
+    "prepare": "npm run build",
+    "build": "tsc -p packages/cli/tsconfig.json",
+    "test": "npm run build && vitest run --config packages/cli/vitest.config.ts",
+    "typecheck": "tsc --noEmit -p packages/cli/tsconfig.json"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "canonicalize": "^2.1.0",
+    "commander": "^13.1.0",
+    "cross-spawn": "^7.0.6",
+    "semver": "^7.8.5",
+    "ulid": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/cross-spawn": "^6.0.6",
+    "@types/node": "^22.15.0",
+    "@types/semver": "^7.8.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4",
+    "yaml": "^2.8.0"
   }
 }

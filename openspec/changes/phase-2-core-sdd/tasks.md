@@ -5,10 +5,10 @@
 
 ## 1. Норма и зелёный репозиторий (docs, B6, delta spec)
 
-- [ ] 1.1 B6: `scanIds` помечает origin `specs | changes | archive`; дубликат — только внутри `specs ∪ changes` или внутри одного archive-каталога; `highestNumber`/`ID_TAKEN` учитывают все. Проверка: unit-тест `scan.test.ts` (specs × archive не дубликат, changes × changes дубликат), SCN-KRN-081; `warrant validate --no-generated` на репозитории `ok: true`. (REQ-KRN-021)
-- [ ] 1.2 Документы: 13 §2 (golden = snapshot effective policy; exit фазы 2 = `feature`, `chore`, `factory-change`), 13 §5 (waiver, experiment — later), 05 §4 (таблица risk overlays с колонкой Pack; `mutation-score`/`rollback-rehearsed` — overlays `bdd-tdd`/`data` по `match.risk_level`), 06 §4 (`worktree-ready` → `branch-isolated`), 08 §6 (`bugfix`, `refactor`, `experiment` — later). Проверка: grep по старым формулировкам пуст; ссылки в spec delta ведут на актуальные §. (G-1, G-2, G-9, G-12, G-17)
-- [ ] 1.3 `roles.maintainer` в `.warrant/warrant.json` репозитория; `.warrant/local/openspec/rules.json` получает `context` «Language: Russian…» (пока без удаления из pack — это 4.2). Проверка: `warrant validate --no-generated` зелёный, `fmt --check` чисто. (G-18, G-21)
-- [ ] 1.4 `openspec validate phase-2-core-sdd --strict` зелёный; delta spec kernel и core-sdd соответствуют design (перечитать после 1.2). Проверка: команда, код 0.
+- [x] 1.1 B6: `scanIds` помечает origin `specs | changes | archive`; дубликат — только внутри `specs ∪ changes` или внутри одного archive-каталога; `highestNumber`/`ID_TAKEN` учитывают все. Проверка: unit-тест `scan.test.ts` (specs × archive не дубликат, changes × changes дубликат), SCN-KRN-081; `warrant validate --no-generated` на репозитории `ok: true`. (REQ-KRN-021)
+- [x] 1.2 Документы: 13 §2 (golden = snapshot effective policy; exit фазы 2 = `feature`, `chore`, `factory-change`), 13 §5 (waiver, experiment — later), 05 §4 (таблица risk overlays с колонкой Pack; `mutation-score`/`rollback-rehearsed` — overlays `bdd-tdd`/`data` по `match.risk_level`), 06 §4 (`worktree-ready` → `branch-isolated`), 08 §6 (`bugfix`, `refactor`, `experiment` — later). Проверка: grep по старым формулировкам пуст; ссылки в spec delta ведут на актуальные §. (G-1, G-2, G-9, G-12, G-17)
+- [x] 1.3 `roles.maintainer` в `.warrant/warrant.json` репозитория; `.warrant/local/openspec/rules.json` получает `context` «Language: Russian…» (пока без удаления из pack — это 4.2). Проверка: `warrant validate --no-generated` зелёный, `fmt --check` чисто. (G-18, G-21)
+- [x] 1.4 `openspec validate phase-2-core-sdd --strict` зелёный; delta spec kernel и core-sdd соответствуют design (перечитать после 1.2). Проверка: команда, код 0.
 
 ## 2. Данные pack core-sdd
 

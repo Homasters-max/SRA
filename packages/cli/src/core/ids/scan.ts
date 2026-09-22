@@ -22,6 +22,13 @@ export const ANY_ID_COMMENT_RE = /<!--\s*id:\s*([^>]*?)\s*-->/g;
 
 const WELL_FORMED_PAYLOAD = /^(REQ|SCN|TASK|UNK|ASM)-[A-Z]{2,5}-\d{3}$/;
 
+/**
+ * Where an id was found (B6, design D-6): `specs` — `openspec/specs/**`,
+ * `changes` — an active change (and `.warrant/changes/*.json` records),
+ * `archive` — `openspec/changes/archive/<dir>/**`.
+ */
+export type IdOrigin = "specs" | "changes" | "archive";
+
 export interface FoundId {
   id: string;
   prefix: string;
@@ -31,10 +38,28 @@ export interface FoundId {
   file: string;
   /** 1-based line number. */
   line: number;
+  /** Origin of the declaration (B6). */
+  origin: IdOrigin;
+  /**
+   * For `origin: "archive"`, the archive directory the file belongs to
+   * (`openspec/changes/archive/<dir>`); `null` otherwise. Two declarations in
+   * the same archive directory are still duplicates of each other.
+   */
+  archiveDir: string | null;
 }
 
 function posix(p: string): string {
   return p.split(path.sep).join("/");
+}
+
+const ARCHIVE_RE = /^openspec\/changes\/archive\/([^/]+)\//;
+
+/** Origin of a project-relative POSIX path (B6). */
+export function originOf(file: string): { origin: IdOrigin; archiveDir: string | null } {
+  const m = ARCHIVE_RE.exec(file);
+  if (m !== null) return { origin: "archive", archiveDir: `openspec/changes/archive/${m[1] as string}` };
+  if (file.startsWith("openspec/specs/")) return { origin: "specs", archiveDir: null };
+  return { origin: "changes", archiveDir: null };
 }
 
 /**
@@ -83,6 +108,7 @@ export function scanMarkdown(text: string, file: string): FoundId[] {
   const found: FoundId[] = [];
   const re = new RegExp(ID_COMMENT_RE.source, "g");
   const scanned = blankCodeSpans(text);
+  const { origin, archiveDir } = originOf(file);
   let m: RegExpExecArray | null;
   while ((m = re.exec(scanned)) !== null) {
     const [, prefix = "", area = "", nnn = "000"] = m;
@@ -92,7 +118,9 @@ export function scanMarkdown(text: string, file: string): FoundId[] {
       area,
       nnn: Number.parseInt(nnn, 10),
       file,
-      line: lineOf(text, m.index)
+      line: lineOf(text, m.index),
+      origin,
+      archiveDir
     });
   }
   return found;
@@ -182,7 +210,9 @@ export function scanIds(projectRoot: string): ScanResult {
             area: m[2] as string,
             nnn: Number.parseInt(m[3] as string, 10),
             file: reported,
-            line: 0
+            line: 0,
+            origin: "changes",
+            archiveDir: null
           });
         });
       }
@@ -222,23 +252,45 @@ export function checkAreas(ids: FoundId[], areas: Set<string>): CliError[] {
   return errors;
 }
 
-/** Check 5c: an id appears in exactly one place. */
+/**
+ * Check 5c: an id appears in exactly one place — within `specs ∪ changes`, or
+ * within one archive directory (B6, design D-6). `specs × archive` and
+ * `archive × archive` across different directories are history, not a second
+ * declaration; `warrant id` still counts them as taken (`highestNumber`).
+ */
 export function checkDuplicates(ids: FoundId[]): CliError[] {
-  const byId = new Map<string, FoundId[]>();
+  /**
+   * Declarations that compete with each other share this scope: all of
+   * `openspec/specs/**`, all active changes together, and each archive
+   * directory on its own. A `MODIFIED`/`REMOVED` delta of an active change
+   * repeats the id of the main spec it edits, which is the same declaration
+   * moving, not a second one (I-46).
+   */
+  const scopeOf = (found: FoundId): string => found.archiveDir ?? found.origin;
+  const byId = new Map<string, Map<string, FoundId[]>>();
   for (const found of ids) {
-    const list = byId.get(found.id);
-    if (list === undefined) byId.set(found.id, [found]);
+    let scopes = byId.get(found.id);
+    if (scopes === undefined) {
+      scopes = new Map<string, FoundId[]>();
+      byId.set(found.id, scopes);
+    }
+    const scope = scopeOf(found);
+    const list = scopes.get(scope);
+    if (list === undefined) scopes.set(scope, [found]);
     else list.push(found);
   }
   const errors: CliError[] = [];
-  for (const [id, list] of [...byId.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
-    if (list.length < 2) continue;
-    const where = list.map((f) => (f.line > 0 ? `${f.file}:${f.line}` : f.file)).join(", ");
-    errors.push({
-      code: "ID_DUPLICATE",
-      message: `${id} is declared more than once: ${where}`,
-      path: (list[1] as FoundId).file
-    });
+  for (const [id, scopes] of [...byId.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    for (const scope of [...scopes.keys()].sort()) {
+      const list = scopes.get(scope) as FoundId[];
+      if (list.length < 2) continue;
+      const where = list.map((f) => (f.line > 0 ? `${f.file}:${f.line}` : f.file)).join(", ");
+      errors.push({
+        code: "ID_DUPLICATE",
+        message: `${id} is declared more than once: ${where}`,
+        path: (list[1] as FoundId).file
+      });
+    }
   }
   return errors;
 }

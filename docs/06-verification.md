@@ -80,7 +80,7 @@ Profiles ссылаются только на ID. Определение gate с
 | `required-artifacts-present` | L0 | нет | core-sdd | Все `artifacts.required` есть |
 | `blocking-unknowns-resolved` | L0 | нет | core-sdd | Нет открытых blocking UNKNOWN |
 | `ids-valid` | L0 | нет | core-sdd | ID уникальны, формат верен, не переиспользованы |
-| `worktree-ready` | L0 | да | core-sdd | Implementation в отдельном worktree |
+| `branch-isolated` | L0 | да | core-sdd | Implementation на отдельной ветке ([ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)) |
 | `tests-passed` | L1 | нет | core-sdd | Required tests проходят |
 | `scope-valid` | L0 | нет | core-sdd | Diff затрагивает только разрешённые пути |
 | `analyze-clean` | L0 | да | core-sdd | Нет `UNSATISFIED`, `CONFLICT`, `ORPHAN` |

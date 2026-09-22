@@ -1,3 +1,4 @@
 {
-  "$schema": "warrant://openspec-rules/1"
+  "$schema": "warrant://openspec-rules/1",
+  "context": "Language: Russian\nAll artifacts must be written in Russian.\nKeep OpenSpec structural headings and SHALL/MUST keywords in English."
 }

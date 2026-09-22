@@ -6,5 +6,10 @@
     "core-sdd": {
       "version": "^0.1.0"
     }
+  },
+  "roles": {
+    "maintainer": [
+      "Homasters-max"
+    ]
   }
 }

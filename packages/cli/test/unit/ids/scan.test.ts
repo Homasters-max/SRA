@@ -2,7 +2,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { checkAreas, checkDuplicates, loadAreas, scanIds, scanMalformed, scanMarkdown } from "../../../src/core/ids/scan.js";
+import { checkAreas, checkDuplicates, loadAreas, originOf, scanIds, scanMalformed, scanMarkdown } from "../../../src/core/ids/scan.js";
+import { highestNumber } from "../../../src/core/ids/allocate.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 
 const tempDirs: string[] = [];
@@ -85,6 +86,73 @@ describe("checkDuplicates", () => {
     expect(errors[0]?.message).toContain("a.md:4");
     expect(errors[0]?.message).toContain("b.md:4");
     expect(errors[0]?.path).toBe("b.md");
+  });
+});
+
+describe("origins (B6)", () => {
+  it("labels specs, active changes and archive directories", () => {
+    expect(originOf("openspec/specs/kernel/spec.md")).toEqual({ origin: "specs", archiveDir: null });
+    expect(originOf("openspec/changes/x/specs/kernel/spec.md")).toEqual({ origin: "changes", archiveDir: null });
+    expect(originOf("openspec/changes/archive/2026-01-01-x/specs/kernel/spec.md")).toEqual({
+      origin: "archive",
+      archiveDir: "openspec/changes/archive/2026-01-01-x"
+    });
+  });
+
+  it("does not report specs x archive as a duplicate", () => {
+    const ids = [
+      ...scanMarkdown(SPEC, "openspec/specs/kernel/spec.md"),
+      ...scanMarkdown(SPEC, "openspec/changes/archive/2026-01-01-x/specs/kernel/spec.md")
+    ];
+    expect(checkDuplicates(ids)).toEqual([]);
+  });
+
+  it("does not report a MODIFIED delta of an active change against the main spec (I-46)", () => {
+    const ids = [
+      ...scanMarkdown(SPEC, "openspec/specs/kernel/spec.md"),
+      ...scanMarkdown(SPEC, "openspec/changes/x/specs/kernel/spec.md")
+    ];
+    expect(checkDuplicates(ids)).toEqual([]);
+  });
+
+  it("does not report archive x archive across different archive directories", () => {
+    const ids = [
+      ...scanMarkdown(SPEC, "openspec/changes/archive/2026-01-01-x/specs/kernel/spec.md"),
+      ...scanMarkdown(SPEC, "openspec/changes/archive/2026-02-02-y/specs/kernel/spec.md")
+    ];
+    expect(checkDuplicates(ids)).toEqual([]);
+  });
+
+  it("reports the same id declared in two active changes", () => {
+    const ids = [
+      ...scanMarkdown(SPEC, "openspec/changes/a/specs/kernel/spec.md"),
+      ...scanMarkdown(SPEC, "openspec/changes/b/specs/kernel/spec.md")
+    ];
+    expect(checkDuplicates(ids).map((e) => e.code)).toEqual(["ID_DUPLICATE", "ID_DUPLICATE"]);
+  });
+
+  it("reports the same id declared twice inside one archive directory", () => {
+    const ids = [
+      ...scanMarkdown(SPEC, "openspec/changes/archive/2026-01-01-x/specs/kernel/spec.md"),
+      ...scanMarkdown(SPEC, "openspec/changes/archive/2026-01-01-x/design.md")
+    ];
+    const errors = checkDuplicates(ids);
+    expect(errors.map((e) => e.code)).toEqual(["ID_DUPLICATE", "ID_DUPLICATE"]);
+    expect(errors[0]?.message).toContain("openspec/changes/archive/2026-01-01-x/design.md");
+  });
+
+  it("counts archive in the highest number used by `warrant id`", () => {
+    const root = makeTempDir("warrant-ids-b6-");
+    tempDirs.push(root);
+    write(root, ".warrant/local/areas.json", JSON.stringify({ $schema: "warrant://areas/1", KRN: { capability: "kernel" } }));
+    write(root, "openspec/specs/kernel/spec.md", ["<!-- id: REQ-KRN-001 -->", "text", ""].join("\n"));
+    write(
+      root,
+      "openspec/changes/archive/2026-01-01-x/specs/kernel/spec.md",
+      ["<!-- id: REQ-KRN-017 -->", "text", ""].join("\n")
+    );
+    expect(checkDuplicates(scanIds(root).ids)).toEqual([]);
+    expect(highestNumber(root, "REQ", "KRN")).toBe(17);
   });
 });
 

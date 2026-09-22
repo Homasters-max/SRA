@@ -146,3 +146,4 @@ lock-проверки (откат I-43). Pack `rules.json.context` станов�
 | # | Решение | Где |
 |---|---|---|
 | I-45 | `warrant init change` берёт schema из `openspec/config.yaml`, а не всегда `warrant-sdd`: до переезда репозитория change фазы 2 создан на `spec-driven` | commands/init.ts, группа 4 |
+| I-46 | B6: сферы уникальности ID — `specs`, `changes` (все активные changes вместе) и каждый archive-каталог отдельно, а не `specs ∪ changes`: delta `MODIFIED` активного change повторяет ID редактируемого main spec (13 таких пар в самом репозитории), это одно объявление, а не два; `highestNumber`/`ID_TAKEN` по-прежнему считают все origin | core/ids/scan.ts, группа 1 |

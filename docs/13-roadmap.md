@@ -28,7 +28,7 @@ OpenSpec + warrant-sdd schema + profile feature
 |---|---|---|
 | **0. Spikes** | см. §3 | Все spikes закрыты решением |
 | **1. Kernel** | JSON Schemas контрактов, CLI: `init`, `validate`, `fmt`, `id`, `sync`, `resolve`, `status` | `warrant validate` работает на core-sdd |
-| **2. core-sdd** | schema `warrant-sdd`, profiles, core gates и checks, templates, controller rules, risk | Golden: feature, bugfix, chore |
+| **2. core-sdd** | schema `warrant-sdd`, profiles, core gates и checks, templates, controller rules, risk | Golden `feature`, `chore`, `factory-change` — snapshot effective policy (`resolve --explain`, `status`); прогон gates — фаза 3 |
 | **3. Verification** | `check`, `gate`, `analyze`, evidence manifest, CI integration | Vertical slice пройден |
 | **4. Frontend** (MVP) | Claude Code: static deny, `warrant guard`, reviewer-subagent (ADR-0014) | Агент проходит slice; в `guard_events[]` нет обойдённых `deny` |
 | **5. bdd-tdd, arch** | Gherkin/SCN, red-first, ADR, glossary, adversarial review | Снижение spec defects после implementation |
@@ -61,8 +61,8 @@ automatic policy evolution · semantic memory platform · autonomous production 
 | Шаблон | Pack | Фаза |
 |---|---|---|
 | proposal, spec, design, tasks | core-sdd | 2 |
-| waiver | core-sdd | 2 |
-| experiment (hypothesis / result / decision) | core-sdd | 2 |
+| waiver | core-sdd | later (по failure mode) |
+| experiment (hypothesis / result / decision) | core-sdd | later (по failure mode) |
 | ADR | arch | 5 |
 | glossary entry | arch | 5 |
 | data contract, migration plan | data | 6 |

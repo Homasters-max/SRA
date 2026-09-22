@@ -168,13 +168,19 @@ resolver композирует их по правилам §5.
 
 ### Risk overlays
 
-| Level | Дополнительно к profile |
-|---|---|
-| `LOW` | обычная verification |
-| `MEDIUM` | + `adversarial-review` |
-| `HIGH` | + `adversarial-review`, `mutation-score`, `rollback-rehearsed` (если применимо), `human-approval` на merge |
+| Level | Дополнительно к profile | Pack |
+|---|---|---|
+| `LOW` | обычная verification | core-sdd |
+| `MEDIUM` | + `adversarial-review` | core-sdd |
+| `HIGH` | + `adversarial-review`, `human-approval` на merge | core-sdd |
+| `HIGH` | + `mutation-score` | bdd-tdd |
+| `HIGH` | + `rollback-rehearsed` (если применимо) | data |
 
-Точные наборы задаются overlay-файлами `risk-low.json`, `risk-medium.json`, `risk-high.json` в pack core-sdd.
+`mutation-score` и `rollback-rehearsed` приносят packs `bdd-tdd` и `data` — своими overlays с `match: {"risk_level": ["HIGH"]}`,
+а не core-sdd.
+
+Точные наборы задаются overlay-файлами `risk-low.json`, `risk-medium.json`, `risk-high.json` в pack core-sdd; core-sdd поставляет
+в них только свои gates.
 
 Overlay MAY срабатывать не только по `risk_level`, но и по значению отдельного измерения:
 

@@ -109,7 +109,7 @@ Lock MUST генерироваться CLI и MUST NOT редактироват�
 
 | Pack | Содержимое | Maturity | Документ |
 |---|---|---|---|
-| `core-sdd` | schema `warrant-sdd`, profiles feature / bugfix / refactor / chore / experiment / factory-change, core gates, risk overlays, controller rules, templates proposal / spec / design / tasks / waiver | MVP | этот каталог, [05](05-policy.md), [06](06-verification.md) |
+| `core-sdd` | schema `warrant-sdd`, profiles feature / chore / factory-change (0.1), bugfix / refactor / experiment — later, по failure mode; core gates, risk overlays, controller rules, templates proposal / spec / design / tasks | MVP | этот каталог, [05](05-policy.md), [06](06-verification.md) |
 | `bdd-tdd` | Gherkin, TDD, red-first, mutation | later | [10-pack-bdd-tdd](10-pack-bdd-tdd.md) |
 | `arch` | profile architecture, ADR, C4, glossary | later | [10-pack-arch](10-pack-arch.md) |
 | `data` | profiles data-change / migration, contracts, compatibility, rollback | later | [09-pack-data](09-pack-data.md) |

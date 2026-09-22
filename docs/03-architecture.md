@@ -117,6 +117,7 @@ project/
 │   └── runs/                       RUN-*.json + current (в git в MVP; внешнее хранение — later)
 │
 ├── .codex/hooks.json               генерируется warrant sync: hook warrant guard --frontend codex (ADR-0018, MVP)
+├── AGENTS.md                       генерируется warrant sync из правил с paths ["**"] (ADR-0022)
 ├── .claude/                        адаптер claude, later (ADR-0014)
 │   ├── settings.json               permissions.deny + hook warrant guard
 │   └── agents/warrant-reviewer.md  subagent для review-Run

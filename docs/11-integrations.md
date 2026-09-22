@@ -54,7 +54,8 @@ Status: proposed · Источники: [ADR-0018](adr/WARRANT-ADR-0018-frontend
 - Pack проекта объявляет тесты одним гейтом `warrant verify --transition VERIFYING->MERGED` (lane и integration); отдельного `pytest`-гейта нет.
 - `landing` вызывает `warrant transition <change> MERGED --ref …` в коммите посадки; после последнего TASK Change — `warrant archive` отдельным коммитом (gates `MERGED → ARCHIVED` — integration-гейты, конфликт → `sef inbox`).
 - `protected[]` `.sef/pack.yaml` покрывает пути policy WARRANT и неизменные пути архива — `openspec/changes/archive/**`, record и evidence архивных Changes ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) (`warrant validate` → `SEF_PROTECTED_DRIFT`).
-- `.codex/hooks.json` входит в эталон `.sef/engines/<profile>/`; trust hook Codex выдан в образе или слоте.
+- `.codex/hooks.json` и `AGENTS.md` входят в эталон `.sef/engines/<profile>/`; trust hook Codex выдан в образе или слоте.
+- Context Pack попытки включает `rules[]` из `warrant run start <change> --task <TASK>` ([ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)).
 - Процесс ACP-адаптера агента запускается с cwd = worktree Change, один процесс на worktree (Codex читает hooks при старте процесса).
 - `session/request_permission` не считается механизмом запрета: агент не обязан его вызывать.
 - Если SEF — ACP client, он вызывает `warrant validate --files` по `locations` завершённых edit `tool_call`, доставляет hints в следующем prompt и делает `session/cancel` при записи вне `write_scope`.

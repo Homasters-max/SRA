@@ -21,9 +21,10 @@
 | [0015](WARRANT-ADR-0015-openspec-sync-contract.md) | Контракт `warrant sync` с OpenSpec 1.13.1: что генерируется, schema `warrant-sdd`, что WARRANT читает у OpenSpec (S2, остаток S3) | ACCEPTED |
 | [0016](WARRANT-ADR-0016-mutation-diff-scope.md) | Mutation score по diff: формула, порог 0.9, эквивалентные мутанты — частичный waiver, evidence `metrics` | ACCEPTED |
 | [0017](WARRANT-ADR-0017-check-execution.md) | `execution` в check: машинный замок `exclusive`, `local` allowed / scoped-only / ci-only, `--paths`, guard по `guard_prefixes` | ACCEPTED (уточнён 0020) |
-| [0018](WARRANT-ADR-0018-frontend-adapters.md) | Frontend adapters: нейтральный `warrant guard`, три слоя (ACP client, hooks агента, CI), MVP — Codex через codex-acp | ACCEPTED (уточнён 0020) |
-| [0019](WARRANT-ADR-0019-post-edit-hints.md) | Подсказки после правки: `validate --files`, канал, видимый модели, без блокировки | ACCEPTED |
-| [0020](WARRANT-ADR-0020-warrant-sef-boundary.md) | Граница WARRANT и SEF: argv-гейты, транспорты `github` и `sef-hub` (proposed), MVP без фабрики | ACCEPTED (уточнён 0021) |
+| [0018](WARRANT-ADR-0018-frontend-adapters.md) | Frontend adapters: нейтральный `warrant guard`, три слоя (ACP client, hooks агента, CI), MVP — Codex через codex-acp | ACCEPTED (уточнён 0020, 0022) |
+| [0019](WARRANT-ADR-0019-post-edit-hints.md) | Подсказки после правки: `validate --files`, канал, видимый модели, без блокировки | ACCEPTED (уточнён 0022) |
+| [0020](WARRANT-ADR-0020-warrant-sef-boundary.md) | Граница WARRANT и SEF: argv-гейты, транспорты `github` и `sef-hub` (proposed), MVP без фабрики | ACCEPTED (уточнён 0021, 0022) |
 | [0021](WARRANT-ADR-0021-archive-immutability.md) | Неизменность архива (`scope-valid`), связи `amends` / `supersedes` в record, `warrant link`, брошенный Change | ACCEPTED |
+| [0022](WARRANT-ADR-0022-path-rules.md) | Правила по путям: JSON `rule/1`, `AGENTS.md`, подсказка при правке, Context Pack; guard без Run → `deny` | ACCEPTED |
 
 Новый ADR: следующий номер, frontmatter как в существующих, строка в этой таблице.

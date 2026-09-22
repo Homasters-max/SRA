@@ -5,7 +5,11 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: []
+amended_by: [WARRANT-ADR-0022]
 ---
+
+> Уточнено [ADR-0022](WARRANT-ADR-0022-path-rules.md): hints включают текст правил по путям — один раз за Run на правило (исключение из п. 10 только
+> для текста правил; находки проверок приходят всегда).
 
 ## Context
 

@@ -95,6 +95,7 @@ Operation (clarify, analyze, verify, converge) MUST NOT порождать со�
 | **Constitution** | Неизменяемые инварианты | этот документ |
 | **Policy** | Machine-enforced правила | profiles и gates в packs ([05](05-policy.md)) |
 | **Project rules** | Конвенции проекта (язык, стиль, инструменты) | `.warrant/local/openspec/rules.json` → генерируется в `openspec/config.yaml` ([08 §8](08-packs.md)) |
+| **Path rules** | Правила агенту для файлов по путям (кода, тестов) | `rules/` pack и `.warrant/local/rules/` → `AGENTS.md`, hints guard, Context Pack ([ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)) |
 | **ADR** | Конкретные архитектурные решения | каталог ADR проекта |
 | **Spec** | Требуемое поведение | `openspec/specs/` |
 | **Skill** | Способ выполнения reasoning | SRA |

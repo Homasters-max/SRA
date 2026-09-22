@@ -40,6 +40,42 @@ Check — детерминированная исполняемая провер
 - Check MUST NOT использовать LLM. То, что требует LLM, — skill, а его результат — L2 evidence.
 - Проект подключает свои инструменты через `.warrant/local/checks/`.
 
+### Execution
+
+Блок `execution` задаёт, *как* check разрешено запускать ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)):
+
+```json
+{
+  "id": "mutation",
+  "run": {
+    "command": ["mutmut", "run"],
+    "scoped_command": ["mutmut", "run", "{paths}"]
+  },
+  "execution": {
+    "exclusive": true,
+    "timeout_s": 3600,
+    "local": "scoped-only",
+    "max_paths": 5,
+    "guard_prefixes": [["mutmut"], ["python", "-m", "mutmut"]]
+  }
+}
+```
+
+| Поле | Default | Правило |
+|---|---|---|
+| `exclusive` | `false` | Один замок на машину: `$(git rev-parse --git-common-dir)/warrant/check.lock`, общий для процессов и worktree |
+| `timeout_s` | `defaults.check_timeout_s`, иначе `1800` | По истечении check прерывается, замок освобождается |
+| `local` | `allowed` | `scoped-only` — локально только `--paths`; `ci-only` — локально никакой (later, D-23) |
+| `max_paths` | — | Больше путей в `--paths` → код `3` (later, D-23) |
+| `guard_prefixes` | первые токены `run.command` | По ним `warrant guard` отклоняет прямой запуск |
+
+- Замок занят → код `2`, `errors[0].code: "BUSY"` с держателем замка; `--wait` ждёт до `timeout_s` (CI; later).
+  Замок мёртвого pid снимается автоматически с записью в журнал Run (later, D-23).
+- `warrant check <id> --paths …` запускает `scoped_command`; без значения пути берутся из diff. Evidence
+  суженного прогона несёт `limitations: ["scoped: <paths>"]` и исключается пред-фильтром допустимости (§3).
+- Для checks с `exclusive` или `local ≠ allowed` guard отвечает `deny` на Bash-команду с совпавшим префиксом
+  и подсказывает `warrant check`.
+
 ## 3. Gate
 
 Gate — правило перехода; агрегирует evidence в `gate_verdict`.
@@ -58,14 +94,20 @@ Gate — правило перехода; агрегирует evidence в `gate
 
 ### Алгоритм verdict
 
-Выполняется по порядку, первое совпадение — результат:
+Сначала **пред-фильтр допустимости evidence** (D-12): запись исключается из рассмотрения с finding `STALE`, если
+`subject.commit` / `subject.base_commit` отличаются от текущих; `metrics.threshold` ≠ текущий effective param
+([06a §2](06a-evidence.md)); `limitations` содержит `scoped: …` (суженный прогон, [ADR-0017](adr/WARRANT-ADR-0017-check-execution.md));
+отпечаток target частичного waiver, применённого check, не совпадает с текущим кодом ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md) п. 7).
+
+Затем по порядку, первое совпадение — результат:
 
 ```text
-1. applies_when не выполнено                    → NOT_APPLICABLE
-2. предпосылки отсутствуют (нет Run, нет входа) → BLOCKED
-3. все requires_evidence со статусом PROVEN     → PASS
-4. есть ACTIVE waiver и gate waivable           → WAIVED
-5. иначе                                        → FAIL
+1. applies_when не выполнено, или все requires_evidence
+   имеют статус NOT_APPLICABLE от детерминированного check → NOT_APPLICABLE
+2. предпосылки отсутствуют (нет Run, нет входа)           → BLOCKED
+3. все requires_evidence со статусом PROVEN               → PASS
+4. есть ACTIVE waiver и gate waivable                     → WAIVED
+5. иначе                                                  → FAIL
 ```
 
 `NOT_APPLICABLE` ≠ `PASS`: он позволяет пройти profile без ложного waiver, но отображается отдельно.
@@ -82,20 +124,21 @@ Profiles ссылаются только на ID. Определение gate с
 | `ids-valid` | L0 | нет | core-sdd | ID уникальны, формат верен, не переиспользованы |
 | `branch-isolated` | L0 | да | core-sdd | Implementation на отдельной ветке ([ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)) |
 | `tests-passed` | L1 | нет | core-sdd | Required tests проходят |
-| `scope-valid` | L0 | нет | core-sdd | Diff затрагивает только разрешённые пути |
+| `scope-valid` | L0 | нет | core-sdd | Diff затрагивает только разрешённые пути; архив, record и evidence архивных Changes — только `factory-change`; archive-PR — только свой каталог архива и `specs/**` ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md), D-15) |
 | `analyze-clean` | L0 | да | core-sdd | Нет `UNSATISFIED`, `CONFLICT`, `ORPHAN` |
 | `evidence-complete` | L0 | нет | core-sdd | Все `evidence.required` присутствуют |
 | `human-approval` | L0 | нет | core-sdd | Approval от человека с нужной ролью |
 | `adversarial-review` | L2 | да | core-sdd | Review выполнен, blocking findings закрыты |
 | `bdd-passed` | L1 | нет | bdd-tdd | Acceptance scenarios проходят |
 | `red-first` | L1 | да | bdd-tdd | Тест падал до реализации |
-| `mutation-score` | L1 | да | bdd-tdd | Mutation score ≥ порога |
+| `mutation-score` | L1 | да | bdd-tdd | Score мутантов внутри diff ≥ порога ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)) |
 | `adr-present` | L0 | да | arch | ADR существует при durable decision |
 | `contract-compatible` | L1 | нет | data | Compatibility check пройден или bump версии |
 | `migration-verified` | L1 | нет | data | Миграция прогнана на тестовых данных |
 | `reconciliation-passed` | L1 | да | data | Source ↔ target сверка |
 | `rollback-rehearsed` | L1 | да | data | Rollback выполнен на production-like snapshot |
 | `factory-golden-passed` | L1 | нет | core-sdd | Golden changes WARRANT проходят ([12](12-evolution.md)) |
+| `spec-approved` | L0 | нет | core-sdd | Дерево `{proposal.md, design.md, specs/**}` Change на base совпадает с деревом на коммите из ref `APPROVED`; `tasks.md` исключён; оба транспорта ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md) п. 9, D-3) |
 
 ## 5. Analyze
 
@@ -108,7 +151,10 @@ Profiles ссылаются только на ID. Определение gate с
 | `UNSATISFIED` | REQ без task, test или evidence |
 | `ORPHAN` | Test / task / code без связи с REQ |
 | `AMBIGUOUS` | Одна ссылка указывает на несколько объектов |
-| `STALE` | Evidence получено на commit / spec revision, отличном от текущего |
+| `STALE` | Evidence получено на commit / spec revision / base / effective param, отличном от текущего; target частичного waiver не совпадает с текущим кодом |
+
+В транспорте `sef-hub` `analyze` дополнительно сверяет TASK ↔ sef item (`source_ref`): TASK без item — `MISSING`,
+с несколькими items — `AMBIGUOUS` ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)).
 
 Пример:
 

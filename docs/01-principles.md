@@ -41,11 +41,11 @@ Constitution меняется редко и только через Change с п
 |---|---|---|
 | INV-01 | Impl-PR валиден, только если в base есть merged spec-PR с approving review ([ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)); `scope-valid` | — |
 | INV-02 | Алгоритм gate: `requires_evidence` считает только PROVEN нужного kind; L2 — отдельный gate, не замена ([06 §3](06-verification.md)) | — |
-| INV-03 | Агент — отдельная bot-идентичность; `human-approval` проверяет `review.author ∈ roles.maintainer` и `≠ pr.author` ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)) | Требует GitHub App |
+| INV-03 | `github`: агент — отдельная bot-идентичность; `human-approval` проверяет `review.author ∈ roles.maintainer` и `≠ pr.author` ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)). `sef-hub` (proposed): актор approve / land — реальный TTY + owner-токен keyring SEF ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md) п. 8) | Требует GitHub App; в `sef-hub` — механизм SEF |
 | INV-04 | Сам является правилом о механизмах; см. [04 §6](04-lifecycle.md) | — |
 | INV-05 | Только для `UNKNOWN`: gate `blocking-unknowns-resolved` читает Change record. Маркеры в прозе — критерий L2-review, машиной не проверяются | Частично |
 | INV-06 | Проектное правило; `warrant validate` ловит только дубли ID объектов конфигурации | Design-time |
-| INV-07 | `write_scope` в Run + `warrant guard` + static deny ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)); подделка без ref не проходит CI | Shell не закрывается полностью |
+| INV-07 | `write_scope` в Run + `warrant guard` в hooks агента (MVP) + наблюдение ACP client (S1 SEF, [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md), [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)); подделка без ref не проходит CI | Shell не закрывается полностью; без hooks — обнаружение после действия (в MVP — finding `FRONTEND_HOOKS_INACTIVE` на `verify`) |
 | INV-08 | Policy-пути → profile `factory-change` → `human-approval` на merge | — |
 | INV-09 | Не принуждается в MVP: нет pack `data` | Later |
 | INV-10 | Resolver и gate-алгоритм: неизвестное → `MEDIUM`/`FAIL`/`ESCALATE` | — |
@@ -95,6 +95,7 @@ Operation (clarify, analyze, verify, converge) MUST NOT порождать со�
 | **Constitution** | Неизменяемые инварианты | этот документ |
 | **Policy** | Machine-enforced правила | profiles и gates в packs ([05](05-policy.md)) |
 | **Project rules** | Конвенции проекта (язык, стиль, инструменты) | `.warrant/local/openspec/rules.json` → генерируется в `openspec/config.yaml` ([08 §8](08-packs.md)) |
+| **Path rules** | Правила агенту для файлов по путям (кода, тестов) | `rules/` pack и `.warrant/local/rules/` → `AGENTS.md`, hints guard, Context Pack ([ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)) |
 | **ADR** | Конкретные архитектурные решения | каталог ADR проекта |
 | **Spec** | Требуемое поведение | `openspec/specs/` |
 | **Skill** | Способ выполнения reasoning | SRA |

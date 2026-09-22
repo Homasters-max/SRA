@@ -4,7 +4,11 @@ title: Топология PR — два PR на Change, archive отдельно
 adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
+amended_by: [WARRANT-ADR-0020]
 ---
+
+> Уточнено [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md): этот ADR — транспорт `github` абстрактной топологии Change;
+> второй транспорт — `sef-hub` (proposed). MVP — `github` без изменений.
 
 ## Context
 

@@ -66,15 +66,82 @@ WARRANT проверяет не только наличие тестов:
 ## 4. Mutation testing
 
 Coverage не доказывает защищённость поведения (`coverage 98% ≠ behavior protected 98%`).
-Mutation testing проверяет силу тестов, но MUST NOT быть обязательным для каждого изменения:
+Mutation testing проверяет силу тестов, но MUST NOT быть обязательным для каждого изменения.
+Решение — [ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md).
 
 | Risk | Требование |
 |---|---|
-| `LOW` | обычные tests |
-| `MEDIUM` | tests + mutation на изменённых модулях (SHOULD) |
-| `HIGH` | tests + mutation (gate `mutation-score`) + adversarial review |
+| `LOW` | обычные tests; mutation не выполняется |
+| `MEDIUM` | обычные tests; mutation не выполняется (было: check выполняется без gate — снято D-6) |
+| `HIGH` | gate `mutation-score` required + adversarial review |
 
-Порог — параметр pack: `params.mutation_threshold`.
+### Scope — diff
+
+Score считается только по мутантам внутри diff Change, а не по модулю: иначе унаследованный долг файла
+роняет gate, к Change не относящийся.
+
+- Мутант учитывается, если его location пересекает изменённые строки. Если инструмент не даёт строк — изменённые
+  функции. Гранулярность (`line` / `function`) объявляет parser и пишет в evidence.
+- Base — по транспорту: `github` — `merge-base(HEAD, base-ветка PR)`, как у `scope-valid`; `sef-hub` —
+  `manifest.base_commit` (`--base <commit>`). Сдвиг base → `STALE`.
+- Перенесённый код — изменённый. Rename файла распознаётся (`git diff -M`).
+
+### Формула и порог
+
+```text
+score = killed / (killed + survived + no_coverage)
+Timeout → killed · CompileError, RuntimeError → вне знаменателя (errors)
+Ignored в diff → survived, если нет исключения
+0 мутантов в diff → evidence NOT_APPLICABLE (check) → gate NOT_APPLICABLE (шаг 1, 06 §3)
+```
+
+Порог — `params.mutation_threshold`, default `0.9`. Check сравнивает сам, выставляет `PROVEN` / `NOT_PROVEN` и
+пишет применённый порог в `metrics.threshold`; gate сверяет его с effective param в пред-фильтре допустимости
+([06 §3](06-verification.md)), расхождение → finding `STALE`, evidence исключается.
+
+### Нормализация отчёта
+
+Parser каждого инструмента приводит отчёт к mutation-testing-report-schema (экосистема Stryker); фильтр по diff
+применяет check WARRANT. Инструмент MAY сужать прогон ради стоимости, но verdict считается по фильтру WARRANT.
+Сужение и стоимость — через `execution` ([06 §2](06-verification.md), [ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)):
+check `mutation` поставляется с `exclusive: true`, `local: "scoped-only"`, `max_paths: 5` — полный прогон только в CI.
+Инструмент для Python sample — spike S7 ([13 §3](13-roadmap.md)).
+
+### Evidence `mutation-report`
+
+```json
+{
+  "kind": "mutation-report",
+  "metrics": {
+    "scope": "diff",
+    "granularity": "line",
+    "base_commit": "abc1234",
+    "killed": 41, "survived": 2, "no_coverage": 1, "timeout": 3, "errors": 0,
+    "excluded_equivalent": 1,
+    "waivers": ["WAV-2026-004"],
+    "score": 0.955,
+    "threshold": 0.9,
+    "module_score": 0.61
+  }
+}
+```
+
+`module_score` — справочно (долг для brownfield), gate его не читает.
+
+### Эквивалентные мутанты
+
+Исключаются частичным waiver ([05 §7](05-policy.md)) с `targets[]`. Target — отпечаток
+`{file, symbol, mutator, replacement, source_sha256}`; для гранулярности `function` — hash тела функции.
+Targets читает check (исключает мутанты, пишет `excluded_equivalent` и `waivers[]`); gate сверяет свежесть отпечатков.
+Отпечаток, не совпавший с текущим кодом, — finding `STALE`, исключение не действует. Общего реестра исключений нет.
+
+### Защита от обхода
+
+| Обход | Механизм |
+|---|---|
+| Инструмент помечает мутант `Ignored` | `Ignored` в diff → survived |
+| Pragma (`# pragma: no mutate` и др.) — мутант не попадает в отчёт | Lint diff → finding; легитимная pragma — через `targets` |
+| Сужение в конфиге инструмента | Конфиг — policy-путь: проект SHOULD объявить его в override `.warrant/local/profiles/factory-change.json` (`match.paths`); было `params.mutation_config_paths` — снято D-16 |
 
 ## 5. Bugfix
 

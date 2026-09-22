@@ -109,7 +109,8 @@ Skill       ──produces──▶ Findings / Proposals — не verdict
 - Skill MUST NOT выносить verdict. Результат AI-review — это evidence уровня L2 ([06a](06a-evidence.md)).
 - У gate нет `INCONCLUSIVE`: неубедительное evidence даёт `FAIL` (INV-10).
 - `BLOCKED` — gate невозможно вычислить (нет предпосылок).
-- `NOT_APPLICABLE` ставится только правилом `applies_when`, не мнением агента.
+- `NOT_APPLICABLE` ставится только правилом `applies_when` или детерминированным check (evidence со статусом
+  `NOT_APPLICABLE`, [06 §3](06-verification.md)), не мнением агента.
 - `WAIVED` требует `ACTIVE` waiver, срок которого не истёк.
 
 ### Значения controller_action

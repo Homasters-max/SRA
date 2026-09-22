@@ -114,9 +114,11 @@ project/
 │   ├── changes/<change>.json       Change record: classification, change_state, unknowns, журнал переходов
 │   ├── waivers/                    WAV-*.json
 │   ├── evidence/<change>/          manifest.json + записи EVID-*.json
-│   └── runs/                       RUN-*.json + current (в git в MVP; внешнее хранение — later)
+│   └── runs/                       RUN-*.json + current (в git в MVP; в sef-hub — вне репозитория, WARRANT_STATE_DIR, ADR-0020 п. 13)
 │
-├── .claude/                        генерируется warrant sync для frontend Claude Code (ADR-0014)
+├── .codex/hooks.json               генерируется warrant sync: hook warrant guard --frontend codex (ADR-0018, MVP)
+├── AGENTS.md                       генерируется warrant sync из правил с paths ["**"] (ADR-0022)
+├── .claude/                        адаптер claude, later (ADR-0014)
 │   ├── settings.json               permissions.deny + hook warrant guard
 │   └── agents/warrant-reviewer.md  subagent для review-Run
 │
@@ -136,7 +138,9 @@ project/
 | `openspec/specs/`, `openspec/changes/` | OpenSpec | Обычный Change |
 | `openspec/schemas/`, `openspec/config.yaml` | WARRANT (через pack) | `factory-change` |
 | `.warrant/warrant.json`, `.warrant/warrant.lock.json`, `.warrant/local/` | WARRANT | `factory-change` |
-| `.claude/settings.json`, `.claude/agents/` | WARRANT (генерируется `warrant sync`) | `factory-change` |
+| `.claude/settings.json`, `.claude/agents/` | WARRANT (генерируется `warrant sync`; адаптер `claude` — later, [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)) | `factory-change` |
+| `.codex/hooks.json`, `AGENTS.md` | WARRANT (генерируется `warrant sync`, [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md), [ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)) | `factory-change` |
+| `.warrant/local/rules/`, `rules/` pack | WARRANT (path rules, [ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)) | `factory-change` |
 | `.claude/commands/opsx/`, `.claude/skills/openspec-*/` | OpenSpec (`openspec init \| update`) | `chore` ([ADR-0015](adr/WARRANT-ADR-0015-openspec-sync-contract.md)) |
 | `.warrant/changes/` | WARRANT (запись только CLI) | Переходы через `warrant` ([04 §9](04-lifecycle.md)); агент MUST NOT писать напрямую |
 | `.warrant/waivers/` | WARRANT | Waiver lifecycle ([05](05-policy.md)) |

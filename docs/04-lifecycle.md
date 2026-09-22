@@ -42,6 +42,9 @@ design исправляется, и работа продолжается. Во�
 `IMPLEMENTING → SPECIFIED`) разрешён; переход вперёд — только через gates, указанные для перехода
 в effective policy.
 
+После `ARCHIVED` неизменны каталог архива, record и evidence Change; исправление — новый Change с `amends`.
+`ABANDONED` замораживает record и удаляет каталог Change тем же коммитом ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)).
+
 | Переход | Gates профиля `feature` (core-sdd@0.1) | Где вычисляется |
 |---|---|---|
 | `PROPOSED → SPECIFIED` | `required-artifacts-present`, `spec-valid`, `ids-valid` | локально |
@@ -124,7 +127,10 @@ SPEC → IMPLEMENT → VERIFY → ANALYZE → converged? ── yes → MERGE �
 
 Status: normative · Maturity: MVP
 
-Решение — [WARRANT-ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md). Два PR на Change плюс archive:
+Топология Change имеет два транспорта ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)): `github` (MVP, ниже) и
+`sef-hub` (со срезом S1 SEF, proposed: `sef work approve` → попытка → `landing`; archive — `landing` после последнего TASK).
+
+Транспорт `github` — [WARRANT-ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md). Два PR на Change плюс archive:
 
 ```text
 propose / specify  → ветка spec/<change> от актуального main → PR → human review → merge   (SPECIFIED → APPROVED)
@@ -141,6 +147,8 @@ archive            → warrant archive → ветка archive/<change> → PR и
 - Транзиции record едут в *следующем* PR ([§9](#9-change-record)); между PR `warrant status` показывает `STALE` штатно.
 - `openspec archive` MUST вызываться только через `warrant archive`: OpenSpec сам не проверяет граф artifacts
   и архивирует пустой Change (spike S2).
+- Отказ от Change — ветка `abandon/<change>`: `warrant transition … ABANDONED` и удаление каталога одним коммитом →
+  PR или push как для archive ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md) п. 8).
 
 ## 6. Enforcement
 
@@ -151,12 +159,14 @@ Prompt не является enforcement (INV-04). Принуждение рас
 | **CLI** `warrant` | Разрешает переходы состояний, пишет record, evidence и runs | MVP |
 | **CI** `warrant ci` | Заново вычисляет L0/L1, верифицирует refs, блокирует merge. Не пишет в репозиторий ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)) | MVP |
 | **Форж** (GitHub) | Bot-идентичность агента без права merge; branch protection на `main`; required review | MVP |
-| **Static deny** frontend'а | `permissions.deny` в `.claude/settings.json`, генерируется `warrant sync` | MVP (Claude Code) |
-| **Hook** `warrant guard` | `PreToolUse` на `Edit|Write|Bash`: отказ вне `write_scope` активного Run | MVP (Claude Code) |
+| **ACP client** (диспетчер SEF, [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)) | Наблюдает `tool_call`, `validate --files` после правки, `session/cancel` при записи вне `write_scope`, проверка живости hooks ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)) | S1 SEF; в MVP нет |
+| **Hook** `warrant guard --frontend <name>` | `pre`: отказ вне `write_scope` активного Run и на прямой запуск тяжёлых checks (ADR-0017); `post`: hints по изменённому файлу ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)) и текст правил по путям; без активного Run — `deny` ([ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)) | MVP (`codex`); `claude`, `opencode` — later |
+| **Static deny** frontend'а | `permissions.deny` в `.claude/settings.json`, генерируется `warrant sync` | later (адаптер `claude`) |
 
-WARRANT **agent-agnostic**: вся логика в CLI, который общается JSON. Frontends (Claude Code — первый;
-далее агенты через ACP или API) — адаптеры, которые вызывают CLI и транслируют capabilities в свои
-механизмы (permissions, hooks, sandbox). Детали для Claude Code — [ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md).
+WARRANT **agent-agnostic**: вся логика в CLI, который общается JSON. Frontends — адаптеры, которые переводят
+родной формат агента в нормализованное событие `warrant guard` и обратно ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)).
+В MVP реализацию ведёт Codex в ручном режиме под hooks; слой ACP — диспетчер SEF со среза S1 ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)); адаптер Claude Code ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)) — later.
+Hooks внутри агента — ускорение, а не гарантия: запрет до действия, если они загружены; дальше ACP и CI.
 
 Известный предел: deny на `Edit` / `Write` не мешает записи через shell. Гарантия — не hook, а CI: запись
 без верифицируемого ref не проходит `warrant ci`.
@@ -166,7 +176,7 @@ WARRANT **agent-agnostic**: вся логика в CLI, который обща�
 | Capability | Spec author | Implementer | Verifier | Принуждение в MVP |
 |---|---|---|---|---|
 | `READ_REPO`, `READ_SPEC`, `READ_EVIDENCE` | ✓ | ✓ | ✓ | informative: чтение не ограничивается |
-| `WRITE_SPEC` | ✓ | — | — | `write_scope` Run + static deny |
+| `WRITE_SPEC` | ✓ | — | — | `write_scope` Run + hook `warrant guard` (static deny — later, адаптер `claude`, [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)) |
 | `WRITE_CODE` | — | ✓ | — | `write_scope` Run |
 | `RUN_TEST` | — | ✓ | ✓ | — |
 | `RUN_DATA_CHECK` | — | — | ✓ | pack `data`, later |
@@ -200,21 +210,22 @@ WARRANT **agent-agnostic**: вся логика в CLI, который обща�
 | `warrant classify <change> [--propose <json>]` | Классификация: path rules + proposal агента + human overrides | MVP |
 | `warrant resolve <change> [--explain]` | Вычислить effective policy с происхождением каждого требования | MVP |
 | `warrant next <change>` | Ответ controller | MVP |
-| `warrant run start\|submit\|finish` | Создать Run и Context Pack, принять result envelope skill, закрыть Run | MVP |
-| `warrant guard` | Hook: разрешить / отклонить запись по `write_scope` активного Run | MVP |
+| `warrant run start\|submit\|finish` | Создать Run и Context Pack (с `rules[]`, пересекающими `write_scope`, [ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)), принять result envelope skill, закрыть Run | MVP |
+| `warrant guard --frontend <name>` | Адаптер frontend: `pre` — разрешить / отклонить по `write_scope` и тяжёлым checks ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)); `post` — hints ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)); нормализованный контракт — [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md) | MVP |
 | `warrant unknown add\|resolve`, `warrant assumption add` | Записать UNKNOWN / ASSUMPTION / DECISION в record | MVP |
-| `warrant check [id]` | Запустить check(s), записать evidence | MVP |
+| `warrant check [id] [--paths …] [--wait]` | Запустить check(s), записать evidence; `--paths` — суженный прогон, `--wait` — ждать замок `exclusive` ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)) | MVP |
 | `warrant gate [id]` | Вычислить verdict(s) | MVP |
 | `warrant verify <change>` | `check` + `gate` для всех требований effective policy текущего перехода | MVP |
 | `warrant analyze <change>` | Детерминированный анализ согласованности | MVP |
-| `warrant transition <change> <state> --ref <url>` | Записать переход; `APPROVED` / `MERGED` только с верифицируемым ref | MVP |
+| `warrant transition <change> <state> --ref <url>` | Записать переход; `APPROVED` / `MERGED` только с верифицируемым ref; `ABANDONED` удаляет каталог Change ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) | MVP |
+| `warrant link <change> --amends\|--supersedes <target>` | Связь с исправляемым (`MERGED` / `ARCHIVED`) или заменяемым (`ABANDONED`) Change; до `APPROVED` ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) | MVP |
 | `warrant sync-state <change>` | Прочитать форж (review, merge, CI run) и записать соответствующие переходы с refs | MVP |
 | `warrant archive <change>` | `openspec validate --strict` → gates `MERGED → ARCHIVED` → `openspec archive --yes --json` | MVP |
 | `warrant ci` | Всё для CI: Change и переход из ветки, пересчёт L0/L1, верификация refs, JSON, exit 1 при `FAIL` | MVP |
 | `warrant id <prefix> <area>`, `warrant id renumber <old> <new>` | Выдать stable ID; перенумеровать до `MERGED` при коллизии | MVP |
-| `warrant validate` | Конфигурация, packs, JSON Schema, IDs, сгенерированные YAML, отсутствие токенов | MVP |
+| `warrant validate [--files <paths>]` | Конфигурация, packs, JSON Schema, IDs, сгенерированные YAML, отсутствие токенов; `--files` — только проверки одного файла ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)) | MVP |
 | `warrant fmt` | Привести JSON к каноническому виду | MVP |
-| `warrant sync` | Сгенерировать `openspec/config.yaml`, schema, `.claude/**` из packs; обновить lock | MVP |
+| `warrant sync` | Сгенерировать `openspec/config.yaml`, schema, `.codex/hooks.json`, `AGENTS.md` ([ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)) из packs; обновить lock | MVP |
 | `warrant waive` | Создать / отозвать waiver | later ([ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md)) |
 
 Коды выхода: `0` — ok; `1` — verdict FAIL / STOP; `2` — WAIT / ESCALATE; `3` — ошибка конфигурации.
@@ -272,3 +283,7 @@ Governance-состояние Change (classification, risk, `change_state`) пр
   `warrant status` MUST сверять запись с производными сигналами (наличие artifacts, worktree, merge в git, каталог archive)
   и сообщать `STALE`, если они расходятся. Запись — акт перехода; вычисление — проверка, что акт всё ещё соответствует реальности.
 - Файл — не второй source спецификации: он не содержит ни требований, ни tasks ([03 §8](03-architecture.md)).
+- Необязательные `amends[]` (цель в `MERGED` / `ARCHIVED`) и `supersedes[]` (цель в `ABANDONED`) пишет `warrant link`;
+  обратные `amended_by[]` / `superseded_by[]` не хранятся — их вычисляют `status` и `analyze`. После `ARCHIVED` или
+  `ABANDONED` файл неизменен ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)). `status` сверяет `ABANDONED` с
+  каталогом: `ABANDONED_DIR_PRESENT`, `DIR_MISSING_WITHOUT_TRANSITION` (D-22).

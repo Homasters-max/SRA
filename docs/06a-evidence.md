@@ -53,6 +53,11 @@ Evidence:  claim "customer_id остаётся уникальным после �
 | `produced_by.type` | `check` (L0/L1), `skill` (L2), `human` |
 | `attestation` | Кто ручается за происхождение записи (§3) |
 | `limitations` | Что evidence **не** доказывает (scope, выборка, окружение) |
+| `metrics` | Необязательно. Числовые результаты check; JSON Schema объявляет pack для своего kind (например, `mutation-report`, [ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)) |
+
+Если check сравнивал результат с параметром policy (порог), применённое значение MUST быть записано в `metrics`.
+Gate сверяет его с текущим effective param в пред-фильтре допустимости ([06 §3](06-verification.md)); расхождение →
+finding `STALE`, evidence исключается.
 
 ## 3. Кто создаёт evidence
 
@@ -75,6 +80,8 @@ Evidence:  claim "customer_id остаётся уникальным после �
 | `ci` | Запись создана CLI внутри CI-запуска | id запуска |
 | `human-review` | Человек через PR review / approval API | URL review |
 | `signature` | Подпись зарегистрированного ключа (`warrant.json` → `trusted_signers`) | id подписи |
+| `sef-approval` | Владелец через `sef work approve` (транспорт `sef-hub`, proposed, [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)) | `sef://<project>/approval/<work>-r<N>@<commit>` |
+| `sef-gate` | Гейт SEF в контейнере гейтов (транспорт `sef-hub`, proposed) | `sef://<project>/attempt/<id>/gate/<gate-id>` |
 | `none` | Локальный запуск CLI | — |
 
 - Gate объявляет допустимые типы: `"accepts_attestation": ["ci", "human-review"]`. По умолчанию `none` не засчитывается

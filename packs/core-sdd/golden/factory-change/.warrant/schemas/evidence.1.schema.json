@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://evidence/1",
+  "title": "WARRANT evidence record",
+  "description": "One evidence record under `.warrant/evidence/<change>/` (06a section 2). Written only by the CLI.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://evidence/1"
+    },
+    "id": {
+      "description": "Evidence id `EVID-<ULID>`; counters are not allowed (ADR-0012).",
+      "$ref": "warrant://common/1#/$defs/evid_id"
+    },
+    "claim": {
+      "description": "What this evidence asserts and which spec objects it is about.",
+      "type": "object",
+      "properties": {
+        "text": {
+          "description": "The claim in one sentence.",
+          "type": "string",
+          "minLength": 1
+        },
+        "targets": {
+          "description": "Stable ids the claim is about.",
+          "type": "array",
+          "items": { "$ref": "warrant://common/1#/$defs/spec_id" }
+        }
+      },
+      "required": ["text"],
+      "additionalProperties": false
+    },
+    "kind": {
+      "description": "Evidence kind from the catalogue declared by packs, for example `test-report`.",
+      "$ref": "warrant://common/1#/$defs/kebab_id"
+    },
+    "level": {
+      "description": "Verification level of the producer: L0, L1 or L2.",
+      "$ref": "warrant://common/1#/$defs/level"
+    },
+    "evidence_status": {
+      "description": "What the evidence establishes.",
+      "$ref": "warrant://common/1#/$defs/evidence_status"
+    },
+    "subject": {
+      "description": "Exactly what was observed: the code, spec revision and data the claim holds for.",
+      "type": "object",
+      "properties": {
+        "commit": {
+          "description": "Commit the evidence was produced against.",
+          "type": "string",
+          "minLength": 1
+        },
+        "spec_revision": {
+          "description": "Spec revision the claim refers to, for example `openspec/specs/ingestion@abc1234`.",
+          "type": "string",
+          "minLength": 1
+        },
+        "dataset_snapshot": {
+          "description": "Data snapshot the claim holds for, or null when no data is involved.",
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["commit"],
+      "additionalProperties": false
+    },
+    "produced_by": {
+      "description": "Who or what produced this evidence.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "Producer class: a deterministic check, an LLM skill or a human.",
+          "type": "string",
+          "enum": ["check", "skill", "human"]
+        },
+        "id": {
+          "description": "Id of the check, skill or person.",
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "description": "Exact version of the producer.",
+          "$ref": "warrant://common/1#/$defs/semver"
+        },
+        "run": {
+          "description": "Run id `RUN-<ULID>` during which the evidence was produced.",
+          "$ref": "warrant://common/1#/$defs/run_id"
+        }
+      },
+      "required": ["type", "id"],
+      "additionalProperties": false
+    },
+    "attestation": {
+      "description": "Who vouches for the provenance of this record (06a section 3).",
+      "type": "object",
+      "properties": {
+        "type": {
+          "description": "Attestation type.",
+          "$ref": "warrant://common/1#/$defs/attestation_type"
+        },
+        "ref": {
+          "description": "Reference backing the attestation, for example a CI run URL.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    "context_hash": {
+      "description": "Hash of the context the producer saw (06a section 6).",
+      "$ref": "warrant://common/1#/$defs/sha256"
+    },
+    "effective_policy_hash": {
+      "description": "Hash of the effective policy in force when the evidence was produced.",
+      "$ref": "warrant://common/1#/$defs/sha256"
+    },
+    "created_at": {
+      "description": "RFC 3339 timestamp of when the record was written.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "artifacts": {
+      "description": "Raw artefacts backing the claim, referenced by uri and hash.",
+      "type": "array",
+      "items": {
+        "description": "One referenced artefact.",
+        "type": "object",
+        "properties": {
+          "uri": {
+            "description": "Where the artefact is stored.",
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "description": "Content hash of the artefact.",
+            "$ref": "warrant://common/1#/$defs/sha256"
+          }
+        },
+        "required": ["uri", "sha256"],
+        "additionalProperties": false
+      }
+    },
+    "limitations": {
+      "description": "What this evidence does not prove: scope, sampling, environment.",
+      "type": "array",
+      "items": {
+        "description": "One limitation.",
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": [
+    "$schema",
+    "id",
+    "claim",
+    "kind",
+    "level",
+    "evidence_status",
+    "subject",
+    "produced_by",
+    "attestation",
+    "created_at"
+  ],
+  "additionalProperties": false
+}

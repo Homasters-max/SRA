@@ -1,0 +1,39 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "factory-change",
+  "change_state": "PROPOSED",
+  "classification": {
+    "profiles": [
+      "factory-change"
+    ],
+    "risk": {
+      "data_loss": {
+        "value": "NONE",
+        "from": "proposer:golden"
+      },
+      "reversibility": {
+        "value": "MODERATE",
+        "from": "proposer:golden"
+      },
+      "blast_radius": {
+        "value": "SYSTEM",
+        "from": "floor:core-sdd:2"
+      },
+      "security_impact": {
+        "value": "LOW",
+        "from": "proposer:golden"
+      },
+      "compatibility": {
+        "value": "COMPATIBLE",
+        "from": "proposer:golden"
+      }
+    }
+  },
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-09-22T00:00:00Z",
+      "by": "cli:local"
+    }
+  ]
+}

@@ -56,12 +56,11 @@ register(
 register(
   "validate",
   "validate configuration, packs, schemas, ids and generated files",
-  (_args, opts) => {
+  () => {
     // CONFIG_MISSING first, exactly as for the other config-bound commands (SCN-KRN-007).
     requireConfigPath();
-    return runValidate({ generated: opts["generated"] as boolean | undefined });
-  },
-  (c) => c.option("--no-generated", "skip check (4), byte comparison of generated OpenSpec files")
+    return runValidate();
+  }
 );
 register(
   "fmt",

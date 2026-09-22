@@ -2,7 +2,7 @@
   "$schema": "warrant://pack/1",
   "id": "base",
   "version": "1.0.0",
-  "kernel": ">=0.1 <0.2",
+  "kernel": ">=0.1 <0.3",
   "description": "Fixture pack: one gate and one profile.",
   "depends_on": {},
   "provides": {

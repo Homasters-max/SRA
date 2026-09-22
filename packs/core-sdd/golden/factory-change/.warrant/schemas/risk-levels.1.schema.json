@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://risk-levels/1",
+  "title": "WARRANT risk level rules",
+  "description": "Deterministic derivation of `risk_level` from the risk dimensions (05 section 4). Evaluated in order: `high`, then `low`, then `default`.",
+  "type": "object",
+  "$defs": {
+    "dimension_values": {
+      "description": "Set of accepted values per risk dimension.",
+      "type": "object",
+      "properties": {
+        "data_loss": {
+          "description": "Matching values of the `data_loss` dimension.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "warrant://common/1#/$defs/data_loss" }
+        },
+        "reversibility": {
+          "description": "Matching values of the `reversibility` dimension.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "warrant://common/1#/$defs/reversibility" }
+        },
+        "blast_radius": {
+          "description": "Matching values of the `blast_radius` dimension.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "warrant://common/1#/$defs/blast_radius" }
+        },
+        "security_impact": {
+          "description": "Matching values of the `security_impact` dimension.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "warrant://common/1#/$defs/security_impact" }
+        },
+        "compatibility": {
+          "description": "Matching values of the `compatibility` dimension.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "warrant://common/1#/$defs/compatibility" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://risk-levels/1"
+    },
+    "high": {
+      "description": "Condition promoting the Change to HIGH.",
+      "type": "object",
+      "properties": {
+        "when_any": {
+          "description": "HIGH when any dimension holds one of the listed values.",
+          "$ref": "#/$defs/dimension_values"
+        }
+      },
+      "required": ["when_any"],
+      "additionalProperties": false
+    },
+    "low": {
+      "description": "Condition allowing the Change to be LOW.",
+      "type": "object",
+      "properties": {
+        "when_all": {
+          "description": "LOW only when every listed dimension holds one of its listed values.",
+          "$ref": "#/$defs/dimension_values"
+        }
+      },
+      "required": ["when_all"],
+      "additionalProperties": false
+    },
+    "default": {
+      "description": "Level used when neither `high` nor `low` matched. Required: no default is implied.",
+      "$ref": "warrant://common/1#/$defs/risk_level"
+    }
+  },
+  "required": ["$schema", "default"],
+  "additionalProperties": false
+}

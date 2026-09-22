@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -15,22 +15,42 @@ export interface CliRun {
   json: any;
 }
 
-/** Runs the built CLI with stdout redirected (non-TTY), parsing the envelope. */
-export function runCli(args: string[], cwd: string, env: NodeJS.ProcessEnv = {}): CliRun {
-  const proc = spawnSync(process.execPath, [BIN, ...args], {
-    cwd,
-    encoding: "utf8",
-    env: { ...process.env, ...env }
+/**
+ * Runs the built CLI with stdout redirected (non-TTY), parsing the envelope.
+ *
+ * Asynchronous on purpose: a synchronous child process blocks the vitest
+ * worker's event loop, so the reporter RPC (`onTaskUpdate`) times out on the
+ * long e2e runs even though every test passes.
+ */
+export function runCli(args: string[], cwd: string, env: NodeJS.ProcessEnv = {}): Promise<CliRun> {
+  return new Promise<CliRun>((resolve, reject) => {
+    const child = spawn(process.execPath, [BIN, ...args], {
+      cwd,
+      env: { ...process.env, ...env }
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      let json: any = undefined;
+      if (stdout.trim().length > 0) {
+        try {
+          json = JSON.parse(stdout);
+        } catch {
+          json = undefined;
+        }
+      }
+      resolve({ status: code ?? -1, stdout, stderr, json });
+    });
   });
-  let json: any = undefined;
-  if (proc.stdout.trim().length > 0) {
-    try {
-      json = JSON.parse(proc.stdout);
-    } catch {
-      json = undefined;
-    }
-  }
-  return { status: proc.status ?? -1, stdout: proc.stdout, stderr: proc.stderr, json };
 }
 
 export function makeTempDir(prefix = "warrant-"): string {

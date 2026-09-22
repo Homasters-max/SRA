@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://config/1",
+  "title": "WARRANT project config",
+  "description": "`.warrant/warrant.json` — the single configuration point of a WARRANT project (08 section 3).",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://config/1"
+    },
+    "kernel": {
+      "description": "Kernel compatibility line as `major.minor`, for example `0.1`.",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "openspec": {
+      "description": "Accepted OpenSpec version range, for example `1.13.x`.",
+      "$ref": "warrant://common/1#/$defs/semver_range"
+    },
+    "packs": {
+      "description": "Packs enabled in this project, keyed by pack id.",
+      "type": "object",
+      "properties": {},
+      "patternProperties": {
+        "^[a-z0-9]+(-[a-z0-9]+)*$": {
+          "description": "Version range and parameters for one pack.",
+          "type": "object",
+          "properties": {
+            "version": {
+              "description": "Accepted version range of the pack.",
+              "$ref": "warrant://common/1#/$defs/semver_range"
+            },
+            "params": {
+              "description": "Pack parameters validated by the pack's own `params_schema`.",
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "required": ["version"],
+          "additionalProperties": false
+        }
+      },
+      "propertyNames": {
+        "anyOf": [
+          { "$ref": "warrant://common/1#/$defs/kebab_id" },
+          { "pattern": "^\\$comment$" }
+        ]
+      },
+      "additionalProperties": false
+    },
+    "paths": {
+      "description": "Project paths WARRANT needs to know about.",
+      "type": "object",
+      "properties": {
+        "adr": {
+          "description": "Directory holding project ADRs.",
+          "$ref": "warrant://common/1#/$defs/relative_path"
+        },
+        "glossary": {
+          "description": "File holding the project glossary.",
+          "$ref": "warrant://common/1#/$defs/relative_path"
+        },
+        "tests": {
+          "description": "Root directory of the project test suite.",
+          "$ref": "warrant://common/1#/$defs/relative_path"
+        },
+        "src": {
+          "description": "Root directory of the project sources.",
+          "$ref": "warrant://common/1#/$defs/relative_path"
+        }
+      },
+      "additionalProperties": false
+    },
+    "roles": {
+      "description": "Role name to the list of logins that may act in that role.",
+      "type": "object",
+      "properties": {},
+      "patternProperties": {
+        "^[a-z0-9]+(-[a-z0-9]+)*$": {
+          "description": "Logins holding this role.",
+          "type": "array",
+          "items": {
+            "description": "Login of a person.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "propertyNames": {
+        "anyOf": [
+          { "$ref": "warrant://common/1#/$defs/kebab_id" },
+          { "pattern": "^\\$comment$" }
+        ]
+      },
+      "additionalProperties": false
+    },
+    "identities": {
+      "description": "Non-human identities acting in this project (ADR-0010).",
+      "type": "object",
+      "properties": {
+        "agents": {
+          "description": "Agents allowed to act on behalf of the project.",
+          "type": "array",
+          "items": {
+            "description": "One agent identity.",
+            "type": "object",
+            "properties": {
+              "login": {
+                "description": "Login or account name of the agent.",
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "description": "Kind of the identity, for example `bot` or `service-account`.",
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "description": "Free-form note about what this identity is used for.",
+                "type": "string"
+              }
+            },
+            "required": ["login"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "trusted_signers": {
+      "description": "Key identifiers whose signatures are accepted as attestation (ADR-0010).",
+      "type": "array",
+      "items": {
+        "description": "Signer key identifier.",
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": ["$schema", "kernel", "openspec", "packs"],
+  "additionalProperties": false
+}

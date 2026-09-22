@@ -94,7 +94,7 @@ function floorCandidates(
     for (const dimension of RISK_DIMENSIONS) {
       const value = rule.set[dimension];
       if (value === undefined) continue;
-      const candidate: Candidate = { value, from: `floor:${rule.pack}:${rule.index}`, priority: 1 };
+      const candidate: Candidate = { value, from: `floor:${rule.pack}:${rule.index}`, priority: 0 };
       const current = out[dimension];
       // Несколько сработавших правил: берётся самое строгое, при равенстве — первое.
       if (current === undefined || rank(dimension, value) > rank(dimension, current.value)) {
@@ -108,7 +108,7 @@ function floorCandidates(
 function previousCandidate(previous: Classification | undefined, dimension: RiskDimension): Candidate | undefined {
   const entry = previous?.risk?.[dimension];
   if (entry === undefined || typeof entry.value !== "string") return undefined;
-  return { value: entry.value, from: "record", priority: 0 };
+  return { value: entry.value, from: "record", priority: 1 };
 }
 
 function proposedCandidate(propose: Proposal | undefined, dimension: RiskDimension): Candidate | undefined {
@@ -117,7 +117,11 @@ function proposedCandidate(propose: Proposal | undefined, dimension: RiskDimensi
   return { value, from: "proposer", priority: 2 };
 }
 
-/** Победитель: максимум по enum, при равенстве — источник с меньшим `priority`. */
+/**
+ * Победитель: максимум по enum, при равенстве — источник с меньшим `priority`:
+ * floor (детерминирован и выводится заново каждый прогон) > record > proposer (I-56),
+ * поэтому повторный прогон не меняет `from`, пока floor всё ещё совпадает по путям.
+ */
 function best(dimension: RiskDimension, candidates: Candidate[]): Candidate | undefined {
   let winner: Candidate | undefined;
   for (const candidate of candidates) {

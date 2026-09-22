@@ -59,11 +59,11 @@ const SHUFFLED_CONFIG = [
 ].join("\n");
 
 describe("warrant fmt", () => {
-  it("leaves a canonical file untouched and reports no change (SCN-KRN-049)", () => {
+  it("leaves a canonical file untouched and reports no change (SCN-KRN-049)", async () => {
     const root = project();
     write(root, ".warrant/warrant.json", CANONICAL_CONFIG);
 
-    const run = runCli(["fmt"], root);
+    const run = await runCli(["fmt"], root);
     expect(run.status).toBe(0);
     expect(run.json?.command).toBe("fmt");
     expect(run.json?.ok).toBe(true);
@@ -73,11 +73,11 @@ describe("warrant fmt", () => {
     expect(read(root, ".warrant/warrant.json")).toBe(CANONICAL_CONFIG);
   });
 
-  it("reorders keys without changing values (SCN-KRN-050)", () => {
+  it("reorders keys without changing values (SCN-KRN-050)", async () => {
     const root = project();
     write(root, ".warrant/warrant.json", SHUFFLED_CONFIG);
 
-    const run = runCli(["fmt"], root);
+    const run = await runCli(["fmt"], root);
     expect(run.status).toBe(0);
     expect(run.json?.ok).toBe(true);
     expect(run.json?.data.changed).toEqual([".warrant/warrant.json"]);
@@ -92,15 +92,15 @@ describe("warrant fmt", () => {
     expect(JSON.parse(text)).toEqual(JSON.parse(SHUFFLED_CONFIG));
 
     // Formatting again is a no-op: the command is idempotent.
-    const again = runCli(["fmt"], root);
+    const again = await runCli(["fmt"], root);
     expect(again.json?.data.changed).toEqual([]);
   });
 
-  it("--check reports the path and exits 1 without writing (SCN-KRN-051)", () => {
+  it("--check reports the path and exits 1 without writing (SCN-KRN-051)", async () => {
     const root = project();
     write(root, ".warrant/warrant.json", SHUFFLED_CONFIG);
 
-    const run = runCli(["fmt", "--check"], root);
+    const run = await runCli(["fmt", "--check"], root);
     expect(run.status).toBe(1);
     expect(run.json?.ok).toBe(false);
     expect(run.json?.data.changed).toEqual([".warrant/warrant.json"]);
@@ -109,22 +109,22 @@ describe("warrant fmt", () => {
     expect(read(root, ".warrant/warrant.json")).toBe(SHUFFLED_CONFIG);
   });
 
-  it("--check on canonical files prints one envelope with ok: true (SCN-KRN-004)", () => {
+  it("--check on canonical files prints one envelope with ok: true (SCN-KRN-004)", async () => {
     const root = project();
     write(root, ".warrant/warrant.json", CANONICAL_CONFIG);
 
-    const run = runCli(["fmt", "--check"], root);
+    const run = await runCli(["fmt", "--check"], root);
     expect(run.status).toBe(0);
     expect(run.json).toEqual({ command: "fmt", ok: true, data: { checked: 1, changed: [] }, errors: [] });
     expect(run.stdout.trim().split("\n}").length).toBe(2); // exactly one object
   });
 
-  it("warns on stderr for a file without $schema and keeps stdout to the envelope (SCN-KRN-004)", () => {
+  it("warns on stderr for a file without $schema and keeps stdout to the envelope (SCN-KRN-004)", async () => {
     const root = project();
     write(root, ".warrant/warrant.json", CANONICAL_CONFIG);
     write(root, ".warrant/local/notes.json", '{\n  "b": 1,\n  "a": 2\n}\n');
 
-    const run = runCli(["fmt"], root);
+    const run = await runCli(["fmt"], root);
     expect(run.status).toBe(0);
     expect(run.stderr).toContain(".warrant/local/notes.json: no known $schema");
     expect(read(root, ".warrant/local/notes.json")).toBe('{\n  "a": 2,\n  "b": 1\n}\n');
@@ -134,42 +134,42 @@ describe("warrant fmt", () => {
     expect(run.json?.ok).toBe(true);
   });
 
-  it("skips .warrant/schemas/** (decision I-4)", () => {
+  it("skips .warrant/schemas/** (decision I-4)", async () => {
     const root = project();
     write(root, ".warrant/warrant.json", CANONICAL_CONFIG);
     const copy = '{\n  "type": "object",\n  "$id": "warrant://config/1"\n}\n';
     write(root, ".warrant/schemas/config.1.schema.json", copy);
 
-    const run = runCli(["fmt"], root);
+    const run = await runCli(["fmt"], root);
     expect(run.json?.data.checked).toBe(1);
     expect(read(root, ".warrant/schemas/config.1.schema.json")).toBe(copy);
   });
 
-  it("formats explicit paths, files and directories, with no .warrant/ present", () => {
+  it("formats explicit paths, files and directories, with no .warrant/ present", async () => {
     const root = project();
     write(root, "docs/a.json", '{\n  "b": 1,\n  "a": 2\n}\n');
     write(root, "docs/nested/b.json", '{\n  "d": 1,\n  "c": 2\n}\n');
     write(root, "other/c.json", '{\n  "f": 1,\n  "e": 2\n}\n');
 
-    const run = runCli(["fmt", "docs", "other/c.json"], root);
+    const run = await runCli(["fmt", "docs", "other/c.json"], root);
     expect(run.status).toBe(0);
     expect(run.json?.data.changed).toEqual(["docs/a.json", "docs/nested/b.json", "other/c.json"]);
     expect(read(root, "docs/a.json")).toBe('{\n  "a": 2,\n  "b": 1\n}\n');
   });
 
-  it("reports CONFIG_MISSING with no paths and no .warrant/", () => {
+  it("reports CONFIG_MISSING with no paths and no .warrant/", async () => {
     const root = project();
-    const run = runCli(["fmt"], root);
+    const run = await runCli(["fmt"], root);
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("CONFIG_MISSING");
   });
 
-  it("reports CONFIG_INVALID for unparsable JSON and keeps going", () => {
+  it("reports CONFIG_INVALID for unparsable JSON and keeps going", async () => {
     const root = project();
     write(root, ".warrant/warrant.json", SHUFFLED_CONFIG);
     write(root, ".warrant/local/broken.json", "{ not json");
 
-    const run = runCli(["fmt"], root);
+    const run = await runCli(["fmt"], root);
     expect(run.status).toBe(3);
     expect(run.json?.errors.map((e: { code: string }) => e.code)).toEqual(["CONFIG_INVALID"]);
     expect(run.json?.errors[0].path).toBe(".warrant/local/broken.json");

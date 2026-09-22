@@ -25,9 +25,16 @@ try {
 } catch {
   const range = require(path.join(root, "package.json")).devDependencies.typescript;
   process.stderr.write(`build: local typescript not found, using npx typescript@${range}\n`);
+  // The inherited global flag is exactly what broke the inner install; npx would
+  // repeat the mistake and put typescript into the global prefix.
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (/^npm_config_(global|location|prefix)$/i.test(key)) delete env[key];
+  }
   const npx = process.platform === "win32" ? "npx.cmd" : "npx";
   result = spawnSync(npx, ["--yes", "-p", `typescript@${range}`, "tsc", "-p", project, ...extra], {
     stdio: "inherit",
+    env,
     shell: process.platform === "win32"
   });
 }

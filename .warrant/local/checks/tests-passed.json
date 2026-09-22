@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://check/1",
+  "id": "tests-passed",
+  "version": "1.0.0",
+  "overrides": "core-sdd:tests-passed",
+  "description": "Repository test suite: npm test (build, then vitest) with a junit report. vitest resolves --outputFile against its root packages/cli, hence ../../ before {out}.",
+  "level": "L1",
+  "run": {
+    "command": [
+      "npm",
+      "test",
+      "--",
+      "--reporter=junit",
+      "--outputFile=../../{out}/junit.xml"
+    ]
+  },
+  "execution": {
+    "exclusive": true,
+    "timeout_s": 1200
+  }
+}

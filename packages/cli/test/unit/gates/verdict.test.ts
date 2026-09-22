@@ -346,21 +346,45 @@ describe("L0 calculators (REQ-VER-004)", () => {
     expect(nogit.gates["branch-isolated"]).toBe("BLOCKED");
   });
 
-  it("evidence-complete: FAIL names the kinds without an admissible record; unattested on merge is BLOCKED", () => {
-    const required = { evidence: { required: ["test-report", "review"] } };
-    const ci = { attestation: { type: "ci", ref: "https://ci/1" } };
-    const missing = evaluate("VERIFYING->MERGED", ["evidence-complete"], [record("test-report", "PROVEN", ci)], { policy: required });
+  it("evidence-complete: a record of each required kind on any commit, of any attestation, is enough (I-96)", () => {
+    const required = { evidence: { required: ["test-report", "review", "human-approval"] } };
+    const missing = evaluate("VERIFYING->MERGED", ["evidence-complete"], [record("test-report", "PROVEN")], { policy: required });
     expect(missing.gates["evidence-complete"]).toBe("FAIL");
-    expect(missing.findings[0]).toMatchObject({ code: "EVIDENCE_MISSING", items: ["review"] });
-    const complete = evaluate("VERIFYING->MERGED", ["evidence-complete"], [record("test-report", "PROVEN", ci), record("review", "PROVEN", ci)], {
-      policy: required
+    expect(missing.findings).toEqual([expect.objectContaining({ code: "EVIDENCE_MISSING", gate: "evidence-complete", items: ["review", "human-approval"] })]);
+
+    // human-approval of SPECIFIED->APPROVED sits on an earlier commit and base: still counted, no STALE finding.
+    const approval = record("human-approval", "PROVEN", { subject: { commit: PREVIOUS, base_commit: PREVIOUS } });
+    const earlier = evaluate(
+      "VERIFYING->MERGED",
+      ["evidence-complete"],
+      [record("test-report", "PROVEN"), record("review", "NOT_PROVEN"), approval],
+      { policy: required }
+    );
+    expect(earlier.gates["evidence-complete"]).toBe("PASS");
+    expect(earlier.findings).toEqual([]);
+  });
+
+  it("evidence-complete: a waiver in force on a gate requiring the kind excuses it (I-96)", () => {
+    const required = { evidence: { required: ["test-report", "review"] } };
+    const records = [record("test-report", "PROVEN")];
+    // review is required by adversarial-review; WAV on it excuses the kind.
+    const waived = evaluate("VERIFYING->MERGED", ["evidence-complete"], records, {
+      policy: required,
+      waivers: [waiver("adversarial-review")]
     });
-    expect(complete.gates["evidence-complete"]).toBe("PASS");
-    const local = evaluate("VERIFYING->MERGED", ["evidence-complete"], [record("test-report", "PROVEN"), record("review", "PROVEN", ci)], {
-      policy: required
-    });
-    expect(local.gates["evidence-complete"]).toBe("BLOCKED");
-    expect(local.findings[0]).toMatchObject({ code: "ATTESTATION_REQUIRED", items: ["test-report"] });
+    expect(waived.gates["evidence-complete"]).toBe("PASS");
+    expect(waived.findings).toEqual([]);
+
+    for (const other of [
+      waiver("adversarial-review", { expires_at: "2026-09-21" }),
+      waiver("adversarial-review", { waiver_state: "REVOKED" }),
+      waiver("adversarial-review", { change: "other-change" }),
+      waiver("analyze-clean")
+    ]) {
+      const result = evaluate("VERIFYING->MERGED", ["evidence-complete"], records, { policy: required, waivers: [other] });
+      expect(result.gates["evidence-complete"]).toBe("FAIL");
+      expect(result.findings).toEqual([expect.objectContaining({ code: "EVIDENCE_MISSING", items: ["review"] })]);
+    }
   });
 
   it("analyze-clean is BLOCKED/NO_INPUT until warrant analyze exists", () => {

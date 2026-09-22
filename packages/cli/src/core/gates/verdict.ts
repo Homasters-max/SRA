@@ -190,11 +190,11 @@ export function evaluateGates(input: GateEngineInput): GateEngineResult {
     activeWaivers: active
   });
 
-  // STALE is reported for the kinds this evaluation reads, not for every old record.
+  // STALE is reported for the kinds this evaluation reads, not for every old record;
+  // `evidence-complete` reads records of any commit (I-96), so it adds none.
   const relevant = new Set<string>();
   for (const id of ids) {
     for (const requirement of requirementsOf(definitions.get(id))) relevant.add(requirement.kind);
-    if (id === "evidence-complete") for (const kind of policy.evidence.required) relevant.add(kind);
   }
   const findings: Finding[] = excluded
     .filter((e) => relevant.has(String(e.record.json["kind"])))
@@ -300,7 +300,9 @@ function baseOutcome(
       policy: input.policy,
       signals,
       admissible,
-      accepts
+      records: input.records,
+      waivers: input.waivers,
+      definitions: input.definitions
     });
     outcome = {
       verdict: requirements.length > 0 ? worse(outcome.verdict, computed.verdict) : computed.verdict,

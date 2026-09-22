@@ -446,7 +446,7 @@ describe("warrant validate: a pack directory is never a project layer (B2)", () 
       $schema: "warrant://pack/1",
       id,
       version: "0.1.0",
-      kernel: ">=0.1 <0.3",
+      kernel: ">=0.1 <0.4",
       description: `Experimental pack ${id}.`,
       depends_on: {},
       provides: { overlays: ["overlays/loud.json"] }

@@ -2,3 +2,4 @@ docs/.obsidian/
 node_modules/
 dist/
 .obsidian/
+.warrant/evidence/**/raw/

@@ -10,7 +10,7 @@
  * `tests-passed` is overridden with a node script that writes junit.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -310,6 +310,66 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
     expect(last).toMatchObject({ to: "MERGED", by: "cli:local", ref: CI_RUN, evidence: [ci.json.data.checks[0].evidence] });
     expect((await validate(root)).json?.errors).toEqual([]);
   }, 180_000);
+
+  it("evidence-complete on merge counts the approval of an earlier commit and review excused by a waiver (I-96)", async () => {
+    const root = repo("SPECIFIED", FEATURE, (r) => {
+      waiver(r, "WAV-2026-001", "analyze-clean");
+      waiver(r, "WAV-2026-002", "adversarial-review");
+      write(r, "scripts/fake-tests.cjs", FAKE_TESTS);
+      write(r, ".warrant/local/checks/tests-passed.json", {
+        $schema: "warrant://check/1",
+        id: "tests-passed",
+        version: "1.0.0",
+        overrides: "core-sdd:tests-passed",
+        level: "L1",
+        run: { command: [NODE, "scripts/fake-tests.cjs", "{out}"] }
+      });
+    });
+    const specCommit = git(root, "rev-parse", "HEAD");
+    expect((await cli(root, ["check", "add-search", "openspec-validate"])).status).toBe(0);
+    const approved = await transition(root, ["APPROVED", "--ref", REVIEW, "--by", "kat"]);
+    expect(approved.json?.errors).toEqual([]);
+    commitAll(root, "approved");
+
+    // impl-PR: IMPLEMENTING first, code, VERIFYING last.
+    git(root, "checkout", "--quiet", "-b", "worktree/add-search");
+    expect((await transition(root, ["IMPLEMENTING"])).status).toBe(0);
+    write(root, "src/search.ts", "export const search = 1;\n");
+    expect((await transition(root, ["VERIFYING"])).status).toBe(0);
+    const implHead = commitAll(root, "impl");
+
+    // Before the CI run: only test-report is missing — human-approval (earlier commit) and review (waived) are accounted for.
+    const local = await cli(root, ["gate", "add-search", "evidence-complete", "--transition", "VERIFYING->MERGED"]);
+    expect(local.json.data.gates).toEqual({ "evidence-complete": "FAIL" });
+    expect(local.json.data.findings).toEqual([expect.objectContaining({ code: "EVIDENCE_MISSING", items: ["test-report"] })]);
+
+    const ci = await cli(root, ["verify", "add-search", "--transition", "VERIFYING->MERGED"], CI_ENV);
+    expect(ci.json?.errors).toEqual([]);
+    expect(ci.json.data.gates).toEqual({
+      "analyze-clean": "WAIVED",
+      "evidence-complete": "PASS",
+      "ids-valid": "PASS",
+      "scope-valid": "PASS",
+      "tests-passed": "PASS"
+    });
+    expect(ci.json.data.controller_action).toBe("CONTINUE");
+    expect(ci.status).toBe(0);
+    const approval = records(root).find((r) => r.kind === "human-approval");
+    expect(approval.subject.commit).toBe(specCommit);
+    expect(approval.subject.commit).not.toBe(implHead);
+
+    // The CI evidence is an artifact: set it aside, merge, then lay it into the archive branch.
+    const artifact = path.join(makeTempDir("warrant-transition-artifact-"), "evidence");
+    tempDirs.push(path.dirname(artifact));
+    cpSync(path.join(root, EVIDENCE), artifact, { recursive: true });
+    git(root, "checkout", "--quiet", "--force", "main");
+    git(root, "merge", "--quiet", "--no-ff", "-m", "Merge impl", "worktree/add-search");
+    cpSync(artifact, path.join(root, EVIDENCE), { recursive: true, force: true });
+    const merged = await transition(root, ["MERGED", "--ref", CI_RUN]);
+    expect(merged.json?.errors).toEqual([]);
+    expect(merged.json.data).toMatchObject({ commit: implHead, change_state: "MERGED" });
+    expect(merged.json.data.gates["evidence-complete"]).toBe("PASS");
+  }, 240_000);
 
   it("records backward transitions without gates and refuses moves outside 04 section 2", async () => {
     const root = repo("VERIFYING", FEATURE);

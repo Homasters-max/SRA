@@ -1,45 +1,52 @@
 /**
- * `evidence-complete`: every kind of `evidence.required` of the effective
- * policy has an admissible record — one that passed the pre-filter (D-12)
- * and whose attestation this gate accepts on the transition (06a section 3).
- * A kind without any admissible record is a `FAIL` naming it; a kind whose
- * records are all unattested on a merge is `BLOCKED` with `ATTESTATION_REQUIRED`.
+ * `evidence-complete` (REQ-VER-004, I-96): every kind of `evidence.required`
+ * of the effective policy is accounted for — the Change has at least one
+ * record of that kind on any commit (freshness and attestation are judged by
+ * the gates that read the kind, not here: a `human-approval` of
+ * `SPECIFIED->APPROVED` must still count at `VERIFYING->MERGED`), or a gate
+ * whose `requires_evidence` names the kind has a waiver of this Change in
+ * force (`ACTIVE`, `expires_at >= today` UTC — as in the verdict).
+ * A kind accounted for by neither is a `FAIL` naming it.
  */
-import { pass, type Calculator } from "./types.js";
+import { isWaiverInForce } from "../prefilter.js";
+import { pass, type Calculator, type L0Context } from "./types.js";
+
+/** Whether `requires_evidence` of a gate document names `kind`. */
+function requiresKind(gate: Record<string, unknown> | undefined, kind: string): boolean {
+  const list = gate?.["requires_evidence"];
+  return Array.isArray(list) && list.some((r) => typeof r === "object" && r !== null && (r as Record<string, unknown>)["kind"] === kind);
+}
+
+/** Whether a gate requiring `kind` has a waiver of this Change in force. */
+function waived(ctx: L0Context, kind: string): boolean {
+  return ctx.waivers.some((waiver) => {
+    const gate = waiver.json["gate"];
+    return (
+      typeof gate === "string" &&
+      waiver.json["change"] === ctx.signals.change &&
+      isWaiverInForce(waiver.json, ctx.signals.today) &&
+      requiresKind(ctx.definitions.get(gate), kind)
+    );
+  });
+}
 
 export const evidenceComplete: Calculator = (ctx) => {
   const missing: string[] = [];
-  const unattested: string[] = [];
   for (const kind of ctx.policy.evidence.required) {
-    const records = ctx.admissible.filter((r) => r.json["kind"] === kind);
-    if (records.length === 0) missing.push(kind);
-    else if (!records.some((r) => ctx.accepts(r))) unattested.push(kind);
+    if (ctx.records.some((r) => r.json["kind"] === kind)) continue;
+    if (waived(ctx, kind)) continue;
+    missing.push(kind);
   }
-  if (missing.length > 0) {
-    return {
-      verdict: "FAIL",
-      findings: [
-        {
-          code: "EVIDENCE_MISSING",
-          gate: ctx.gate,
-          items: missing,
-          message: `no admissible evidence of the required kinds: ${missing.join(", ")}`
-        }
-      ]
-    };
-  }
-  if (unattested.length > 0) {
-    return {
-      verdict: "BLOCKED",
-      findings: [
-        {
-          code: "ATTESTATION_REQUIRED",
-          gate: ctx.gate,
-          items: unattested,
-          message: `only unattested evidence of: ${unattested.join(", ")}; ${ctx.transition} needs records from CI`
-        }
-      ]
-    };
-  }
-  return pass();
+  if (missing.length === 0) return pass();
+  return {
+    verdict: "FAIL",
+    findings: [
+      {
+        code: "EVIDENCE_MISSING",
+        gate: ctx.gate,
+        items: missing,
+        message: `no evidence of the required kinds and no waiver in force on a gate that requires them: ${missing.join(", ")}`
+      }
+    ]
+  };
 };

@@ -6,7 +6,7 @@
  * `NO_INPUT` (P-7), and every `FAIL` names the paths or ids behind it.
  */
 import type { EffectivePolicy } from "../../resolve/types.js";
-import type { EvidenceInput, Finding, GateSignals, Verdict } from "../types.js";
+import type { EvidenceInput, Finding, GateSignals, Verdict, WaiverInput } from "../types.js";
 
 export interface L0Context {
   gate: string;
@@ -15,8 +15,12 @@ export interface L0Context {
   signals: GateSignals;
   /** Records that passed the pre-filter. */
   admissible: readonly EvidenceInput[];
-  /** Whether this gate accepts the attestation of a record on this transition (06a section 3). */
-  accepts: (record: EvidenceInput) => boolean;
+  /** Every record of the Change, before the pre-filter (`evidence-complete`, I-96). */
+  records: readonly EvidenceInput[];
+  /** Waivers of the project, as read. */
+  waivers: readonly WaiverInput[];
+  /** Gate documents by id, as loaded. */
+  definitions: ReadonlyMap<string, Record<string, unknown>>;
 }
 
 export interface L0Result {

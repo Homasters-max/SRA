@@ -207,6 +207,17 @@ LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSI
   Первая группа задач — схемы и `validate`: остальное от них зависит.
 - Change фазы 4: `sync`, `run start`, `guard`, адаптер `codex`.
 
+### Не потерять
+
+- Этот раздел живёт только в ветке `feature/factory-adrs-0016-0022`. В `feature/phase-2-core-sdd` его нет: при работе
+  над фазой 2 читать его отсюда (`git show feature/factory-adrs-0016-0022:docs/NEXT-SESSION.md`) или сначала смержить ветки.
+- При ревизии черновика SEF ([integrations/2026-09-17-sef-platform-design.md](integrations/2026-09-17-sef-platform-design.md),
+  предварительный) сверить его с [11 §2](11-integrations.md) «Требования WARRANT к SEF» и ADR-0020 п. 8–14 (`proposed`):
+  approval без hash spec, `source_ref` TASK ↔ item, один тестовый гейт `warrant verify`, `warrant transition` в
+  `sef work approve` и `landing`, archive в `landing`, `protected[]` ⊇ пути WARRANT, `AGENTS.md` и `.codex/hooks.json`
+  в эталоне `.sef/engines/<profile>/`.
+- Решение, отданное по умолчанию: `attestation_type` `sef-*` — со срезом S1 SEF, не в фазе 3.
+
 ## Чего не делать
 
 - Не реализовывать `check`, `gate`, `verify`, `analyze`, `guard`, `ci` в фазах 1–2: это фазы 3–4.

@@ -163,7 +163,7 @@ Prompt не является enforcement (INV-04). Принуждение рас
 
 WARRANT **agent-agnostic**: вся логика в CLI, который общается JSON. Frontends — адаптеры, которые переводят
 родной формат агента в нормализованное событие `warrant guard` и обратно ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)).
-В MVP реализацию ведёт Codex через codex-acp; адаптер Claude Code ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)) — later.
+В MVP реализацию ведёт Codex в ручном режиме под hooks; слой ACP — диспетчер SEF со среза S1 ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)); адаптер Claude Code ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)) — later.
 Hooks внутри агента — ускорение, а не гарантия: запрет до действия, если они загружены; дальше ACP и CI.
 
 Известный предел: deny на `Edit` / `Write` не мешает записи через shell. Гарантия — не hook, а CI: запись

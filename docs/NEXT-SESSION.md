@@ -51,17 +51,32 @@ version: 0.2.0
 - **CI-матрица `ubuntu-latest` + `windows-latest`**: `npm test`, `npm i -g` из чекаута, `warrant validate` на sample-проекте.
   WARRANT на Linux не запускался **ни разу** — это главный риск фазы 3.
 - Backlog B3, B4, B5 (B4 — `process.exitCode` вместо `process.exit`, вместе с CI-матрицей).
+- **Долг ADR-0016…0022** — таблицы A–D раздела «Долг схем и CLI» ниже (схемы `evidence`, `pack`, `check`, `config`,
+  `waiver`, `change-record`, новая `rule/1`; `validate`, `status`; `check`, `gate`/`verify`, `transition`, `link`) и
+  решения ревью D-1…D-25 («Решения по находкам ревью»). Всё это — вход `phase-3-verification`; схема `run/1`,
+  `skill-result/1`, `sync`, `run start`, `guard`, `analyze` — фаза 4.
+- **Объём фазы 3 — резать.** Ядро: схемы A и `validate` (группа 1), затем `check`, `gate`, `verify`, `transition`,
+  `archive` на profile `feature` с evidence `spec-report` и `test-report`. Второй очередью (группа 3b или отдельный
+  change): `link` и `amends`/`supersedes`, частичный waiver `targets[]`, `warrant waive`, `spec-approved`,
+  `execution` кроме `exclusive`/`timeout_s`. Причина: до первого работающего slice важнее замкнуть цикл
+  `check → gate → verify → transition`, чем покрыть весь долг.
+- **Spike S8** (hooks Codex под `codex-acp` и `codex exec`, 13 §3) — до фазы 4, можно параллельно фазе 3.
 
 ### Продолжение — готовый запрос
 
 ```text
-Прочитай docs/NEXT-SESSION.md, затем openspec/changes/phase-2-core-sdd/design.md (таблица I-45…I-65) и docs/13-roadmap.md §2.
-Фаза 2 закрыта, ветка feature/phase-2-core-sdd смержена в main, tag v0.2.0 поставлен.
-Шаг 1: заархивируй phase-2-core-sdd стоковым `openspec archive` (как G-6) и убедись, что `warrant validate` на репозитории ok: true
-(B6/I-46 это уже покрывает). Шаг 2: /opsx:propose новый change `phase-3-verification` — исполнение gates/checks/controller
-(`check`, `gate`, `verify`, `transition`, `archive`, `waive`), human-источник classification и понижение ниже floor,
-evidence `spec-report` (I-47), CI-матрица ubuntu-latest + windows-latest, backlog B3/B4/B5 и долг I-52, I-57, I-59, I-64.
-Потолок как в фазе 2: ≤ 6 групп, ~30 задач (G-8). Схема работы прежняя: координатор — ты (Fable), субагент Opus 5 на группу,
+Прочитай docs/NEXT-SESSION.md целиком (включая «Долг схем и CLI после ADR-0016…0022» A–D, «Нарезка», «Решения по
+находкам ревью» D-1…D-25), затем openspec/changes/archive/2026-09-22-phase-2-core-sdd/design.md (таблица I-45…I-65),
+docs/13-roadmap.md §2 и ADR-0016, 0017, 0019, 0021 (ADR-0018, 0020, 0022 — фаза 4, читать для контекста).
+Фаза 2 закрыта и заархивирована, ветка ADR-0016…0022 смержена в main.
+/opsx:propose новый change `phase-3-verification`. Группа 1 — схемы A и `validate` (двухступенчатая валидация D-13,
+`{paths}` в REQ-KRN-010, stale-правила D-22 в `status`). Группы 2–4 — `check` (`exclusive`, `timeout_s`, `--paths`,
+`--base`), `gate` с пред-фильтром допустимости (D-11, D-12), `verify`, `transition`, `archive`, controller по
+`controller/rules.json`; evidence `spec-report` (I-47) и `test-report`; human-источник classification и понижение ниже
+floor (G-3). Группа 5 — CI-матрица ubuntu-latest + windows-latest, B3/B4/B5, долг I-52, I-57, I-59, I-64. Группа 6 —
+выход. Вторая очередь (не входит, если не влезает; отдельный change `phase-3b`): `link`, `amends`/`supersedes`,
+`targets[]` и `warrant waive`, `spec-approved`, `execution.local`/`guard_prefixes`, `analyze` TASK↔item.
+Потолок как в фазе 2: ≤ 6 групп, ~30 задач (G-8). Изменение REQ kernel — delta spec, не молча. Схема работы прежняя: координатор — ты (Fable), субагент Opus 5 на группу,
 отчёт ≤ 70 строк с разделом Decisions/deviations. Одна ветка — один worktree (git worktree add), см. «Организационное».
 Отклонения от spec/design — вопросом ко мне, не молча; принятые — I-N в design.md.
 ```
@@ -199,7 +214,7 @@ LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSI
 
 ## Долг схем и CLI после ADR-0016…0022 — вход для фаз 3–4
 
-Ветка `feature/factory-adrs-0016-0022` (поверх phase-2; мёржить после неё). Решения записаны только в документах;
+Ветка `feature/factory-adrs-0016-0022` (main после фазы 2 влит в неё, PR в main — после ревью). Решения записаны только в документах;
 все затронутые схемы — `additionalProperties: false`, поэтому до правки новые поля не пройдут `validate`.
 Все правки — **добавление необязательных полей**, версия `/1` не меняется.
 
@@ -237,7 +252,7 @@ LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSI
 |---|---|---|
 | `check` | замок `exclusive` в `git-common-dir`, `BUSY` (код 2), `--paths` + `scoped_command`, `timeout_s` (default 1800, D-17), `local: allowed \| scoped-only`; `--base <commit>` и `WARRANT_STATE_DIR` (D-2, D-20); `--wait`, `ci-only`, `max_paths` — later (D-23) | 3 (0017) |
 | `gate` / `verify` | пред-фильтр допустимости evidence (commit/base, `metrics.threshold`, `limitations` `scoped:`, отпечатки `targets`) → `STALE` (D-12); шаг 1 `NOT_APPLICABLE` от check (D-11); gate `spec-approved` транспортно-нейтральный (D-3); `scope-valid` запрещает архив, record и evidence архивных Changes, кроме archive-PR для своего каталога (D-15); `--base <commit>` (D-20); finding `FRONTEND_HOOKS_INACTIVE` (D-14) | 3 (0016, 0018, 0020, 0021) |
-| `analyze` | `STALE` для неприменимого target waiver; обратные ссылки | 3 (0016, 0021) |
+| `analyze` | `STALE` для неприменимого target waiver; обратные ссылки; TASK ↔ sef item | 4 (0016, 0020, 0021; было 3 — перенесено по правилу «Чего не делать») |
 | `transition` | `ABANDONED` удаляет каталог Change и замораживает record | 3 (0021) |
 | `link` | `--amends` / `--supersedes`, до `APPROVED` | 3 (0021) |
 | `run start` | Context Pack и JSON-вывод с `rules[]` по `write_scope` | 4 (0022) |
@@ -253,14 +268,15 @@ LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSI
 
 ### Нарезка
 
-- Change `phase-3-verification`: A, B, C (без `sync`) и из D — `check`, `gate`, `verify`, `analyze`, `transition`, `link`.
-  Первая группа задач — схемы и `validate`: остальное от них зависит.
-- Change фазы 4: `sync`, `run start`, `guard`, адаптер `codex`.
+- Change `phase-3-verification`: A, B (`rule/1`), C (без `sync`, без `init`) и из D — `check`, `gate`, `verify`, `transition`;
+  `link` и `analyze` — вторая очередь (`analyze` — фаза 4 по правилу «Чего не делать»). Первая группа задач — схемы и
+  `validate`: остальное от них зависит. Порядок групп — в «готовом запросе» выше.
+- Change фазы 4: `sync`, `run start`, `guard`, `analyze`, адаптер `codex`, схемы `run/1` и `skill-result/1`.
 
 ### Не потерять
 
-- Этот раздел живёт только в ветке `feature/factory-adrs-0016-0022`. В `feature/phase-2-core-sdd` его нет: при работе
-  над фазой 2 читать его отсюда (`git show feature/factory-adrs-0016-0022:docs/NEXT-SESSION.md`) или сначала смержить ветки.
+- (Было: раздел жил только в ветке `feature/factory-adrs-0016-0022`, а в `feature/phase-2-core-sdd` его не было.) После
+  слияния `main` в ветку ADR и её PR в `main` раздел общий; долг закрывается changes фаз 3–4, строки помечать «сделано».
 - При ревизии черновика SEF ([integrations/2026-09-17-sef-platform-design.md](integrations/2026-09-17-sef-platform-design.md),
   предварительный) сверить его с [11 §2](11-integrations.md) «Требования WARRANT к SEF» и ADR-0020 п. 8–14 (`proposed`):
   approval без hash spec, `source_ref` TASK ↔ item, один тестовый гейт `warrant verify`, `warrant transition` в
@@ -268,9 +284,10 @@ LATTICE — после slice ([../lattice/NEXT-SESSION.md](../lattice/NEXT-SESSI
   в эталоне `.sef/engines/<profile>/`.
 - Решение, отданное по умолчанию: `attestation_type` `sef-*` — со срезом S1 SEF, не в фазе 3.
 
-### Ревью ADR-0016…0022 — готовый запрос (до merge ветки)
+### Ревью ADR-0016…0022 — готовый запрос (выполнено 2026-09-22)
 
-Запускать в новой сессии на ветке `feature/factory-adrs-0016-0022`, независимо от сессии, где решения писались.
+Выполнено: находки L1-1…L1-11, F-1…F-28; решения D-1…D-25 и коммиты — в разделе «Решения по находкам ревью» ниже.
+Запрос сохранён как образец для ревью следующих ADR (заменить номера и ветку).
 
 ```text
 Проведи ревью / аудит проектных решений WARRANT в ветке feature/factory-adrs-0016-0022 (репозиторий D:\project\SRA).
@@ -302,7 +319,7 @@ docs/integrations/2026-09-17-sef-platform-design.md (черновик SEF, ПР�
 После отчёта — не исправлять; разбор находок проведём раундами (/grilling), правки — отдельными коммитами.
 ```
 
-Открыто до ревью: пуш веток `feature/phase-2-core-sdd` и `feature/factory-adrs-0016-0022` (обе только локально);
+Было открыто до ревью (закрыто: ветки запушены, фаза 2 смержена и заархивирована): пуш веток `feature/phase-2-core-sdd` и `feature/factory-adrs-0016-0022`;
 устаревший раздел «Состояние» и готовый запрос фазы 2 (группы 2–3 уже закоммичены; группа 2 в `tasks.md` отмечена здесь коммитом d2d8fd3 — cherry-pick в phase-2, D-25) —
 править в ветке phase-2.
 

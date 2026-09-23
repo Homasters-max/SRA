@@ -8,7 +8,7 @@
   ],
   "controller_action": "CONTINUE",
   "effective_policy": {
-    "hash": "sha256:ceb629a615498f44cde43b0fdd1abc812c0ebca7725a67c3f84a3d7c43933507",
+    "hash": "sha256:966f210e2ae454b9271ba8434507e8aba10435da3c1367a5e0c10bc090455382",
     "risk_level": "LOW"
   },
   "findings": [],

@@ -113,12 +113,21 @@ describe("pack core-sdd: эффективная policy", () => {
         "spec-valid"
       ],
       "APPROVED->IMPLEMENTING": ["branch-isolated"],
-      "VERIFYING->MERGED": ["analyze-clean", "evidence-complete", "ids-valid", "scope-valid", "tests-passed"],
+      "VERIFYING->MERGED": ["analyze-clean", "evidence-complete", "ids-valid", "scope-valid", "spec-approved", "tests-passed"],
       "MERGED->ARCHIVED": ["analyze-clean", "ids-valid", "required-artifacts-present", "spec-valid"]
     });
     expect(policy.artifacts.required).toEqual(["design", "proposal", "specs", "tasks"]);
     expect(policy.evidence.required).toEqual(["human-approval", "review", "test-report"]);
     expect(policy.approvals).toEqual([{ role: "maintainer", at: "SPECIFIED->APPROVED" }]);
+  });
+
+  it("spec-approved на VERIFYING->MERGED у feature, chore и factory-change из core-default (SCN-SDD-022)", () => {
+    for (const profile of ["feature", "chore", "factory-change"]) {
+      const policy = policyFor({ profiles: [profile] });
+      expect(policy.gates["VERIFYING->MERGED"], profile).toContain("spec-approved");
+      const from = policy.explain.filter((e) => e.item === "gate:spec-approved").map((e) => e.from);
+      expect(from, profile).toContain("overlay/core-default");
+    }
   });
 
   it("profile feature на MEDIUM получает adversarial-review из overlay", () => {

@@ -1,0 +1,8 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "spec-approved",
+  "version": "1.0.0",
+  "description": "The contract of the change (proposal.md and specs/**) is the one approved at APPROVED; a later edit needs a maintainer's waiver (ADR-0024).",
+  "level": "L0",
+  "waivable": true
+}

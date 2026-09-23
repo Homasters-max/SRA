@@ -3,9 +3,10 @@
  * (REQ-VER-006, P-20): the checks of the transition (the code of `check`),
  * then the gates (the code of `gate`), then the controller.
  *
- * A failed check (`CHECK_TIMEOUT`, `BUSY`, `CHECK_NOT_CONFIGURED`) does not
- * stop the gates: its gates are `BLOCKED`, the failure is in `errors[]` and
- * the exit code is the highest of the failure's and the controller's.
+ * A failed check (`CHECK_TIMEOUT`, `BUSY`, `CHECK_NOT_CONFIGURED`,
+ * `CHECK_LOCAL_FORBIDDEN`) does not stop the gates: its gates are `BLOCKED`,
+ * the failure is in `errors[]` and the exit code is the highest of the
+ * failure's and the controller's.
  */
 import { splitPaths } from "../core/check/placeholders.js";
 import { exitCodeOf } from "../core/controller/evaluate.js";

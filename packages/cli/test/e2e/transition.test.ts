@@ -255,6 +255,8 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
 
   it("records MERGED on the commit of CI evidence after the impl-PR is merged (SCN-VER-033, SCN-VER-034)", async () => {
     const root = repo("VERIFYING", CHORE, (r) => {
+      // The record never went through APPROVED: the contract check is waived, the case is about the commit and the run.
+      waiver(r, "WAV-2026-001", "spec-approved");
       write(r, "scripts/fake-tests.cjs", FAKE_TESTS);
       write(r, ".warrant/local/checks/tests-passed.json", {
         $schema: "warrant://check/1",
@@ -306,7 +308,7 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
       transition: "VERIFYING->MERGED",
       commit: implHead,
       base: fork,
-      gates: { "ids-valid": "PASS", "scope-valid": "PASS", "tests-passed": "PASS" },
+      gates: { "ids-valid": "PASS", "scope-valid": "PASS", "spec-approved": "WAIVED", "tests-passed": "PASS" },
       change_state: "MERGED"
     });
     const last = readJson(path.join(root, RECORD)).transitions.at(-1);
@@ -396,6 +398,8 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
 
   it("refuses MERGED with REF_MISMATCH when the CI records come from another run (SCN-VER-052)", async () => {
     const root = repo("VERIFYING", CHORE, (r) => {
+      // The record never went through APPROVED: the contract check is waived, the case is about the commit and the run.
+      waiver(r, "WAV-2026-001", "spec-approved");
       write(r, "scripts/fake-tests.cjs", FAKE_TESTS);
       write(r, ".warrant/local/checks/tests-passed.json", {
         $schema: "warrant://check/1",
@@ -469,6 +473,8 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
       "evidence-complete": "PASS",
       "ids-valid": "PASS",
       "scope-valid": "PASS",
+      // Only code changed after APPROVED: the contract is the approved one (SCN-VER-046).
+      "spec-approved": "PASS",
       "tests-passed": "PASS"
     });
     expect(ci.json.data.controller_action).toBe("CONTINUE");

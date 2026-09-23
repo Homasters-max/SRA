@@ -36,9 +36,9 @@
 
 ## 5. spec-approved и execution.local
 
-- [ ] 5.1 Pack: `gates/spec-approved.json` (L0, `waivable: true`), `provides.gates`, `overlays/core-default.json` `VERIFYING->MERGED`; `npm run golden:update`. Проверка: SCN-SDD-011, SCN-SDD-022, SCN-SDD-023 unit-тестом каталога; `warrant validate` `ok: true`. (REQ-SDD-001, REQ-SDD-002, REQ-SDD-007)
-- [ ] 5.2 Калькулятор `spec-approved` (design §6) в таблице L0. Проверка: e2e SCN-VER-046, SCN-VER-047 (включая `WAIVED` по waiver из 4.2), SCN-VER-048 в temp-репозитории с переходом `APPROVED` и записью `human-approval`. (REQ-VER-004)
-- [ ] 5.3 `execution.local: "scoped-only"` в runner и `verify` (design §7), `CHECK_LOCAL_FORBIDDEN` в `errors.ts`. Проверка: e2e SCN-VER-041, SCN-VER-042; SCN-VER-040 (R-4) e2e, если покрыт только unit'ом. (REQ-VER-002, REQ-VER-006)
+- [x] 5.1 Pack: `gates/spec-approved.json` (L0, `waivable: true`), `provides.gates`, `overlays/core-default.json` `VERIFYING->MERGED`; `npm run golden:update`. Проверка: SCN-SDD-011, SCN-SDD-022, SCN-SDD-023 unit-тестом каталога; `warrant validate` `ok: true`. (REQ-SDD-001, REQ-SDD-002, REQ-SDD-007)
+- [x] 5.2 Калькулятор `spec-approved` (design §6) в таблице L0. Проверка: e2e SCN-VER-046, SCN-VER-047 (включая `WAIVED` по waiver из 4.2), SCN-VER-048 в temp-репозитории с переходом `APPROVED` и записью `human-approval`. (REQ-VER-004)
+- [x] 5.3 `execution.local: "scoped-only"` в runner и `verify` (design §7), `CHECK_LOCAL_FORBIDDEN` в `errors.ts`. Проверка: e2e SCN-VER-041, SCN-VER-042; SCN-VER-040 (R-4) e2e, если покрыт только unit'ом. (REQ-VER-002, REQ-VER-006)
 
 ## 6. Выход phase-3b
 

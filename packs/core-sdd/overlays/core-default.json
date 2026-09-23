@@ -18,7 +18,8 @@
       "ids-valid"
     ],
     "VERIFYING->MERGED": [
-      "ids-valid"
+      "ids-valid",
+      "spec-approved"
     ]
   }
 }

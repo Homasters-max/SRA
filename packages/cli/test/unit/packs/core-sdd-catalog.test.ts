@@ -3,8 +3,8 @@
  *
  * Читает файлы pack напрямую: `provides` должен покрывать ровно каталоги
  * объектов, gates ссылок profiles и overlays должны существовать
- * (SCN-SDD-002), `waivable` и controller rules зафиксированы
- * (SCN-SDD-011, SCN-SDD-012).
+ * (SCN-SDD-002), `waivable`, `accepts_attestation` и controller rules
+ * зафиксированы (SCN-SDD-011, SCN-SDD-012, SCN-SDD-023).
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -55,7 +55,8 @@ describe("pack core-sdd: каталог", () => {
       "profiles/factory-change.json",
       "profiles/feature.json"
     ]);
-    expect(provides["gates"]).toHaveLength(12);
+    expect(provides["gates"]).toHaveLength(13);
+    expect(provides["gates"]).toContain("gates/spec-approved.json");
     expect(provides["checks"]).toEqual(["checks/openspec-validate.json", "checks/tests-passed.json"]);
     expect(provides["controller_rules"]).toEqual(["controller/rules.json"]);
     expect(provides["skills"]).toEqual(["specification/adversarial-review@^0.1"]);
@@ -118,18 +119,28 @@ describe("pack core-sdd: каталог", () => {
     }
   });
 
-  it("waivable: true только у branch-isolated, analyze-clean и adversarial-review (SCN-SDD-011)", () => {
+  it("waivable: true только у branch-isolated, analyze-clean, adversarial-review и spec-approved (SCN-SDD-011)", () => {
     const waivable = (provides["gates"] as string[])
       .map((rel) => readJson(rel))
       .filter((g) => g.waivable === true)
       .map((g) => g.id)
       .sort();
-    expect(waivable).toEqual(["adversarial-review", "analyze-clean", "branch-isolated"]);
+    expect(waivable).toEqual(["adversarial-review", "analyze-clean", "branch-isolated", "spec-approved"]);
     for (const rel of provides["gates"] as string[]) {
       const gate = readJson(rel);
       expect(typeof gate.waivable).toBe("boolean");
       expect(["L0", "L1", "L2"]).toContain(gate.level);
     }
+  });
+
+  it("merge-gates принимают только ci; spec-approved — L0 без requires_evidence, waivable (SCN-SDD-023)", () => {
+    for (const rel of ["gates/tests-passed.json", "gates/factory-golden-passed.json"]) {
+      expect(readJson(rel).accepts_attestation, rel).toEqual(["ci"]);
+    }
+    const specApproved = readJson("gates/spec-approved.json");
+    expect(specApproved).not.toHaveProperty("requires_evidence");
+    expect(specApproved.waivable).toBe(true);
+    expect(specApproved.level).toBe("L0");
   });
 
   it("каждый gate из profile или overlay объявлен в provides.gates (SCN-SDD-002)", () => {

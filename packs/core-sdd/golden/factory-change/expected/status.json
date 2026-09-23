@@ -36,7 +36,7 @@
     }
   },
   "effective_policy": {
-    "hash": "sha256:af9374fea32ab0fa81f8b3562f57b3d56eeb69c8d6b2a8161ee7f08a78fad6c1",
+    "hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
     "risk_level": "HIGH",
     "sources": [
       "kernel@{CLI_VERSION}",

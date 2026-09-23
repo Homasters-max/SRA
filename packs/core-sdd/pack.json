@@ -28,6 +28,7 @@
       "gates/ids-valid.json",
       "gates/required-artifacts-present.json",
       "gates/scope-valid.json",
+      "gates/spec-approved.json",
       "gates/spec-valid.json",
       "gates/tests-passed.json"
     ],

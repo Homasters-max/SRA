@@ -10,9 +10,14 @@
  * `evidence_status` and `metrics`, the record goes to
  * `<state>/evidence/<change>/<EVID>.json` and the manifest is rewritten.
  *
- * A failed check (`BUSY`, `CHECK_TIMEOUT`, `CHECK_NOT_CONFIGURED`) does not stop
- * the others; the exit code is the highest of the failures, 0 when every
- * record was written — `NOT_PROVEN` included (P-20).
+ * A check with `execution.local: "scoped-only"` runs outside CI (attestation
+ * `none`) only with `--paths`; without them it is `CHECK_LOCAL_FORBIDDEN` —
+ * nothing started, no lock, no record (ADR-0017 п. 4, phase-3b design §7).
+ *
+ * A failed check (`BUSY`, `CHECK_TIMEOUT`, `CHECK_NOT_CONFIGURED`,
+ * `CHECK_LOCAL_FORBIDDEN`) does not stop the others; the exit code is the
+ * highest of the failures, 0 when every record was written — `NOT_PROVEN`
+ * included (P-20).
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -145,6 +150,20 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
     return notConfigured(object, `parser ${parser.name} yields ${parser.kind}, but the check produces ${produces.join(", ")}`);
   }
 
+  // `scoped-only` (design §7): locally — the same notion of "local" as the
+  // record's attestation — the check runs only narrowed, never in full: without
+  // --paths, and also without run.scoped_command to narrow with (I-116).
+  const execution = isPlainObject(check["execution"]) ? check["execution"] : {};
+  if (execution["local"] === "scoped-only" && (ctx.paths === undefined || scoped.length === 0) && attestationFromEnv(ctx.env).type === "none") {
+    const hint = ctx.paths === undefined ? "pass --paths <a,b>" : "it has no run.scoped_command to narrow with";
+    const error = new WarrantError(
+      "CHECK_LOCAL_FORBIDDEN",
+      `check ${object.id}: execution.local is "scoped-only": outside CI it runs only narrowed; ${hint}`,
+      { path: object.path }
+    );
+    return { ok: false, entry: { id: object.id, error: error.code }, error };
+  }
+
   // A check without `scoped_command` runs in full under --paths: its result
   // does not depend on the paths, so the record is not scoped either.
   const useScoped = ctx.paths !== undefined && scoped.length > 0;
@@ -168,7 +187,6 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
     return { ok: false, entry: { id: object.id, error: error.code }, error };
   }
 
-  const execution = isPlainObject(check["execution"]) ? check["execution"] : {};
   const defaults = isPlainObject(ctx.loaded.config["defaults"]) ? ctx.loaded.config["defaults"] : {};
   const timeoutS =
     typeof execution["timeout_s"] === "number"

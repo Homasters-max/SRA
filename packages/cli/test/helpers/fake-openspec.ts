@@ -6,7 +6,7 @@
  * --json` derives the artifact statuses from the files of the change, like
  * the fake of the golden fixtures (I-61).
  */
-import { chmodSync, existsSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const SHIM = `const fs = require("fs");
@@ -44,24 +44,24 @@ process.exit(1);
 `;
 
 /**
+ * The POSIX launcher of a fake: `${0%/*}` is the shell's own dirname. Tests
+ * often make the fake directory the WHOLE PATH, where an external `dirname`
+ * does not exist (I-101); `node` is spelled out absolutely for the same reason.
+ */
+export function posixLauncher(node: string): string {
+  return `#!/bin/sh\nexec "${node}" "\${0%/*}/shim.cjs" "$@"\n`;
+}
+
+/**
  * Installs a fake `openspec` into `dir` whose behaviour is the node script
  * `shim`: `shim.cjs` beside `openspec.cmd` (Windows) and `openspec` (POSIX).
- * The POSIX `openspec` is a symlink to the launcher of `test/global-setup.ts`,
- * never a freshly written executable: executing a file just written races
- * other forks of the worker into ETXTBSY on Linux (I-101). Outside vitest the
- * launcher is absent and the script is written as before.
  */
 export function installFakeOpenspec(dir: string, shim: string): string {
   const node = process.execPath;
   writeFileSync(path.join(dir, "shim.cjs"), shim, "utf8");
   writeFileSync(path.join(dir, "openspec.cmd"), `@"${node}" "%~dp0shim.cjs" %*\r\n`, "utf8");
   const posix = path.join(dir, "openspec");
-  const launcher = process.env["WARRANT_FAKE_LAUNCHER"];
-  if (process.platform !== "win32" && launcher !== undefined && existsSync(launcher)) {
-    symlinkSync(launcher, posix);
-    return dir;
-  }
-  writeFileSync(posix, `#!/bin/sh\nexec "${node}" "$(dirname "$0")/shim.cjs" "$@"\n`, "utf8");
+  writeFileSync(posix, posixLauncher(node), "utf8");
   try {
     chmodSync(posix, 0o755);
   } catch {

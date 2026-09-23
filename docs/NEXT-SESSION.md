@@ -39,7 +39,10 @@ version: 0.4.0
   (`--maxWorkers=3`), CI зелёный на ubuntu и windows на каждой группе.
 - **Уровни тестов — ADR-0025** (grilling 2026-09-24, Q1–Q15 приняты maintainer'ом): `unit` / `app` / `contract` / `e2e`, порты
   процессов и `Ctx`, фейки с контрактом соответствия, проверки уровней, `validate` без N вызовов `openspec` подряд. Change
-  `test-levels` (`skip_specs: true`, CLI `0.4.1`) предложен в ветке `spec/test-levels` — идёт **до фазы 4** (13 §2, строка 3c).
+  `test-levels` (`skip_specs: true`, CLI `0.4.1`) идёт **до фазы 4** (13 §2, строка 3c). spec-PR #14 смержен (merge `5fdde73`;
+  `classify` — `chore` + `factory-change`, risk HIGH; waivers `WAV-2026-005` `analyze-clean`, `WAV-2026-006` `adversarial-review`).
+  Impl: worktree `D:\project\SRA-test-levels-impl`, ветка `worktree/test-levels` — первым коммитом `APPROVED --ref #14 --by
+  Homasters-max` + `IMPLEMENTING` (сделано); **следующее — группа 1 tasks.md**, impl-PR ещё не открыт.
 - **Итог фазы 3:**
   - capability `verification` (REQ-VER-001…008): `warrant check` (runner без shell, замок `exclusive` в `git-common-dir`,
     `timeout_s` с kill дерева, parsers `junit`/`openspec-validate`, evidence + manifest, attestation `ci` под GitHub Actions),
@@ -195,15 +198,15 @@ I-93 решается без нового ADR: ADR-0010 п. 2 уже замен�
 ### Продолжение — готовый запрос
 
 ```text
-Прочитай docs/NEXT-SESSION.md (состояние, «Долг после фазы 3», «Процессные правила»), docs/adr/WARRANT-ADR-0025-test-levels.md
-и openspec/changes/test-levels/{proposal,design,tasks}.md. Change test-levels — spec-PR из ветки spec/test-levels (если ещё не
-смержен: classify, waivers adversarial-review/analyze-clean по V-8, transition SPECIFIED, PR). Затем impl в worktree
-worktree/test-levels по P-2: первым коммитом APPROVED --ref <spec-PR> --by Homasters-max + IMPLEMENTING, группы 1–6 по коммиту
-(/group-done), последним — VERIFYING; I-N с I-117 (/decision). Поведение CLI не меняется — вывод validate/status/resolve
-репозитория и golden сверять после каждой группы. После archive-PR и tag v0.4.1 — grilling по нарезке фазы 4 (sync AGENTS.md и
-.codex/hooks.json, run start/submit, run/1, skill-result/1, guard, validate --files, analyze, ci, адаптер codex после spike S8,
-producer'ы analyze-clean и adversarial-review); новые команды — сразу с тестами app через Ctx (ADR-0025). Merge PR делает
-maintainer — выводи ему команду `gh pr merge <N> --merge`.
+Реализуй change test-levels в worktree D:\project\SRA-test-levels-impl (ветка worktree/test-levels; record уже IMPLEMENTING —
+APPROVED --ref PR #14 и IMPLEMENTING первым коммитом сделаны). Прочитай docs/NEXT-SESSION.md (состояние, «Процессные правила»,
+«Порядок работы»), docs/adr/WARRANT-ADR-0025-test-levels.md и openspec/changes/test-levels/{proposal,design,tasks}.md целиком.
+Иди по группам tasks.md 1–6: одна группа — один коммит (/group-done), решения по ходу — I-N с I-117 (/decision). Поведение CLI не
+меняется: вывод validate/status/resolve репозитория и golden сверять до/после каждой группы. Первая задача — bump CLI 0.4.1 (R-14),
+вторая — замер «до» в таблицу design §10. После группы 1 открой impl-PR worktree/test-levels → main (CI на каждой группе);
+последним коммитом — transition VERIFYING; затем archive-PR и tag v0.4.1 по образцу phase-3b. Merge PR делает maintainer —
+выводи ему команду `gh pr merge <N> --merge`. После test-levels — grilling по нарезке фазы 4 (новые команды сразу с тестами app
+через Ctx).
 ```
 
 ### Решения grilling 2026-09-22 по фазе 3 (P-1…P-20) — приняты maintainer'ом
@@ -239,7 +242,7 @@ maintainer — выводи ему команду `gh pr merge <N> --merge`.
 **Правило: одна ветка — один worktree** (`git worktree add`); несколько сессий делят `D:\project\SRA`, поэтому перед
 коммитом проверять ветку. Появилось после фазы 2: коммит `d2d8fd3` ушёл не в ту ветку, когда сессии переключали ветку
 в общем каталоге. В фазе 3: `D:\project\SRA-phase3` — `spec/phase-3-verification`, `D:\project\SRA-phase3-impl` —
-`worktree/phase-3-verification`; после archive-PR оба удалить. В phase-3b: D:\project\SRA-phase3b — spec/phase-3b (PR #10 смержен, можно удалить), D:\project\SRA-phase3b-impl — worktree/phase-3b (impl-PR #11). В test-levels: `spec/test-levels` — spec-PR, impl — отдельный worktree `D:\project\SRA-test-levels-impl` на `worktree/test-levels`.
+`worktree/phase-3-verification`; после archive-PR оба удалить. В phase-3b: D:\project\SRA-phase3b — spec/phase-3b (PR #10 смержен, можно удалить), D:\project\SRA-phase3b-impl — worktree/phase-3b (impl-PR #11). В test-levels: `spec/test-levels` — spec-PR #14 (смержен, ветку можно удалить); impl — worktree `D:\project\SRA-test-levels-impl` на `worktree/test-levels`; после archive-PR удалить.
 
 ## Backlog из ревью фазы 1
 

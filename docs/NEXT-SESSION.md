@@ -68,12 +68,45 @@ version: 0.3.0
 | I-64 | `runCli` и `golden-lib.js` асинхронные; короткие `spawnSync` остались для `git` и `openspecAvailable()` | later |
 | `analyze` | P-4 относит `analyze` к `phase-3b`, «Чего не делать» и таблица D ниже — к фазе 4; решить при нарезке | нарезка phase-3b |
 
+### Ревью фазы 3 (2026-09-23) — R-1…R-13
+
+Ревью кода `main` после PR #8 по пяти вопросам maintainer'а: (1) `MERGED --commit` на старом предке; (2) I-96,
+кто проверяет свежесть и attestation каждого kind; (3) I-84 + I-91, не проходит ли переход с непроверенным gate;
+(4) модель доверия `human-approval`; (5) кроссплатформенность. Быстрые фиксы — ветка `fix/phase-3-review`
+(worktree `D:\project\SRA-review-fixes`), по коммиту на находку. Ни один REQ/SCN main specs и ни одна строка архивного
+design.md не правились: уточнения нормы — отдельными строками ниже, delta'ой в phase-3b. Правку документов 04/06/06a/13
+по этим находкам maintainer предложил отложить до конца phase-3b (список в запросе обрезан — уточнить).
+
+Сделано (`fix/phase-3-review`):
+
+| # | Находка | Фикс | Долг нормы |
+|---|---|---|---|
+| R-1 | `transition MERGED` принимал любой commit-предок HEAD, в том числе по умолчанию (commit свежайшей записи): gates считались по `base...commit`, коммиты impl-PR после него не судились (`scope-valid`, `tests-passed`, `applies_when`). Воспроизведено: CI-evidence на раннем commit + поздний commit в `openspec/specs/**` → `MERGED` с `scope-valid PASS`. Fast-forward давал base = head^1 (diff одного commit) | `2cd9793`: commit обязан быть не первым родителем merge-коммита M (head impl-PR); ранний commit PR, commit first-parent линии, fast-forward → `COMMIT_NOT_MERGED` с именем head | REQ-VER-007: «commit SHALL быть head impl-PR (родитель M, кроме первого); fast-forward → `COMMIT_NOT_MERGED`» + SCN (ранний commit, ff) — delta в phase-3b |
+| R-2 | `approved_by ∈ roles` waiver'а проверял только `validate` (11); `gate`/`verify`/`transition` его не вызывают — waiver от любого логина снимал `BLOCKED`/`FAIL` waivable gate, извинял kind в `evidence-complete`, держал записи с `metrics.waivers` | `5ecf580`: gate engine получает `approvers`; waiver вне roles → `WAIVER_IGNORED` reason `approver`, в `evidence-complete` и пред-фильтре не участвует | REQ-VER-003 шаг 4: «waiver, `approved_by` которого ∈ roles» + SCN — delta в phase-3b |
+| R-3 | `check` ловил только `SIGINT`/`SIGTERM`; child `detached` = своя сессия на POSIX, поэтому закрытие терминала (`SIGHUP`) убивало CLI без cleanup: замок оставался, дерево `npm test` работало сиротой. Windows: закрытие консоли = `SIGHUP`, Ctrl+Break = `SIGBREAK` | `a4cd2a5`: + `SIGHUP`, на win32 + `SIGBREAK`; повторный подъём сигнала, где Windows не умеет, — `exit(128 + n)`; unit-тест в дочернем процессе (замок снят) | — |
+| R-4 | junit, где все тесты `skipped`, давал `PROVEN` (`tests` включает skipped) — `tests-passed` проходил без выполненного теста | `d52aa71`: `tests - skipped <= 0` → `INCONCLUSIVE`, limitation `junit: all N tests skipped` | design §5 «`tests = 0` → `INCONCLUSIVE`» читать как «ни один не выполнен»; в REQ-VER-002 — строкой при delta phase-3b |
+| R-5 | `tests-passed`, `factory-golden-passed` без `accepts_attestation` → на `MERGED` засчитывалась любая attestation ≠ `none` (`human-review`, `signature`) | `6da9b65`: `accepts_attestation: ["ci"]`; lock'и репозитория и golden пересчитаны | **Вопрос maintainer'у:** версия pack `core-sdd` осталась `0.2.0`, gates — `1.0.0` (как G-20); bump до `0.2.1` к следующему tag? |
+
+Не исправлено — в phase-3b (или куда указано):
+
+| # | Находка | Направление | Куда |
+|---|---|---|---|
+| R-6 | `--ref` перехода `MERGED` не сверяется с `attestation.ref` CI-записей, на которых вынесены verdicts: можно сослаться на один run, а записи взять из другого | `transition MERGED`: все записи `ci` перехода с `attestation.ref === --ref`, иначе `USAGE`/finding | phase-3b (или `ci` фазы 4) |
+| R-7 | Kind из `evidence.required`, который не читает ни один gate policy, закрывается любой записью: любой commit, статус, attestation (рукописный JSON) | `validate`/`resolve`: `EVIDENCE_KIND_UNGATED` — kind без gate с `requires_evidence` этого kind | phase-3b |
+| R-8 | `evidence-complete` не смотрит `evidence_status` (`review` `NOT_PROVEN` засчитан — так задумано I-96, есть unit-тест) и `waivable`/`targets[]` waiver'а-извинения (I-99) | решить: считать ли только `PROVEN`/`NOT_APPLICABLE`; waiver на невэйвабельный gate не извиняет kind | phase-3b, решение maintainer'а (I-96/I-99 — его решения) |
+| R-9 | `NOT_APPLICABLE` засчитывается из любой записи, D-11 требует «выставлен детерминированным check»; `produced_by.type` не проверяется. Сейчас ни один parser `NOT_APPLICABLE` не производит | verdict: `NOT_APPLICABLE` только при `produced_by.type === "check"` | до первого producer'а (mutation, фаза 5); лучше в phase-3b |
+| R-10 | Предел доверия не записан: `--ref` проверяется только как http(s) URL, `--by` — заявление, `human-approval` с `attestation: human-review` неотличима от будущей верифицированной; при этом 04 §7 помечает «верифицируемый `--ref`» как MVP, ADR-0010 п. 3 считает запись без верифицируемого ref невалидной, INV-03 требует `review.author ≠ pr.author` (при одном maintainer'е невыполнимо — в dogfooding фазы 3 автор и approver совпадают). Предел есть только в P-17 | (а) запись `human-approval` получает `limitations: ["ref not verified (phase 4: warrant ci)"]`; (б) фраза в REQ-VER-007 и 06a §3; (в) INV-03 — статус «Частично» с пояснением | одной правкой с I-93 (ADR или 04 §9) |
+| R-11 | Код замка, kill дерева и путей на Linux проверен только CI-тестами, реального использования не было | smoke в WSL Ubuntu (node не установлен): `check` с timeout и деревом процессов, Ctrl+C, закрытие терминала (после R-3), `BUSY`, ручное снятие замка | до phase-3b, с согласия maintainer'а (ставит node в WSL) |
+| R-12 | INFO: CI-evidence считается на head impl-PR, а не на результате merge: «злой» merge или сдвиг `main` после CI-прогона не судятся | branch protection «require branches up to date» или `ci` фазы 4 на merge-коммите | фаза 4 / настройка GitHub |
+| R-13 | INFO: controller-rules project-слоя могут отобразить `gate_verdict: BLOCKED` в `CONTINUE` — меняется код выхода `verify` (на `transition` не влияет: он сам проверяет verdicts) | `validate`: правило не может давать `CONTINUE` при `BLOCKED`/`FAIL`, или kernel fallback раньше правил project-слоя | phase-3b |
+
 ### Вход в phase-3b / фазу 4
 
 - **phase-3b** — вторая очередь P-4 (всё, что валидируется как поле, но не исполняется): `warrant link` (`--amends` /
   `--supersedes`, до `APPROVED`), поведение `waiver.targets[]` (D-10) и `warrant waive`, gate `spec-approved` (D-3),
   исполнение `execution.local` / `guard_prefixes`, `analyze` (см. долг), `validate --files`, проверки (d) висячие REQ/SCN и
-  (f) pragma, `AGENTS.md` побайтно, понижение classification ниже floor с approval (P-5); плюс I-77.
+  (f) pragma, `AGENTS.md` побайтно, понижение classification ниже floor с approval (P-5); плюс I-77 и находки ревью фазы 3:
+  delta REQ-VER-002/003/007 под фиксы R-1, R-2, R-4 и открытые R-6…R-10, R-13 (раздел «Ревью фазы 3» выше).
 - **Фаза 4** (MVP frontend, [13 §2](13-roadmap.md)): `sync` (`.codex/hooks.json`, `AGENTS.md`), `run start` / `run submit`,
   схемы `run/1` и `skill-result/1`, `guard` (pre/post, без Run → `deny`, D-4), `warrant ci` (verdict impl-PR вместо ручного
   переноса artifact'а), адаптер `codex` — после spike **S8** (hooks Codex под `codex-acp` и `codex exec`, 13 §3), finding
@@ -85,12 +118,13 @@ version: 0.3.0
 ### Продолжение — готовый запрос
 
 ```text
-Прочитай docs/NEXT-SESSION.md целиком (состояние фазы 3, «Долг после фазы 3», «Вход в phase-3b / фазу 4», решения P-1…P-20,
+Прочитай docs/NEXT-SESSION.md целиком (состояние фазы 3, «Долг после фазы 3», «Ревью фазы 3» R-1…R-13, «Вход в phase-3b / фазу 4», решения P-1…P-20,
 «Долг схем и CLI» C–E, D-1…D-25), затем design.md архива phase-3-verification (таблица I-66…I-101), docs/13-roadmap.md §2 и
 §3 (S8), ADR-0011, 0016, 0021. Фаза 3 закрыта: impl-PR и archive-PR смержены, tag v0.3.0.
 Сначала — долг, не требующий spec: package.json files (sra/), 13 §2 (analyze/link → phase-3b). Затем решим нарезку:
 /opsx:propose change `phase-3b` (link, targets[] и warrant waive, spec-approved, execution.local/guard_prefixes,
-validate --files, (d)/(f), AGENTS.md, понижение ниже floor, I-77; analyze — по решению). Порядок P-2 строго: spec-PR с
+validate --files, (d)/(f), AGENTS.md, понижение ниже floor, I-77; delta REQ-VER под R-1/R-2/R-4 и открытые R-6…R-10, R-13;
+analyze — по решению). Ветка fix/phase-3-review (R-1…R-5) — смержена в main до propose. Порядок P-2 строго: spec-PR с
 transition SPECIFIED, impl-PR с APPROVED/IMPLEMENTING первым и VERIFYING последним коммитом, CI job evidence, archive-PR
 с artifact'ом, merge impl-PR только merge commit. Потолок ≤ 6 групп, ~30 задач (G-8). Изменение REQ — delta spec, не молча.
 Схема работы прежняя: координатор — ты (Fable), субагент Opus на группу, отчёт ≤ 70 строк с Decisions/deviations.

@@ -62,6 +62,12 @@ OpenSpec + warrant-sdd schema + profile feature
 | Бюджет 500 мс и лимит строк hints | [ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md) | Замер задержки hook (D-23) |
 | `AGENTS.md` и `rules[]` в Context Pack | [ADR-0022](adr/WARRANT-ADR-0022-path-rules.md) | Первое правило pack или проекта (D-23) |
 
+### Later-идеи из ADR
+
+| Идея | Где записана | Триггер |
+|---|---|---|
+| Graft в продукте: blast radius как сигнал `classify`, граф кода в Context Pack исполнителей SEF (фаза 9) | [ADR-0026](adr/WARRANT-ADR-0026-graft-experiment.md) п. 1 | Эксперимент ADR-0026 — `accept` и Graft ≥ 1.0 |
+
 ## 4. Не входит в MVP
 
 ```text

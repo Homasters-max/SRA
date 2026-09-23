@@ -63,4 +63,8 @@ describe("package contents (R-15)", () => {
     expect(skills.length).toBeGreaterThan(0);
     expect(missing(skills)).toEqual([]);
   });
+
+  it("does not ship dev tooling (scripts/dev, ADR-0026)", () => {
+    expect([...packed].filter((f) => f.startsWith("scripts/dev/"))).toEqual([]);
+  });
 });

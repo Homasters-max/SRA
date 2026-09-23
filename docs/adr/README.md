@@ -28,5 +28,6 @@
 | [0022](WARRANT-ADR-0022-path-rules.md) | Правила по путям: JSON `rule/1`, `AGENTS.md`, подсказка при правке, Context Pack; guard без Run → `deny` | ACCEPTED |
 | [0023](WARRANT-ADR-0023-warrant-dev-frontend.md) | Frontend разработки самого WARRANT: сессии Claude Code без guard, защита — топология PR, review, CI, `validate`; адаптер `claude` — кандидат фазы 4 по S8 | ACCEPTED |
 | [0024](WARRANT-ADR-0024-spec-approved-contract.md) | `spec-approved`: контракт `{proposal.md, specs/**}` без `design.md`, gate waivable — правка контракта после approval снимается waiver'ом maintainer'а | ACCEPTED |
+| [0026](WARRANT-ADR-0026-graft-experiment.md) | Graft в разработке WARRANT: слепой эксперимент `[A]` / `[B]` по группам задач, только CLI через `scripts/dev/cs.js`, навык `code-search`, без записи в конфиги агента; порог −20 % токенов или tool calls | ACCEPTED (эксперимент, итог — отдельным ADR) |
 
 Новый ADR: следующий номер, frontmatter как в существующих, строка в этой таблице.

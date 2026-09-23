@@ -1,10 +1,11 @@
 /** `warrant status` end to end (REQ-KRN-027, SCN-KRN-070..072, 102..104). */
-import { chmodSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
 import { CLI_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { installFakeOpenspec } from "../helpers/fake-openspec.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const STATUS_FIXTURES = path.join(CLI_ROOT, "test", "fixtures", "openspec");
@@ -25,26 +26,15 @@ const PATH_KEY = Object.keys(process.env).find((k) => k.toUpperCase() === "PATH"
 function fakeOpenspec(fixture: string): string {
   const dir = makeTempDir("warrant-fake-openspec-");
   tempDirs.push(dir);
-  const shim = path.join(dir, "shim.cjs");
-  writeFileSync(
-    shim,
+  // The fake PATH holds nothing else; the launcher spells `node` out absolutely.
+  return installFakeOpenspec(
+    dir,
     `const fs = require("fs");
 const args = process.argv.slice(2);
 if (args.includes("--version")) { process.stdout.write("1.13.1\\n"); process.exit(0); }
 process.stdout.write(fs.readFileSync(${JSON.stringify(path.join(STATUS_FIXTURES, `${fixture}.json`))}, "utf8"));
-`,
-    "utf8"
+`
   );
-  // The fake PATH holds nothing else, so `node` is spelled out absolutely.
-  const node = process.execPath;
-  writeFileSync(path.join(dir, "openspec.cmd"), `@"${node}" "%~dp0shim.cjs" %*\r\n`, "utf8");
-  writeFileSync(path.join(dir, "openspec"), `#!/bin/sh\nexec "${node}" "$(dirname "$0")/shim.cjs" "$@"\n`, "utf8");
-  try {
-    chmodSync(path.join(dir, "openspec"), 0o755);
-  } catch {
-    // Permissions do not exist on Windows; the .cmd is used there.
-  }
-  return dir;
 }
 
 function env(fixture: string | null): NodeJS.ProcessEnv {

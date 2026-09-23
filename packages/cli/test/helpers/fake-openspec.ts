@@ -6,7 +6,7 @@
  * --json` derives the artifact statuses from the files of the change, like
  * the fake of the golden fixtures (I-61).
  */
-import { chmodSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const SHIM = `const fs = require("fs");
@@ -43,18 +43,36 @@ if (args[0] === "status") {
 process.exit(1);
 `;
 
-/** Writes the fake into `dir` (`openspec.cmd` for Windows, `openspec` for POSIX) and returns `dir`. */
-export function writeFakeOpenspec(dir: string): string {
+/**
+ * Installs a fake `openspec` into `dir` whose behaviour is the node script
+ * `shim`: `shim.cjs` beside `openspec.cmd` (Windows) and `openspec` (POSIX).
+ * The POSIX `openspec` is a symlink to the launcher of `test/global-setup.ts`,
+ * never a freshly written executable: executing a file just written races
+ * other forks of the worker into ETXTBSY on Linux (I-101). Outside vitest the
+ * launcher is absent and the script is written as before.
+ */
+export function installFakeOpenspec(dir: string, shim: string): string {
   const node = process.execPath;
-  writeFileSync(path.join(dir, "shim.cjs"), SHIM, "utf8");
+  writeFileSync(path.join(dir, "shim.cjs"), shim, "utf8");
   writeFileSync(path.join(dir, "openspec.cmd"), `@"${node}" "%~dp0shim.cjs" %*\r\n`, "utf8");
-  writeFileSync(path.join(dir, "openspec"), `#!/bin/sh\nexec "${node}" "$(dirname "$0")/shim.cjs" "$@"\n`, "utf8");
+  const posix = path.join(dir, "openspec");
+  const launcher = process.env["WARRANT_FAKE_LAUNCHER"];
+  if (process.platform !== "win32" && launcher !== undefined && existsSync(launcher)) {
+    symlinkSync(launcher, posix);
+    return dir;
+  }
+  writeFileSync(posix, `#!/bin/sh\nexec "${node}" "$(dirname "$0")/shim.cjs" "$@"\n`, "utf8");
   try {
-    chmodSync(path.join(dir, "openspec"), 0o755);
+    chmodSync(posix, 0o755);
   } catch {
     // no permissions on Windows; the .cmd is used there
   }
   return dir;
+}
+
+/** Writes the fake into `dir` (`openspec.cmd` for Windows, `openspec` for POSIX) and returns `dir`. */
+export function writeFakeOpenspec(dir: string): string {
+  return installFakeOpenspec(dir, SHIM);
 }
 
 /** PATH key as Windows spells it, so an override replaces rather than duplicates it. */

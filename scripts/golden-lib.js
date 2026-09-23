@@ -11,7 +11,7 @@
  * build`).
  */
 import { spawn } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -90,6 +90,13 @@ process.stdout.write(JSON.stringify({
   // На PATH лежит только этот каталог, поэтому `node` прописан абсолютным путём.
   const node = process.execPath;
   writeFileSync(path.join(dir, "openspec.cmd"), `@"${node}" "%~dp0shim.cjs" %*\r\n`, "utf8");
+  // Под vitest POSIX-`openspec` — symlink на launcher из `test/global-setup.ts`: только что записанный
+  // исполняемый файл на Linux ловит ETXTBSY от параллельных fork воркера (I-101).
+  const launcher = process.env.WARRANT_FAKE_LAUNCHER;
+  if (process.platform !== "win32" && launcher !== undefined && existsSync(launcher)) {
+    symlinkSync(launcher, path.join(dir, "openspec"));
+    return dir;
+  }
   writeFileSync(path.join(dir, "openspec"), `#!/bin/sh\nexec "${node}" "$(dirname "$0")/shim.cjs" "$@"\n`, "utf8");
   try {
     chmodSync(path.join(dir, "openspec"), 0o755);

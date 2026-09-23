@@ -1,9 +1,10 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { installFakeOpenspec } from "../helpers/fake-openspec.js";
 
 const tempDirs: string[] = [];
 const hasOpenspec = openspecAvailable();
@@ -30,15 +31,10 @@ const PATH_KEY = Object.keys(process.env).find((k) => k.toUpperCase() === "PATH"
 function fakeOpenspec(marker: string): string {
   const dir = makeTempDir("warrant-fake-openspec-");
   tempDirs.push(dir);
-  const cmdMarker = marker.replace(/\//g, "\\");
-  writeFileSync(path.join(dir, "openspec.cmd"), `@echo called > "${cmdMarker}"\r\n@echo 1.13.1\r\n`, "utf8");
-  writeFileSync(path.join(dir, "openspec"), `#!/bin/sh\necho called > "${marker}"\necho 1.13.1\n`, "utf8");
-  try {
-    chmodSync(path.join(dir, "openspec"), 0o755);
-  } catch {
-    // Permissions do not exist on Windows; the .cmd is used there.
-  }
-  return dir;
+  return installFakeOpenspec(
+    dir,
+    `require("fs").writeFileSync(${JSON.stringify(marker)}, "called\\n");\nprocess.stdout.write("1.13.1\\n");\n`
+  );
 }
 
 describe("warrant init", () => {

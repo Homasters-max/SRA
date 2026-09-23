@@ -9,13 +9,14 @@
  * `.warrant/local/checks/` with a node script that writes junit into `{out}`.
  */
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { bytesHash } from "../../src/core/canon/hash.js";
 import { openspecAvailable } from "../../src/core/openspec/cli.js";
 import { makeTempDir, removeDir, runCli, type CliRun } from "../helpers/cli.js";
+import { installFakeOpenspec } from "../helpers/fake-openspec.js";
 import { PACKS, record, useSyncedProject, validate, write } from "../helpers/synced.js";
 
 const hasOpenspec = openspecAvailable();
@@ -44,8 +45,8 @@ const EVIDENCE = ".warrant/evidence/add-search";
  */
 function fakeOpenspecDir(): string {
   const dir = temp("warrant-fake-openspec-");
-  writeFileSync(
-    path.join(dir, "shim.cjs"),
+  return installFakeOpenspec(
+    dir,
     `const fs = require("fs");
 const args = process.argv.slice(2);
 if (args.includes("--version")) { process.stdout.write("1.13.1\\n"); process.exit(0); }
@@ -56,17 +57,8 @@ if (args[0] === "validate") {
   process.exit(0);
 }
 process.exit(1);
-`,
-    "utf8"
+`
   );
-  writeFileSync(path.join(dir, "openspec.cmd"), `@"${NODE}" "%~dp0shim.cjs" %*\r\n`, "utf8");
-  writeFileSync(path.join(dir, "openspec"), `#!/bin/sh\nexec "${NODE}" "$(dirname "$0")/shim.cjs" "$@"\n`, "utf8");
-  try {
-    chmodSync(path.join(dir, "openspec"), 0o755);
-  } catch {
-    // no permissions on Windows; the .cmd is used there
-  }
-  return dir;
 }
 
 let fakeBin: string | undefined;

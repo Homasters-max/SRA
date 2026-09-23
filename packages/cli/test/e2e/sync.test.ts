@@ -1,4 +1,4 @@
-import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { parse, parseDocument } from "yaml";
@@ -8,6 +8,7 @@ import { bytesHash } from "../../src/core/canon/hash.js";
 import { GENERATED_MARKER } from "../../src/core/openspec/yaml-emit.js";
 import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
 import { CLI_ROOT, REPO_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { installFakeOpenspec } from "../helpers/fake-openspec.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const tempDirs: string[] = [];
@@ -174,14 +175,7 @@ describe("warrant sync", () => {
     const root = project({ "core-sdd": "^0.2" }, false);
     const fake = makeTempDir("warrant-fake-openspec-");
     tempDirs.push(fake);
-    // Both spellings, so the test works whichever shell cross-spawn picks.
-    writeFileSync(path.join(fake, "openspec.cmd"), "@echo 9.9.9\r\n", "utf8");
-    writeFileSync(path.join(fake, "openspec"), "#!/bin/sh\necho 9.9.9\n", "utf8");
-    try {
-      chmodSync(path.join(fake, "openspec"), 0o755);
-    } catch {
-      // Permissions do not exist on Windows; the .cmd is used there.
-    }
+    installFakeOpenspec(fake, `process.stdout.write("9.9.9\\n");\n`);
 
     const run = await runCli(["sync"], root, {
       [PATH_KEY]: fake + path.delimiter + (process.env[PATH_KEY] ?? "")

@@ -70,6 +70,15 @@ describe("parser junit → test-report", () => {
     expect(valid(result.metrics)).toBe(true);
   });
 
+  it("is INCONCLUSIVE when every test was skipped (review R-4)", () => {
+    const result = parseJunitDocuments(['<testsuite tests="3" failures="0" skipped="3"/>', '<testsuite tests="1" skipped="1"/>']);
+    expect(result.status).toBe("INCONCLUSIVE");
+    expect(result.metrics).toEqual({ tests: 4, failures: 0, errors: 0, skipped: 4 });
+    expect(result.limitations).toEqual(["junit: all 4 tests skipped"]);
+    // One test that ran is enough.
+    expect(parseJunitDocuments(['<testsuite tests="4" skipped="3"/>'])).toMatchObject({ status: "PROVEN", limitations: [] });
+  });
+
   it("is INCONCLUSIVE without metrics when there is no report at all", () => {
     const result = parseJunitDocuments([]);
     expect(result.status).toBe("INCONCLUSIVE");

@@ -7,18 +7,24 @@
  * "last one wins" branch, and no layer can remove anything, so the result does
  * not depend on the order of layers inside a group. Output arrays are sorted
  * for exactly that reason: the `hash` must depend on the content only.
+ *
+ * Two outcomes are conflicts rather than policies (fail closed, the controller
+ * escalates): an artifact both required and forbidden, and — when the gate
+ * documents are known — a kind of `evidence.required` that no gate of any
+ * transition lists in `requires_evidence` (`EVIDENCE_KIND_UNGATED`, R-7).
  */
 import { canonicalHash } from "../canon/hash.js";
 import {
   LAYER_ORDER,
   type Approval,
-  type ConflictItem,
+  type ArtifactClash,
   type EffectivePolicy,
   type ExplainEntry,
   type Layers,
   type PolicyConflict,
   type PolicyLayer,
-  type RiskLevel
+  type RiskLevel,
+  type UngatedKind
 } from "./types.js";
 
 export interface ResolveInput {
@@ -27,6 +33,12 @@ export interface ResolveInput {
   riskLevel: RiskLevel;
   /** Note recorded as `explain[].from` of the `risk_level:<L>` entry. */
   riskLevelFrom: string;
+  /**
+   * Kinds of `requires_evidence` by gate id, as loaded (overrides in force).
+   * Absent — the gate documents are unknown and `EVIDENCE_KIND_UNGATED` is not
+   * checked (pure unit input).
+   */
+  gateKinds?: ReadonlyMap<string, readonly string[]>;
 }
 
 export type ResolveResult =
@@ -101,6 +113,20 @@ function applyLayer(
   }
 }
 
+/** Kinds of `evidence.required` that no gate of any transition reads (R-7). */
+function ungatedKinds(
+  kinds: readonly string[],
+  gates: ReadonlyMap<string, Contributions>,
+  gateKinds: ReadonlyMap<string, readonly string[]> | undefined
+): UngatedKind[] {
+  if (gateKinds === undefined) return [];
+  const read = new Set<string>();
+  for (const bucket of gates.values()) {
+    for (const gate of bucket.items()) for (const kind of gateKinds.get(gate) ?? []) read.add(kind);
+  }
+  return kinds.filter((kind) => !read.has(kind)).map((kind) => ({ code: "EVIDENCE_KIND_UNGATED", kind }));
+}
+
 export function resolve(input: ResolveInput): ResolveResult {
   const required = new Contributions();
   const recommended = new Contributions();
@@ -118,19 +144,24 @@ export function resolve(input: ResolveInput): ResolveResult {
 
   // `forbidden` is absolute, so a clash with `required` is not resolvable here:
   // fail closed and let the controller escalate (05 section 5, SCN-KRN-067).
-  const clashes: ConflictItem[] = required
+  const clashes: ArtifactClash[] = required
     .items()
     .filter((item) => forbidden.has(item))
     .map((item) => ({ item, required_by: required.from(item), forbidden_by: forbidden.from(item) }));
 
-  if (clashes.length > 0) {
-    const message = clashes
-      .map(
-        (c) =>
-          `artifact "${c.item}" is required by ${c.required_by.join(", ")} and forbidden by ${c.forbidden_by.join(", ")}`
+  // A required kind no gate reads would never be judged for freshness or attestation (R-7).
+  const ungated = ungatedKinds(evidence.items(), gates, input.gateKinds);
+  if (clashes.length > 0 || ungated.length > 0) {
+    const message = [
+      ...clashes.map(
+        (c) => `artifact "${c.item}" is required by ${c.required_by.join(", ")} and forbidden by ${c.forbidden_by.join(", ")}`
+      ),
+      ...ungated.map(
+        (u) =>
+          `evidence kind "${u.kind}" is required by ${evidence.from(u.kind).join(", ")}, but no gate of the policy requires it (EVIDENCE_KIND_UNGATED)`
       )
-      .join("; ");
-    return { ok: false, conflict: { code: "POLICY_CONFLICT", message, items: clashes } };
+    ].join("; ");
+    return { ok: false, conflict: { code: "POLICY_CONFLICT", message, items: [...clashes, ...ungated] } };
   }
 
   const requiredList = required.items();

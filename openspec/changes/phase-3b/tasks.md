@@ -13,12 +13,12 @@
 
 ## 2. Версии, gate engine, controller
 
-- [ ] 2.1 Bump по design §13: CLI `0.4.0` (`package.json`, `packages/cli/package.json`), pack `core-sdd` `0.3.0` с `kernel: ">=0.1 <0.5"`, `.warrant/warrant.json` `kernel: "0.4"` и `^0.3.0`, `warrant.json` golden-фикстур `^0.3.0`; `warrant sync`, `npm run golden:update`. Проверка: `npm run versions:check` зелёный; `git diff packs/core-sdd/golden/*/expected` содержит только `sources`/hash. (REQ-SDD-001, SCN-SDD-021)
-- [ ] 2.2 Общий предикат waiver (design §1) для шага 4 и `evidence-complete`; `evidence-complete` засчитывает только `PROVEN`/`NOT_APPLICABLE` (R-8); unit-тест I-96 с `review` `NOT_PROVEN` → `FAIL`. Проверка: unit SCN-VER-043, SCN-VER-045; все прежние тесты verdict зелёные. (REQ-VER-003, REQ-VER-004)
-- [ ] 2.3 R-9: `NOT_APPLICABLE` только от `produced_by.type: "check"`, иначе `FAIL` + `NOT_APPLICABLE_UNTRUSTED` (design §2). Проверка: unit SCN-VER-044. (REQ-VER-003)
-- [ ] 2.4 R-13: controller пропускает `CONTINUE` при `FAIL`/`BLOCKED`, finding `CONTROLLER_RULE_IGNORED` в `gate`/`verify`/`status` (design §3). Проверка: unit + e2e SCN-VER-049 с `.warrant/local/controller/rules.json`. (REQ-VER-005)
-- [ ] 2.5 R-7: `EVIDENCE_KIND_UNGATED` в `POLICY_CONFLICT` resolver'а (design §4). Проверка: e2e SCN-KRN-115; `resolve` трёх golden и репозитория — `hash` не изменился. (REQ-KRN-026)
-- [ ] 2.6 R-6, R-10: `transition MERGED` — `REF_MISMATCH`; запись `human-approval` с `limitations: ["ref not verified (phase 4: warrant ci)"]`; SCN R-1 (ранний commit, fast-forward) — e2e, если ещё нет. Проверка: e2e SCN-VER-031, SCN-VER-050, SCN-VER-051, SCN-VER-052 в temp-репозитории с merge-коммитом. (REQ-VER-007)
+- [x] 2.1 Bump по design §13: CLI `0.4.0` (`package.json`, `packages/cli/package.json`), pack `core-sdd` `0.3.0` с `kernel: ">=0.1 <0.5"`, `.warrant/warrant.json` `kernel: "0.4"` и `^0.3.0`, `warrant.json` golden-фикстур `^0.3.0`; `warrant sync`, `npm run golden:update`. Проверка: `npm run versions:check` зелёный; `git diff packs/core-sdd/golden/*/expected` содержит только `sources`/hash. (REQ-SDD-001, SCN-SDD-021)
+- [x] 2.2 Общий предикат waiver (design §1) для шага 4 и `evidence-complete`; `evidence-complete` засчитывает только `PROVEN`/`NOT_APPLICABLE` (R-8); unit-тест I-96 с `review` `NOT_PROVEN` → `FAIL`. Проверка: unit SCN-VER-043, SCN-VER-045; все прежние тесты verdict зелёные. (REQ-VER-003, REQ-VER-004)
+- [x] 2.3 R-9: `NOT_APPLICABLE` только от `produced_by.type: "check"`, иначе `FAIL` + `NOT_APPLICABLE_UNTRUSTED` (design §2). Проверка: unit SCN-VER-044. (REQ-VER-003)
+- [x] 2.4 R-13: controller пропускает `CONTINUE` при `FAIL`/`BLOCKED`, finding `CONTROLLER_RULE_IGNORED` в `gate`/`verify`/`status` (design §3). Проверка: unit + e2e SCN-VER-049 с `.warrant/local/controller/rules.json`. (REQ-VER-005)
+- [x] 2.5 R-7: `EVIDENCE_KIND_UNGATED` в `POLICY_CONFLICT` resolver'а (design §4). Проверка: e2e SCN-KRN-115; `resolve` трёх golden и репозитория — `hash` не изменился. (REQ-KRN-026)
+- [x] 2.6 R-6, R-10: `transition MERGED` — `REF_MISMATCH`; запись `human-approval` с `limitations: ["ref not verified (phase 4: warrant ci)"]`; SCN R-1 (ранний commit, fast-forward) — e2e, если ещё нет. Проверка: e2e SCN-VER-031, SCN-VER-050, SCN-VER-051, SCN-VER-052 в temp-репозитории с merge-коммитом. (REQ-VER-007)
 
 ## 3. Схемы и validate
 

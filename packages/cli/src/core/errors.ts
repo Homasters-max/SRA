@@ -44,6 +44,7 @@ export const ERROR_CODES = [
   "GATES_NOT_PASSED",
   "ROLE_REQUIRED",
   "COMMIT_NOT_MERGED",
+  "REF_MISMATCH",
   "BELOW_FLOOR",
   "INTERNAL"
 ] as const;

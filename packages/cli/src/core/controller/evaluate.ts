@@ -3,10 +3,13 @@
  *
  * Rules of every enabled pack are tried in load order (core-sdd first), each
  * pack's rules in file order; the first rule whose `when` matches the inputs
- * is the result. No match → `WAIT` with `next: "verify"` and rule
+ * is the result. A matching rule that would `CONTINUE` past a worst verdict
+ * `FAIL` or `BLOCKED` is skipped with finding `CONTROLLER_RULE_IGNORED` and
+ * matching goes on (R-13): no rule can wave a transition through what the
+ * gates refused. No match → `WAIT` with `next: "verify"` and rule
  * `verify-incomplete` when the worst verdict is `BLOCKED`, else `CONTINUE`
- * without `next`, `rule: null`. Pure: the
- * same inputs and rules give the same decision.
+ * without `next`, `rule: null`. Pure: the same inputs and rules give the same
+ * decision.
  *
  * `when` compares by type: a boolean equals the input; `">N"` holds when the
  * numeric input is greater than N; any other string equals the input (an enum
@@ -14,6 +17,7 @@
  * `analyze_findings` of 04 section 4) never matches.
  */
 import { EXIT, type ExitCode } from "../errors.js";
+import type { Finding } from "../gates/types.js";
 import type { LoadResult } from "../packs/types.js";
 import type { ControllerInputs } from "./inputs.js";
 
@@ -30,6 +34,8 @@ export interface ControllerDecision {
   controller_action: ControllerAction;
   next?: string;
   rule: string | null;
+  /** `CONTROLLER_RULE_IGNORED` for every rule skipped on the way (R-13); absent when none was. */
+  findings?: Finding[];
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -85,19 +91,33 @@ export function ruleMatches(rule: ControllerRule, inputs: ControllerInputs): boo
   return true;
 }
 
+/** Worst verdicts no rule may answer with `CONTINUE` (R-13). */
+const NOT_CONTINUABLE: ReadonlySet<unknown> = new Set(["FAIL", "BLOCKED"]);
+
 export function evaluateController(rules: readonly ControllerRule[], inputs: ControllerInputs): ControllerDecision {
+  const findings: Finding[] = [];
+  const withFindings = (decision: ControllerDecision): ControllerDecision =>
+    findings.length === 0 ? decision : { ...decision, findings };
   for (const rule of rules) {
     if (!ruleMatches(rule, inputs)) continue;
+    if (rule.action === "CONTINUE" && NOT_CONTINUABLE.has(inputs.gate_verdict)) {
+      findings.push({
+        code: "CONTROLLER_RULE_IGNORED",
+        rule: rule.id,
+        message: `controller rule ${rule.id} would CONTINUE past gate_verdict ${String(inputs.gate_verdict)}; it is skipped`
+      });
+      continue;
+    }
     const decision: ControllerDecision = { controller_action: rule.action, rule: rule.id };
     if (rule.next !== undefined) decision.next = rule.next;
-    return decision;
+    return withFindings(decision);
   }
   // Kernel fallback (P-7, I-91): a transition whose worst verdict is BLOCKED is
   // not ready, whatever the packs say; the verdicts need more input, not a human.
   if (inputs.gate_verdict === "BLOCKED") {
-    return { controller_action: "WAIT", next: "verify", rule: VERIFY_INCOMPLETE };
+    return withFindings({ controller_action: "WAIT", next: "verify", rule: VERIFY_INCOMPLETE });
   }
-  return { controller_action: "CONTINUE", rule: null };
+  return withFindings({ controller_action: "CONTINUE", rule: null });
 }
 
 /** Id of the kernel fallback rule: no pack rule matched, and a gate is BLOCKED. */

@@ -38,6 +38,8 @@ export interface Finding {
   error?: string;
   paths?: string[];
   items?: string[];
+  /** Controller rule id (`CONTROLLER_RULE_IGNORED`, R-13). */
+  rule?: string;
   message: string;
 }
 

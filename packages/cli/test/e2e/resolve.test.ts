@@ -1,4 +1,4 @@
-/** `warrant resolve` end to end (REQ-KRN-026, SCN-KRN-065..069). */
+/** `warrant resolve` end to end (REQ-KRN-026, SCN-KRN-065..069, SCN-KRN-115). */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -102,6 +102,24 @@ describe("warrant resolve", () => {
     expect(run.json?.data.conflicts).toEqual([
       { item: "adr", required_by: ["overlay/conflict-require"], forbidden_by: ["overlay/conflict-forbid"] }
     ]);
+  });
+
+  it("a required evidence kind no gate reads is a policy conflict (SCN-KRN-115)", async () => {
+    const root = project(["policy"], "demo", { classification: FEATURE_HIGH });
+    write(root, ".warrant/local/overlays/perf.json", {
+      $schema: "warrant://overlay/1",
+      id: "perf",
+      version: "1.0.0",
+      match: {},
+      evidence: { required: ["perf-report"] }
+    });
+    const run = await runCli(["resolve", "demo"], root, ENV);
+    expect(run.status).toBe(2);
+    expect(run.json?.ok).toBe(false);
+    expect(run.json?.errors[0].code).toBe("POLICY_CONFLICT");
+    expect(run.json?.errors[0].message).toContain("perf-report");
+    expect(run.json?.data.controller_action).toBe("ESCALATE");
+    expect(run.json?.data.conflicts).toEqual([{ code: "EVIDENCE_KIND_UNGATED", kind: "perf-report" }]);
   });
 
   it("falls back to MEDIUM and to default plus project only, without classification (SCN-KRN-068)", async () => {

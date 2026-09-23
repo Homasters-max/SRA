@@ -1,0 +1,10 @@
+{
+  "$schema": "warrant://gate/1",
+  "id": "reconciliation-checked",
+  "version": "1.0.0",
+  "level": "L1",
+  "requires_evidence": [
+    { "kind": "reconciliation-report", "status": "PROVEN" }
+  ],
+  "waivable": false
+}

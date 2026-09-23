@@ -160,3 +160,8 @@ Profiles и risk — `warrant classify phase-3b` по diff spec-PR (floor `.warr
 
 | # | Решение | Где |
 |---|---|---|
+| I-102 | `WAIVER_IGNORED.reason` — ровно имена REQ-VER-003: `not-waivable` переименован в `waivable`; не-`ACTIVE` waiver на gate теперь даёт finding с `reason: "state"` (раньше молча пропускался) | 2.2, `core/gates/waivers.ts` |
+| I-103 | Пред-фильтр (`metrics.waivers[]` → waiver `ACTIVE`) использует тот же предикат `waiverStatus`: запись, ссылающаяся на waiver с `targets[]` или на невэйвабельный gate, исключается как `STALE`. Фаза 5 (D-10, частичные waivers) пересматривает это место — `metrics.waivers` предназначен именно для waivers с `targets[]` | 2.2, `core/gates/prefilter.ts` |
+| I-104 | Controller-rules project-слоя раньше только проверялись схемой и не загружались; `loadLocalLayer` теперь загружает `.warrant/local/**` `warrant://controller-rules/1` как правила pack `local`, они применяются после правил всех packs (SCN-VER-049 требует `.warrant/local/controller/rules.json`) | 2.4, `core/packs/loader.ts` |
+| I-105 | `REF_MISMATCH` проверяется после прохождения gates (`GATES_NOT_PASSED` приоритетнее); запись `ci` без `attestation.ref` — несовпадение | 2.6, `commands/transition.ts` |
+| I-106 | Конфликт artifacts и `EVIDENCE_KIND_UNGATED` в одной policy — один `POLICY_CONFLICT` с обоими элементами `items[]`; fixture pack `policy` тестов получил gate `reconciliation-checked` (его kind требовался без gate) | 2.5, `core/resolve/*`, `test/fixtures/packs/policy` |

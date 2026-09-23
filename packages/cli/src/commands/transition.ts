@@ -14,7 +14,9 @@
  *   happened, and a repeated `transition` reuses the record while the
  *   pre-filter admits it. `MERGED` is judged on the commit of the evidence
  *   (`--commit`, else the commit of the freshest record), which must be an
- *   ancestor of HEAD and the head of the merged impl-PR (`COMMIT_NOT_MERGED`);
+ *   ancestor of HEAD and the head of the merged impl-PR (`COMMIT_NOT_MERGED`),
+ *   and every CI record the verdicts rest on must come from the run `--ref`
+ *   names (`REF_MISMATCH`, R-6);
  * - backward (`VERIFYING->IMPLEMENTING`, `IMPLEMENTING->SPECIFIED`): recorded
  *   without gates;
  * - `ABANDONED` (from any state before `MERGED`): recorded, then
@@ -68,6 +70,7 @@ import {
   conflictDecision,
   decisionFields,
   evaluateTransition,
+  evaluationFindings,
   gateDefinitions,
   projectFacts,
   recordVerdicts,
@@ -95,6 +98,13 @@ export const FALLBACK_ROLE = "maintainer";
 
 /** States whose transition needs `--ref` (P-6). */
 const REF_REQUIRED = ["APPROVED", "MERGED"];
+
+/**
+ * Limitation of every `human-approval` record: `--ref` is only checked to be
+ * an http(s) URL and `--by` is a claim; `warrant ci` of phase 4 verifies them
+ * through the forge (ADR-0010 point 2, R-10).
+ */
+export const REF_NOT_VERIFIED = "ref not verified (phase 4: warrant ci)";
 
 /** Verdicts a forward transition passes with (REQ-VER-007). */
 const PASSING: ReadonlySet<Verdict> = new Set<Verdict>(["PASS", "WAIVED", "NOT_APPLICABLE"]);
@@ -137,7 +147,7 @@ function checkRef(ref: string): void {
 function gateFields(evaluation: Evaluation): Record<string, unknown> {
   return {
     gates: evaluation.engine.gates,
-    findings: evaluation.engine.findings,
+    findings: evaluationFindings(evaluation),
     ...decisionFields(evaluation.decision)
   };
 }
@@ -253,7 +263,7 @@ function ensureApproval(params: ApprovalParams): { evidence: string; reused: boo
     effective_policy_hash: params.policy.hash,
     created_at: new Date().toISOString(),
     artifacts: [],
-    limitations: [...git.limitations]
+    limitations: [...git.limitations, REF_NOT_VERIFIED]
   };
   storeRecord({
     root,
@@ -265,6 +275,33 @@ function ensureApproval(params: ApprovalParams): { evidence: string; reused: boo
     what: `${HUMAN_APPROVAL} by ${login}`
   });
   return { evidence: id, reused: false };
+}
+
+/** A ref without one trailing `/`: `…/runs/1/` and `…/runs/1` name the same run. */
+function normalRef(ref: string): string {
+  return ref.endsWith("/") ? ref.slice(0, -1) : ref;
+}
+
+/**
+ * `REF_MISMATCH` unless every CI record the verdicts of `MERGED` rest on names
+ * the run of `--ref` (R-6): evidence of two runs is no evidence of one.
+ */
+function assertRunRef(root: string, change: string, env: NodeJS.ProcessEnv, evaluation: Evaluation, ref: string): void {
+  const used = new Set(evidenceOf(evaluation));
+  const mismatched: string[] = [];
+  for (const record of readRecords(evidenceDir(root, change, env))) {
+    if (!used.has(record.id)) continue;
+    const attestation = isPlainObject(record.json["attestation"]) ? record.json["attestation"] : {};
+    if (attestation["type"] !== "ci") continue;
+    const recorded = attestation["ref"];
+    if (typeof recorded !== "string" || normalRef(recorded) !== normalRef(ref)) mismatched.push(record.id);
+  }
+  if (mismatched.length === 0) return;
+  mismatched.sort();
+  throw new WarrantError(
+    "REF_MISMATCH",
+    `--ref ${ref} is not the CI run of ${mismatched.join(", ")}: MERGED takes the evidence of one CI run, the one --ref names`
+  );
 }
 
 /** The entry written for a forward transition that passed its gates. */
@@ -414,6 +451,7 @@ function forward(params: ForwardParams): CommandResult {
 
   const failed = gatesNotPassed(evaluation.engine.gates);
   if (failed.length > 0) return gatesNotPassedResult(change, data, evaluation, failed);
+  if (target === "MERGED" && opts.ref !== undefined) assertRunRef(root, change, env, evaluation, opts.ref);
 
   const entry = forwardEntry(target, policy, evaluation, opts.ref);
   appendTransition(root, change, record, entry);

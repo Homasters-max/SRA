@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loadPacks } from "../../../src/core/packs/loader.js";
 import { resolveForProject, type Classification } from "../../../src/core/resolve/index.js";
 import type { EffectivePolicy } from "../../../src/core/resolve/types.js";
-import { CORE_SDD_VERSION, REPO_ROOT, makeTempDir, removeDir } from "../../helpers/cli.js";
+import { CORE_SDD_RANGE, CORE_SDD_VERSION, REPO_ROOT, makeTempDir, removeDir } from "../../helpers/cli.js";
 
 const PACKS_DIR = path.join(REPO_ROOT, "packs");
 let root: string;
@@ -28,7 +28,7 @@ beforeAll(() => {
         $schema: "warrant://config/1",
         kernel: "0.1",
         openspec: "1.13.x",
-        packs: { "core-sdd": { version: "^0.2" } }
+        packs: { "core-sdd": { version: CORE_SDD_RANGE } }
       },
       null,
       2

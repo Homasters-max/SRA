@@ -307,12 +307,17 @@ export function runGate(
   return exitCode === EXIT.OK ? success(data, change) : failures([], exitCode, data, change);
 }
 
+/** `data.findings[]`: the gate engine's, then the controller's (R-13). */
+export function evaluationFindings(evaluation: Evaluation): Finding[] {
+  return [...evaluation.engine.findings, ...(evaluation.decision.findings ?? [])];
+}
+
 /** `data` of `gate` (and the gate half of `verify`). */
 export function gateData(evaluation: Evaluation): Record<string, unknown> {
   return {
     transition: evaluation.transition,
     gates: evaluation.engine.gates,
-    findings: evaluation.engine.findings as Finding[],
+    findings: evaluationFindings(evaluation),
     ...decisionFields(evaluation.decision)
   };
 }

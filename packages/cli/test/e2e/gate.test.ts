@@ -2,7 +2,7 @@
  * `warrant gate` in temporary git repositories (REQ-VER-003, REQ-VER-004,
  * REQ-VER-005): the computed L0 gates on real diffs and branches —
  * SCN-VER-014, 019, 020, 021, 022, 023 — the output shape and the exit code
- * of the controller.
+ * of the controller, and a project controller rule it skips (SCN-VER-049).
  *
  * Each case copies the synced core-sdd project, adds Change `add-search`,
  * makes `main` with one commit and, where a diff is needed, a branch with a
@@ -224,6 +224,35 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant gate", () => {
     expect(onBranch.json.data).toMatchObject({ transition: "APPROVED->IMPLEMENTING", gates: { "branch-isolated": "PASS" } });
     expect(onBranch.status).toBe(0);
   }, 60_000);
+
+  it("a project rule cannot CONTINUE past BLOCKED in gate, verify and status (SCN-VER-049)", async () => {
+    const rules = (r: string): void =>
+      write(r, ".warrant/local/controller/rules.json", {
+        $schema: "warrant://controller-rules/1",
+        rules: [{ id: "let-blocked-through", when: { gate_verdict: "BLOCKED" }, action: "CONTINUE" }]
+      });
+    const root = repo("PROPOSED", FEATURE, rules);
+    const ignored = expect.objectContaining({ code: "CONTROLLER_RULE_IGNORED", rule: "let-blocked-through" });
+
+    // No spec-report yet: spec-valid is BLOCKED, the project rule is skipped, the kernel fallback waits.
+    const run = await gate(root, []);
+    expect(run.json.data.gates["spec-valid"]).toBe("BLOCKED");
+    expect(run.json.data.findings).toContainEqual(ignored);
+    expect(run.json.data).toMatchObject({ controller_action: "WAIT", next: "verify", rule: "verify-incomplete" });
+    expect(run.status).toBe(2);
+
+    const status = await runCli(["status", "add-search"], root, env());
+    expect(status.json.data.verification.findings).toContainEqual(ignored);
+    expect(status.json.data.verification.rule).toBe("verify-incomplete");
+
+    // verify of SPECIFIED->APPROVED: spec-valid passes, adversarial-review and human-approval stay BLOCKED.
+    const verify = await runCli(["verify", "add-search", "--transition", "SPECIFIED->APPROVED"], root, env());
+    expect(verify.json.data.gates["adversarial-review"]).toBe("BLOCKED");
+    expect(verify.json.data.findings).toContainEqual(ignored);
+    expect(verify.json.data).toMatchObject({ controller_action: "WAIT", next: "verify", rule: "verify-incomplete" });
+    expect(verify.status).toBe(2);
+    expect((await validate(root)).json?.errors).toEqual([]);
+  }, 120_000);
 
   it("without git the gates that need a diff or a branch are BLOCKED with NO_INPUT, not an error", async () => {
     const root = project();

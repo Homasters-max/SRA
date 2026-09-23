@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
-import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { CORE_SDD_RANGE, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 
 const tempDirs: string[] = [];
 
@@ -39,7 +39,7 @@ function project(change = "demo", roles?: Record<string, string[]>): string {
     $schema: "warrant://config/1",
     kernel: "0.1",
     openspec: "1.13.x",
-    packs: { "core-sdd": { version: "^0.2" } },
+    packs: { "core-sdd": { version: CORE_SDD_RANGE } },
     ...(roles === undefined ? {} : { roles })
   });
   write(root, `.warrant/changes/${change}.json`, {

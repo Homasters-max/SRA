@@ -16,6 +16,9 @@ export const CORE_SDD_VERSION: string = (
   JSON.parse(readFileSync(path.join(REPO_ROOT, "packs", "core-sdd", "pack.json"), "utf8")) as { version: string }
 ).version;
 
+/** A caret range of `core-sdd` that accepts the bundled version: `^<major>.<minor>`. */
+export const CORE_SDD_RANGE = `^${CORE_SDD_VERSION.split(".").slice(0, 2).join(".")}`;
+
 export interface CliRun {
   status: number;
   stdout: string;

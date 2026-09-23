@@ -585,6 +585,19 @@ function loadLocalLayer(
       addRule(json, "local", reported, collected);
       continue;
     }
+    if (ref?.name === "controller-rules") {
+      // The project's controller rules extend the table after every pack's
+      // (04 section 4, REQ-VER-005); they replace nothing, so they are keyed by
+      // their path and never collide with a pack's `controller/rules.json`.
+      collected.objects.set(objectKey("controller-rules", reported), {
+        kind: "controller-rules",
+        id: reported,
+        pack: "local",
+        path: reported,
+        json
+      });
+      continue;
+    }
     const kind = ref === null ? undefined : KIND_BY_SCHEMA[ref.name];
     if (kind === undefined) continue;
 

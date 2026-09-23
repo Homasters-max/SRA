@@ -8,17 +8,20 @@
  *    threshold, narrowed (`scoped:`) or resting on a waiver no longer in force
  *    are set aside with `STALE`.
  * 1. `applies_when.changed_paths` misses the diff, or every required kind's
- *    freshest record is `NOT_APPLICABLE` from a check → `NOT_APPLICABLE`.
+ *    freshest record is `NOT_APPLICABLE` from a check → `NOT_APPLICABLE`;
+ *    `NOT_APPLICABLE` of any other producer is untrusted and counts as not
+ *    proven (`NOT_APPLICABLE_UNTRUSTED`, R-9).
  * 2. No input (no git for `applies_when`, a failed check of `verify`, no
  *    admissible record of a required kind, a calculator without its input) →
  *    `BLOCKED` with `NO_INPUT` / `NO_EVIDENCE`; on `VERIFYING->MERGED` a kind
  *    with only unattested records → `BLOCKED` with `ATTESTATION_REQUIRED`.
  * 3. Every required kind's freshest record has the required status and the
  *    L0 calculator (if any) passes → `PASS`.
- * 4. An `ACTIVE` waiver in force for this gate and Change, approved by a login
- *    of `roles` (R-2), turns a `BLOCKED` or `FAIL` into `WAIVED` (`WAIVED_BY`)
- *    when the gate is `waivable: true`; otherwise the waiver is reported as
- *    `WAIVER_IGNORED`.
+ * 4. A waiver of this gate and Change that counts (`waiverStatus`, design §1:
+ *    `ACTIVE`, in force, approved by a login of `roles`, gate `waivable: true`,
+ *    no `targets[]`) turns a `BLOCKED` or `FAIL` into `WAIVED` (`WAIVED_BY`);
+ *    any other waiver of the gate is reported as `WAIVER_IGNORED` with the
+ *    reason.
  * 5. Anything else → `FAIL`.
  *
  * Step 4 applies to `BLOCKED` as well as to `FAIL`: a waiver is how a gate
@@ -27,7 +30,7 @@
 import picomatch from "picomatch";
 
 import { CALCULATORS, type L0Result } from "./l0/index.js";
-import { activeWaiverIds, approverLogin, isWaiverInForce, prefilter } from "./prefilter.js";
+import { prefilter } from "./prefilter.js";
 import {
   MERGE_TRANSITION,
   VERDICT_ORDER,
@@ -35,9 +38,9 @@ import {
   type Finding,
   type GateEngineInput,
   type GateEngineResult,
-  type Verdict,
-  type WaiverInput
+  type Verdict
 } from "./types.js";
+import { waiverStatus, type WaiverContext, type WaiverIgnoredReason } from "./waivers.js";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -110,7 +113,7 @@ export function freshest(records: readonly EvidenceInput[]): EvidenceInput | und
   return best;
 }
 
-const FINDING_KEYS = ["code", "gate", "evidence", "kind", "reason", "waiver", "check", "error", "paths", "items", "message"] as const;
+const FINDING_KEYS = ["code", "gate", "evidence", "kind", "reason", "waiver", "check", "error", "paths", "items", "rule", "message"] as const;
 
 /** A finding with its keys in one fixed order, so output and snapshots are stable. */
 function ordered(finding: Finding): Finding {
@@ -123,6 +126,16 @@ interface GateOutcome {
   verdict: Verdict;
   findings: Finding[];
   evidence: string[];
+}
+
+function producerType(record: EvidenceInput): string {
+  const producedBy = record.json["produced_by"];
+  return isPlainObject(producedBy) && typeof producedBy["type"] === "string" ? producedBy["type"] : "(no producer)";
+}
+
+/** Whether the record was produced by a check (`produced_by.type: "check"`). */
+function fromCheck(record: EvidenceInput): boolean {
+  return producerType(record) === "check";
 }
 
 function evidencePart(
@@ -162,11 +175,23 @@ function evidencePart(
   }
   const evidence = chosen.map((c) => c.record.id);
   if (missing) return { verdict: "BLOCKED", findings, evidence };
-  if (chosen.length > 0 && chosen.every((c) => c.record.json["evidence_status"] === "NOT_APPLICABLE")) {
+  if (chosen.length > 0 && chosen.every((c) => c.record.json["evidence_status"] === "NOT_APPLICABLE" && fromCheck(c.record))) {
     return { verdict: "NOT_APPLICABLE", findings: [], evidence };
   }
   for (const { requirement, record } of chosen) {
     const status = record.json["evidence_status"];
+    if (status === "NOT_APPLICABLE" && !fromCheck(record)) {
+      // Only a check establishes that the subject is absent (D-11); anybody
+      // else's NOT_APPLICABLE is a claim nothing proved (R-9).
+      findings.push({
+        code: "NOT_APPLICABLE_UNTRUSTED",
+        gate,
+        evidence: record.id,
+        kind: requirement.kind,
+        message: `${record.id} is NOT_APPLICABLE from ${producerType(record)}, not from a check; it counts as not proven`
+      });
+      continue;
+    }
     if (status === requirement.status) continue;
     findings.push({
       code: "EVIDENCE_STATUS",
@@ -184,11 +209,16 @@ export function evaluateGates(input: GateEngineInput): GateEngineResult {
   const inPolicy = [...new Set(policy.gates[transition] ?? [])];
   const ids = (input.only === undefined ? inPolicy : inPolicy.filter((id) => input.only?.includes(id))).sort();
 
-  // A waiver approved by nobody of `roles` waives nothing anywhere: not a gate
-  // (step 4), not a kind of `evidence-complete`, not a record's `metrics.waivers`
-  // (review of phase 3, R-2). `validate` (11) reports it as WAIVER_INVALID.
-  const usable = input.approvers === undefined ? input.waivers : input.waivers.filter((w) => isApproved(w, input.approvers));
-  const active = activeWaiverIds(usable, signals.today);
+  // A waiver that does not count waives nothing anywhere: not a gate (step 4),
+  // not a kind of `evidence-complete`, not a record's `metrics.waivers`
+  // (review of phase 3, R-2, R-8; design §1).
+  const waiverCtx = waiverContext(input);
+  const active = new Set<string>();
+  for (const waiver of input.waivers) {
+    const gate = waiver.json["gate"];
+    const status = waiverStatus(waiver.json, typeof gate === "string" ? definitions.get(gate) : undefined, waiverCtx);
+    if (status.counts && typeof waiver.json["id"] === "string") active.add(waiver.json["id"]);
+  }
   const { admissible, excluded } = prefilter(input.records, {
     commit: signals.commit,
     base: signals.base,
@@ -210,7 +240,7 @@ export function evaluateGates(input: GateEngineInput): GateEngineResult {
   const gates: Record<string, Verdict> = {};
   const evidence: Record<string, string[]> = {};
   for (const id of ids) {
-    const outcome = evaluateOne(id, input, usable, admissible);
+    const outcome = evaluateOne(id, input, admissible);
     gates[id] = outcome.verdict;
     evidence[id] = outcome.evidence;
     findings.push(...outcome.findings);
@@ -218,17 +248,12 @@ export function evaluateGates(input: GateEngineInput): GateEngineResult {
   return { gates, findings: findings.map(ordered), evidence };
 }
 
-/** Whether the waiver's `approved_by` (with or without `human:`) is a login of `roles`. */
-function isApproved(waiver: WaiverInput, approvers: ReadonlySet<string> | undefined): boolean {
-  return approvers === undefined || approvers.has(approverLogin(waiver.json));
+/** What `waiverStatus` needs from the engine input. */
+function waiverContext(input: GateEngineInput): WaiverContext {
+  return { today: input.signals.today, approvers: input.approvers };
 }
 
-function evaluateOne(
-  id: string,
-  input: GateEngineInput,
-  usable: readonly WaiverInput[],
-  admissible: readonly EvidenceInput[]
-): GateOutcome {
+function evaluateOne(id: string, input: GateEngineInput, admissible: readonly EvidenceInput[]): GateOutcome {
   const definition = input.definitions.get(id);
   if (definition === undefined) {
     return {
@@ -238,7 +263,7 @@ function evaluateOne(
     };
   }
 
-  const base = baseOutcome(id, definition, { ...input, waivers: [...usable] }, admissible);
+  const base = baseOutcome(id, definition, input, admissible);
   if (base.verdict !== "BLOCKED" && base.verdict !== "FAIL") return base;
   return applyWaivers(id, definition, base, input);
 }
@@ -318,6 +343,7 @@ function baseOutcome(
       admissible,
       records: input.records,
       waivers: input.waivers,
+      waiverContext: waiverContext(input),
       definitions: input.definitions
     });
     outcome = {
@@ -329,56 +355,33 @@ function baseOutcome(
   return outcome;
 }
 
-/** Step 4: a waiver in force for this gate and Change. */
+/** Why `waiverStatus` did not count a waiver, in words. */
+const IGNORED_MESSAGE: Record<WaiverIgnoredReason, (waiver: Record<string, unknown>, gate: string) => string> = {
+  state: (w) => `it is ${String(w["waiver_state"])}, not ACTIVE`,
+  expired: (w) => `it expired on ${String(w["expires_at"])}`,
+  approver: (w) => `approved_by ${JSON.stringify(w["approved_by"])} is not listed in roles of .warrant/warrant.json`,
+  waivable: (_w, gate) => `gate ${gate} is not waivable`,
+  // Partial waivers (targets[]) have no semantics before phase 5 (D-10).
+  targets: () => "a waiver with targets[] does not waive the whole gate"
+};
+
+/** Step 4: a waiver of this gate and Change that counts (design §1). */
 function applyWaivers(id: string, definition: Record<string, unknown>, base: GateOutcome, input: GateEngineInput): GateOutcome {
-  const { signals } = input;
+  const ctx = waiverContext(input);
   const matching = input.waivers
-    .filter((w) => w.json["gate"] === id && w.json["change"] === signals.change)
+    .filter((w) => w.json["gate"] === id && w.json["change"] === input.signals.change)
     .sort((a, b) => (String(a.json["id"]) < String(b.json["id"]) ? -1 : 1));
   const findings = [...base.findings];
   for (const waiver of matching) {
     const waiverId = String(waiver.json["id"]);
-    if (!isWaiverInForce(waiver.json, signals.today)) {
-      if (waiver.json["waiver_state"] === "ACTIVE") {
-        findings.push({
-          code: "WAIVER_IGNORED",
-          gate: id,
-          waiver: waiverId,
-          reason: "expired",
-          message: `${waiverId} expired on ${String(waiver.json["expires_at"])}`
-        });
-      }
-      continue;
-    }
-    if (!isApproved(waiver, input.approvers)) {
+    const status = waiverStatus(waiver.json, definition, ctx);
+    if (!status.counts) {
       findings.push({
         code: "WAIVER_IGNORED",
         gate: id,
         waiver: waiverId,
-        reason: "approver",
-        message: `${waiverId} is ignored: approved_by ${JSON.stringify(waiver.json["approved_by"])} is not listed in roles of .warrant/warrant.json`
-      });
-      continue;
-    }
-    if (definition["waivable"] !== true) {
-      findings.push({
-        code: "WAIVER_IGNORED",
-        gate: id,
-        waiver: waiverId,
-        reason: "not-waivable",
-        message: `${waiverId} is ignored: gate ${id} is not waivable`
-      });
-      continue;
-    }
-    const targets = waiver.json["targets"];
-    if (Array.isArray(targets) && targets.length > 0) {
-      // Partial waivers (targets[]) have no semantics before phase-3b: they never waive the whole gate.
-      findings.push({
-        code: "WAIVER_IGNORED",
-        gate: id,
-        waiver: waiverId,
-        reason: "targets",
-        message: `${waiverId} is ignored: a waiver with targets[] does not waive the whole gate`
+        reason: status.reason,
+        message: `${waiverId} is ignored: ${IGNORED_MESSAGE[status.reason](waiver.json, id)}`
       });
       continue;
     }

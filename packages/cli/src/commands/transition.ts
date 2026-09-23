@@ -14,7 +14,7 @@
  *   happened, and a repeated `transition` reuses the record while the
  *   pre-filter admits it. `MERGED` is judged on the commit of the evidence
  *   (`--commit`, else the commit of the freshest record), which must be an
- *   ancestor of HEAD (`COMMIT_NOT_MERGED`);
+ *   ancestor of HEAD and the head of the merged impl-PR (`COMMIT_NOT_MERGED`);
  * - backward (`VERIFYING->IMPLEMENTING`, `IMPLEMENTING->SPECIFIED`): recorded
  *   without gates;
  * - `ABANDONED` (from any state before `MERGED`): recorded, then
@@ -35,6 +35,7 @@ import { evidenceDir, readRecords } from "../core/evidence/store.js";
 import {
   isAncestor,
   mergedCommitFacts,
+  notMergedHeadReason,
   readGitFacts,
   resolveCommit,
   type GitFacts
@@ -141,9 +142,16 @@ function gateFields(evaluation: Evaluation): Record<string, unknown> {
   };
 }
 
+/** `COMMIT_NOT_MERGED` unless `sha` is the head of a merged impl-PR (review of phase 3, R-1). */
+function assertMergedHead(root: string, sha: string, source: string): void {
+  const reason = notMergedHeadReason(root, sha);
+  if (reason !== null) throw new WarrantError("COMMIT_NOT_MERGED", `${source}: ${reason}`);
+}
+
 /**
  * The commit of `MERGED` (design §9): `--commit`, else the commit of the
- * freshest record of the Change; it must be an ancestor of HEAD.
+ * freshest record of the Change; it must be an ancestor of HEAD and the head
+ * of the impl-PR that brought it in (R-1).
  */
 function mergedCommit(root: string, change: string, env: NodeJS.ProcessEnv, requested: string | undefined): string {
   if (requested !== undefined) {
@@ -152,6 +160,7 @@ function mergedCommit(root: string, change: string, env: NodeJS.ProcessEnv, requ
     if (!isAncestor(root, sha, "HEAD")) {
       throw new WarrantError("COMMIT_NOT_MERGED", `commit ${sha} is not an ancestor of HEAD: merge the impl-PR first`);
     }
+    assertMergedHead(root, sha, "--commit");
     return sha;
   }
   const records = readRecords(evidenceDir(root, change, env)).map((r) => ({ id: r.id, json: r.json }));
@@ -168,6 +177,7 @@ function mergedCommit(root: string, change: string, env: NodeJS.ProcessEnv, requ
       `commit ${commit} of the freshest record ${latest.id} is not an ancestor of HEAD: merge the impl-PR first or pass --commit`
     );
   }
+  assertMergedHead(root, sha, `freshest record ${latest.id}`);
   return sha;
 }
 

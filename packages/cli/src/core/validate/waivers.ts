@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import type { CliError } from "../errors.js";
+import { approverLogin } from "../gates/prefilter.js";
 import { reportPath, walkFiles } from "../packs/loader.js";
 import type { LoadResult } from "../packs/types.js";
 import type { RecordFile } from "../record/read.js";
@@ -84,7 +85,7 @@ export function checkWaivers(
       invalid(`gate "${gateId}" is not waivable (${gate.path})`, "/gate");
     }
 
-    const login = String(json["approved_by"]).replace(/^human:/, "");
+    const login = approverLogin(json);
     if (!members.has(login)) {
       invalid(`approved_by "${String(json["approved_by"])}" is not listed in roles of .warrant/warrant.json`, "/approved_by");
     }

@@ -20,5 +20,8 @@
       "status": "PROVEN"
     }
   ],
-  "waivable": false
+  "waivable": false,
+  "accepts_attestation": [
+    "ci"
+  ]
 }

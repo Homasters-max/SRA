@@ -11,7 +11,7 @@ import { canonicalText } from "../../src/core/canon/format-json.js";
 import { packContentHash } from "../../src/core/packs/hash.js";
 import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
 import { CLI_VERSION } from "../../src/version.js";
-import { REPO_ROOT, makeTempDir, removeDir, runCli, type CliRun } from "./cli.js";
+import { CORE_SDD_VERSION, REPO_ROOT, makeTempDir, removeDir, runCli, type CliRun } from "./cli.js";
 
 export const PACKS = path.join(REPO_ROOT, "packs");
 
@@ -72,7 +72,7 @@ export function useSyncedProject(): () => string {
       $schema: "warrant://lock/1",
       kernel: CLI_VERSION,
       openspec: "1.13.1",
-      packs: { "core-sdd": { version: "0.2.0", source: "bundled", hash: packContentHash(path.join(PACKS, "core-sdd")) } }
+      packs: { "core-sdd": { version: CORE_SDD_VERSION, source: "bundled", hash: packContentHash(path.join(PACKS, "core-sdd")) } }
     });
     if (!runOpenspec(["init", "--tools", "none"], base).ok) throw new Error("openspec init failed");
     const sync = await runCli(["sync"], base, { WARRANT_PACKS_DIR: PACKS });

@@ -100,7 +100,13 @@ function evaluate(
   transition: string,
   gates: string[],
   records: EvidenceInput[] = [],
-  opts: { waivers?: WaiverInput[]; signals?: Partial<GateSignals>; policy?: Partial<EffectivePolicy>; definitions?: Map<string, Record<string, unknown>> } = {}
+  opts: {
+    waivers?: WaiverInput[];
+    approvers?: Set<string>;
+    signals?: Partial<GateSignals>;
+    policy?: Partial<EffectivePolicy>;
+    definitions?: Map<string, Record<string, unknown>>;
+  } = {}
 ) {
   return evaluateGates({
     policy: policy({ [transition]: gates }, opts.policy),
@@ -108,6 +114,7 @@ function evaluate(
     definitions: opts.definitions ?? CORE_GATES,
     records,
     waivers: opts.waivers ?? [],
+    ...(opts.approvers === undefined ? {} : { approvers: opts.approvers }),
     signals: signals(opts.signals)
   });
 }
@@ -229,6 +236,36 @@ describe("verdict algorithm (06 section 3)", () => {
     expect(result.findings[1]).toMatchObject({ gate: "scope-valid", waiver: "WAV-2026-001", reason: "not-waivable" });
   });
 
+  it("a waiver approved by a login outside roles waives nothing (review R-2)", () => {
+    const approvers = new Set(["kat"]);
+    const stranger = waiver("analyze-clean", { approved_by: "human:mallory" });
+    const result = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], { waivers: [stranger], approvers });
+    expect(result.gates["analyze-clean"]).toBe("BLOCKED");
+    expect(result.findings).toContainEqual(
+      expect.objectContaining({ code: "WAIVER_IGNORED", gate: "analyze-clean", waiver: "WAV-2026-001", reason: "approver" })
+    );
+    // The same waiver by a member of roles, with or without the human: prefix.
+    for (const by of ["human:kat", "kat"]) {
+      const ok = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], { waivers: [waiver("analyze-clean", { approved_by: by })], approvers });
+      expect(ok.gates["analyze-clean"]).toBe("WAIVED");
+    }
+    // Nor does it excuse a kind of evidence-complete, nor keep a record resting on it admissible.
+    const required = { evidence: { required: ["review"] } };
+    const complete = evaluate("VERIFYING->MERGED", ["evidence-complete"], [], {
+      policy: required,
+      waivers: [waiver("adversarial-review", { approved_by: "human:mallory" })],
+      approvers
+    });
+    expect(complete.gates["evidence-complete"]).toBe("FAIL");
+    const resting = record("spec-report", "PROVEN", { metrics: { waivers: ["WAV-2026-001"] } });
+    const stale = evaluate("PROPOSED->SPECIFIED", ["spec-valid"], [resting], {
+      waivers: [waiver("spec-valid", { approved_by: "human:mallory" })],
+      approvers
+    });
+    expect(stale.gates["spec-valid"]).toBe("BLOCKED");
+    expect(stale.findings).toContainEqual(expect.objectContaining({ code: "STALE", reason: "waiver" }));
+  });
+
   it("FAIL by a fresh NOT_PROVEN test-report (SCN-VER-017)", () => {
     const result = evaluate("VERIFYING->MERGED", ["tests-passed"], [record("test-report", "NOT_PROVEN", { attestation: { type: "ci", ref: "r" } })]);
     expect(result.gates).toEqual({ "tests-passed": "FAIL" });
@@ -263,6 +300,19 @@ describe("verdict algorithm (06 section 3)", () => {
     definitions.set("tests-passed", { ...(CORE_GATES.get("tests-passed") as object), accepts_attestation: ["ci", "none"] });
     expect(evaluate("VERIFYING->MERGED", ["tests-passed"], [local], { definitions }).gates["tests-passed"]).toBe("PASS");
     expect(evaluate("IMPLEMENTING->VERIFYING", ["tests-passed"], [local]).gates["tests-passed"]).toBe("PASS");
+  });
+
+  it("tests-passed and factory-golden-passed accept only ci on VERIFYING->MERGED (review R-5)", () => {
+    for (const gate of ["tests-passed", "factory-golden-passed"]) {
+      expect(CORE_GATES.get(gate)?.["accepts_attestation"]).toEqual(["ci"]);
+    }
+    // A test-report is reproducible (06a section 3): a human-review or signature string does not stand in for CI.
+    for (const type of ["human-review", "signature"]) {
+      const other = record("test-report", "PROVEN", { attestation: { type, ref: "https://example/1" } });
+      const result = evaluate("VERIFYING->MERGED", ["tests-passed"], [other]);
+      expect(result.gates["tests-passed"]).toBe("BLOCKED");
+      expect(result.findings).toEqual([expect.objectContaining({ code: "ATTESTATION_REQUIRED", gate: "tests-passed", items: [other.id] })]);
+    }
   });
 
   it("a gate of another pack without a calculator and without requires_evidence is BLOCKED/NO_INPUT (INV-10)", () => {

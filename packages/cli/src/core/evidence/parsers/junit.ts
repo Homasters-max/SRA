@@ -45,10 +45,13 @@ export function countJunit(documents: readonly string[]): JunitCounts | null {
   return suites === 0 ? null : total;
 }
 
-/** Status of a junit report: any failure or error → NOT_PROVEN, no tests → INCONCLUSIVE. */
+/**
+ * Status of a junit report: any failure or error → NOT_PROVEN; no test ran —
+ * none at all, or every one skipped (review of phase 3, R-4) → INCONCLUSIVE.
+ */
 export function junitStatus(counts: JunitCounts): ParseResult["status"] {
   if (counts.failures + counts.errors > 0) return "NOT_PROVEN";
-  if (counts.tests === 0) return "INCONCLUSIVE";
+  if (counts.tests - counts.skipped <= 0) return "INCONCLUSIVE";
   return "PROVEN";
 }
 
@@ -58,7 +61,9 @@ export function parseJunitDocuments(documents: readonly string[]): ParseResult {
   if (counts === null) {
     return { status: "INCONCLUSIVE", limitations: ["junit: no <testsuite> found in {out}"] };
   }
-  return { status: junitStatus(counts), metrics: { ...counts }, limitations: [] };
+  const status = junitStatus(counts);
+  const limitations = status === "INCONCLUSIVE" && counts.tests > 0 ? [`junit: all ${counts.tests} tests skipped`] : [];
+  return { status, metrics: { ...counts }, limitations };
 }
 
 /** Reads every `*.xml` under `{out}` (sorted) and parses them together. */

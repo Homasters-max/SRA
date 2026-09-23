@@ -30,7 +30,11 @@ jobs:
       run:
         shell: bash
     steps:
+      # Full history with tags: versions.test.ts compares every component with
+      # the last release tag v* (R-14) and fails in CI when there is none.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -42,6 +46,22 @@ jobs:
 
       - name: Install OpenSpec
         run: npm i -g @fission-ai/openspec@1.13.1
+
+      # ADR-0011, D-15: openspec/specs/** changes only as the result of
+      # `warrant archive`, i.e. in an archive-PR from archive/<change>. Inside a
+      # Change `scope-valid` holds it; this step covers every other PR (R-16).
+      # Interim: `warrant ci` (phase 4) takes it over.
+      - name: Main specs only through an archive-PR
+        if: github.event_name == 'pull_request' && matrix.os == 'ubuntu-latest'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          changed="$(git diff --name-only "origin/$BASE_REF...HEAD" -- openspec/specs)"
+          if [ -n "$changed" ] && [[ "$HEAD_REF" != archive/* ]]; then
+            echo "::error::openspec/specs/** changed outside an archive-PR (branch $HEAD_REF): $changed"
+            exit 1
+          fi
 
       - name: Test
         run: npm test

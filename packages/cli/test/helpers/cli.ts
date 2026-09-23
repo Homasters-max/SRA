@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,14 @@ import { fileURLToPath } from "node:url";
 export const CLI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const REPO_ROOT = path.resolve(CLI_ROOT, "..", "..");
 export const BIN = path.join(CLI_ROOT, "dist", "bin", "warrant.js");
+
+/**
+ * Version of the bundled pack `core-sdd`, read from its manifest: tests never
+ * spell it, so a bump (R-14) does not touch them.
+ */
+export const CORE_SDD_VERSION: string = (
+  JSON.parse(readFileSync(path.join(REPO_ROOT, "packs", "core-sdd", "pack.json"), "utf8")) as { version: string }
+).version;
 
 export interface CliRun {
   status: number;

@@ -15,9 +15,10 @@
  *    with only unattested records → `BLOCKED` with `ATTESTATION_REQUIRED`.
  * 3. Every required kind's freshest record has the required status and the
  *    L0 calculator (if any) passes → `PASS`.
- * 4. An `ACTIVE` waiver in force for this gate and Change turns a `BLOCKED` or
- *    `FAIL` into `WAIVED` (`WAIVED_BY`) when the gate is `waivable: true`;
- *    otherwise the waiver is reported as `WAIVER_IGNORED`.
+ * 4. An `ACTIVE` waiver in force for this gate and Change, approved by a login
+ *    of `roles` (R-2), turns a `BLOCKED` or `FAIL` into `WAIVED` (`WAIVED_BY`)
+ *    when the gate is `waivable: true`; otherwise the waiver is reported as
+ *    `WAIVER_IGNORED`.
  * 5. Anything else → `FAIL`.
  *
  * Step 4 applies to `BLOCKED` as well as to `FAIL`: a waiver is how a gate
@@ -26,7 +27,7 @@
 import picomatch from "picomatch";
 
 import { CALCULATORS, type L0Result } from "./l0/index.js";
-import { activeWaiverIds, isWaiverInForce, prefilter } from "./prefilter.js";
+import { activeWaiverIds, approverLogin, isWaiverInForce, prefilter } from "./prefilter.js";
 import {
   MERGE_TRANSITION,
   VERDICT_ORDER,
@@ -34,7 +35,8 @@ import {
   type Finding,
   type GateEngineInput,
   type GateEngineResult,
-  type Verdict
+  type Verdict,
+  type WaiverInput
 } from "./types.js";
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -182,7 +184,11 @@ export function evaluateGates(input: GateEngineInput): GateEngineResult {
   const inPolicy = [...new Set(policy.gates[transition] ?? [])];
   const ids = (input.only === undefined ? inPolicy : inPolicy.filter((id) => input.only?.includes(id))).sort();
 
-  const active = activeWaiverIds(input.waivers, signals.today);
+  // A waiver approved by nobody of `roles` waives nothing anywhere: not a gate
+  // (step 4), not a kind of `evidence-complete`, not a record's `metrics.waivers`
+  // (review of phase 3, R-2). `validate` (11) reports it as WAIVER_INVALID.
+  const usable = input.approvers === undefined ? input.waivers : input.waivers.filter((w) => isApproved(w, input.approvers));
+  const active = activeWaiverIds(usable, signals.today);
   const { admissible, excluded } = prefilter(input.records, {
     commit: signals.commit,
     base: signals.base,
@@ -204,7 +210,7 @@ export function evaluateGates(input: GateEngineInput): GateEngineResult {
   const gates: Record<string, Verdict> = {};
   const evidence: Record<string, string[]> = {};
   for (const id of ids) {
-    const outcome = evaluateOne(id, input, admissible);
+    const outcome = evaluateOne(id, input, usable, admissible);
     gates[id] = outcome.verdict;
     evidence[id] = outcome.evidence;
     findings.push(...outcome.findings);
@@ -212,7 +218,17 @@ export function evaluateGates(input: GateEngineInput): GateEngineResult {
   return { gates, findings: findings.map(ordered), evidence };
 }
 
-function evaluateOne(id: string, input: GateEngineInput, admissible: readonly EvidenceInput[]): GateOutcome {
+/** Whether the waiver's `approved_by` (with or without `human:`) is a login of `roles`. */
+function isApproved(waiver: WaiverInput, approvers: ReadonlySet<string> | undefined): boolean {
+  return approvers === undefined || approvers.has(approverLogin(waiver.json));
+}
+
+function evaluateOne(
+  id: string,
+  input: GateEngineInput,
+  usable: readonly WaiverInput[],
+  admissible: readonly EvidenceInput[]
+): GateOutcome {
   const definition = input.definitions.get(id);
   if (definition === undefined) {
     return {
@@ -222,7 +238,7 @@ function evaluateOne(id: string, input: GateEngineInput, admissible: readonly Ev
     };
   }
 
-  const base = baseOutcome(id, definition, input, admissible);
+  const base = baseOutcome(id, definition, { ...input, waivers: [...usable] }, admissible);
   if (base.verdict !== "BLOCKED" && base.verdict !== "FAIL") return base;
   return applyWaivers(id, definition, base, input);
 }
@@ -332,6 +348,16 @@ function applyWaivers(id: string, definition: Record<string, unknown>, base: Gat
           message: `${waiverId} expired on ${String(waiver.json["expires_at"])}`
         });
       }
+      continue;
+    }
+    if (!isApproved(waiver, input.approvers)) {
+      findings.push({
+        code: "WAIVER_IGNORED",
+        gate: id,
+        waiver: waiverId,
+        reason: "approver",
+        message: `${waiverId} is ignored: approved_by ${JSON.stringify(waiver.json["approved_by"])} is not listed in roles of .warrant/warrant.json`
+      });
       continue;
     }
     if (definition["waivable"] !== true) {

@@ -43,6 +43,11 @@ export function isWaiverInForce(waiver: Record<string, unknown>, today: string):
   return waiver["waiver_state"] === "ACTIVE" && typeof expires === "string" && expires >= today;
 }
 
+/** Login of a waiver's `approved_by`, without the `human:` prefix. */
+export function approverLogin(waiver: Record<string, unknown>): string {
+  return String(waiver["approved_by"]).replace(/^human:/, "");
+}
+
 /** Ids of the waivers in force. */
 export function activeWaiverIds(waivers: readonly WaiverInput[], today: string): Set<string> {
   const ids = new Set<string>();

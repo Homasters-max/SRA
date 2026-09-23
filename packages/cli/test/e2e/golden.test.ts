@@ -13,7 +13,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
 import { openspecAvailable } from "../../src/core/openspec/cli.js";
-import { runCli } from "../helpers/cli.js";
+import { CORE_SDD_VERSION, runCli } from "../helpers/cli.js";
 
 interface GoldenRun {
   root: string;
@@ -84,7 +84,7 @@ describe("golden-фикстуры core-sdd", () => {
     expect(run.resolve["risk_level"]).toBe("LOW");
     const gates = run.resolve["gates"] as Record<string, string[]>;
     expect(gates["SPECIFIED->APPROVED"]).not.toContain("adversarial-review");
-    expect(run.resolve["sources"]).toContain("core-sdd@0.2.0:overlay/risk-low@1.0.0");
+    expect(run.resolve["sources"]).toContain(`core-sdd@${CORE_SDD_VERSION}:overlay/risk-low@1.0.0`);
   });
 
   it("factory-change: HIGH, factory-golden-passed, PRODUCTION_WRITE, наследование feature (SCN-SDD-007)", async () => {

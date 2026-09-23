@@ -192,8 +192,9 @@ describe("pack core-sdd: каталог", () => {
     }
   });
 
-  it("версия 0.2.0, kernel >=0.1 <0.4, rules пуст (REQ-SDD-001)", () => {
-    expect(manifest.version).toBe("0.2.0");
+  it("версия 0.2.x, kernel >=0.1 <0.4, rules пуст (REQ-SDD-001)", () => {
+    // REQ-SDD-001 называет 0.2.0; patch растёт по дисциплине версий (R-14), delta REQ-SDD-001 — phase-3b.
+    expect(manifest.version).toMatch(/^0\.2\.\d+$/);
     expect(manifest.kernel).toBe(">=0.1 <0.4");
     expect(provides["rules"]).toEqual([]);
     const result = validateFile(manifest, "pack.json");

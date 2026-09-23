@@ -21,6 +21,9 @@ version: 0.3.0
   `warrant archive`), tag `v0.3.0`. Решения по ходу реализации **I-66…I-101** — таблица в конце design.md архива
   `openspec/changes/archive/<date>-phase-3-verification/`. Версии: CLI **0.3.0**, pack `core-sdd` **0.2.0**
   (`kernel: ">=0.1 <0.4"`), `.warrant/warrant.json` `kernel: "0.3"`.
+- **После фазы 3** — ветка `fix/phase-3-review` (ревью R-1…R-16): CLI **0.3.1**, pack `core-sdd` **0.2.1** (R-14); после
+  merge в `main` — tag `v0.3.1`. С этой ветки bump версии делается первым изменением после релиза и проверяется
+  (`versions.test.ts`).
 - **Первый прогон на Linux** (CI impl-PR) нашёл два дефекта, невидимых на Windows: I-100 (prefix проекта через
   `path.relative` к `--show-toplevel` обнулял diff при 8.3-имени/symlink temp-каталога → `scope-valid` ложно `PASS`) и I-101
   (обёртка fake `openspec` в тестах звала внешний `dirname` при PATH только из fake). Оба исправлены в impl-PR; CI зелёный
@@ -61,21 +64,23 @@ version: 0.3.0
 | I-77 | Удаление ID delta'ой `REMOVED` в коммите archive даёт `ID_IMMUTABLE` по проверке (9) `validate`: archive-коммит нужно сравнивать с архивной копией delta, как для MODIFIED (I-73) | phase-3b |
 | I-90 | `branch-isolated` на detached HEAD — `FAIL`; в CI `pull_request` HEAD detached. Сейчас не мешает (gate на `APPROVED->IMPLEMENTING`, считается локально); пересмотреть по первому failure mode | по failure mode |
 | I-93 | `transition` пишет `by: "cli:local"` и на `APPROVED`/`MERGED` (REQ-VER-007), а 04 §9 называет такую запись невалидной — противоречие нормы и spec; 04 §9 не правился | ADR или правка 04 §9 |
-| `files` | `package.json` `files` не включает `sra/`: установленный через `npm i -g` CLI не находит skill `adversarial-review` (bundled `provides.skills`) | quick fix + e2e на установленном пакете |
+| `files` | ~~`package.json` `files` не включает `sra/`~~ — **закрыт R-15** (`sra/skills` в `files`, тест состава `npm pack`) | — |
 | 13 §2 | Строка фазы 3 всё ещё перечисляет `analyze` и `warrant link`, а по P-4 это `phase-3b`; поправить 13 §2 (и строку 4-й фазы, если `analyze` уйдёт туда) | с первым change phase-3b |
 | P-2 | Порядок P-2 нарушен в фазе 3: spec-PR #6 смержен до появления `transition`, поэтому `SPECIFIED`/`APPROVED`/`IMPLEMENTING`/`VERIFYING` пишутся в impl-PR. Со следующего change — строго по ADR-0011 (`SPECIFIED` в spec-PR) | процесс |
 | I-59 | `packContentHash` исключает `golden/` pack'а — пересмотреть, если golden начнёт влиять на policy | later |
 | I-64 | `runCli` и `golden-lib.js` асинхронные; короткие `spawnSync` остались для `git` и `openspecAvailable()` | later |
 | `analyze` | P-4 относит `analyze` к `phase-3b`, «Чего не делать» и таблица D ниже — к фазе 4; решить при нарезке | нарезка phase-3b |
 
-### Ревью фазы 3 (2026-09-23) — R-1…R-13
+### Ревью фазы 3 (2026-09-23) — R-1…R-16
 
 Ревью кода `main` после PR #8 по пяти вопросам maintainer'а: (1) `MERGED --commit` на старом предке; (2) I-96,
 кто проверяет свежесть и attestation каждого kind; (3) I-84 + I-91, не проходит ли переход с непроверенным gate;
 (4) модель доверия `human-approval`; (5) кроссплатформенность. Быстрые фиксы — ветка `fix/phase-3-review`
 (worktree `D:\project\SRA-review-fixes`), по коммиту на находку. Ни один REQ/SCN main specs и ни одна строка архивного
-design.md не правились: уточнения нормы — отдельными строками ниже, delta'ой в phase-3b. Правку документов 04/06/06a/13
-по этим находкам maintainer предложил отложить до конца phase-3b (список в запросе обрезан — уточнить).
+design.md не правились: уточнения нормы — отдельными строками ниже, delta'ой в phase-3b. **Решение maintainer'а:** до конца
+phase-3b можно отложить документы (04/06/06a/13, README), стиль кода и полноту тестов вне ядра; ядро (`check → gate →
+verify → transition`, gate engine, runner) — нет. Нерешённые вопросы ревью maintainer делегировал («реши сам, системно»):
+решения R-8, R-14 ниже.
 
 Сделано (`fix/phase-3-review`):
 
@@ -85,7 +90,10 @@ design.md не правились: уточнения нормы — отдел�
 | R-2 | `approved_by ∈ roles` waiver'а проверял только `validate` (11); `gate`/`verify`/`transition` его не вызывают — waiver от любого логина снимал `BLOCKED`/`FAIL` waivable gate, извинял kind в `evidence-complete`, держал записи с `metrics.waivers` | `5ecf580`: gate engine получает `approvers`; waiver вне roles → `WAIVER_IGNORED` reason `approver`, в `evidence-complete` и пред-фильтре не участвует | REQ-VER-003 шаг 4: «waiver, `approved_by` которого ∈ roles» + SCN — delta в phase-3b |
 | R-3 | `check` ловил только `SIGINT`/`SIGTERM`; child `detached` = своя сессия на POSIX, поэтому закрытие терминала (`SIGHUP`) убивало CLI без cleanup: замок оставался, дерево `npm test` работало сиротой. Windows: закрытие консоли = `SIGHUP`, Ctrl+Break = `SIGBREAK` | `a4cd2a5`: + `SIGHUP`, на win32 + `SIGBREAK`; повторный подъём сигнала, где Windows не умеет, — `exit(128 + n)`; unit-тест в дочернем процессе (замок снят) | — |
 | R-4 | junit, где все тесты `skipped`, давал `PROVEN` (`tests` включает skipped) — `tests-passed` проходил без выполненного теста | `d52aa71`: `tests - skipped <= 0` → `INCONCLUSIVE`, limitation `junit: all N tests skipped` | design §5 «`tests = 0` → `INCONCLUSIVE`» читать как «ни один не выполнен»; в REQ-VER-002 — строкой при delta phase-3b |
-| R-5 | `tests-passed`, `factory-golden-passed` без `accepts_attestation` → на `MERGED` засчитывалась любая attestation ≠ `none` (`human-review`, `signature`) | `6da9b65`: `accepts_attestation: ["ci"]`; lock'и репозитория и golden пересчитаны | **Вопрос maintainer'у:** версия pack `core-sdd` осталась `0.2.0`, gates — `1.0.0` (как G-20); bump до `0.2.1` к следующему tag? |
+| R-5 | `tests-passed`, `factory-golden-passed` без `accepts_attestation` → на `MERGED` засчитывалась любая attestation ≠ `none` (`human-review`, `signature`) | `6da9b65`: `accepts_attestation: ["ci"]`; lock'и репозитория и golden пересчитаны | версия — R-14 |
+| R-14 | Правило «поднять версию к следующему tag» жило прозой (G-20) и забывалось: после `v0.3.0` CLI и pack изменились, версии — нет; проект с lock'ом получил бы `LOCK_MISMATCH` при той же версии pack'а | `6d08377`: **bump первым изменением после релиза, с проверкой**: `scripts/versions-lib.js`, `npm run versions:check`, e2e `versions.test.ts` (CLI, каждый pack без `golden/`, каждый skill против последнего tag `v*`; в CI без tags — падение); CI `test` с `fetch-depth: 0`. Bump: CLI `0.3.1`, `core-sdd` `0.2.1`; тесты читают версию pack из `pack.json` | REQ-SDD-001 фиксирует «версии `0.2.0`» — spec не должен фиксировать patch: delta «`0.2.x`, patch — по R-14» в phase-3b (тест уже проверяет `0.2.x`) |
+| R-15 | Долг `files`: `sra/` не входил в пакет — установленный CLI не находил skill `adversarial-review`; дефект виден только на установленном пакете | `6fe3259`: `files` + `sra/skills`; e2e `package-contents.test.ts` по `npm pack --dry-run` (bin, схемы, pack без golden, SKILL.md каждого `provides.skills`) | — |
+| R-16 | «Main specs меняются только archive-PR» (ADR-0011, D-15) держал `scope-valid` лишь на переходах Change; PR вне Change не проверял никто | `84c46bc`: шаг CI `test` (ubuntu, `pull_request`): diff `openspec/specs/**` в PR не из `archive/*` → ошибка; временно до `warrant ci` фазы 4 | — |
 
 Не исправлено — в phase-3b (или куда указано):
 
@@ -93,12 +101,45 @@ design.md не правились: уточнения нормы — отдел�
 |---|---|---|---|
 | R-6 | `--ref` перехода `MERGED` не сверяется с `attestation.ref` CI-записей, на которых вынесены verdicts: можно сослаться на один run, а записи взять из другого | `transition MERGED`: все записи `ci` перехода с `attestation.ref === --ref`, иначе `USAGE`/finding | phase-3b (или `ci` фазы 4) |
 | R-7 | Kind из `evidence.required`, который не читает ни один gate policy, закрывается любой записью: любой commit, статус, attestation (рукописный JSON) | `validate`/`resolve`: `EVIDENCE_KIND_UNGATED` — kind без gate с `requires_evidence` этого kind | phase-3b |
-| R-8 | `evidence-complete` не смотрит `evidence_status` (`review` `NOT_PROVEN` засчитан — так задумано I-96, есть unit-тест) и `waivable`/`targets[]` waiver'а-извинения (I-99) | решить: считать ли только `PROVEN`/`NOT_APPLICABLE`; waiver на невэйвабельный gate не извиняет kind | phase-3b, решение maintainer'а (I-96/I-99 — его решения) |
+| R-8 | `evidence-complete` не смотрит `evidence_status` (`review` `NOT_PROVEN` засчитан — так задумано I-96, есть unit-тест) и `waivable`/`targets[]` waiver'а-извинения (I-99) | **Решено (делегировано maintainer'ом):** kind засчитывается записью в статусе `PROVEN` или `NOT_APPLICABLE` (на любом commit — как I-96); waiver-извинение — только на waivable gate без `targets[]` (как шаг 4). Уточняет I-96/I-99; unit-тест I-96 с `review` `NOT_PROVEN` меняется | phase-3b, вместе с delta REQ-VER-004 |
 | R-9 | `NOT_APPLICABLE` засчитывается из любой записи, D-11 требует «выставлен детерминированным check»; `produced_by.type` не проверяется. Сейчас ни один parser `NOT_APPLICABLE` не производит | verdict: `NOT_APPLICABLE` только при `produced_by.type === "check"` | до первого producer'а (mutation, фаза 5); лучше в phase-3b |
 | R-10 | Предел доверия не записан: `--ref` проверяется только как http(s) URL, `--by` — заявление, `human-approval` с `attestation: human-review` неотличима от будущей верифицированной; при этом 04 §7 помечает «верифицируемый `--ref`» как MVP, ADR-0010 п. 3 считает запись без верифицируемого ref невалидной, INV-03 требует `review.author ≠ pr.author` (при одном maintainer'е невыполнимо — в dogfooding фазы 3 автор и approver совпадают). Предел есть только в P-17 | (а) запись `human-approval` получает `limitations: ["ref not verified (phase 4: warrant ci)"]`; (б) фраза в REQ-VER-007 и 06a §3; (в) INV-03 — статус «Частично» с пояснением | одной правкой с I-93 (ADR или 04 §9) |
-| R-11 | Код замка, kill дерева и путей на Linux проверен только CI-тестами, реального использования не было | smoke в WSL Ubuntu (node не установлен): `check` с timeout и деревом процессов, Ctrl+C, закрытие терминала (после R-3), `BUSY`, ручное снятие замка | до phase-3b, с согласия maintainer'а (ставит node в WSL) |
+| R-11 | Код замка, kill дерева и путей на Linux проверен только CI-тестами, реального использования не было | smoke в WSL Ubuntu (node не установлен): `check` с timeout и деревом процессов, Ctrl+C, закрытие терминала (после R-3), `BUSY`, ручное снятие замка | **отложено решением maintainer'а** (2026-09-23); до первого реального использования на Linux |
 | R-12 | INFO: CI-evidence считается на head impl-PR, а не на результате merge: «злой» merge или сдвиг `main` после CI-прогона не судятся | branch protection «require branches up to date» или `ci` фазы 4 на merge-коммите | фаза 4 / настройка GitHub |
 | R-13 | INFO: controller-rules project-слоя могут отобразить `gate_verdict: BLOCKED` в `CONTINUE` — меняется код выхода `verify` (на `transition` не влияет: он сам проверяет verdicts) | `validate`: правило не может давать `CONTINUE` при `BLOCKED`/`FAIL`, или kernel fallback раньше правил project-слоя | phase-3b |
+
+### Процессные правила → чем держатся (R-14…R-16, 2026-09-23)
+
+Почему забылись bump, `files` и «REQ только delta'ой»: правило о **форме** жило прозой в NEXT-SESSION / решениях G-, P- без
+`enforced_by` — ровно то, что ADR-0022 запрещает для правил проекта (INV-04). Принцип: у каждого процессного правила о форме
+есть проверка в `npm test` / `validate` / CI; прозой остаются только правила о **решении** (что выбрать), и они помечены как
+таковые. Новое правило о форме без проверки не принимается.
+
+| Правило | Где записано | Чем держится |
+|---|---|---|
+| JSON канонический | ADR-0006 | `validate` (canonical) + CI |
+| Генерируемое не правится руками | ADR-0015, rule `generated-not-hand-edited` | `validate` (drift, проверка 4) |
+| Lock после изменения pack | 08 §7 | `validate` `LOCK_MISMATCH` |
+| Golden после изменения pack | REQ-SDD-009 | `golden.test.ts` |
+| Версия после изменения поставляемого | было G-20 (проза) | **R-14** `versions.test.ts`, `versions:check` |
+| Состав пакета | было долгом `files` | **R-15** `package-contents.test.ts` |
+| Main specs только через archive-PR | ADR-0011, D-15 | `scope-valid` в Change + **R-16** шаг CI вне Change |
+| impl-PR — только merge commit | I-97 | **R-1** `transition MERGED` (`COMMIT_NOT_MERGED`) |
+| CI на ubuntu + windows | P-9 | `ci.yml` matrix |
+| Порядок P-2 (что в каком PR) | ADR-0011, P-2 | частично: `transition` (последовательность), `scope-valid`; размещение по PR — `warrant ci`, фаза 4 |
+| Одна ветка — один worktree, ветку проверять перед коммитом | «Организационное», memory | проза: машина не знает, какой ветке принадлежит работа; шаг процедуры `/group-done` (ниже) |
+| Отклонение от spec — строкой I-N в design.md, вопросом maintainer'у | pack `rules.design` (1.4) | правило о решении (ADR-0022 допускает без `enforced_by`); нумерацию I-N ведёт `/decision` (ниже) |
+| NEXT-SESSION обновляется в конце сессии | этот файл | процедура `/next-session` (ниже) |
+
+Процедуры `.claude/commands/` — `/decision` (следующий I-N строкой в таблицу design.md), `/group-done <N>` (ветка и worktree,
+typecheck, test, validate, `versions:check`, коммит, галочки tasks.md), `/next-session` — были в плане «Карта агента» и
+выпали вместе с change `agent-session-guide` (решение P-1), никуда не перенесённые. **Решение:** первая группа phase-3b
+(до кода); критерий P-1 сохраняется — файл в `.claude/` автоматизирует процедуру, правил в нём нет.
+
+Skills (reasoning SRA, [07](07-skills.md)) — где они в плане: контракт вызова (`run start` / `run submit`, схемы `run/1`,
+`skill-result/1`) и первый реальный skill `adversarial-review` через `codex exec` (D-5, снимает WAV-2026-002) — **фаза 4**;
+расширение набора (bdd-tdd, arch) — фаза 5; интеграция каталога SRA — фаза 9. Расхождение: 13 §2 пишет «adversarial review»
+в фазе 5, а D-5 и «Вход в фазу 4» — в фазе 4; правится вместе с 13 §2 (отложенные документы).
 
 ### Вход в phase-3b / фазу 4
 
@@ -106,7 +147,8 @@ design.md не правились: уточнения нормы — отдел�
   `--supersedes`, до `APPROVED`), поведение `waiver.targets[]` (D-10) и `warrant waive`, gate `spec-approved` (D-3),
   исполнение `execution.local` / `guard_prefixes`, `analyze` (см. долг), `validate --files`, проверки (d) висячие REQ/SCN и
   (f) pragma, `AGENTS.md` побайтно, понижение classification ниже floor с approval (P-5); плюс I-77 и находки ревью фазы 3:
-  delta REQ-VER-002/003/007 под фиксы R-1, R-2, R-4 и открытые R-6…R-10, R-13 (раздел «Ревью фазы 3» выше).
+  delta REQ-VER-002/003/004/007 и REQ-SDD-001 под фиксы R-1, R-2, R-4, R-14 и открытые R-6…R-10, R-13 (раздел «Ревью фазы 3»
+  выше); первая группа — процедуры `.claude/commands/` («Процессные правила»).
 - **Фаза 4** (MVP frontend, [13 §2](13-roadmap.md)): `sync` (`.codex/hooks.json`, `AGENTS.md`), `run start` / `run submit`,
   схемы `run/1` и `skill-result/1`, `guard` (pre/post, без Run → `deny`, D-4), `warrant ci` (verdict impl-PR вместо ручного
   переноса artifact'а), адаптер `codex` — после spike **S8** (hooks Codex под `codex-acp` и `codex exec`, 13 §3), finding
@@ -118,13 +160,14 @@ design.md не правились: уточнения нормы — отдел�
 ### Продолжение — готовый запрос
 
 ```text
-Прочитай docs/NEXT-SESSION.md целиком (состояние фазы 3, «Долг после фазы 3», «Ревью фазы 3» R-1…R-13, «Вход в phase-3b / фазу 4», решения P-1…P-20,
+Прочитай docs/NEXT-SESSION.md целиком (состояние фазы 3, «Долг после фазы 3», «Ревью фазы 3» R-1…R-16, «Процессные правила», «Вход в phase-3b / фазу 4», решения P-1…P-20,
 «Долг схем и CLI» C–E, D-1…D-25), затем design.md архива phase-3-verification (таблица I-66…I-101), docs/13-roadmap.md §2 и
 §3 (S8), ADR-0011, 0016, 0021. Фаза 3 закрыта: impl-PR и archive-PR смержены, tag v0.3.0.
 Сначала — долг, не требующий spec: package.json files (sra/), 13 §2 (analyze/link → phase-3b). Затем решим нарезку:
 /opsx:propose change `phase-3b` (link, targets[] и warrant waive, spec-approved, execution.local/guard_prefixes,
-validate --files, (d)/(f), AGENTS.md, понижение ниже floor, I-77; delta REQ-VER под R-1/R-2/R-4 и открытые R-6…R-10, R-13;
-analyze — по решению). Ветка fix/phase-3-review (R-1…R-5) — смержена в main до propose. Порядок P-2 строго: spec-PR с
+validate --files, (d)/(f), AGENTS.md, понижение ниже floor, I-77; delta REQ-VER/REQ-SDD под R-1/R-2/R-4/R-14 и открытые
+R-6…R-10, R-13; группа 1 — процедуры .claude/commands; analyze — по решению). Ветка fix/phase-3-review (R-1…R-5, R-14…R-16)
+смержена в main и tag v0.3.1 поставлен до propose. Порядок P-2 строго: spec-PR с
 transition SPECIFIED, impl-PR с APPROVED/IMPLEMENTING первым и VERIFYING последним коммитом, CI job evidence, archive-PR
 с artifact'ом, merge impl-PR только merge commit. Потолок ≤ 6 групп, ~30 задач (G-8). Изменение REQ — delta spec, не молча.
 Схема работы прежняя: координатор — ты (Fable), субагент Opus на группу, отчёт ≤ 70 строк с Decisions/deviations.

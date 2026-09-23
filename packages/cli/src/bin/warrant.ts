@@ -17,6 +17,8 @@ import { runGate } from "../commands/gate.js";
 import { runVerify } from "../commands/verify.js";
 import { runTransition } from "../commands/transition.js";
 import { runArchive } from "../commands/archive.js";
+import { runLink } from "../commands/link.js";
+import { runWaive } from "../commands/waive.js";
 
 export type Runner = (args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -111,7 +113,8 @@ register(
       ...(typeof opts["paths"] === "string" ? { paths: opts["paths"] } : {}),
       ...(typeof opts["propose"] === "string" ? { propose: opts["propose"] } : {}),
       ...(Array.isArray(opts["set"]) && opts["set"].length > 0 ? { set: opts["set"] as string[] } : {}),
-      ...(typeof opts["by"] === "string" ? { by: opts["by"] } : {})
+      ...(typeof opts["by"] === "string" ? { by: opts["by"] } : {}),
+      ...(typeof opts["ref"] === "string" ? { ref: opts["ref"] } : {})
     }),
   (c) =>
     c
@@ -121,6 +124,53 @@ register(
       .option("--propose <json>", "proposer's profiles and risk values as JSON")
       .option("--set <dim=value>", "a human value: <dimension>=<value> or profile=<id> (repeatable; needs --by)", collect, [])
       .option("--by <login>", "login of the human behind --set; must be listed in roles of warrant.json")
+      .option(
+        "--ref <url>",
+        "URL of the approval of the --set risk values; lets them go below the floor (PROPOSED/SPECIFIED only, --by in the approvers of SPECIFIED->APPROVED)"
+      )
+);
+register(
+  "link",
+  "add or remove an amends/supersedes link of a change (PROPOSED or SPECIFIED only)",
+  (args, opts) =>
+    runLink(args[0] as string, {
+      ...(typeof opts["amends"] === "string" ? { amends: opts["amends"] } : {}),
+      ...(typeof opts["supersedes"] === "string" ? { supersedes: opts["supersedes"] } : {}),
+      ...(opts["remove"] === true ? { remove: true } : {})
+    }),
+  (c) =>
+    c
+      .argument("<change>")
+      .option("--amends <target>", "a MERGED or ARCHIVED change this one amends")
+      .option("--supersedes <target>", "an ABANDONED change this one supersedes")
+      .option("--remove", "remove the target from the list instead of adding it")
+);
+register(
+  "waive",
+  "propose a waiver (<change> <gate> ...), or --activate / --revoke one as a maintainer",
+  (args, opts) =>
+    runWaive(args, {
+      ...(typeof opts["reason"] === "string" ? { reason: opts["reason"] } : {}),
+      ...(typeof opts["risk"] === "string" ? { risk: opts["risk"] } : {}),
+      ...(Array.isArray(opts["control"]) && opts["control"].length > 0 ? { control: opts["control"] as string[] } : {}),
+      ...(typeof opts["owner"] === "string" ? { owner: opts["owner"] } : {}),
+      ...(typeof opts["expires"] === "string" ? { expires: opts["expires"] } : {}),
+      ...(typeof opts["activate"] === "string" ? { activate: opts["activate"] } : {}),
+      ...(typeof opts["revoke"] === "string" ? { revoke: opts["revoke"] } : {}),
+      ...(typeof opts["by"] === "string" ? { by: opts["by"] } : {})
+    }),
+  (c) =>
+    c
+      .argument("[change]", "change the proposed waiver applies to")
+      .argument("[gate]", "waivable gate the proposed waiver applies to")
+      .option("--reason <text>", "why the gate cannot be satisfied")
+      .option("--risk <LOW|MEDIUM|HIGH>", "risk accepted by the waiver")
+      .option("--control <text>", "a compensating control (repeatable, at least one)", collect, [])
+      .option("--owner <human:login>", "the person accountable for the accepted risk")
+      .option("--expires <YYYY-MM-DD>", "last day of the waiver (not before today, UTC)")
+      .option("--activate <WAV>", "PROPOSED -> ACTIVE; needs --by of a maintainer")
+      .option("--revoke <WAV>", "PROPOSED or ACTIVE -> REVOKED; needs --by of a maintainer")
+      .option("--by <login>", "the maintainer activating or revoking the waiver")
 );
 register(
   "status",

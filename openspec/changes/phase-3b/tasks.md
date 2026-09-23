@@ -29,10 +29,10 @@
 
 ## 4. Команды link, waive, classify ниже floor
 
-- [ ] 4.1 `warrant link <change> --amends|--supersedes <target> [--remove]` (design §8), регистрация в `bin/warrant.ts`, справка. Проверка: e2e SCN-KRN-118, SCN-KRN-119, SCN-KRN-120; `status` цели показывает `amended_by[]`. (REQ-KRN-030)
-- [ ] 4.2 `warrant waive` — создание `PROPOSED` с `WAV-<год>-NNN`, `--activate`, `--revoke` (design §8). Проверка: e2e SCN-KRN-121, SCN-KRN-122, SCN-KRN-123, SCN-KRN-124; файлы канонические, `warrant validate` `ok: true` после каждого шага. (REQ-KRN-031)
-- [ ] 4.3 `classify --set <dim>=<v> --by --ref` ниже floor до `APPROVED`, сохранение при повторном запуске, `approved-below-floor` (design §10). Проверка: unit `classify()` + e2e SCN-KRN-106, SCN-KRN-116, SCN-KRN-117. (REQ-KRN-028)
-- [ ] 4.4 README: команды `link`, `waive`, `classify --ref`; раздел archive-PR — artifact одного CI run'а (R-6). Проверка: примеры команд из README выполняются в temp-проекте e2e-тестом или вручную с выводом в отчёте группы.
+- [x] 4.1 `warrant link <change> --amends|--supersedes <target> [--remove]` (design §8), регистрация в `bin/warrant.ts`, справка. Проверка: e2e SCN-KRN-118, SCN-KRN-119, SCN-KRN-120; `status` цели показывает `amended_by[]`. (REQ-KRN-030)
+- [x] 4.2 `warrant waive` — создание `PROPOSED` с `WAV-<год>-NNN`, `--activate`, `--revoke` (design §8). Проверка: e2e SCN-KRN-121, SCN-KRN-122, SCN-KRN-123, SCN-KRN-124; файлы канонические, `warrant validate` `ok: true` после каждого шага. (REQ-KRN-031)
+- [x] 4.3 `classify --set <dim>=<v> --by --ref` ниже floor до `APPROVED`, сохранение при повторном запуске, `approved-below-floor` (design §10). Проверка: unit `classify()` + e2e SCN-KRN-106, SCN-KRN-116, SCN-KRN-117. (REQ-KRN-028)
+- [x] 4.4 README: команды `link`, `waive`, `classify --ref`; раздел archive-PR — artifact одного CI run'а (R-6). Проверка: примеры команд из README выполняются в temp-проекте e2e-тестом или вручную с выводом в отчёте группы.
 
 ## 5. spec-approved и execution.local
 

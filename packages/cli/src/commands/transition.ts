@@ -131,7 +131,8 @@ export function approvalRoles(policy: EffectivePolicy, transition: string): stri
   return roles.length > 0 ? roles : [FALLBACK_ROLE];
 }
 
-function checkRef(ref: string): void {
+/** `USAGE` unless `ref` is an http(s) URL (the forge act); also `classify --ref`. */
+export function checkRef(ref: string): void {
   let url: URL;
   try {
     url = new URL(ref);

@@ -17,6 +17,8 @@ export type RiskLevel = "LOW" | "MEDIUM" | "HIGH";
 export interface RiskEntry {
   value: string;
   from: string;
+  /** URL of the approval of a value below the floor; only with `from: human:<login>` (REQ-KRN-028). */
+  ref?: string;
 }
 
 /** `classification` of a change record, or the document passed to `--classification`. */

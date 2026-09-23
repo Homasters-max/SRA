@@ -11,7 +11,21 @@ const TARGET_STATES = {
   supersedes: ["ABANDONED"]
 } as const;
 
-type LinkField = keyof typeof TARGET_STATES;
+export type LinkField = keyof typeof TARGET_STATES;
+
+export const LINK_FIELDS: readonly LinkField[] = ["amends", "supersedes"];
+
+/**
+ * Why `target` may not stand in `field` of a record, or null when it may: the
+ * one predicate of check (10) and of `warrant link` (design §8).
+ */
+export function linkTargetProblem(field: LinkField, target: string, records: ReadonlyMap<string, RecordFile>): string | null {
+  const allowed: readonly string[] = TARGET_STATES[field];
+  const state = stateOf(records.get(target));
+  if (state !== undefined && allowed.includes(state)) return null;
+  const why = state === undefined ? `there is no record for "${target}"` : `"${target}" is ${state}`;
+  return `${field} target must be a Change in ${allowed.join(" or ")}: ${why}`;
+}
 
 function targetsOf(record: RecordFile, field: LinkField): string[] {
   const value = record.json[field];
@@ -25,20 +39,14 @@ function targetsOf(record: RecordFile, field: LinkField): string[] {
 export function checkLinkTargets(records: ReadonlyMap<string, RecordFile>): CliError[] {
   const errors: CliError[] = [];
   for (const record of records.values()) {
-    for (const field of Object.keys(TARGET_STATES) as LinkField[]) {
-      const allowed: readonly string[] = TARGET_STATES[field];
+    for (const field of LINK_FIELDS) {
       const value = record.json[field];
       if (!Array.isArray(value)) continue;
       value.forEach((target, i) => {
         if (typeof target !== "string") return;
-        const state = stateOf(records.get(target));
-        if (state !== undefined && allowed.includes(state)) return;
-        const why = state === undefined ? `there is no record for "${target}"` : `"${target}" is ${state}`;
-        errors.push({
-          code: "LINK_TARGET_INVALID",
-          message: `${field} target must be a Change in ${allowed.join(" or ")}: ${why}`,
-          path: `${record.path}#/${field}/${i}`
-        });
+        const problem = linkTargetProblem(field, target, records);
+        if (problem === null) return;
+        errors.push({ code: "LINK_TARGET_INVALID", message: problem, path: `${record.path}#/${field}/${i}` });
       });
     }
   }

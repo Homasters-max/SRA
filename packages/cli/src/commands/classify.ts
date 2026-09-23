@@ -16,6 +16,13 @@
  * `warrant.json` (`ROLE_REQUIRED`), `--set` without `--by` is `USAGE`, a value
  * below the floor is `BELOW_FLOOR` and nothing is written. A frozen record
  * (`ARCHIVED`, `ABANDONED`) is `RECORD_FROZEN` (REQ-VER-007).
+ *
+ * `--ref <url>` (REQ-KRN-028, design §10) makes the risk values of `--set`
+ * approved: they may go below the floor and are written with `ref`. It is
+ * accepted only in `PROPOSED` / `SPECIFIED` (`STATE_INVALID`) and only from a
+ * login in a role of `approvals[]` of `SPECIFIED->APPROVED` of the effective
+ * policy of the record as it stands (`maintainer` without one; `ROLE_REQUIRED`).
+ * The ref is not verified before `warrant ci` (phase 4).
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -40,6 +47,7 @@ import { resolveForProject, RISK_DIMENSIONS, type Classification, type RiskDimen
 import { roleMembers } from "../core/validate/waivers.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
+import { approvalRoles, checkRef, FALLBACK_ROLE } from "./transition.js";
 
 // `cross-spawn` — CommonJS с `export =`; на Windows это ещё и единственный
 // способ запустить `git` одинаково с `runOpenspec`.
@@ -56,7 +64,15 @@ export interface ClassifyOptions {
   set?: string[] | undefined;
   /** `--by <login>`: the human behind `--set`. */
   by?: string | undefined;
+  /** `--ref <url>`: the approval of the `--set` risk values, which may then go below the floor. */
+  ref?: string | undefined;
 }
+
+/** The transition whose approvers may approve a value below the floor (REQ-KRN-028). */
+export const BELOW_FLOOR_APPROVAL = "SPECIFIED->APPROVED";
+
+/** States in which a value below the floor may be approved: before `APPROVED`. */
+const APPROVABLE_STATES = ["PROPOSED", "SPECIFIED"];
 
 /** Parsed `--set` values; `USAGE` for anything that is not `<dimension>=<value>` or `profile=<id>`. */
 export function parseSets(sets: readonly string[]): { profiles: string[]; risk: Partial<Record<RiskDimension, string>> } {
@@ -88,8 +104,20 @@ export function parseSets(sets: readonly string[]): { profiles: string[]; risk: 
   return { profiles, risk };
 }
 
+/**
+ * Roles allowed to approve a value below the floor: those of `approvals[]` at
+ * `SPECIFIED->APPROVED` of the effective policy of the record's classification
+ * (`maintainer` when there is none, or when that policy is in conflict).
+ */
+function belowFloorRoles(loaded: LoadResult, record: Record<string, unknown>): { roles: string[]; errors: CliError[] } {
+  const resolved = resolveForProject(loaded, isPlainObject(record["classification"]) ? (record["classification"] as Classification) : undefined);
+  if (resolved.errors.length > 0) return { roles: [], errors: resolved.errors };
+  if (!resolved.result.ok) return { roles: [FALLBACK_ROLE], errors: [] };
+  return { roles: approvalRoles(resolved.result.policy, BELOW_FLOOR_APPROVAL), errors: [] };
+}
+
 /** The human source of the call, checked against `roles` and the declared profiles. */
-function humanValues(loaded: LoadResult, sets: ReturnType<typeof parseSets>, login: string): HumanValues {
+function humanValues(loaded: LoadResult, sets: ReturnType<typeof parseSets>, login: string, ref?: string): HumanValues {
   if (!roleMembers(loaded.config).has(login)) {
     throw new WarrantError("ROLE_REQUIRED", `${login} is not listed in any role of .warrant/warrant.json; --set needs a login from roles`, {
       path: ".warrant/warrant.json"
@@ -102,6 +130,7 @@ function humanValues(loaded: LoadResult, sets: ReturnType<typeof parseSets>, log
   const human: HumanValues = { login };
   if (sets.profiles.length > 0) human.profiles = sets.profiles;
   if (Object.keys(sets.risk).length > 0) human.risk = sets.risk;
+  if (ref !== undefined) human.ref = ref;
   return human;
 }
 
@@ -258,6 +287,21 @@ export function runClassify(
   if (login !== undefined && !/^[A-Za-z0-9._-]+$/.test(login)) {
     throw new WarrantError("USAGE", `--by ${JSON.stringify(login)} is not a login ([A-Za-z0-9._-]+)`);
   }
+  const ref = opts.ref !== undefined && opts.ref !== "" ? opts.ref : undefined;
+  if (ref !== undefined) {
+    if (sets === undefined || Object.keys(sets.risk).length === 0) {
+      throw new WarrantError("USAGE", "--ref approves --set <dimension>=<value>: pass at least one risk value with --set and --by");
+    }
+    checkRef(ref);
+    const state = String(record["change_state"]);
+    if (!APPROVABLE_STATES.includes(state)) {
+      throw new WarrantError(
+        "STATE_INVALID",
+        `record of "${change}" is ${state}: a value below the floor is approved only in PROPOSED or SPECIFIED`,
+        { path: `.warrant/changes/${change}.json` }
+      );
+    }
+  }
   const proposal = opts.propose !== undefined && opts.propose !== "" ? parseProposal(opts.propose) : undefined;
   const changed =
     opts.paths !== undefined && opts.paths !== ""
@@ -266,7 +310,18 @@ export function runClassify(
 
   const loaded = loadPacks(root);
   if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
-  const human = sets !== undefined && login !== undefined ? humanValues(loaded, sets, login) : undefined;
+  if (ref !== undefined && login !== undefined) {
+    const { roles, errors } = belowFloorRoles(loaded, record);
+    if (errors.length > 0) return failures(errors, EXIT.CONFIG, {}, change);
+    if (!roleMembers(loaded.config, roles).has(login)) {
+      throw new WarrantError(
+        "ROLE_REQUIRED",
+        `${login} is not listed in roles ${roles.map((r) => `"${r}"`).join(", ")} of .warrant/warrant.json, required to approve a value below the floor (${BELOW_FLOOR_APPROVAL})`,
+        { path: ".warrant/warrant.json" }
+      );
+    }
+  }
+  const human = sets !== undefined && login !== undefined ? humanValues(loaded, sets, login, ref) : undefined;
 
   const result = classify({
     changed,
@@ -281,7 +336,7 @@ export function runClassify(
   if (result.belowFloor.length > 0) {
     const errors: CliError[] = result.belowFloor.map((b) => ({
       code: "BELOW_FLOOR",
-      message: `--set ${b.dimension}=${b.value} is below the floor ${b.floor} (${b.from}); lowering below the floor is not supported`,
+      message: `--set ${b.dimension}=${b.value} is below the floor ${b.floor} (${b.from}); lowering below the floor needs --ref <url> of its approval`,
       path: `#/classification/risk/${b.dimension}`
     }));
     return failures(errors, EXIT.CONFIG, { changed, below_floor: result.belowFloor }, change);

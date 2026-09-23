@@ -108,7 +108,17 @@ export function withTransition(record: ChangeRecord, entry: TransitionEntry): Ch
  */
 export function appendTransition(root: string, change: string, record: ChangeRecord, entry: TransitionEntry): ChangeRecord {
   assertNotFrozen(record, change);
-  const updated = withTransition(record, entry);
+  return writeRecord(root, change, record, withTransition(record, entry));
+}
+
+/**
+ * Writes `updated` as the record of `change`, whose stored version is
+ * `current`: never past `ARCHIVED` / `ABANDONED` (checked on `current`) and
+ * never a record that does not match `warrant://change-record/1`. The one
+ * writer of records other than `classify` (`transition`, `link`).
+ */
+export function writeRecord(root: string, change: string, current: ChangeRecord, updated: ChangeRecord): ChangeRecord {
+  assertNotFrozen(current, change);
   const checked = validateFile(updated, recordPath(change));
   if (!checked.ok) {
     const first = checked.errors[0] as CliError;

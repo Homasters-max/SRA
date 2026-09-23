@@ -5,8 +5,13 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: [WARRANT-ADR-0010, WARRANT-ADR-0011, WARRANT-ADR-0013, WARRANT-ADR-0014, WARRANT-ADR-0017, WARRANT-ADR-0018]
-amended_by: [WARRANT-ADR-0021, WARRANT-ADR-0022]
+amended_by: [WARRANT-ADR-0021, WARRANT-ADR-0022, WARRANT-ADR-0024]
 ---
+
+> Уточнено [ADR-0024](WARRANT-ADR-0024-spec-approved-contract.md): дерево gate `spec-approved` (п. 9) — `{proposal.md, specs/**}`
+> без `design.md` (строки `I-N` пишутся при реализации); gate `waivable: true` — правка контракта после approval снимается
+> waiver'ом maintainer'а (`warrant waive`, reason `I-N`), а не новой ревизией approval; коммит approval — `subject.commit`
+> записи `human-approval` последнего перехода `APPROVED`.
 
 > Уточнено [ADR-0022](WARRANT-ADR-0022-path-rules.md): эталон `.sef/engines/<profile>/` (п. 14) включает и сгенерированный `AGENTS.md`; Context Pack
 > попытки получает `rules[]` из `warrant run start`.

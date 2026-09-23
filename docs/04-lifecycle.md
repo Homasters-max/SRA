@@ -207,7 +207,7 @@ Hooks внутри агента — ускорение, а не гарантия
 | `warrant init` | Инициализировать `.warrant/`, `.claude/`, mapping схем для редакторов. Bootstrap-Change без policy gates | MVP |
 | `warrant init change <name>` | `openspec new change --schema warrant-sdd --json` + record в `PROPOSED`; отказ при повторном имени | MVP |
 | `warrant status [change]` | Состояние Change, effective policy, verdicts, `STALE`, следующая операция | MVP |
-| `warrant classify <change> [--propose <json>]` | Классификация: path rules + proposal агента + human overrides | MVP |
+| `warrant classify <change> [--propose <json>] [--set <dim>=<v> … --by <login> [--ref <url>]]` | Классификация: path rules + proposal агента + human overrides; `--set … --by` — значение человека из роли approval; ниже floor — только с `--ref` и только до `APPROVED` ([05 §4](05-policy.md)) | MVP |
 | `warrant resolve <change> [--explain]` | Вычислить effective policy с происхождением каждого требования | MVP |
 | `warrant next <change>` | Отдельной команды нет: ответ controller (`controller_action`, `next`, `rule`) печатают `verify` и `status` | later |
 | `warrant run start\|submit\|finish` | Создать Run и Context Pack (с `rules[]`, пересекающими `write_scope`, [ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)), принять result envelope skill, закрыть Run | MVP |
@@ -218,7 +218,7 @@ Hooks внутри агента — ускорение, а не гарантия
 | `warrant verify <change> [--transition <FROM->TO>] [--base <ref>] [--paths …]` | `check` + `gate` + controller для всех требований effective policy перехода | MVP |
 | `warrant analyze <change>` | Детерминированный анализ согласованности | MVP |
 | `warrant transition <change> <state> [--ref <url>] [--by <login>] [--commit <sha>]` | Записать переход, если gates перехода в `PASS` / `WAIVED` / `NOT_APPLICABLE`; `APPROVED` / `MERGED` только с верифицируемым `--ref`; `--by` — человек из роли approval; `--commit` — commit evidence для `MERGED`; переходы назад — без gates; `ABANDONED` удаляет каталог Change ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) | MVP |
-| `warrant link <change> --amends\|--supersedes <target>` | Связь с исправляемым (`MERGED` / `ARCHIVED`) или заменяемым (`ABANDONED`) Change; до `APPROVED` ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) | MVP |
+| `warrant link <change> --amends\|--supersedes <target> [--remove]` | Связь с исправляемым (`MERGED` / `ARCHIVED`) или заменяемым (`ABANDONED`) Change; `--remove` — снять связь; только в `PROPOSED` / `SPECIFIED` ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)) | MVP |
 | `warrant sync-state <change>` | Прочитать форж (review, merge, CI run) и записать соответствующие переходы с refs | MVP |
 | `warrant archive <change>` | Только из `MERGED`: `openspec validate --strict` → gates `MERGED → ARCHIVED` → `openspec archive --yes --json` → переход `ARCHIVED` | MVP |
 | `warrant ci` | Всё для CI: Change и переход из ветки, пересчёт L0/L1, верификация refs, JSON, exit 1 при `FAIL` | MVP |
@@ -226,7 +226,7 @@ Hooks внутри агента — ускорение, а не гарантия
 | `warrant validate [--files <paths>]` | Конфигурация, packs, JSON Schema, IDs, сгенерированные YAML, отсутствие токенов; `--files` — только проверки одного файла ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)) | MVP |
 | `warrant fmt` | Привести JSON к каноническому виду | MVP |
 | `warrant sync` | Сгенерировать `openspec/config.yaml`, schema, `.codex/hooks.json`, `AGENTS.md` ([ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)) из packs; обновить lock | MVP |
-| `warrant waive` | Создать / отозвать waiver | later ([ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md)) |
+| `warrant waive <change> <gate> --reason … --risk … --control … --owner … --expires …`, `warrant waive --activate <WAV> --by <login>`, `warrant waive --revoke <WAV> --by <login>` | Создать waiver в `PROPOSED` (агент MAY); активировать / отозвать — человек из `roles.maintainer`; только waivable gate, без `targets[]` ([05 §7](05-policy.md)) | MVP (было: later, [ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md)) |
 
 Коды выхода: `0` — ok; `1` — verdict FAIL / STOP; `2` — WAIT / ESCALATE; `3` — ошибка конфигурации.
 Переход по умолчанию у `check`, `gate`, `verify` — следующий вперёд от `change_state`. Код `gate` и `verify` — по
@@ -280,8 +280,13 @@ Governance-состояние Change (classification, risk, `change_state`) пр
 - Запись MUST выполняться только CLI. Агент и skills MUST NOT редактировать файл напрямую (как для evidence, [06a §3](06a-evidence.md)).
 - Файл MUST коммититься: один Change — один файл, diff читаем, конфликтов нет.
 - Каждое значение classification MUST хранить источник (`floor`, `proposer:*`, `human:*`), чтобы `resolve --explain` был воспроизводим ([05 §4](05-policy.md)).
-- Переход вперёд MUST записываться вместе с verdicts gates перехода и ссылками на evidence. Переход в `APPROVED` и `MERGED`
-  MUST опираться на evidence с attestation `human-review` или `ci`; запись, сделанная `cli:local`, для этих состояний невалидна.
+- Переход вперёд MUST записываться вместе с verdicts gates перехода и ссылками на evidence. Валидность перехода в
+  `APPROVED` и `MERGED` определяет верифицируемый `ref` (URL review, CI run, merge), а не писатель записи
+  ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md) п. 2): `by: "cli:local"` — кто записал, не основание доверия.
+  До `warrant ci` (фаза 4) `ref` не верифицируется: `--ref` проверяется только как http(s) URL, `--by` — заявление, и
+  запись `human-approval` несёт `limitations: ["ref not verified (phase 4: warrant ci)"]` (REQ-VER-007). (Было: «Переход в
+  `APPROVED` и `MERGED` MUST опираться на evidence с attestation `human-review` или `ci`; запись, сделанная `cli:local`,
+  для этих состояний невалидна» — заменено ADR-0010, I-93.)
 - `ABANDONED` и `APPROVED` ниоткуда не выводятся и MUST быть записаны явно. Остальные состояния также записываются, но
   `warrant status` MUST сверять запись с производными сигналами (наличие artifacts, worktree, merge в git, каталог archive)
   и сообщать `STALE`, если они расходятся. Запись — акт перехода; вычисление — проверка, что акт всё ещё соответствует реальности.

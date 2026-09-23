@@ -101,6 +101,11 @@ export interface GateEngineInput {
   definitions: ReadonlyMap<string, Record<string, unknown>>;
   records: EvidenceInput[];
   waivers: WaiverInput[];
+  /**
+   * Logins of `roles` of `warrant.json`: a waiver whose `approved_by` is not
+   * one of them waives nothing (R-2). Absent — not checked (pure unit input).
+   */
+  approvers?: ReadonlySet<string>;
   signals: GateSignals;
 }
 

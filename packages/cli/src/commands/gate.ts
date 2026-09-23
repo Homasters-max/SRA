@@ -33,7 +33,7 @@ import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
 import { resolveForProject, type Classification, type EffectivePolicy } from "../core/resolve/index.js";
-import { readWaivers } from "../core/validate/waivers.js";
+import { readWaivers, roleMembers } from "../core/validate/waivers.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { nextForwardTransition } from "./check.js";
 import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
@@ -191,6 +191,7 @@ export function evaluateTransition(params: EvaluateParams): Evaluation {
     definitions,
     records: readRecords(evidenceDir(params.root, params.change, params.env)).map((r) => ({ id: r.id, json: r.json })),
     waivers: facts.waivers,
+    approvers: roleMembers(loaded.config),
     signals
   });
   const inputs = controllerInputs({

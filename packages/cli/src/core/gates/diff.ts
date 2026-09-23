@@ -139,6 +139,18 @@ export function relativeToProject(entries: DiffEntry[], prefix: string): DiffEnt
 }
 
 /**
+ * The project's path inside its repository (`""` at the top, else `a/b` without
+ * a trailing slash), as git itself sees it. Deriving it from `--show-toplevel`
+ * and the project path breaks whenever the two spell the same directory
+ * differently: a symlinked temp dir, or an 8.3 short name on Windows (I-100).
+ */
+export function projectPrefix(root: string): string | null {
+  const run = git(["rev-parse", "--show-prefix"], root);
+  if (!run.ok) return null;
+  return run.stdout.trim().replace(/\/+$/, "");
+}
+
+/**
  * Changed paths of `git diff --name-status --diff-filter=ACDMR <base>...<commit>`
  * (design §9), relative to the project root, sorted by path.
  */
@@ -149,14 +161,13 @@ export function changedPaths(root: string, facts: GitFacts): Availability<DiffEn
   if (facts.baseCommit === undefined) {
     return { ok: false, reason: `no base: merge-base(HEAD, ${BASE_BRANCH}) unknown; pass --base` };
   }
-  const top = git(["rev-parse", "--show-toplevel"], root);
-  if (!top.ok) return { ok: false, reason: "git rev-parse --show-toplevel failed" };
+  const prefix = projectPrefix(root);
+  if (prefix === null) return { ok: false, reason: "git rev-parse --show-prefix failed" };
   const diff = git(["diff", "--name-status", "-z", "-M", "--diff-filter=ACDMR", `${facts.baseCommit}...${facts.commit}`], root);
   if (!diff.ok) {
     const detail = (diff.stderr || diff.stdout).trim().split("\n")[0] ?? "";
     return { ok: false, reason: `git diff ${facts.baseCommit}...${facts.commit} failed${detail === "" ? "" : `: ${detail}`}` };
   }
-  const prefix = path.relative(path.resolve(top.stdout.trim()), path.resolve(root)).split(path.sep).join("/");
   const entries = relativeToProject(parseNameStatus(diff.stdout), prefix);
   return { ok: true, value: entries.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)) };
 }

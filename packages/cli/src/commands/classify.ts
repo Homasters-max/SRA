@@ -141,8 +141,9 @@ function changedFromGit(root: string, base: string): string[] {
     );
   }
 
-  const toplevel = path.resolve(top.stdout.trim());
-  const prefix = path.relative(toplevel, path.resolve(root)).split(path.sep).join("/");
+  // The prefix as git sees it: a path spelled differently (symlink, 8.3 name) must not drop every line (I-100).
+  const shown = git(["rev-parse", "--show-prefix"], root);
+  const prefix = shown.stdout.trim().replace(/\/+$/, "");
   const lines = diff.stdout.split("\n").map((line) => line.trim()).filter((line) => line !== "");
   if (prefix === "") return lines;
   return lines

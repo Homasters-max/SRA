@@ -1,12 +1,12 @@
 {
   "$schema": "warrant://lock/1",
-  "kernel": "0.3.0",
+  "kernel": "0.3.1",
   "openspec": "1.13.1",
   "packs": {
     "core-sdd": {
-      "version": "0.2.0",
+      "version": "0.2.1",
       "source": "bundled",
-      "hash": "sha256:9056ff97407593903607829ade4662bf6976691800878e50c2eb0e3c6007d404"
+      "hash": "sha256:5d8b034b51fd135e124edf9ec2b2f40506f76e93fe74aca18bfd585230ad8d17"
     }
   },
   "skills": {

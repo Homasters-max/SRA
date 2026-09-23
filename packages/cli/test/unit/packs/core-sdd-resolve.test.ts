@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loadPacks } from "../../../src/core/packs/loader.js";
 import { resolveForProject, type Classification } from "../../../src/core/resolve/index.js";
 import type { EffectivePolicy } from "../../../src/core/resolve/types.js";
-import { REPO_ROOT, makeTempDir, removeDir } from "../../helpers/cli.js";
+import { CORE_SDD_VERSION, REPO_ROOT, makeTempDir, removeDir } from "../../helpers/cli.js";
 
 const PACKS_DIR = path.join(REPO_ROOT, "packs");
 let root: string;
@@ -82,8 +82,8 @@ describe("pack core-sdd: эффективная policy", () => {
     const policy = policyFor({ profiles: [] });
     expect(policy.gates["PROPOSED->SPECIFIED"]).toEqual(["ids-valid", "spec-valid"]);
     expect(policy.risk_level).toBe("MEDIUM");
-    expect(policy.sources).toContain("core-sdd@0.2.0:overlay/core-default@1.0.0");
-    expect(policy.sources).toContain("core-sdd@0.2.0:overlay/risk-medium@1.0.0");
+    expect(policy.sources).toContain(`core-sdd@${CORE_SDD_VERSION}:overlay/core-default@1.0.0`);
+    expect(policy.sources).toContain(`core-sdd@${CORE_SDD_VERSION}:overlay/risk-medium@1.0.0`);
   });
 
   it("reversibility IRREVERSIBLE поднимает уровень до HIGH (SCN-SDD-009)", () => {
@@ -92,8 +92,8 @@ describe("pack core-sdd: эффективная policy", () => {
       risk: minimalRisk({ reversibility: "IRREVERSIBLE" })
     });
     expect(policy.risk_level).toBe("HIGH");
-    expect(policy.sources).toContain("core-sdd@0.2.0:overlay/risk-high@1.0.0");
-    expect(policy.sources).not.toContain("core-sdd@0.2.0:overlay/risk-medium@1.0.0");
+    expect(policy.sources).toContain(`core-sdd@${CORE_SDD_VERSION}:overlay/risk-high@1.0.0`);
+    expect(policy.sources).not.toContain(`core-sdd@${CORE_SDD_VERSION}:overlay/risk-medium@1.0.0`);
     expect(policy.gates["VERIFYING->MERGED"]).toContain("human-approval");
     expect(policy.approvals).toContainEqual({ role: "maintainer", at: "VERIFYING->MERGED" });
   });
@@ -101,7 +101,7 @@ describe("pack core-sdd: эффективная policy", () => {
   it("profile feature: gates по переходам как в 04 §5 (REQ-SDD-003)", () => {
     const policy = policyFor({ profiles: ["feature"], risk: minimalRisk() });
     expect(policy.risk_level).toBe("LOW");
-    expect(policy.sources).toContain("core-sdd@0.2.0:overlay/risk-low@1.0.0");
+    expect(policy.sources).toContain(`core-sdd@${CORE_SDD_VERSION}:overlay/risk-low@1.0.0`);
     expect(policy.gates).toEqual({
       "PROPOSED->SPECIFIED": ["ids-valid", "required-artifacts-present", "spec-valid"],
       "SPECIFIED->APPROVED": [

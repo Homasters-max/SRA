@@ -30,7 +30,11 @@ jobs:
       run:
         shell: bash
     steps:
+      # Full history with tags: versions.test.ts compares every component with
+      # the last release tag v* (R-14) and fails in CI when there is none.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:

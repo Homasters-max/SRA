@@ -31,7 +31,25 @@ export function resolveForProject(
     layers: collected.layers,
     sources: collected.sources,
     riskLevel: derived.level,
-    riskLevelFrom: derived.explain
+    riskLevelFrom: derived.explain,
+    gateKinds: gateKinds(loaded)
   });
   return { result, errors: collected.errors };
+}
+
+/** Kinds of `requires_evidence` of every loaded gate document, by gate id (override in force). */
+function gateKinds(loaded: LoadResult): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const object of loaded.objects) {
+    if (object.kind !== "gate") continue;
+    const json = object.json as Record<string, unknown> | null;
+    const list = typeof json === "object" && json !== null ? json["requires_evidence"] : undefined;
+    const kinds = Array.isArray(list)
+      ? list
+          .map((r) => (typeof r === "object" && r !== null ? (r as Record<string, unknown>)["kind"] : undefined))
+          .filter((k): k is string => typeof k === "string")
+      : [];
+    out.set(object.id, kinds);
+  }
+  return out;
 }

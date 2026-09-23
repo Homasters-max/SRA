@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loadPacks } from "../../../src/core/packs/loader.js";
 import { resolveForProject, type Classification } from "../../../src/core/resolve/index.js";
 import type { EffectivePolicy } from "../../../src/core/resolve/types.js";
-import { CORE_SDD_VERSION, REPO_ROOT, makeTempDir, removeDir } from "../../helpers/cli.js";
+import { CORE_SDD_RANGE, CORE_SDD_VERSION, REPO_ROOT, makeTempDir, removeDir } from "../../helpers/cli.js";
 
 const PACKS_DIR = path.join(REPO_ROOT, "packs");
 let root: string;
@@ -28,7 +28,7 @@ beforeAll(() => {
         $schema: "warrant://config/1",
         kernel: "0.1",
         openspec: "1.13.x",
-        packs: { "core-sdd": { version: "^0.2" } }
+        packs: { "core-sdd": { version: CORE_SDD_RANGE } }
       },
       null,
       2
@@ -113,12 +113,21 @@ describe("pack core-sdd: эффективная policy", () => {
         "spec-valid"
       ],
       "APPROVED->IMPLEMENTING": ["branch-isolated"],
-      "VERIFYING->MERGED": ["analyze-clean", "evidence-complete", "ids-valid", "scope-valid", "tests-passed"],
+      "VERIFYING->MERGED": ["analyze-clean", "evidence-complete", "ids-valid", "scope-valid", "spec-approved", "tests-passed"],
       "MERGED->ARCHIVED": ["analyze-clean", "ids-valid", "required-artifacts-present", "spec-valid"]
     });
     expect(policy.artifacts.required).toEqual(["design", "proposal", "specs", "tasks"]);
     expect(policy.evidence.required).toEqual(["human-approval", "review", "test-report"]);
     expect(policy.approvals).toEqual([{ role: "maintainer", at: "SPECIFIED->APPROVED" }]);
+  });
+
+  it("spec-approved на VERIFYING->MERGED у feature, chore и factory-change из core-default (SCN-SDD-022)", () => {
+    for (const profile of ["feature", "chore", "factory-change"]) {
+      const policy = policyFor({ profiles: [profile] });
+      expect(policy.gates["VERIFYING->MERGED"], profile).toContain("spec-approved");
+      const from = policy.explain.filter((e) => e.item === "gate:spec-approved").map((e) => e.from);
+      expect(from, profile).toContain("overlay/core-default");
+    }
   });
 
   it("profile feature на MEDIUM получает adversarial-review из overlay", () => {

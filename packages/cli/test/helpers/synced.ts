@@ -11,7 +11,7 @@ import { canonicalText } from "../../src/core/canon/format-json.js";
 import { packContentHash } from "../../src/core/packs/hash.js";
 import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
 import { CLI_VERSION } from "../../src/version.js";
-import { CORE_SDD_VERSION, REPO_ROOT, makeTempDir, removeDir, runCli, type CliRun } from "./cli.js";
+import { CORE_SDD_RANGE, CORE_SDD_VERSION, REPO_ROOT, makeTempDir, removeDir, runCli, type CliRun } from "./cli.js";
 
 export const PACKS = path.join(REPO_ROOT, "packs");
 
@@ -60,7 +60,7 @@ export function useSyncedProject(): () => string {
       $schema: "warrant://config/1",
       kernel: "0.1",
       openspec: "1.13.x",
-      packs: { "core-sdd": { version: "^0.2" } },
+      packs: { "core-sdd": { version: CORE_SDD_RANGE } },
       roles: { maintainer: ["kat"] }
     });
     write(base, ".warrant/local/areas.json", {

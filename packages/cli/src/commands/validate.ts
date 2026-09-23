@@ -1,5 +1,5 @@
 /**
- * `warrant validate` — checks (1)–(12) of REQ-KRN-021.
+ * `warrant validate` — checks (1)–(13) of REQ-KRN-021.
  *
  * Every finding is collected: the command never stops at the first error, so
  * one run tells the whole story (SCN-KRN-043, task 3.7).
@@ -31,6 +31,7 @@ import { checkRuleScope } from "../core/validate/rules.js";
 import { checkLinkTargets } from "../core/validate/links.js";
 import { checkWaivers } from "../core/validate/waivers.js";
 import { checkEvidence } from "../core/validate/evidence.js";
+import { checkDangling } from "../core/validate/dangling.js";
 import { scanSecrets } from "../core/secrets.js";
 import { validateFile } from "../core/schemas/semantic.js";
 import { checkCanonical, isRawEvidencePath, SCHEMA_COPIES_PREFIX } from "../core/canon/files.js";
@@ -213,6 +214,9 @@ export function runValidate(
 
   // Check (12): evidence records and manifests, second step of D-13.
   errors.push(...checkEvidence(root, loaded));
+
+  // Check (13): dangling REQ/SCN references, against the ids check (5) scanned.
+  errors.push(...checkDangling(root, loaded.config, ids.ids));
 
   const data = {
     checked: { files: checkedFiles.size, packs: loaded.packs.map((p) => p.id) },

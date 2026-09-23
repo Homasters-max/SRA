@@ -1,15 +1,19 @@
 /**
- * `evidence-complete` (REQ-VER-004, I-96): every kind of `evidence.required`
- * of the effective policy is accounted for — the Change has at least one
- * record of that kind on any commit (freshness and attestation are judged by
- * the gates that read the kind, not here: a `human-approval` of
+ * `evidence-complete` (REQ-VER-004, I-96, R-8): every kind of
+ * `evidence.required` of the effective policy is accounted for — the Change
+ * has at least one record of that kind on any commit with `evidence_status`
+ * `PROVEN` or `NOT_APPLICABLE` (freshness and attestation are judged by the
+ * gates that read the kind, not here: a `human-approval` of
  * `SPECIFIED->APPROVED` must still count at `VERIFYING->MERGED`), or a gate
- * whose `requires_evidence` names the kind has a waiver of this Change in
- * force (`ACTIVE`, `expires_at >= today` UTC — as in the verdict).
- * A kind accounted for by neither is a `FAIL` naming it.
+ * whose `requires_evidence` names the kind has a waiver of this Change that
+ * counts (`waiverStatus`, design §1 — the same predicate as step 4 of the
+ * verdict). A kind accounted for by neither is a `FAIL` naming it.
  */
-import { isWaiverInForce } from "../prefilter.js";
+import { waiverStatus } from "../waivers.js";
 import { pass, type Calculator, type L0Context } from "./types.js";
+
+/** Statuses of a record that account for its kind (R-8): a `NOT_PROVEN` record proves nothing. */
+const COUNTING_STATUSES: ReadonlySet<unknown> = new Set(["PROVEN", "NOT_APPLICABLE"]);
 
 /** Whether `requires_evidence` of a gate document names `kind`. */
 function requiresKind(gate: Record<string, unknown> | undefined, kind: string): boolean {
@@ -17,23 +21,20 @@ function requiresKind(gate: Record<string, unknown> | undefined, kind: string): 
   return Array.isArray(list) && list.some((r) => typeof r === "object" && r !== null && (r as Record<string, unknown>)["kind"] === kind);
 }
 
-/** Whether a gate requiring `kind` has a waiver of this Change in force. */
+/** Whether a gate requiring `kind` has a waiver of this Change that counts. */
 function waived(ctx: L0Context, kind: string): boolean {
   return ctx.waivers.some((waiver) => {
     const gate = waiver.json["gate"];
-    return (
-      typeof gate === "string" &&
-      waiver.json["change"] === ctx.signals.change &&
-      isWaiverInForce(waiver.json, ctx.signals.today) &&
-      requiresKind(ctx.definitions.get(gate), kind)
-    );
+    if (typeof gate !== "string" || waiver.json["change"] !== ctx.signals.change) return false;
+    const definition = ctx.definitions.get(gate);
+    return requiresKind(definition, kind) && waiverStatus(waiver.json, definition, ctx.waiverContext).counts;
   });
 }
 
 export const evidenceComplete: Calculator = (ctx) => {
   const missing: string[] = [];
   for (const kind of ctx.policy.evidence.required) {
-    if (ctx.records.some((r) => r.json["kind"] === kind)) continue;
+    if (ctx.records.some((r) => r.json["kind"] === kind && COUNTING_STATUSES.has(r.json["evidence_status"]))) continue;
     if (waived(ctx, kind)) continue;
     missing.push(kind);
   }
@@ -45,7 +46,7 @@ export const evidenceComplete: Calculator = (ctx) => {
         code: "EVIDENCE_MISSING",
         gate: ctx.gate,
         items: missing,
-        message: `no evidence of the required kinds and no waiver in force on a gate that requires them: ${missing.join(", ")}`
+        message: `no PROVEN or NOT_APPLICABLE evidence of the required kinds and no counting waiver on a gate that requires them: ${missing.join(", ")}`
       }
     ]
   };

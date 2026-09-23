@@ -4,7 +4,7 @@
  *
  * The kernel schema has already accepted the file (check (1)); what is left is
  * what one file cannot know: whether the Change and the gate exist, whether the
- * gate may be waived at all, and whether the approver holds a role.
+ * gate may be waived at all, and whether the approver, if any, holds a role.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -85,8 +85,9 @@ export function checkWaivers(
       invalid(`gate "${gateId}" is not waivable (${gate.path})`, "/gate");
     }
 
-    const login = approverLogin(json);
-    if (!members.has(login)) {
+    // A PROPOSED waiver has no approver yet (REQ-KRN-019); the schema demands
+    // one in every other state, so the field is compared only when present.
+    if (json["approved_by"] !== undefined && !members.has(approverLogin(json))) {
       invalid(`approved_by "${String(json["approved_by"])}" is not listed in roles of .warrant/warrant.json`, "/approved_by");
     }
 

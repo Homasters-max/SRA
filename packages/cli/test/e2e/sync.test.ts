@@ -7,7 +7,7 @@ import { canonicalText } from "../../src/core/canon/format-json.js";
 import { bytesHash } from "../../src/core/canon/hash.js";
 import { GENERATED_MARKER } from "../../src/core/openspec/yaml-emit.js";
 import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
-import { CLI_ROOT, REPO_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { CLI_ROOT, CORE_SDD_RANGE, REPO_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 import { installFakeOpenspec } from "../helpers/fake-openspec.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
@@ -25,7 +25,7 @@ function write(root: string, rel: string, content: string | object): void {
 }
 
 /** A temp project enabling the given packs, with OpenSpec initialised. */
-function project(packs: Record<string, string> = { "core-sdd": "^0.2" }, init = true): string {
+function project(packs: Record<string, string> = { "core-sdd": CORE_SDD_RANGE }, init = true): string {
   const root = makeTempDir("warrant-sync-");
   tempDirs.push(root);
   write(root, ".warrant/warrant.json", {
@@ -172,7 +172,7 @@ describe("warrant sync", () => {
   );
 
   it("refuses a version of openspec outside the configured range (task 7.5)", async () => {
-    const root = project({ "core-sdd": "^0.2" }, false);
+    const root = project({ "core-sdd": CORE_SDD_RANGE }, false);
     const fake = makeTempDir("warrant-fake-openspec-");
     tempDirs.push(fake);
     installFakeOpenspec(fake, `process.stdout.write("9.9.9\\n");\n`);
@@ -216,7 +216,7 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
       $schema: "warrant://config/1",
       kernel: "0.1",
       openspec: "1.13.x",
-      packs: { "core-sdd": { version: "^0.2" } }
+      packs: { "core-sdd": { version: CORE_SDD_RANGE } }
     });
     expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
     return root;

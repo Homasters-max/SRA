@@ -283,3 +283,32 @@ export function mergedCommitFacts(root: string, commit: string): GitFacts {
   else facts.limitations.push(`no base: fork point of ${commit} unknown`);
   return facts;
 }
+
+/** Path → blob sha of the files of one tree, paths relative to the project. */
+export type BlobTree = Record<string, string>;
+
+/**
+ * The contract of a Change at `commit` (design §6, ADR-0024):
+ * `git ls-tree -r <commit> -- openspec/changes/<change>/proposal.md openspec/changes/<change>/specs`
+ * as path → blob sha. Run in the project root, so git takes and prints the
+ * paths relative to the project. A commit git does not know is unavailable;
+ * an existing commit without those files is an empty tree.
+ */
+export function contractTree(root: string, commit: string, change: string): Availability<BlobTree> {
+  if (resolveCommit(root, commit) === null) return { ok: false, reason: `commit ${commit} is unknown to git` };
+  const dir = `openspec/changes/${change}`;
+  const run = git(["ls-tree", "-r", "-z", commit, "--", `${dir}/proposal.md`, `${dir}/specs`], root);
+  if (!run.ok) {
+    const detail = (run.stderr || run.stdout).trim().split("\n")[0] ?? "";
+    return { ok: false, reason: `git ls-tree ${commit} failed${detail === "" ? "" : `: ${detail}`}` };
+  }
+  const tree: BlobTree = {};
+  for (const line of run.stdout.split("\0")) {
+    // `<mode> SP <type> SP <sha> TAB <path>`
+    const tab = line.indexOf("\t");
+    if (tab < 0) continue;
+    const [, type, sha] = line.slice(0, tab).split(" ");
+    if (type === "blob" && sha !== undefined) tree[line.slice(tab + 1)] = sha;
+  }
+  return { ok: true, value: tree };
+}

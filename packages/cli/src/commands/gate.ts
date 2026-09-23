@@ -20,10 +20,28 @@ import { writeJsonFile } from "../core/canon/format-json.js";
 import { conflictInputs, controllerInputs } from "../core/controller/inputs.js";
 import { controllerRules, evaluateController, exitCodeOf, type ControllerDecision } from "../core/controller/evaluate.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
+import { NO_GIT_COMMIT } from "../core/evidence/record.js";
 import { evidenceDir, MANIFEST_FILE, readManifest, readRecords } from "../core/evidence/store.js";
-import { changedPaths, currentBranch, readGitFacts, type Availability, type DiffEntry, type GitFacts } from "../core/gates/diff.js";
+import {
+  changedPaths,
+  contractTree,
+  currentBranch,
+  readGitFacts,
+  type Availability,
+  type DiffEntry,
+  type GitFacts
+} from "../core/gates/diff.js";
 import { FACTORY_PROFILE } from "../core/gates/l0/scope-valid.js";
-import type { CheckFailure, Finding, GateEngineResult, GateSignals, Verdict } from "../core/gates/types.js";
+import { approvalOf, SPEC_APPROVED } from "../core/gates/l0/spec-approved.js";
+import type {
+  CheckFailure,
+  ContractTrees,
+  EvidenceInput,
+  Finding,
+  GateEngineResult,
+  GateSignals,
+  Verdict
+} from "../core/gates/types.js";
 import { evaluateGates } from "../core/gates/verdict.js";
 import { checkAreas, checkDuplicates, loadAreas, scanIds } from "../core/ids/scan.js";
 import { findChangeDir } from "../core/init/scaffold.js";
@@ -143,6 +161,36 @@ export function projectFacts(root: string, git: GitFacts): ProjectFacts {
   };
 }
 
+/**
+ * The contract trees `spec-approved` compares (design §6): the approval commit
+ * from the record and its evidence, the evaluated commit from the git facts.
+ */
+export function contractTrees(
+  root: string,
+  change: string,
+  record: ChangeRecord,
+  records: readonly EvidenceInput[],
+  git: GitFacts
+): Availability<ContractTrees> {
+  if (git.commonDir === null || git.commit === NO_GIT_COMMIT) {
+    return { ok: false, reason: "the project is not a git repository with a commit" };
+  }
+  const approval = approvalOf(record, records);
+  if (!approval.ok) return approval;
+  const approved = contractTree(root, approval.value.commit, change);
+  if (!approved.ok) return { ok: false, reason: `approval commit of ${approval.value.evidence}: ${approved.reason}` };
+  const evaluated = contractTree(root, git.commit, change);
+  if (!evaluated.ok) return { ok: false, reason: `evaluated commit: ${evaluated.reason}` };
+  return {
+    ok: true,
+    value: {
+      evidence: approval.value.evidence,
+      approved: { commit: approval.value.commit, tree: approved.value },
+      evaluated: { commit: git.commit, tree: evaluated.value }
+    }
+  };
+}
+
 export interface Evaluation {
   transition: string;
   engine: GateEngineResult;
@@ -183,13 +231,19 @@ export function evaluateTransition(params: EvaluateParams): Evaluation {
   if (facts.git.baseCommit !== undefined) signals.base = facts.git.baseCommit;
   if (params.checkFailures !== undefined) signals.checkFailures = params.checkFailures;
 
+  const records = readRecords(evidenceDir(params.root, params.change, params.env)).map((r) => ({ id: r.id, json: r.json }));
+  const evaluated = policy.gates[params.transition] ?? [];
+  if (evaluated.includes(SPEC_APPROVED) && (params.only === undefined || params.only.includes(SPEC_APPROVED))) {
+    signals.contract = contractTrees(params.root, params.change, record, records, facts.git);
+  }
+
   const definitions = gateDefinitions(loaded);
   const engine = evaluateGates({
     policy,
     transition: params.transition,
     ...(params.only === undefined ? {} : { only: params.only }),
     definitions,
-    records: readRecords(evidenceDir(params.root, params.change, params.env)).map((r) => ({ id: r.id, json: r.json })),
+    records,
     waivers: facts.waivers,
     approvers: roleMembers(loaded.config),
     signals
@@ -307,12 +361,17 @@ export function runGate(
   return exitCode === EXIT.OK ? success(data, change) : failures([], exitCode, data, change);
 }
 
+/** `data.findings[]`: the gate engine's, then the controller's (R-13). */
+export function evaluationFindings(evaluation: Evaluation): Finding[] {
+  return [...evaluation.engine.findings, ...(evaluation.decision.findings ?? [])];
+}
+
 /** `data` of `gate` (and the gate half of `verify`). */
 export function gateData(evaluation: Evaluation): Record<string, unknown> {
   return {
     transition: evaluation.transition,
     gates: evaluation.engine.gates,
-    findings: evaluation.engine.findings as Finding[],
+    findings: evaluationFindings(evaluation),
     ...decisionFields(evaluation.decision)
   };
 }

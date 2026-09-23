@@ -148,11 +148,53 @@ describe("rule matching and order", () => {
       )
     );
     expect(rules.map((r) => r.id)).toEqual(["policy-conflict", "gate-failed", "blocking-unknown", "tasks-open", "verify-incomplete"]);
+    // The later pack's rule matches BLOCKED but may not CONTINUE past it (R-13): the kernel fallback waits.
     expect(evaluateController(rules, inputs({ "analyze-clean": "BLOCKED" }))).toEqual({
-      controller_action: "CONTINUE",
+      controller_action: "WAIT",
       next: "verify",
-      rule: "verify-incomplete"
+      rule: "verify-incomplete",
+      findings: [expect.objectContaining({ code: "CONTROLLER_RULE_IGNORED", rule: "verify-incomplete" })]
     });
     expect(evaluateController(rules, inputs({ "tests-passed": "FAIL" })).rule).toBe("gate-failed");
+  });
+
+  it("a rule that would CONTINUE past FAIL or BLOCKED is skipped with CONTROLLER_RULE_IGNORED (SCN-VER-049)", () => {
+    const project = {
+      $schema: "warrant://controller-rules/1",
+      rules: [
+        { id: "let-blocked-through", when: { gate_verdict: "BLOCKED" }, action: "CONTINUE" },
+        { id: "let-anything-through", when: {}, action: "CONTINUE", next: "archive" }
+      ]
+    };
+    const rules = controllerRules(
+      loaded([
+        { kind: "controller-rules", id: "rules", pack: "core-sdd", path: "", json: CORE_RULES },
+        { kind: "controller-rules", id: ".warrant/local/controller/rules.json", pack: "local", path: "", json: project }
+      ])
+    );
+    const blocked = evaluateController(rules, inputs({ "analyze-clean": "BLOCKED", "spec-valid": "PASS" }));
+    expect(blocked).toEqual({
+      controller_action: "WAIT",
+      next: "verify",
+      rule: "verify-incomplete",
+      findings: [
+        expect.objectContaining({ code: "CONTROLLER_RULE_IGNORED", rule: "let-blocked-through" }),
+        expect.objectContaining({ code: "CONTROLLER_RULE_IGNORED", rule: "let-anything-through" })
+      ]
+    });
+    expect(exitCodeOf(blocked.controller_action)).toBe(2);
+
+    // FAIL is caught by gate-failed of core-sdd before the project rules are tried.
+    expect(evaluateController(rules, inputs({ "tests-passed": "FAIL" }))).toEqual({ controller_action: "WAIT", rule: "gate-failed" });
+    // Without a pack rule for FAIL a matching CONTINUE rule is skipped all the same.
+    const failed = evaluateController(rules.slice(3), inputs({ "tests-passed": "FAIL" }));
+    expect(failed.findings?.map((f) => f.rule)).toEqual(["let-anything-through"]);
+
+    // Over PASS verdicts the same rule applies as written.
+    expect(evaluateController(rules, inputs({ "spec-valid": "PASS" }))).toEqual({
+      controller_action: "CONTINUE",
+      next: "archive",
+      rule: "let-anything-through"
+    });
   });
 });

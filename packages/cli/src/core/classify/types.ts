@@ -32,6 +32,12 @@ export interface HumanValues {
   login: string;
   profiles?: string[];
   risk?: Partial<Record<RiskDimension, string>>;
+  /**
+   * `--ref <url>`: the approval of these values. A risk value carrying it is an
+   * approved value: it may go below the floor, is written with `ref` and keeps
+   * winning over the floor on later runs until a new `--set` of its dimension.
+   */
+  ref?: string;
 }
 
 export interface ClassifyInput {
@@ -51,9 +57,15 @@ export interface IgnoredValue {
   dimension: RiskDimension;
   proposed: string;
   kept: string;
-  /** Почему предложение отклонено: победитель пришёл из floor, из record, от human или (для human) от proposer. */
-  reason: "below-floor" | "below-record" | "below-human" | "below-proposer";
-  /** Present for a human value only: `human:<login>`; a proposer's value has no `from` here. */
+  /**
+   * Почему предложение отклонено: победитель пришёл из floor, из record, от human или (для human) от proposer;
+   * `approved-below-floor` — это floor, уступивший значению human с `ref` (REQ-KRN-028).
+   */
+  reason: "below-floor" | "below-record" | "below-human" | "below-proposer" | "approved-below-floor";
+  /**
+   * Present for a human value (`human:<login>`) and for a floor set aside by an
+   * approved value (`floor:<pack>:<rule-index>`); a proposer's value has no `from` here.
+   */
   from?: string;
 }
 

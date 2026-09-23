@@ -74,13 +74,22 @@ export function allocateUlid(prefix: string): string {
 
 const WAIVER_ID_RE = /^WAV-(\d{4})-(\d{3})$/;
 
-/** `WAV-<year>-NNN`, counted per calendar year over `.warrant/waivers/*.json`. */
+/**
+ * `WAV-<year>-NNN`, counted per calendar year over `.warrant/waivers/*.json`:
+ * the next number after the highest of that year among the ids inside the
+ * files and the file names `<WAV>.json` (`warrant waive` writes one file per
+ * id under its own name, so a name alone already takes its number).
+ */
 export function allocateWaiver(projectRoot: string, year: number = new Date().getUTCFullYear()): string {
   const dir = path.join(projectRoot, ".warrant", "waivers");
   let max = 0;
   if (existsSync(dir)) {
     for (const name of readdirSync(dir).sort()) {
       if (!name.toLowerCase().endsWith(".json")) continue;
+      const byName = WAIVER_ID_RE.exec(name.slice(0, -".json".length));
+      if (byName !== null && Number.parseInt(byName[1] as string, 10) === year) {
+        max = Math.max(max, Number.parseInt(byName[2] as string, 10));
+      }
       let json: unknown;
       try {
         json = JSON.parse(readFileSync(path.join(dir, name), "utf8"));

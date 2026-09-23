@@ -2,8 +2,9 @@
  * `warrant transition` in temporary git repositories (REQ-VER-007, design
  * §9, §10): forward transitions through the gate engine — SCN-VER-029, 030 —
  * `human-approval` by `--ref --by` — SCN-VER-031, 032 — `MERGED` on the
- * commit of CI evidence after a real merge — SCN-VER-033, 034 — and
- * `ABANDONED` with the freeze of the record — SCN-VER-035.
+ * commit of CI evidence after a real merge — SCN-VER-033, 034 — only on the
+ * head of the impl-PR — SCN-VER-050, 051 — and only from the run of `--ref` —
+ * SCN-VER-052 — and `ABANDONED` with the freeze of the record — SCN-VER-035.
  *
  * Each case copies the synced core-sdd project with Change `add-search` and
  * commits it on `main`. `openspec` on PATH is a fake (validate, status);
@@ -215,6 +216,8 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
       attestation: { type: "human-review", ref: REVIEW },
       subject: { commit: git(root, "rev-parse", "HEAD") }
     });
+    // --ref is only checked to be a URL; the record says so (R-10).
+    expect(approvals[0].limitations).toContain("ref not verified (phase 4: warrant ci)");
     expect(readJson(path.join(root, RECORD)).change_state).toBe("SPECIFIED");
 
     const check = await cli(root, ["check", "add-search", "openspec-validate"]);
@@ -252,6 +255,8 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
 
   it("records MERGED on the commit of CI evidence after the impl-PR is merged (SCN-VER-033, SCN-VER-034)", async () => {
     const root = repo("VERIFYING", CHORE, (r) => {
+      // The record never went through APPROVED: the contract check is waived, the case is about the commit and the run.
+      waiver(r, "WAV-2026-001", "spec-approved");
       write(r, "scripts/fake-tests.cjs", FAKE_TESTS);
       write(r, ".warrant/local/checks/tests-passed.json", {
         $schema: "warrant://check/1",
@@ -303,7 +308,7 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
       transition: "VERIFYING->MERGED",
       commit: implHead,
       base: fork,
-      gates: { "ids-valid": "PASS", "scope-valid": "PASS", "tests-passed": "PASS" },
+      gates: { "ids-valid": "PASS", "scope-valid": "PASS", "spec-approved": "WAIVED", "tests-passed": "PASS" },
       change_state: "MERGED"
     });
     const last = readJson(path.join(root, RECORD)).transitions.at(-1);
@@ -311,7 +316,7 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
     expect((await validate(root)).json?.errors).toEqual([]);
   }, 180_000);
 
-  it("refuses MERGED on a commit that is not the head of the merged impl-PR (review R-1)", async () => {
+  it("refuses MERGED on a commit that is not the head of the merged impl-PR (SCN-VER-050, review R-1)", async () => {
     const root = repo("VERIFYING", CHORE, (r) => {
       write(r, "scripts/fake-tests.cjs", FAKE_TESTS);
       write(r, ".warrant/local/checks/tests-passed.json", {
@@ -362,7 +367,7 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
     expect(recordText(root)).toBe(before);
   }, 180_000);
 
-  it("refuses MERGED after a fast-forward merge of the impl-PR (review R-1)", async () => {
+  it("refuses MERGED after a fast-forward merge of the impl-PR (SCN-VER-051, review R-1)", async () => {
     const root = repo("VERIFYING", CHORE, (r) => {
       write(r, "scripts/fake-tests.cjs", FAKE_TESTS);
       write(r, ".warrant/local/checks/tests-passed.json", {
@@ -389,6 +394,44 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
     const run = await transition(root, ["MERGED", "--ref", CI_RUN, "--commit", head]);
     expect(run.json.errors[0].code).toBe("COMMIT_NOT_MERGED");
     expect(run.json.errors[0].message).toContain("fast-forward");
+  }, 180_000);
+
+  it("refuses MERGED with REF_MISMATCH when the CI records come from another run (SCN-VER-052)", async () => {
+    const root = repo("VERIFYING", CHORE, (r) => {
+      // The record never went through APPROVED: the contract check is waived, the case is about the commit and the run.
+      waiver(r, "WAV-2026-001", "spec-approved");
+      write(r, "scripts/fake-tests.cjs", FAKE_TESTS);
+      write(r, ".warrant/local/checks/tests-passed.json", {
+        $schema: "warrant://check/1",
+        id: "tests-passed",
+        version: "1.0.0",
+        overrides: "core-sdd:tests-passed",
+        level: "L1",
+        run: { command: [NODE, "scripts/fake-tests.cjs", "{out}"] }
+      });
+    });
+    git(root, "checkout", "--quiet", "-b", "worktree/add-search");
+    write(root, "src/search.ts", "export const search = 1;\n");
+    const implHead = commitAll(root, "impl");
+    const ci = await cli(root, ["verify", "add-search", "--transition", "VERIFYING->MERGED"], { ...CI_ENV, GITHUB_RUN_ID: "2" });
+    expect(ci.json.data.gates["tests-passed"]).toBe("PASS");
+    const evidence = ci.json.data.checks[0].evidence;
+    git(root, "checkout", "--quiet", "main");
+    git(root, "merge", "--quiet", "--no-ff", "-m", "Merge impl", "worktree/add-search");
+    git(root, "checkout", "--quiet", "-b", "archive/add-search");
+    commitAll(root, "evidence from CI run 2");
+    const before = recordText(root);
+
+    const run = await transition(root, ["MERGED", "--ref", "https://github.com/o/r/actions/runs/1", "--commit", implHead]);
+    expect(run.json.errors[0].code).toBe("REF_MISMATCH");
+    expect(run.json.errors[0].message).toContain(evidence);
+    expect(run.status).toBe(3);
+    expect(recordText(root)).toBe(before);
+
+    // The run of the records, spelled with a trailing slash, is the same run.
+    const same = await transition(root, ["MERGED", "--ref", "https://github.com/o/r/actions/runs/2/", "--commit", implHead]);
+    expect(same.json?.errors).toEqual([]);
+    expect(same.json.data.change_state).toBe("MERGED");
   }, 180_000);
 
   it("evidence-complete on merge counts the approval of an earlier commit and review excused by a waiver (I-96)", async () => {
@@ -430,6 +473,8 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
       "evidence-complete": "PASS",
       "ids-valid": "PASS",
       "scope-valid": "PASS",
+      // Only code changed after APPROVED: the contract is the approved one (SCN-VER-046).
+      "spec-approved": "PASS",
       "tests-passed": "PASS"
     });
     expect(ci.json.data.controller_action).toBe("CONTINUE");

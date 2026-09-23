@@ -72,6 +72,7 @@ function record(kind: string, status: string, extra: Record<string, unknown> = {
       kind,
       evidence_status: status,
       subject: { commit: HEAD, base_commit: BASE, ...subject },
+      produced_by: { type: "check", id: "fixture-check" },
       attestation: { type: "none" },
       created_at: `2026-09-22T10:00:${String(counter % 60).padStart(2, "0")}Z`,
       limitations: [],
@@ -233,7 +234,55 @@ describe("verdict algorithm (06 section 3)", () => {
     });
     expect(result.gates).toEqual({ "scope-valid": "FAIL" });
     expect(result.findings.map((f) => f.code)).toEqual(["SCOPE_VIOLATION", "WAIVER_IGNORED"]);
-    expect(result.findings[1]).toMatchObject({ gate: "scope-valid", waiver: "WAV-2026-001", reason: "not-waivable" });
+    expect(result.findings[1]).toMatchObject({ gate: "scope-valid", waiver: "WAV-2026-001", reason: "waivable" });
+  });
+
+  it("a waiver that is not ACTIVE is reported with reason state (REQ-VER-003)", () => {
+    for (const state of ["PROPOSED", "REVOKED", "EXPIRED"]) {
+      const result = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], { waivers: [waiver("analyze-clean", { waiver_state: state })] });
+      expect(result.gates["analyze-clean"]).toBe("BLOCKED");
+      expect(result.findings).toContainEqual(
+        expect.objectContaining({ code: "WAIVER_IGNORED", gate: "analyze-clean", waiver: "WAV-2026-001", reason: "state" })
+      );
+    }
+  });
+
+  it("a PROPOSED waiver without approved_by waives nothing, reason state (REQ-KRN-019)", () => {
+    const proposed = waiver("analyze-clean", { waiver_state: "PROPOSED" });
+    delete proposed.json["approved_by"];
+    const result = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], { waivers: [proposed], approvers: new Set(["kat"]) });
+    expect(result.gates["analyze-clean"]).toBe("BLOCKED");
+    expect(result.findings).toContainEqual(
+      expect.objectContaining({ code: "WAIVER_IGNORED", gate: "analyze-clean", waiver: "WAV-2026-001", reason: "state" })
+    );
+  });
+
+  it("WAIVER_IGNORED reason approver for a waiver by a login outside roles (SCN-VER-043)", () => {
+    const result = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], {
+      waivers: [waiver("analyze-clean", { approved_by: "human:bob" })],
+      approvers: new Set(["kat"])
+    });
+    expect(result.gates["analyze-clean"]).toBe("BLOCKED");
+    expect(result.findings).toContainEqual(
+      expect.objectContaining({ code: "WAIVER_IGNORED", gate: "analyze-clean", waiver: "WAV-2026-001", reason: "approver" })
+    );
+  });
+
+  it("NOT_APPLICABLE from a human is untrusted: FAIL with NOT_APPLICABLE_UNTRUSTED (SCN-VER-044)", () => {
+    const claimed = record("test-report", "NOT_APPLICABLE", {
+      produced_by: { type: "human", id: "kat" },
+      attestation: { type: "ci", ref: "https://ci.example/runs/1" }
+    });
+    const result = evaluate("VERIFYING->MERGED", ["tests-passed"], [claimed]);
+    expect(result.gates["tests-passed"]).toBe("FAIL");
+    expect(result.findings).toEqual([
+      expect.objectContaining({ code: "NOT_APPLICABLE_UNTRUSTED", gate: "tests-passed", evidence: claimed.id, kind: "test-report" })
+    ]);
+    // Without a producer at all it is no better.
+    const anonymous = record("spec-report", "NOT_APPLICABLE", { produced_by: undefined });
+    const none = evaluate("PROPOSED->SPECIFIED", ["spec-valid"], [anonymous]);
+    expect(none.gates["spec-valid"]).toBe("FAIL");
+    expect(none.findings).toContainEqual(expect.objectContaining({ code: "NOT_APPLICABLE_UNTRUSTED", evidence: anonymous.id }));
   });
 
   it("a waiver approved by a login outside roles waives nothing (review R-2)", () => {
@@ -407,11 +456,55 @@ describe("L0 calculators (REQ-VER-004)", () => {
     const earlier = evaluate(
       "VERIFYING->MERGED",
       ["evidence-complete"],
-      [record("test-report", "PROVEN"), record("review", "NOT_PROVEN"), approval],
+      [record("test-report", "PROVEN"), record("review", "NOT_APPLICABLE"), approval],
       { policy: required }
     );
     expect(earlier.gates["evidence-complete"]).toBe("PASS");
     expect(earlier.findings).toEqual([]);
+
+    // A NOT_PROVEN review proves nothing (R-8): the kind is missing.
+    const unproven = evaluate(
+      "VERIFYING->MERGED",
+      ["evidence-complete"],
+      [record("test-report", "PROVEN"), record("review", "NOT_PROVEN"), approval],
+      { policy: required }
+    );
+    expect(unproven.gates["evidence-complete"]).toBe("FAIL");
+    expect(unproven.findings).toEqual([expect.objectContaining({ code: "EVIDENCE_MISSING", items: ["review"] })]);
+  });
+
+  it("evidence-complete does not take NOT_PROVEN; a counting waiver on adversarial-review does (SCN-VER-045)", () => {
+    const required = { evidence: { required: ["review"] } };
+    const approvers = new Set(["kat"]);
+    const records = [record("review", "NOT_PROVEN")];
+    const missing = evaluate("VERIFYING->MERGED", ["evidence-complete"], records, { policy: required, approvers });
+    expect(missing.gates["evidence-complete"]).toBe("FAIL");
+    expect(missing.findings).toEqual([expect.objectContaining({ code: "EVIDENCE_MISSING", gate: "evidence-complete", items: ["review"] })]);
+
+    const waived = evaluate("VERIFYING->MERGED", ["evidence-complete"], records, {
+      policy: required,
+      approvers,
+      waivers: [waiver("adversarial-review")]
+    });
+    expect(waived.gates["evidence-complete"]).toBe("PASS");
+
+    // The predicate of step 4 decides here too (design §1): outside roles, with targets[],
+    // or on a gate that is not waivable, a waiver excuses nothing.
+    const notWaivable = new Map(CORE_GATES);
+    notWaivable.set("adversarial-review", { ...CORE_GATES.get("adversarial-review"), waivable: false });
+    for (const [other, definitions] of [
+      [waiver("adversarial-review", { approved_by: "human:bob" }), CORE_GATES],
+      [waiver("adversarial-review", { targets: [{ file: "a.py" }] }), CORE_GATES],
+      [waiver("adversarial-review"), notWaivable]
+    ] as const) {
+      const result = evaluate("VERIFYING->MERGED", ["evidence-complete"], records, {
+        policy: required,
+        approvers,
+        waivers: [other],
+        definitions
+      });
+      expect(result.gates["evidence-complete"]).toBe("FAIL");
+    }
   });
 
   it("evidence-complete: a waiver in force on a gate requiring the kind excuses it (I-96)", () => {

@@ -9,9 +9,9 @@
 import type { CliError } from "../errors.js";
 import type { ArtifactStatuses } from "../openspec/status.js";
 import type { EffectivePolicy } from "../resolve/types.js";
-import type { Availability, DiffEntry } from "./diff.js";
+import type { Availability, BlobTree, DiffEntry } from "./diff.js";
 
-export type { Availability, DiffEntry } from "./diff.js";
+export type { Availability, BlobTree, DiffEntry } from "./diff.js";
 
 /** Verdict axis of a gate (02 section 2); there is no INCONCLUSIVE verdict. */
 export type Verdict = "PASS" | "FAIL" | "WAIVED" | "NOT_APPLICABLE" | "BLOCKED";
@@ -38,6 +38,8 @@ export interface Finding {
   error?: string;
   paths?: string[];
   items?: string[];
+  /** Controller rule id (`CONTROLLER_RULE_IGNORED`, R-13). */
+  rule?: string;
   message: string;
 }
 
@@ -61,6 +63,19 @@ export interface CheckFailure {
   code: string;
   /** Kinds the check produces. */
   kinds: string[];
+}
+
+/**
+ * The contract of a Change on the approval commit and on the evaluated one
+ * (`spec-approved`, phase-3b design §6, ADR-0024).
+ */
+export interface ContractTrees {
+  /** Id of the `human-approval` record of the last `APPROVED` transition. */
+  evidence: string;
+  /** Its `subject.commit` and the contract there. */
+  approved: { commit: string; tree: BlobTree };
+  /** The evaluated commit and the contract there. */
+  evaluated: { commit: string; tree: BlobTree };
 }
 
 /** Facts about the project the calculators and the pre-filter read (design §8). */
@@ -90,6 +105,8 @@ export interface GateSignals {
   thresholds?: Record<string, number>;
   /** Checks of this `verify` that failed (REQ-VER-006). */
   checkFailures?: CheckFailure[];
+  /** Contract trees of `spec-approved`; gathered only when the evaluated gates include it. */
+  contract?: Availability<ContractTrees>;
 }
 
 export interface GateEngineInput {

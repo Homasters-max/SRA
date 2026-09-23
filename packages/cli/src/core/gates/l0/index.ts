@@ -10,6 +10,7 @@ import { evidenceComplete } from "./evidence-complete.js";
 import { idsValid } from "./ids-valid.js";
 import { requiredArtifactsPresent } from "./required-artifacts-present.js";
 import { scopeValid } from "./scope-valid.js";
+import { specApproved } from "./spec-approved.js";
 import type { Calculator } from "./types.js";
 
 export const CALCULATORS: ReadonlyMap<string, Calculator> = new Map<string, Calculator>([
@@ -19,7 +20,8 @@ export const CALCULATORS: ReadonlyMap<string, Calculator> = new Map<string, Calc
   ["evidence-complete", evidenceComplete],
   ["ids-valid", idsValid],
   ["required-artifacts-present", requiredArtifactsPresent],
-  ["scope-valid", scopeValid]
+  ["scope-valid", scopeValid],
+  ["spec-approved", specApproved]
 ]);
 
 export type { Calculator, L0Context, L0Result } from "./types.js";

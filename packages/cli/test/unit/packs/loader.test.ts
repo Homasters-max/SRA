@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { loadPacks, weakenings } from "../../../src/core/packs/loader.js";
-import { CLI_ROOT, makeTempDir, removeDir } from "../../helpers/cli.js";
+import { CLI_ROOT, CORE_SDD_RANGE, makeTempDir, removeDir } from "../../helpers/cli.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 
@@ -289,7 +289,7 @@ describe("loadPacks: rules and evidence kinds (phase 3)", () => {
 
   it("normalises both forms of evidence_kinds and reads the metrics schema (D-13)", () => {
     process.env["WARRANT_PACKS_DIR"] = path.join(CLI_ROOT, "..", "..", "packs");
-    const result = loadPacks(project({ packs: { "core-sdd": { version: "^0.2" } } }));
+    const result = loadPacks(project({ packs: { "core-sdd": { version: CORE_SDD_RANGE } } }));
     expect(result.errors).toEqual([]);
     const kinds = Object.fromEntries(result.evidenceKinds.map((k) => [k.kind, k.metricsSchema?.path ?? null]));
     expect(Object.keys(kinds)).toEqual(["test-report", "spec-report", "review", "human-approval"]);

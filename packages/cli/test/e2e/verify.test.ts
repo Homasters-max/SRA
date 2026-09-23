@@ -94,7 +94,14 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant verify", () => {
     expect(data.findings).toContainEqual(
       expect.objectContaining({ code: "NO_INPUT", gate: "tests-passed", check: "tests-passed", error: "CHECK_NOT_CONFIGURED" })
     );
-    expect(Object.keys(data.gates)).toEqual(["analyze-clean", "evidence-complete", "ids-valid", "scope-valid", "tests-passed"]);
+    expect(Object.keys(data.gates)).toEqual([
+      "analyze-clean",
+      "evidence-complete",
+      "ids-valid",
+      "scope-valid",
+      "spec-approved",
+      "tests-passed"
+    ]);
     expect(data.gates["ids-valid"]).toBe("PASS");
     expect(data.gates["scope-valid"]).toBe("PASS");
     expect(data.gates["evidence-complete"]).toBe("FAIL");

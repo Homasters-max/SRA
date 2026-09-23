@@ -4,7 +4,8 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
-import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { validateFile } from "../../src/core/schemas/semantic.js";
+import { CORE_SDD_RANGE, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 
 const tempDirs: string[] = [];
 
@@ -39,7 +40,7 @@ function project(change = "demo", roles?: Record<string, string[]>): string {
     $schema: "warrant://config/1",
     kernel: "0.1",
     openspec: "1.13.x",
-    packs: { "core-sdd": { version: "^0.2" } },
+    packs: { "core-sdd": { version: CORE_SDD_RANGE } },
     ...(roles === undefined ? {} : { roles })
   });
   write(root, `.warrant/changes/${change}.json`, {
@@ -224,5 +225,81 @@ describe("warrant classify", () => {
     const run = await runCli(["classify", "missing", "--paths", "changed.txt"], root);
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("CHANGE_NOT_FOUND");
+  });
+});
+
+describe("warrant classify: below the floor with approval (REQ-KRN-028)", () => {
+  const REF = "https://github.com/o/r/pull/7#issuecomment-1";
+  const ROLES = { maintainer: ["kat"], reviewer: ["bob"] };
+
+  function inState(state: string): string {
+    const root = project("add-search", ROLES);
+    const file = path.join(root, ".warrant", "changes", "add-search.json");
+    const stored = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+    write(root, ".warrant/changes/add-search.json", { ...stored, change_state: state });
+    write(root, "changed.txt", ".warrant/local/areas.json\n");
+    return root;
+  }
+
+  it("writes the lowered value with ref and keeps it on the next run, floor ignored as approved-below-floor (SCN-KRN-116)", async () => {
+    const root = inState("SPECIFIED");
+    const first = await runCli(["classify", "add-search", "--paths", "changed.txt"], root);
+    expect(first.json?.data.classification.risk.blast_radius).toEqual({ value: "SYSTEM", from: "floor:core-sdd:2" });
+
+    const run = await runCli(
+      ["classify", "add-search", "--paths", "changed.txt", "--set", "blast_radius=LOCAL", "--by", "kat", "--ref", REF],
+      root
+    );
+    expect(run.json?.errors).toEqual([]);
+    expect(run.status).toBe(0);
+    const lowered = { value: "LOCAL", from: "human:kat", ref: REF };
+    expect((record(root, "add-search") as { classification: { risk: Record<string, unknown> } }).classification.risk["blast_radius"]).toEqual(
+      lowered
+    );
+
+    const again = await runCli(["classify", "add-search", "--paths", "changed.txt"], root);
+    expect(again.json?.errors).toEqual([]);
+    expect(again.json?.data.classification.risk.blast_radius).toEqual(lowered);
+    // The record stays valid (REQ-KRN-011: ref only with from human:*) and canonical.
+    expect(validateFile(record(root, "add-search") as never).ok).toBe(true);
+    const text = readFileSync(path.join(root, ".warrant", "changes", "add-search.json"), "utf8");
+    expect(text).toBe(canonicalText(JSON.parse(text) as never).text);
+    expect(again.json?.data.ignored).toContainEqual(
+      expect.objectContaining({ dimension: "blast_radius", reason: "approved-below-floor", proposed: "SYSTEM", kept: "LOCAL" })
+    );
+    expect((record(root, "add-search") as { classification: { risk: Record<string, unknown> } }).classification.risk["blast_radius"]).toEqual(
+      lowered
+    );
+  });
+
+  it("refuses the approval after APPROVED with STATE_INVALID and writes nothing (SCN-KRN-117)", async () => {
+    const root = inState("APPROVED");
+    const file = path.join(root, ".warrant", "changes", "add-search.json");
+    const before = readFileSync(file, "utf8");
+    const run = await runCli(
+      ["classify", "add-search", "--paths", "changed.txt", "--set", "blast_radius=LOCAL", "--by", "kat", "--ref", REF],
+      root
+    );
+    expect(run.json?.errors[0].code).toBe("STATE_INVALID");
+    expect(run.status).toBe(3);
+    expect(readFileSync(file, "utf8")).toBe(before);
+  });
+
+  it("wants an approver of SPECIFIED->APPROVED (ROLE_REQUIRED), an http(s) --ref and a risk --set (USAGE)", async () => {
+    const root = inState("PROPOSED");
+    const file = path.join(root, ".warrant", "changes", "add-search.json");
+    const before = readFileSync(file, "utf8");
+    const base = ["classify", "add-search", "--paths", "changed.txt"];
+
+    const bob = await runCli([...base, "--set", "blast_radius=LOCAL", "--by", "bob", "--ref", REF], root);
+    expect(bob.json?.errors[0].code).toBe("ROLE_REQUIRED");
+    expect(bob.status).toBe(3);
+    const notUrl = await runCli([...base, "--set", "blast_radius=LOCAL", "--by", "kat", "--ref", "PR 7"], root);
+    expect(notUrl.json?.errors[0].code).toBe("USAGE");
+    const noSet = await runCli([...base, "--ref", REF], root);
+    expect(noSet.json?.errors[0].code).toBe("USAGE");
+    const profileOnly = await runCli([...base, "--set", "profile=feature", "--by", "kat", "--ref", REF], root);
+    expect(profileOnly.json?.errors[0].code).toBe("USAGE");
+    expect(readFileSync(file, "utf8")).toBe(before);
   });
 });

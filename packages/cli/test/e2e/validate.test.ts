@@ -6,7 +6,7 @@ import { canonicalText } from "../../src/core/canon/format-json.js";
 import { packContentHash } from "../../src/core/packs/hash.js";
 import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
 import { CLI_VERSION } from "../../src/version.js";
-import { CLI_ROOT, REPO_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { CLI_ROOT, CORE_SDD_RANGE, REPO_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const CORE_SDD = path.join(REPO_ROOT, "packs", "core-sdd");
@@ -70,7 +70,7 @@ describe("warrant validate", () => {
   it.skipIf(!openspecAvailable())(
     "accepts a synced project using the bundled pack core-sdd (SCN-KRN-043)",
     async () => {
-      const root = await project({ "core-sdd": "^0.2" }, path.join(REPO_ROOT, "packs"), true);
+      const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"), true);
       const run = await runCli(["validate"], root);
       expect(run.json?.errors).toEqual([]);
       expect(run.json?.ok).toBe(true);
@@ -87,7 +87,7 @@ describe("warrant validate", () => {
   it.skipIf(!openspecAvailable())(
     "validates every file of packs/core-sdd against its own schema",
     async () => {
-      const root = await project({ "core-sdd": "^0.2" }, path.join(REPO_ROOT, "packs"), true);
+      const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"), true);
       const run = await runCli(["validate"], root);
       expect(run.json?.ok).toBe(true);
       // pack.json, schema.json, rules.json, levels.json, floors.json and 4 templates.
@@ -240,7 +240,7 @@ describe("warrant validate: check (4) generated files", () => {
         $schema: "warrant://config/1",
         kernel: "0.1",
         openspec: "1.13.x",
-        packs: { "core-sdd": { version: "^0.2" } }
+        packs: { "core-sdd": { version: CORE_SDD_RANGE } }
       });
       expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
       expect((await runCli(["sync"], root)).status).toBe(0);
@@ -269,7 +269,7 @@ describe("warrant validate: check (4) generated files", () => {
         $schema: "warrant://config/1",
         kernel: "0.1",
         openspec: "1.13.x",
-        packs: { "core-sdd": { version: "^0.2" } }
+        packs: { "core-sdd": { version: CORE_SDD_RANGE } }
       });
       expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
       write(root, ".warrant/local/openspec/rules.json", {
@@ -350,7 +350,7 @@ describe("warrant validate: id placement", () => {
 // `lock.generated` from check (2) any more (REQ-KRN-025, task 4.1).
 describe("warrant validate: every lock.generated entry is checked", () => {
   async function lockedProject(): Promise<string> {
-    const root = await project({ "core-sdd": "^0.2" }, path.join(REPO_ROOT, "packs"));
+    const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"));
     const lockPath = path.join(root, ".warrant/warrant.lock.json");
     const lock = JSON.parse(readFileSync(lockPath, "utf8"));
     lock.generated = {
@@ -377,7 +377,7 @@ describe("warrant validate: overrides may only strengthen (B1)", () => {
   const riskHigh = JSON.parse(readFileSync(path.join(CORE_SDD, "overlays", "risk-high.json"), "utf8"));
 
   it("reports OVERRIDE_WEAKENS for an override that narrows match (SCN-KRN-078)", async () => {
-    const root = await project({ "core-sdd": "^0.2" }, path.join(REPO_ROOT, "packs"));
+    const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"));
     write(root, ".warrant/local/risk-high.json", {
       ...riskHigh,
       overrides: "core-sdd:risk-high",
@@ -393,7 +393,7 @@ describe("warrant validate: overrides may only strengthen (B1)", () => {
   });
 
   it("accepts an override that widens match instead of narrowing it", async () => {
-    const root = await project({ "core-sdd": "^0.2" }, path.join(REPO_ROOT, "packs"));
+    const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"));
     write(root, ".warrant/local/risk-high.json", {
       ...riskHigh,
       overrides: "core-sdd:risk-high",
@@ -405,7 +405,7 @@ describe("warrant validate: overrides may only strengthen (B1)", () => {
   });
 
   it("reports OVERRIDE_WEAKENS for an override that empties extends (SCN-KRN-079)", async () => {
-    const root = await project({ "core-sdd": "^0.2" }, path.join(REPO_ROOT, "packs"));
+    const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"));
     const factory = JSON.parse(readFileSync(path.join(CORE_SDD, "profiles", "factory-change.json"), "utf8"));
     write(root, ".warrant/local/factory-change.json", {
       ...factory,
@@ -424,7 +424,7 @@ describe("warrant validate: overrides may only strengthen (B1)", () => {
   });
 
   it("reports OVERRIDE_WEAKENS when an override drops human-approval (SCN-SDD-010)", async () => {
-    const root = await project({ "core-sdd": "^0.2" }, path.join(REPO_ROOT, "packs"));
+    const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"));
     write(root, ".warrant/local/risk-high.json", {
       ...riskHigh,
       overrides: "core-sdd:risk-high",
@@ -446,7 +446,7 @@ describe("warrant validate: a pack directory is never a project layer (B2)", () 
       $schema: "warrant://pack/1",
       id,
       version: "0.1.0",
-      kernel: ">=0.1 <0.4",
+      kernel: ">=0.1 <1.0",
       description: `Experimental pack ${id}.`,
       depends_on: {},
       provides: { overlays: ["overlays/loud.json"] }
@@ -463,7 +463,7 @@ describe("warrant validate: a pack directory is never a project layer (B2)", () 
   };
 
   it("reports CONFIG_INVALID and ignores the overlays of a pack nobody enabled (SCN-KRN-080)", async () => {
-    const root = await project({ "core-sdd": "^0.2" }, path.join(REPO_ROOT, "packs"));
+    const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"));
     write(root, ".warrant/local/experimental/pack.json", manifest("experimental"));
     write(root, ".warrant/local/experimental/overlays/loud.json", loudOverlay);
     write(root, ".warrant/changes/demo.json", {
@@ -489,7 +489,7 @@ describe("warrant validate: a pack directory is never a project layer (B2)", () 
   it.skipIf(!openspecAvailable())(
     "still reads a local directory that carries no pack.json",
     async () => {
-      const root = await project({ "core-sdd": "^0.2" }, path.join(REPO_ROOT, "packs"), true);
+      const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"), true);
       write(root, ".warrant/local/overlays/loud.json", loudOverlay);
 
       const run = await runCli(["validate"], root);
@@ -501,7 +501,7 @@ describe("warrant validate: a pack directory is never a project layer (B2)", () 
 
 describe("warrant validate: id equals the file base name (task 3.6)", () => {
   it("reports SEMANTIC_INVALID for an object whose id is not its file name", async () => {
-    const root = await project({ "core-sdd": "^0.2" }, path.join(REPO_ROOT, "packs"));
+    const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"));
     write(root, ".warrant/local/overlays/quiet.json", {
       $schema: "warrant://overlay/1",
       id: "loud",

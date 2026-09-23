@@ -35,6 +35,7 @@ import {
   conflictDecision,
   decisionFields,
   evaluateTransition,
+  evaluationFindings,
   projectFacts,
   recordVerdicts,
   resolveRecord
@@ -103,7 +104,7 @@ export async function runArchive(
     transition,
     checks: run.entries,
     gates: evaluation.engine.gates,
-    findings: evaluation.engine.findings,
+    findings: evaluationFindings(evaluation),
     ...decisionFields(evaluation.decision),
     effective_policy: { hash: policy.hash, risk_level: policy.risk_level }
   };

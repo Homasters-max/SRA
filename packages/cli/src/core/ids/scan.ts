@@ -379,8 +379,16 @@ export function checkPlacement(projectRoot: string, ids: FoundId[]): { errors: C
   return { errors, skipped: false };
 }
 
-/** Check (5) as a whole. `skipped` is true when `openspec` is not on PATH. */
-export function checkIds(projectRoot: string): { errors: CliError[]; files: string[]; placementSkipped: boolean } {
+/**
+ * Check (5) as a whole. `skipped` is true when `openspec` is not on PATH.
+ * `ids` are the declarations scanned, reused by check (13) (`ID_DANGLING`).
+ */
+export function checkIds(projectRoot: string): {
+  errors: CliError[];
+  files: string[];
+  ids: FoundId[];
+  placementSkipped: boolean;
+} {
   const scan = scanIds(projectRoot);
   const areas = loadAreas(projectRoot);
   const errors: CliError[] = [
@@ -390,5 +398,5 @@ export function checkIds(projectRoot: string): { errors: CliError[]; files: stri
   ];
   const placement = checkPlacement(projectRoot, scan.ids);
   errors.push(...placement.errors);
-  return { errors, files: scan.files, placementSkipped: placement.skipped };
+  return { errors, files: scan.files, ids: scan.ids, placementSkipped: placement.skipped };
 }

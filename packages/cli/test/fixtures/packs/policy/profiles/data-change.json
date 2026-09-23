@@ -6,6 +6,11 @@
   "extends": [
     "feature"
   ],
+  "gates": {
+    "VERIFYING->MERGED": [
+      "reconciliation-checked"
+    ]
+  },
   "evidence": {
     "required": [
       "reconciliation-report"

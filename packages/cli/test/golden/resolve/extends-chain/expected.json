@@ -21,6 +21,7 @@
   },
   "gates": {
     "VERIFYING->MERGED": [
+      "reconciliation-checked",
       "rollback-rehearsed",
       "tests-passed"
     ]
@@ -54,6 +55,10 @@
     {
       "item": "artifact.recommended:adr",
       "from": "profile/feature"
+    },
+    {
+      "item": "gate:reconciliation-checked",
+      "from": "profile/data-change"
     },
     {
       "item": "gate:rollback-rehearsed",

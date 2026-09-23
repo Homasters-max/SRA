@@ -285,11 +285,16 @@ Waiver — явное временное исключение из конкре�
 
 Правила:
 
-- `owner`, `approved_by` (human) и `expires_at` MUST присутствовать. Без них waiver невалиден.
+- `owner` и `expires_at` MUST присутствовать всегда; `approved_by` (human из `roles.maintainer`) MUST присутствовать в
+  любом `waiver_state`, кроме `PROPOSED`. Без них waiver невалиден. (Было: `approved_by` обязателен всегда — тогда агент не
+  мог записать предложенный waiver.)
 - Waiver действует на один gate одного Change. Waiver ≠ изменение policy.
 - Gates с `waivable: false` MUST NOT отменяться waiver (`human-approval`, `scope-valid` и др.).
 - Истёкший waiver → `EXPIRED`; gate перевычисляется.
-- Агент MAY предложить waiver (`PROPOSED`), но не активировать его.
+- Агент MAY предложить waiver (`PROPOSED`, `warrant waive <change> <gate> …`), но не активировать его. Активирует и
+  отзывает человек: `warrant waive --activate <WAV> --by <login>` (пишет `approved_by`), `warrant waive --revoke <WAV>
+  --by <login>`; до `warrant ci` (фаза 4) `--by` — заявление, как у `transition`. Gate засчитывает только `ACTIVE`
+  неистёкший waiver с `approved_by` ∈ roles (R-2).
 
 ### Частичный waiver
 

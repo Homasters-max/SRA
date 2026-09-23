@@ -1,7 +1,8 @@
 /**
  * `warrant check` (REQ-VER-001, REQ-VER-002): evidence records and manifest,
  * `WARRANT_STATE_DIR`, raw output, parsers, the exclusive lock, timeout,
- * `--paths` and the choice of checks by the next transition.
+ * `--paths`, `execution.local: "scoped-only"` (SCN-VER-041, 042) and the
+ * choice of checks by the next transition.
  *
  * Each case is a copy of the synced core-sdd project. `openspec` on PATH is a
  * fake that answers `--version` and `validate`, so the result does not depend
@@ -80,18 +81,19 @@ function check(root: string, args: string[], extra: NodeJS.ProcessEnv = {}): Pro
 
 /**
  * A fake test runner: `fake-tests.cjs <out> [paths...]` writes `<out>/junit.xml`
- * with 3 tests and `FAKE_FAILURES` failures, its argv to `FAKE_ARGV`, touches
- * `FAKE_MARKER`, and exits 1 on failures or `FAKE_EXIT`.
+ * with 3 tests, `FAKE_FAILURES` failures and `FAKE_SKIPPED` skipped, its argv
+ * to `FAKE_ARGV`, touches `FAKE_MARKER`, and exits 1 on failures or `FAKE_EXIT`.
  */
 const FAKE_TESTS = `const fs = require("fs");
 const path = require("path");
 const [out, ...paths] = process.argv.slice(2);
 const failures = Number(process.env.FAKE_FAILURES || "0");
+const skipped = Number(process.env.FAKE_SKIPPED || "0");
 if (process.env.FAKE_MARKER) fs.writeFileSync(process.env.FAKE_MARKER, "ran");
 if (process.env.FAKE_ARGV) fs.writeFileSync(process.env.FAKE_ARGV, JSON.stringify(process.argv.slice(2)));
 fs.writeFileSync(path.join(out, "junit.xml"),
   '<?xml version="1.0" encoding="UTF-8" ?>\\n<testsuites tests="3" failures="' + failures + '">\\n' +
-  '  <testsuite name="fake" tests="3" failures="' + failures + '" errors="0" skipped="0">\\n  </testsuite>\\n</testsuites>\\n');
+  '  <testsuite name="fake" tests="3" failures="' + failures + '" errors="0" skipped="' + skipped + '">\\n  </testsuite>\\n</testsuites>\\n');
 process.exitCode = failures > 0 ? 1 : Number(process.env.FAKE_EXIT || "0");
 `;
 
@@ -265,6 +267,83 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant check", () => {
     expect(run.status).toBe(0);
     expect(run.json.data.checks[0].evidence_status).toBe("INCONCLUSIVE");
     expect(run.json.data.checks[0].limitations).toContain("command exited with code 2");
+  }, 60_000);
+
+  it("records INCONCLUSIVE when every test of the junit was skipped, exit 0 (SCN-VER-040, R-4)", async () => {
+    const root = repo("PROPOSED", {}, (r) => overrideTests(r));
+    const run = await check(root, ["tests-passed"], { FAKE_SKIPPED: "3" });
+    expect(run.json?.errors).toEqual([]);
+    expect(run.status).toBe(0);
+    expect(run.json.data.checks[0]).toMatchObject({
+      kind: "test-report",
+      evidence_status: "INCONCLUSIVE",
+      metrics: { tests: 3, failures: 0, errors: 0, skipped: 3 }
+    });
+    expect(run.json.data.checks[0].limitations).toContain("junit: all 3 tests skipped");
+    expect((await validate(root)).json?.errors).toEqual([]);
+  }, 60_000);
+
+  it("refuses a scoped-only check locally without --paths and runs its scoped_command with them (SCN-VER-041)", async () => {
+    const root = repo("PROPOSED", { classification: { profiles: ["feature"] } }, (r) => overrideTests(r, { execution: { exclusive: true, local: "scoped-only" } }));
+    const marker = path.join(temp("warrant-check-marker-"), "ran");
+    const argvFile = path.join(temp("warrant-check-argv-"), "argv.json");
+
+    const run = await check(root, ["tests-passed"], { FAKE_MARKER: marker });
+    expect(run.status).toBe(3);
+    expect(run.json.errors[0].code).toBe("CHECK_LOCAL_FORBIDDEN");
+    expect(run.json.errors[0].path).toBe(".warrant/local/checks/tests-passed.json");
+    expect(run.json.data.checks).toEqual([{ id: "tests-passed", error: "CHECK_LOCAL_FORBIDDEN" }]);
+    expect(existsSync(marker)).toBe(false);
+    expect(existsSync(path.join(root, ".git", "warrant", "check.lock"))).toBe(false);
+    expect(existsSync(path.join(root, EVIDENCE))).toBe(false);
+
+    const scoped = await check(root, ["tests-passed", "--paths", "src/a.py"], { FAKE_MARKER: marker, FAKE_ARGV: argvFile });
+    expect(scoped.json?.errors).toEqual([]);
+    expect(scoped.status).toBe(0);
+    expect(readJson(argvFile)).toEqual([`${EVIDENCE}/raw/tests-passed`, "src/a.py"]);
+    expect(scoped.json.data.checks[0].limitations).toContain("scoped: src/a.py");
+
+    // verify treats it like any failed check: its gates BLOCKED, the rest computed, exit = max (REQ-VER-006).
+    const verify = await runCli(["verify", "add-search", "--transition", "VERIFYING->MERGED"], root, env());
+    expect(verify.json.errors.map((e: { code: string }) => e.code)).toEqual(["CHECK_LOCAL_FORBIDDEN"]);
+    expect(verify.json.data.gates["tests-passed"]).toBe("BLOCKED");
+    expect(verify.json.data.findings).toContainEqual(
+      expect.objectContaining({ code: "NO_INPUT", gate: "tests-passed", check: "tests-passed", error: "CHECK_LOCAL_FORBIDDEN" })
+    );
+    expect(verify.json.data.gates["ids-valid"]).toBe("PASS");
+    expect(verify.status).toBe(3);
+  }, 120_000);
+
+  it("refuses a scoped-only check locally with --paths when it has no scoped_command to narrow with (SCN-VER-041, I-116)", async () => {
+    const root = repo("PROPOSED", {}, (r) =>
+      overrideTests(r, { run: { command: [NODE, "scripts/fake-tests.cjs", "{out}"] }, execution: { exclusive: true, local: "scoped-only" } })
+    );
+    const marker = path.join(temp("warrant-check-marker-"), "ran");
+    const run = await check(root, ["tests-passed", "--paths", "src/a.py"], { FAKE_MARKER: marker });
+    expect(run.status).toBe(3);
+    expect(run.json.errors[0].code).toBe("CHECK_LOCAL_FORBIDDEN");
+    expect(run.json.errors[0].message).toContain("no run.scoped_command");
+    expect(existsSync(marker)).toBe(false);
+    expect(existsSync(path.join(root, EVIDENCE))).toBe(false);
+  }, 60_000);
+
+  it("runs a scoped-only check in full under GitHub Actions, attested ci and not scoped (SCN-VER-042)", async () => {
+    const root = repo("PROPOSED", {}, (r) => overrideTests(r, { execution: { exclusive: true, local: "scoped-only" } }));
+    const argvFile = path.join(temp("warrant-check-argv-"), "argv.json");
+    const run = await check(root, ["tests-passed"], {
+      FAKE_ARGV: argvFile,
+      GITHUB_ACTIONS: "true",
+      GITHUB_SERVER_URL: "https://github.com",
+      GITHUB_REPOSITORY: "o/r",
+      GITHUB_RUN_ID: "7"
+    });
+    expect(run.json?.errors).toEqual([]);
+    expect(run.status).toBe(0);
+    // run.command, not scoped_command: no paths after {out}.
+    expect(readJson(argvFile)).toEqual([`${EVIDENCE}/raw/tests-passed`]);
+    const evidence = readJson(path.join(root, run.json.data.checks[0].path));
+    expect(evidence.attestation).toEqual({ type: "ci", ref: "https://github.com/o/r/actions/runs/7" });
+    expect(evidence.limitations.some((l: string) => l.startsWith("scoped:"))).toBe(false);
   }, 60_000);
 
   it("reports CHECK_NOT_CONFIGURED with the pack check path for tests-passed without an override (SCN-VER-007)", async () => {

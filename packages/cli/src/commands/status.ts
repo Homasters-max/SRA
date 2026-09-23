@@ -39,7 +39,7 @@ import type { LoadResult } from "../core/packs/types.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { nextForwardTransition } from "./check.js";
 import { projectRoot, requireConfigPath } from "./context.js";
-import { conflictDecision, decisionFields, evaluateTransition, projectFacts, type ProjectFacts } from "./gate.js";
+import { conflictDecision, decisionFields, evaluateTransition, evaluationFindings, projectFacts, type ProjectFacts } from "./gate.js";
 
 /** One Change as `data` (single form) or as one entry of `data.changes[]`. */
 export interface ChangeStatus {
@@ -143,7 +143,7 @@ function statusOf(
       verification = {
         transition,
         gates: evaluation.engine.gates,
-        findings: evaluation.engine.findings,
+        findings: evaluationFindings(evaluation),
         ...(decisionFields(evaluation.decision) as Pick<Verification, "controller_action" | "rule">)
       };
     }

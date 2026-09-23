@@ -1,9 +1,9 @@
 ---
 id: WARRANT-NEXT
-title: WARRANT — следующий шаг: phase-3b (apply), затем фаза 4
+title: WARRANT — следующий шаг: archive-PR phase-3b, затем фаза 4
 status: informative
 maturity: MVP
-version: 0.3.0
+version: 0.4.0
 ---
 
 # WARRANT — что делать в следующей сессии
@@ -28,6 +28,15 @@ version: 0.3.0
   `path.relative` к `--show-toplevel` обнулял diff при 8.3-имени/symlink temp-каталога → `scope-valid` ложно `PASS`) и I-101
   (обёртка fake `openspec` в тестах звала внешний `dirname` при PATH только из fake). Оба исправлены в impl-PR; CI зелёный
   на ubuntu и windows — 616/616, 0 skipped (P-18 (3)).
+- **phase-3b — impl-PR готов** (2026-09-23): spec-PR #10 (merge `3d6a4cd`, `SPECIFIED` в spec-PR — P-2 без отступлений),
+  impl-PR #11 `worktree/phase-3b` (worktree `D:\project\SRA-phase3b-impl`): первым коммитом `APPROVED --ref #10 --by
+  Homasters-max` + `IMPLEMENTING`, группы 1–5 по коммиту, последним — `VERIFYING`. Решения **I-102…I-116** — таблица
+  design.md `openspec/changes/phase-3b/`. Версии: CLI **0.4.0**, pack `core-sdd` **0.3.0** (`kernel: ">=0.1 <0.5"`),
+  `.warrant/warrant.json` `kernel: "0.4"`. Итог: `warrant link`, `warrant waive` (PROPOSED / `--activate` / `--revoke`),
+  `classify --set --by --ref` ниже floor, gate `spec-approved` (ADR-0024), `execution.local: scoped-only`, `validate` (13)
+  `ID_DANGLING` и I-77, фиксы ревью R-2/6/7/8/9/10/13 в коде и нормы R-1/2/4/5/14 в delta specs, процедуры
+  `.claude/commands/{decision,group-done,next-session}.md`, 04 §9 по ADR-0010 (I-93), INV-03 «Частично». Тесты: 686/686
+  (`--maxWorkers=3`), CI зелёный на ubuntu и windows на каждой группе.
 - **Итог фазы 3:**
   - capability `verification` (REQ-VER-001…008): `warrant check` (runner без shell, замок `exclusive` в `git-common-dir`,
     `timeout_s` с kill дерева, parsers `junit`/`openspec-validate`, evidence + manifest, attestation `ci` под GitHub Actions),
@@ -61,15 +70,18 @@ version: 0.3.0
 
 | # | Долг | Куда |
 |---|---|---|
-| I-77 | Удаление ID delta'ой `REMOVED` в коммите archive даёт `ID_IMMUTABLE` по проверке (9) `validate`: archive-коммит нужно сравнивать с архивной копией delta, как для MODIFIED (I-73) | phase-3b, задача 3.3 |
+| I-77 | Удаление ID delta'ой `REMOVED` в коммите archive даёт `ID_IMMUTABLE` по проверке (9) `validate`: archive-коммит нужно сравнивать с архивной копией delta, как для MODIFIED (I-73) | **закрыт** phase-3b (3.3) |
 | I-90 | `branch-isolated` на detached HEAD — `FAIL`; в CI `pull_request` HEAD detached. Сейчас не мешает (gate на `APPROVED->IMPLEMENTING`, считается локально); пересмотреть по первому failure mode | по failure mode |
-| I-93 | `transition` пишет `by: "cli:local"` и на `APPROVED`/`MERGED` (REQ-VER-007), а 04 §9 называет такую запись невалидной — противоречие нормы и spec; 04 §9 не правился | ADR или правка 04 §9 |
+| I-93 | `transition` пишет `by: "cli:local"` и на `APPROVED`/`MERGED` (REQ-VER-007), а 04 §9 называет такую запись невалидной — противоречие нормы и spec; 04 §9 не правился | **закрыт** phase-3b (1.3): 04 §9 приведён к ADR-0010 |
 | `files` | ~~`package.json` `files` не включает `sra/`~~ — **закрыт R-15** (`sra/skills` в `files`, тест состава `npm pack`) | — |
-| 13 §2 | Строка фазы 3 всё ещё перечисляет `analyze` и `warrant link`, а по P-4 это `phase-3b`; поправить 13 §2 (и строку 4-й фазы, если `analyze` уйдёт туда) | phase-3b, задача 1.4 |
+| 13 §2 | Строка фазы 3 всё ещё перечисляет `analyze` и `warrant link`, а по P-4 это `phase-3b`; поправить 13 §2 (и строку 4-й фазы, если `analyze` уйдёт туда) | **закрыт** phase-3b (1.4) |
 | P-2 | Порядок P-2 нарушен в фазе 3: spec-PR #6 смержен до появления `transition`, поэтому `SPECIFIED`/`APPROVED`/`IMPLEMENTING`/`VERIFYING` пишутся в impl-PR. Со следующего change — строго по ADR-0011 (`SPECIFIED` в spec-PR) | процесс |
 | I-59 | `packContentHash` исключает `golden/` pack'а — пересмотреть, если golden начнёт влиять на policy | later |
 | I-64 | `runCli` и `golden-lib.js` асинхронные; короткие `spawnSync` остались для `git` и `openspecAvailable()` | later |
 | `analyze` | **Решено V-1**: фаза 4 | — |
+| тесты под нагрузкой | `warrant validate` на репозитории — ~30 с (вызовы `openspec` на каждый Change/spec); полный `npm test` с параллелизмом по умолчанию на машине maintainer'а даёт таймауты e2e `validate`/`golden` (поодиночке и с `--maxWorkers=3` — зелёные, CI — зелёный). Ускорить `validate` (один `openspec` на проект) или поднять таймауты e2e | по failure mode; `/group-done` пока гоняет `--maxWorkers=3` вручную |
+| I-103 | Пред-фильтр исключает запись, чей `metrics.waivers[]` ссылается на waiver с `targets[]` — пересмотреть вместе с D-10 | фаза 5 |
+| `fmt` packs | `warrant fmt --check` без пути не проверяет `packs/**`; `packs/core-sdd/pack.json` неканоничен (порядок `rules`/`skills`), а правило `json-canonical` из черновика `rule/1` покрывает `packs/**/*.json` | вместе с первым правилом `rule/1` или отдельным fix |
 
 ### Ревью фазы 3 (2026-09-23) — R-1…R-16
 
@@ -133,13 +145,14 @@ verify → transition`, gate engine, runner) — нет. Нерешённые в
 
 Процедуры `.claude/commands/` — `/decision` (следующий I-N строкой в таблицу design.md), `/group-done <N>` (ветка и worktree,
 typecheck, test, validate, `versions:check`, коммит, галочки tasks.md), `/next-session` — были в плане «Карта агента» и
-выпали вместе с change `agent-session-guide` (решение P-1), никуда не перенесённые. **Решение:** первая группа phase-3b
-(до кода); критерий P-1 сохраняется — файл в `.claude/` автоматизирует процедуру, правил в нём нет.
+выпали вместе с change `agent-session-guide` (решение P-1), никуда не перенесённые. **Сделано** группой 1
+phase-3b: `.claude/commands/{decision,group-done,next-session}.md`; критерий P-1 сохраняется — файл в `.claude/` автоматизирует
+процедуру, правил в нём нет.
 
 Skills (reasoning SRA, [07](07-skills.md)) — где они в плане: контракт вызова (`run start` / `run submit`, схемы `run/1`,
 `skill-result/1`) и первый реальный skill `adversarial-review` через `codex exec` (D-5, снимает WAV-2026-002) — **фаза 4**;
-расширение набора (bdd-tdd, arch) — фаза 5; интеграция каталога SRA — фаза 9. Расхождение: 13 §2 пишет «adversarial review»
-в фазе 5, а D-5 и «Вход в фазу 4» — в фазе 4; правится вместе с 13 §2 (отложенные документы).
+расширение набора (bdd-tdd, arch) — фаза 5; интеграция каталога SRA — фаза 9. Расхождение 13 §2 («adversarial review» в фазе 5)
+закрыто phase-3b (1.4): producer — фаза 4 (D-5).
 
 ### phase-3b — нарезка (V-1…V-9, grilling 2026-09-23, приняты maintainer'ом)
 
@@ -171,15 +184,13 @@ I-93 решается без нового ADR: ADR-0010 п. 2 уже замен�
 ### Продолжение — готовый запрос
 
 ```text
-Прочитай docs/NEXT-SESSION.md целиком (состояние, «Ревью фазы 3» R-1…R-16, «Процессные правила», «phase-3b — нарезка»
-V-1…V-9, решения P-1…P-20), затем openspec/changes/phase-3b/{proposal,design,tasks}.md и specs/** целиком. Spec-PR
-spec/phase-3b смержен в main. Создай worktree D:\project\SRA-phase3b-impl на ветке worktree/phase-3b от main
-(npm ci). Первым коммитом impl-PR: warrant transition phase-3b APPROVED --ref <review spec-PR> --by Homasters-max
-(это акт maintainer'а — спроси ref и подтверждение) и transition IMPLEMENTING. Затем /opsx:apply phase-3b по группам 1…6:
-координатор — ты, субагент Opus на группу (run_in_background: false), отчёт ≤ 70 строк с Decisions/deviations; после группы
-сам гоняешь npm test, typecheck, warrant validate, fmt --check, sync --check, versions:check и коммитишь (процедура
-/group-done). Отклонения от spec/design — вопросом ко мне; принятые — I-N (с I-102) в design.md. Последним коммитом impl-PR —
-transition VERIFYING; merge impl-PR только merge commit; archive-PR — evidence из artifact'а одного CI run'а (R-6).
+Прочитай docs/NEXT-SESSION.md (состояние phase-3b, «Долг после фазы 3», «Как прошёл 6.5»). Impl-PR #11 (worktree/phase-3b)
+смержен merge-коммитом. Archive-PR phase-3b по образцу 6.5: ветка archive/phase-3b от main в новом worktree (npm ci);
+gh run download <run impl-head> -n evidence-phase-3b → .warrant/evidence/phase-3b/ (artifact ОДНОГО run'а — R-6);
+warrant transition phase-3b MERGED --ref <url этого run'а> --commit <impl-head> --by Homasters-max (human-approval
+risk-high — акт maintainer'а, подтверди); warrant archive phase-3b; warrant status — stale[] только у phase-2-core-sdd;
+PR → merge → tag v0.4.0 из D:\project\SRA (не из worktree PR). Затем /next-session и вход в фазу 4 (13 §2, S8, «Долг схем
+и CLI» B–D): grilling по нарезке фазы 4 до /opsx:propose.
 ```
 
 ### Решения grilling 2026-09-22 по фазе 3 (P-1…P-20) — приняты maintainer'ом
@@ -215,7 +226,7 @@ transition VERIFYING; merge impl-PR только merge commit; archive-PR — ev
 **Правило: одна ветка — один worktree** (`git worktree add`); несколько сессий делят `D:\project\SRA`, поэтому перед
 коммитом проверять ветку. Появилось после фазы 2: коммит `d2d8fd3` ушёл не в ту ветку, когда сессии переключали ветку
 в общем каталоге. В фазе 3: `D:\project\SRA-phase3` — `spec/phase-3-verification`, `D:\project\SRA-phase3-impl` —
-`worktree/phase-3-verification`; после archive-PR оба удалить.
+`worktree/phase-3-verification`; после archive-PR оба удалить. В phase-3b: D:\project\SRA-phase3b — spec/phase-3b (PR #10 смержен, можно удалить), D:\project\SRA-phase3b-impl — worktree/phase-3b (impl-PR #11).
 
 ## Backlog из ревью фазы 1
 
@@ -414,7 +425,7 @@ docs/integrations/2026-09-17-sef-platform-design.md (черновик SEF, ПР�
 |---|---|---|---|
 | D-1 | `sef-hub`: `MERGED` записывается один раз — в коммите посадки последнего item, вместе с `IMPLEMENTING`, `VERIFYING` (refs attempt / gate / landing); промежуточные посадки record не трогают (`STALE` между посадками — штатно, ADR-0011 п. 3); `warrant archive` — следующим коммитом | Q-1, F-7 | ADR-0020 п. 11–12; 11 §2; SEF W-14 |
 | D-2 | В `sef-hub` Run и evidence попытки живут вне репозитория: CLI читает `WARRANT_STATE_DIR` (`.warrant/runs/`, `.warrant/evidence/` → `var/sef/attempts/<id>/warrant/`); `.warrant/**` остаётся в `protected[]` целиком. Транспорт `github` — без изменений (в git) | Q-2, F-8 | ADR-0020 п. 13; 03 §4 (триггер «внешнее хранение» = S1 SEF); долг C (`run start`, `check`, `verify`: `WARRANT_STATE_DIR`); SEF W-09 |
-| D-3 | Gate `spec-approved` — транспортно-нейтральный, core-sdd, переход `VERIFYING→MERGED` (в `github` — CI impl-PR, в `sef-hub` — lane/integration): hash дерева `{proposal.md, design.md, specs/**}` на коммите из ref `APPROVED` ↔ на base; `tasks.md` исключён. Новых полей record нет | Q-3, F-6, F-18 | ADR-0020 п. 9; 06 §4; долг D `gate` |
+| D-3 | Gate `spec-approved` — транспортно-нейтральный, core-sdd, переход `VERIFYING→MERGED` (в `github` — CI impl-PR, в `sef-hub` — lane/integration): hash дерева `{proposal.md, design.md, specs/**}` на коммите из ref `APPROVED` ↔ на base; `tasks.md` исключён. Новых полей record нет. **Уточнено V-9** ([ADR-0024](adr/WARRANT-ADR-0024-spec-approved-contract.md)): дерево без `design.md`, gate `waivable: true` | Q-3, F-6, F-18 | ADR-0020 п. 9; 06 §4; долг D `gate` |
 | D-4 | `guard pre` без активного Run отвечает `deny` только для путей под `paths.src`, `paths.tests`, `openspec/changes/**` и policy-путей (`match.paths` профилей); остальные пути (например `docs/**`) — `allow` + hint «начни с `run start`». Dogfooding: Codex на коде этого репозитория не используется до фазы 4; Claude-сессии guard не получают (ADR-0018 п. 7) | Q-4, F-21 | ADR-0022 п. 7 |
 | D-5 | Adversarial review spec в MVP: стол выполняет `warrant run start <change> --operation review` → `codex exec --output-schema <skill-result> -o result.json` → `warrant run submit result.json`; attestation `none`, `limitations: ["produced locally, unattested"]`. Плагин Claude Code не используется (Claude — только интерактив, ADR-0020) | Q-5, F-19 | ADR-0020 п. 5; 13 Q7 |
 | D-6 | Строка `MEDIUM` для mutation убирается: `LOW`/`MEDIUM` — check не выполняется, `HIGH` — gate `mutation-score` required. Примитив «check без gate» (`evidence.recommended`) — later по failure mode | Q-6, F-13 | ADR-0016 п. 10; 05 §4 (строка 182); 10-pack-bdd-tdd §4 |

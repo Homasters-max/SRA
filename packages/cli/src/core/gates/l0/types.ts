@@ -7,6 +7,7 @@
  */
 import type { EffectivePolicy } from "../../resolve/types.js";
 import type { EvidenceInput, Finding, GateSignals, Verdict, WaiverInput } from "../types.js";
+import type { WaiverContext } from "../waivers.js";
 
 export interface L0Context {
   gate: string;
@@ -19,6 +20,8 @@ export interface L0Context {
   records: readonly EvidenceInput[];
   /** Waivers of the project, as read. */
   waivers: readonly WaiverInput[];
+  /** What `waiverStatus` judges a waiver by: today and the logins of `roles`. */
+  waiverContext: WaiverContext;
   /** Gate documents by id, as loaded. */
   definitions: ReadonlyMap<string, Record<string, unknown>>;
 }

@@ -17,6 +17,8 @@ export type RiskLevel = "LOW" | "MEDIUM" | "HIGH";
 export interface RiskEntry {
   value: string;
   from: string;
+  /** URL of the approval of a value below the floor; only with `from: human:<login>` (REQ-KRN-028). */
+  ref?: string;
 }
 
 /** `classification` of a change record, or the document passed to `--classification`. */
@@ -87,11 +89,22 @@ export interface EffectivePolicy {
 }
 
 /** One artifact that is both required and forbidden after the merge. */
-export interface ConflictItem {
+export interface ArtifactClash {
   item: string;
   required_by: string[];
   forbidden_by: string[];
 }
+
+/**
+ * A kind of `evidence.required` that no gate of the effective policy reads
+ * (R-7): nothing would judge its freshness or attestation.
+ */
+export interface UngatedKind {
+  code: "EVIDENCE_KIND_UNGATED";
+  kind: string;
+}
+
+export type ConflictItem = ArtifactClash | UngatedKind;
 
 export interface PolicyConflict {
   code: "POLICY_CONFLICT";

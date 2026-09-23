@@ -219,3 +219,85 @@ describe("classify: human source (REQ-KRN-028, P-5)", () => {
     ]);
   });
 });
+
+describe("classify: approved value below the floor (REQ-KRN-028, design §10)", () => {
+  const REF = "https://github.com/o/r/pull/7#issuecomment-1";
+  const AREAS = [".warrant/local/areas.json"];
+
+  it("lets a human value with ref go below the floor and sets the floor aside (SCN-KRN-116)", () => {
+    const result = classify({
+      changed: AREAS,
+      floors: [FLOOR_SYSTEM],
+      profiles: [],
+      human: { login: "kat", risk: { blast_radius: "LOCAL" }, ref: REF }
+    });
+    expect(result.belowFloor).toEqual([]);
+    expect(result.classification.risk?.blast_radius).toEqual({ value: "LOCAL", from: "human:kat", ref: REF });
+    expect(result.ignored).toEqual([
+      { dimension: "blast_radius", proposed: "SYSTEM", kept: "LOCAL", reason: "approved-below-floor", from: "floor:core-sdd:2" }
+    ]);
+  });
+
+  it("replaces the floor value an earlier run recorded (SCN-KRN-116)", () => {
+    const result = classify({
+      changed: AREAS,
+      floors: [FLOOR_SYSTEM],
+      profiles: [],
+      previous: { risk: { blast_radius: { value: "SYSTEM", from: "floor:core-sdd:2" } } },
+      human: { login: "kat", risk: { blast_radius: "LOCAL" }, ref: REF }
+    });
+    expect(result.classification.risk?.blast_radius).toEqual({ value: "LOCAL", from: "human:kat", ref: REF });
+    expect(result.belowFloor).toEqual([]);
+  });
+
+  it("keeps a recorded approved value on a later run, floor in ignored as approved-below-floor (SCN-KRN-116)", () => {
+    const result = classify({
+      changed: AREAS,
+      floors: [FLOOR_SYSTEM],
+      profiles: [],
+      previous: { risk: { blast_radius: { value: "LOCAL", from: "human:kat", ref: REF } } }
+    });
+    expect(result.classification.risk?.blast_radius).toEqual({ value: "LOCAL", from: "human:kat", ref: REF });
+    expect(result.ignored).toEqual([
+      { dimension: "blast_radius", proposed: "SYSTEM", kept: "LOCAL", reason: "approved-below-floor", from: "floor:core-sdd:2" }
+    ]);
+  });
+
+  it("ends the approval with a new --set of the dimension: without ref it is BELOW_FLOOR again", () => {
+    const result = classify({
+      changed: AREAS,
+      floors: [FLOOR_SYSTEM],
+      profiles: [],
+      previous: { risk: { blast_radius: { value: "LOCAL", from: "human:kat", ref: REF } } },
+      human: { login: "kat", risk: { blast_radius: "LOCAL" } }
+    });
+    expect(result.belowFloor).toEqual([
+      { dimension: "blast_radius", value: "LOCAL", floor: "SYSTEM", from: "floor:core-sdd:2" }
+    ]);
+  });
+
+  it("does not lower a value a proposer or a human recorded: the approval is about the floor only", () => {
+    const result = classify({
+      changed: [],
+      floors: [],
+      profiles: [],
+      previous: { risk: { security_impact: { value: "HIGH", from: "proposer" } } },
+      human: { login: "kat", risk: { security_impact: "LOW" }, ref: REF }
+    });
+    expect(result.classification.risk?.security_impact).toEqual({ value: "HIGH", from: "record" });
+    expect(result.ignored).toEqual([
+      { dimension: "security_impact", proposed: "LOW", kept: "HIGH", reason: "below-record", from: "human:kat" }
+    ]);
+  });
+
+  it("stores ref on a human value that is not below the floor as well", () => {
+    const result = classify({
+      changed: [],
+      floors: [],
+      profiles: [],
+      human: { login: "kat", risk: { data_loss: "LOW" }, ref: REF }
+    });
+    expect(result.classification.risk?.data_loss).toEqual({ value: "LOW", from: "human:kat", ref: REF });
+    expect(result.ignored).toEqual([]);
+  });
+});

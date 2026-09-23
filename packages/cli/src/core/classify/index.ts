@@ -16,6 +16,10 @@
  * A human source (`--set … --by <login>`, P-5) takes part in the same maximum
  * and wins ties (`from: human:<login>`); a human value below the floor is not
  * merged but reported in `belowFloor`, and the command refuses (`BELOW_FLOOR`).
+ * A human value with `ref` (`--set … --ref <url>`, REQ-KRN-028) is an approved
+ * value: the floor above it is set aside into `ignored` (`approved-below-floor`),
+ * the value is written with its `ref`, and later runs keep it the same way
+ * until a new `--set` of that dimension.
  *
  * `risk_level` не вычисляется и не пишется: это работа resolver'а.
  */
@@ -86,8 +90,12 @@ function anyMatch(changed: string[], patterns: string[]): boolean {
 interface Candidate {
   value: string;
   from: string;
-  /** Меньше — важнее: record (0), floor (1), proposer (2). */
+  /** Меньше — важнее: human / approved (-1), floor (0), record (1), proposer (2). */
   priority: number;
+  /** URL of the approval: set on an approved value only (human with `ref`). */
+  ref?: string;
+  /** For a recorded value: the `from` it was stored with. */
+  origin?: string;
 }
 
 function floorCandidates(
@@ -114,7 +122,12 @@ function floorCandidates(
 function previousCandidate(previous: Classification | undefined, dimension: RiskDimension): Candidate | undefined {
   const entry = previous?.risk?.[dimension];
   if (entry === undefined || typeof entry.value !== "string") return undefined;
-  return { value: entry.value, from: "record", priority: 1 };
+  const origin = typeof entry.from === "string" ? entry.from : "record";
+  // An approved value (human + ref) is kept as written, source and ref included (REQ-KRN-028).
+  if (origin.startsWith("human:") && typeof entry.ref === "string") {
+    return { value: entry.value, from: origin, priority: -1, ref: entry.ref, origin };
+  }
+  return { value: entry.value, from: "record", priority: 1, origin };
 }
 
 function proposedCandidate(propose: Proposal | undefined, dimension: RiskDimension): Candidate | undefined {
@@ -127,7 +140,9 @@ function proposedCandidate(propose: Proposal | undefined, dimension: RiskDimensi
 function humanCandidate(human: HumanValues | undefined, dimension: RiskDimension): Candidate | undefined {
   const value = human?.risk?.[dimension];
   if (human === undefined || typeof value !== "string") return undefined;
-  return { value, from: `human:${human.login}`, priority: -1 };
+  const candidate: Candidate = { value, from: `human:${human.login}`, priority: -1 };
+  if (human.ref !== undefined) candidate.ref = human.ref;
+  return candidate;
 }
 
 /** Values of a dimension in the order of 05 section 4, as `warrant://common/1` lists them. */
@@ -190,15 +205,39 @@ export function classify(input: ClassifyInput): ClassifyResult {
   const risk: Partial<Record<RiskDimension, RiskEntry>> = {};
 
   for (const dimension of RISK_DIMENSIONS) {
-    const previous = previousCandidate(input.previous, dimension);
-    const floor = floors[dimension];
+    let previous = previousCandidate(input.previous, dimension);
+    let floor = floors[dimension];
     const proposed = proposedCandidate(input.propose, dimension);
     const human = humanCandidate(input.human, dimension);
+
+    // A new `--set` of the dimension ends an earlier approval: the recorded value is then an ordinary one.
+    if (human !== undefined && previous?.ref !== undefined) previous = { value: previous.value, from: "record", priority: 1, origin: previous.from };
+    // An approved value (this call's `--set … --ref`, or one recorded earlier) wins over the floor (REQ-KRN-028).
+    const approved = human?.ref !== undefined ? human : previous?.ref !== undefined ? previous : undefined;
+    let setAside: Candidate | undefined;
+    if (approved !== undefined) {
+      if (floor !== undefined && rank(dimension, floor.value) > rank(dimension, approved.value)) {
+        setAside = floor;
+        floor = undefined;
+      }
+      // The floor remembered by an earlier run is the same floor: it gives way too.
+      if (approved === human && previous?.origin?.startsWith("floor:") === true && rank(dimension, previous.value) > rank(dimension, approved.value)) {
+        setAside ??= { value: previous.value, from: previous.origin, priority: 0 };
+        previous = undefined;
+      }
+    }
+
     const winner = best(dimension, [previous, floor, proposed, human].filter((c): c is Candidate => c !== undefined));
     if (winner === undefined) continue;
-    risk[dimension] = { value: winner.value, from: winner.from };
+    const entry: RiskEntry = { value: winner.value, from: winner.from };
+    if (winner.ref !== undefined) entry.ref = winner.ref;
+    risk[dimension] = entry;
 
-    // A human may raise or confirm, never go below the floor (P-5): a refusal, not an ignored value.
+    if (setAside !== undefined) {
+      ignored.push({ dimension, proposed: setAside.value, kept: winner.value, reason: "approved-below-floor", from: setAside.from });
+    }
+
+    // A human may raise or confirm, never go below the floor (P-5) without an approval: a refusal, not an ignored value.
     if (human !== undefined && floor !== undefined && rank(dimension, human.value) < rank(dimension, floor.value)) {
       belowFloor.push({ dimension, value: human.value, floor: floor.value, from: floor.from });
     } else if (human !== undefined && rank(dimension, human.value) < rank(dimension, winner.value)) {

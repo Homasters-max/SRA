@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/approved_by",
+  "scenario": "SCN-KRN-111"
+}

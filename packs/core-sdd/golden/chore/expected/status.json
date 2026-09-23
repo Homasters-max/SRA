@@ -36,13 +36,13 @@
     }
   },
   "effective_policy": {
-    "hash": "sha256:ceb629a615498f44cde43b0fdd1abc812c0ebca7725a67c3f84a3d7c43933507",
+    "hash": "sha256:966f210e2ae454b9271ba8434507e8aba10435da3c1367a5e0c10bc090455382",
     "risk_level": "LOW",
     "sources": [
       "kernel@{CLI_VERSION}",
-      "core-sdd@0.2.1:overlay/core-default@1.0.0",
-      "core-sdd@0.2.1:profile/chore@1.0.0",
-      "core-sdd@0.2.1:overlay/risk-low@1.0.0"
+      "core-sdd@0.3.0:overlay/core-default@1.0.0",
+      "core-sdd@0.3.0:profile/chore@1.0.0",
+      "core-sdd@0.3.0:overlay/risk-low@1.0.0"
     ]
   },
   "stale": [],

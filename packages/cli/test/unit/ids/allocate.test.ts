@@ -106,4 +106,11 @@ describe("allocateWaiver", () => {
     expect(allocateWaiver(root, 2026)).toBe("WAV-2026-004");
     expect(allocateWaiver(root, 2027)).toBe("WAV-2027-001");
   });
+
+  it("counts a file name WAV-<year>-NNN.json as taken even when its content says otherwise (REQ-KRN-031)", () => {
+    const root = project();
+    write(root, ".warrant/waivers/WAV-2026-007.json", "not json");
+    write(root, ".warrant/waivers/WAV-2026-002.json", { id: "WAV-2026-002" });
+    expect(allocateWaiver(root, 2026)).toBe("WAV-2026-008");
+  });
 });

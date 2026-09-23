@@ -1,6 +1,6 @@
 ---
 id: WARRANT-NEXT
-title: WARRANT — следующий шаг: archive-PR phase-3b, затем фаза 4
+title: WARRANT — следующий шаг: фаза 4 (frontend Codex)
 status: informative
 maturity: MVP
 version: 0.4.0
@@ -10,7 +10,7 @@ version: 0.4.0
 
 Файл передачи контекста. Прочитать первым, затем [00-readme](00-readme.md).
 
-## Состояние на 2026-09-23
+## Состояние на 2026-09-24
 
 - **Фазы 1 и 2 закрыты**: `phase-1-kernel` и `phase-2-core-sdd` заархивированы (`openspec/changes/archive/2026-09-22-*`,
   main specs `openspec/specs/{kernel,core-sdd}/spec.md`), tag `v0.2.0`. Record `phase-2-core-sdd` остаётся
@@ -28,7 +28,7 @@ version: 0.4.0
   `path.relative` к `--show-toplevel` обнулял diff при 8.3-имени/symlink temp-каталога → `scope-valid` ложно `PASS`) и I-101
   (обёртка fake `openspec` в тестах звала внешний `dirname` при PATH только из fake). Оба исправлены в impl-PR; CI зелёный
   на ubuntu и windows — 616/616, 0 skipped (P-18 (3)).
-- **phase-3b — impl-PR готов** (2026-09-23): spec-PR #10 (merge `3d6a4cd`, `SPECIFIED` в spec-PR — P-2 без отступлений),
+- **phase-3b закрыт** (2026-09-24): archive-PR `archive/phase-3b` — evidence CI run 35920574061, `transition MERGED --commit 6db3352`, `warrant archive` → `openspec/changes/archive/2026-09-24-phase-3b`, main specs `kernel`/`verification`/`core-sdd` обновлены, tag `v0.4.0`; impl-PR #11 смержен merge-коммитом `702cbac`. Ход: spec-PR #10 (merge `3d6a4cd`, `SPECIFIED` в spec-PR — P-2 без отступлений),
   impl-PR #11 `worktree/phase-3b` (worktree `D:\project\SRA-phase3b-impl`): первым коммитом `APPROVED --ref #10 --by
   Homasters-max` + `IMPLEMENTING`, группы 1–5 по коммиту, последним — `VERIFYING`. Решения **I-102…I-116** — таблица
   design.md `openspec/changes/phase-3b/`. Версии: CLI **0.4.0**, pack `core-sdd` **0.3.0** (`kernel: ">=0.1 <0.5"`),
@@ -184,13 +184,14 @@ I-93 решается без нового ADR: ADR-0010 п. 2 уже замен�
 ### Продолжение — готовый запрос
 
 ```text
-Прочитай docs/NEXT-SESSION.md (состояние phase-3b, «Долг после фазы 3», «Как прошёл 6.5»). Impl-PR #11 (worktree/phase-3b)
-смержен merge-коммитом. Archive-PR phase-3b по образцу 6.5: ветка archive/phase-3b от main в новом worktree (npm ci);
-gh run download <run impl-head> -n evidence-phase-3b → .warrant/evidence/phase-3b/ (artifact ОДНОГО run'а — R-6);
-warrant transition phase-3b MERGED --ref <url этого run'а> --commit <impl-head> --by Homasters-max (human-approval
-risk-high — акт maintainer'а, подтверди); warrant archive phase-3b; warrant status — stale[] только у phase-2-core-sdd;
-PR → merge → tag v0.4.0 из D:\project\SRA (не из worktree PR). Затем /next-session и вход в фазу 4 (13 §2, S8, «Долг схем
-и CLI» B–D): grilling по нарезке фазы 4 до /opsx:propose.
+Прочитай docs/NEXT-SESSION.md целиком (состояние, «Долг после фазы 3», «Процессные правила», «phase-3b — нарезка»
+V-1…V-9 — что вынесено в фазу 4, «Долг схем и CLI» B–D), затем docs/13-roadmap.md §2 (фаза 4) и §3 (S8), ADR-0014, 0017,
+0018, 0019, 0020, 0022, 0023. Phase-3b закрыт, tag v0.4.0. Сначала — fix-PR «ускорить validate (один openspec на проект) и
+стабилизировать e2e на windows» (долг «тесты под нагрузкой»). Затем grilling по нарезке фазы 4 (sync AGENTS.md и
+.codex/hooks.json, run start/submit, run/1, skill-result/1, guard, validate --files, analyze, ci, адаптер codex после
+spike S8, producer'ы analyze-clean и adversarial-review) до /opsx:propose; при затяжке S8 — два change (ci отдельно от
+run/guard). Топология P-2 (spec-PR → impl-PR → archive-PR), по worktree на ветку; merge PR делает maintainer —
+выводи ему команду `gh pr merge <N> --merge`.
 ```
 
 ### Решения grilling 2026-09-22 по фазе 3 (P-1…P-20) — приняты maintainer'ом

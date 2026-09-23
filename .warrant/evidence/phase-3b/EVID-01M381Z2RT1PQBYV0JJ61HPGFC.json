@@ -1,0 +1,42 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M381Z2RT1PQBYV0JJ61HPGFC",
+  "claim": {
+    "text": "tests-passed passed for phase-3b",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "6db3352e3db4a2f3f2e8fc7be2f8743ebfee5278",
+    "base_commit": "3d6a4cd0ef0b31f309fde754373c63a0dd617bb5",
+    "spec_revision": "openspec/changes/phase-3b@6db3352e3db4a2f3f2e8fc7be2f8743ebfee5278",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "ci",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/35920574061"
+  },
+  "context_hash": "sha256:1099c5934bbf1a52fff6687ec95da78dbaf5127418cf5ee1e1d47d8a2568e0d4",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-23T21:15:23.291Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/phase-3b/raw/tests-passed/junit.xml",
+      "sha256": "sha256:a7eaa043f1ac990933a5ead90335e58061d7e6828e1294889913ca6fdbcbbba3"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 1,
+    "tests": 686
+  }
+}

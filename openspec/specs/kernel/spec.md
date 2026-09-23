@@ -237,7 +237,8 @@ SHALL доходить целиком (B4).
 
 Схема `warrant://change-record/1` SHALL описывать `.warrant/changes/<change>.json` ([04 §9](../../../../docs/04-lifecycle.md)):
 `change` (kebab-case, равен имени файла), `change_state` из [02 §2](../../../../docs/02-vocabulary.md), необязательный `classification`
-(`profiles[]`, `risk` — измерение → `{ "value", "from" }` где `from` соответствует `floor`, `proposer:<id>` или `human:<login>`;
+(`profiles[]`, `risk` — измерение → `{ "value", "from", "ref"? }` где `from` соответствует `floor`, `proposer:<id>` или `human:<login>`,
+а `ref` (URL) допустим только при `from: human:<login>` и фиксирует approval понижения ниже floor ([REQ-KRN-028](#requirement-команда-classify));
 `risk_level`), `transitions[]` (`to`, `at` (RFC 3339), `by`, `effective_policy_hash`?, `gates`?, `evidence`?, `ref`? (URL)),
 `unknowns[]` (`id` `UNK-AREA-NNN`, `text`, `blocking`, `resolution`?), `assumptions[]` (`id` `ASM-AREA-NNN`, `text`),
 необязательные `amends[]` и `supersedes[]` (kebab-case имена Changes, [ADR-0021](../../../../docs/adr/WARRANT-ADR-0021-archive-immutability.md)).
@@ -256,6 +257,11 @@ SHALL доходить целиком (B4).
 <!-- id: SCN-KRN-091 -->
 - **WHEN** record содержит `"amends": ["add-search"]` и `"supersedes": []`
 - **THEN** файл валиден; `"amends": ["Add Search"]` — невалиден с указанием `/amends/0`
+
+#### Scenario: ref у значения risk
+<!-- id: SCN-KRN-110 -->
+- **WHEN** `classification.risk.blast_radius` равен `{ "value": "LOCAL", "from": "human:kat", "ref": "https://github.com/o/r/pull/7#issuecomment-1" }`
+- **THEN** файл валиден; тот же `ref` при `from: "floor:core-sdd:2"` — невалиден с указанием `/classification/risk/blast_radius`
 
 ### Requirement: Схема evidence
 <!-- id: REQ-KRN-012 -->
@@ -385,8 +391,9 @@ pack для kind, [REQ-KRN-001](#requirement-адресация-и-форма-js
 <!-- id: REQ-KRN-019 -->
 
 Схема `warrant://waiver/1` SHALL описывать waiver ([05 §7](../../../../docs/05-policy.md)): `id` (`WAV-<year>-NNN`), `change`, `gate`, `reason`,
-`risk`, `compensating_controls[]`, обязательные `owner`, `approved_by` (вид `human:<login>`), `expires_at` (дата),
-`waiver_state` из [02 §2](../../../../docs/02-vocabulary.md), необязательный `targets[]` (object[]; форму задаёт pack gate, D-13).
+`risk`, `compensating_controls[]`, обязательные `owner`, `expires_at` (дата), `waiver_state` из [02 §2](../../../../docs/02-vocabulary.md),
+`approved_by` (вид `human:<login>`) — обязателен во всех состояниях, кроме `PROPOSED` (предложенный waiver ещё не одобрен, 05 §7),
+необязательный `targets[]` (object[]; форму задаёт pack gate, D-13).
 
 #### Scenario: Пример waiver
 <!-- id: SCN-KRN-038 -->
@@ -402,6 +409,11 @@ pack для kind, [REQ-KRN-001](#requirement-адресация-и-форма-js
 <!-- id: SCN-KRN-093 -->
 - **WHEN** waiver содержит `targets` из примера 05 §7 «Частичный waiver»
 - **THEN** файл валиден kernel-схемой; `targets: ["x"]` — невалиден с указанием `/targets/0`
+
+#### Scenario: Предложенный waiver без approved_by
+<!-- id: SCN-KRN-111 -->
+- **WHEN** waiver в `waiver_state: "PROPOSED"` не содержит `approved_by`
+- **THEN** файл валиден; тот же waiver в `ACTIVE` — невалиден с указанием отсутствующего `approved_by`
 
 ### Requirement: Схема areas
 <!-- id: REQ-KRN-020 -->
@@ -443,12 +455,17 @@ approvals и `forbidden`; каталог `.warrant/local/<id>/` с `pack.json`, 
 `openspec/changes/**` (иначе `RULE_SCOPE`, [ADR-0022](../../../../docs/adr/WARRANT-ADR-0022-path-rules.md) п. 4);
 (9) stable ID, объявленный в `HEAD` в `openspec/specs/**` или в `openspec/changes/<change>/**` при record `<change>` в состоянии
 `APPROVED` и далее, не изменён и не удалён в рабочем дереве (иначе `ID_IMMUTABLE` с путём и ID; D-18, [ADR-0019](../../../../docs/adr/WARRANT-ADR-0019-post-edit-hints.md) п. 1c);
+ID требования `openspec/specs/**`, которое delta Change, перенесённого в `openspec/changes/archive/**` в рабочем дереве относительно
+`HEAD`, перечисляет под `## REMOVED Requirements` (по заголовку требования), и ID его сценариев SHALL NOT давать `ID_IMMUTABLE` (I-77);
 (10) каждая цель `amends[]` — существующий Change в `MERGED` или `ARCHIVED`, каждая цель `supersedes[]` — в `ABANDONED` (иначе `LINK_TARGET_INVALID`);
-(11) каждый waiver `.warrant/waivers/*.json` ссылается на существующие Change и gate, gate имеет `waivable: true`, `approved_by`
-входит в `roles` `warrant.json` (иначе `WAIVER_INVALID`); `ACTIVE` waiver с `expires_at` в прошлом даёт предупреждение `WAIVER_EXPIRED` в
-stderr, не ошибку;
+(11) каждый waiver `.warrant/waivers/*.json` ссылается на существующие Change и gate, gate имеет `waivable: true`, `approved_by`, если
+задан, входит в `roles` `warrant.json` (иначе `WAIVER_INVALID`); `ACTIVE` waiver с `expires_at` в прошлом даёт предупреждение
+`WAIVER_EXPIRED` в stderr, не ошибку;
 (12) записи `.warrant/evidence/<change>/*.json` и `manifest.json` валидны схемами, `metrics` и `targets[]` — формами pack
-([REQ-KRN-001](#requirement-адресация-и-форма-json-schema-kernel)), `kind` каждой записи объявлен подключённым pack, а `manifest.evidence[]` перечисляет ровно записи каталога.
+([REQ-KRN-001](#requirement-адресация-и-форма-json-schema-kernel)), `kind` каждой записи объявлен подключённым pack, а `manifest.evidence[]` перечисляет ровно записи каталога;
+(13) каждая ссылка вида `REQ-AREA-NNN` или `SCN-AREA-NNN` в `tasks.md` активных Changes (`openspec/changes/<change>/tasks.md`, кроме
+`archive/`) и в файлах под `paths.tests` `warrant.json` (если задан) объявлена в `openspec/specs/**` или `openspec/changes/**`, включая
+archive (иначе `ID_DANGLING` с путём, строкой и ID; [ADR-0019](../../../../docs/adr/WARRANT-ADR-0019-post-edit-hints.md) п. 1d).
 Любая находка SHALL давать `ok: false` и код выхода 3. Флага `--no-generated` SHALL NOT быть: `config.yaml` генерируется целиком
 ([REQ-KRN-025](#requirement-команда-sync)).
 
@@ -542,6 +559,21 @@ stderr, не ошибку;
 <!-- id: SCN-KRN-099 -->
 - **WHEN** `.warrant/waivers/WAV-2026-001.json` ссылается на gate `scope-valid` или `approved_by: "human:bob"` при `bob` вне `roles`
 - **THEN** `errors[]` содержит `WAIVER_INVALID` с путём waiver и причиной; валидный waiver с `expires_at` в прошлом даёт `WAIVER_EXPIRED` в stderr и `ok: true`
+
+#### Scenario: REMOVED в коммите archive
+<!-- id: SCN-KRN-112 -->
+- **WHEN** `HEAD` содержит `openspec/specs/search/spec.md` с требованием «Поиск по тегам» (`REQ-SRC-004`, `SCN-SRC-009`), а в рабочем дереве после `openspec archive` оно удалено, и появился `openspec/changes/archive/2026-09-24-drop-tags/specs/search/spec.md` с этим заголовком под `## REMOVED Requirements`
+- **THEN** `validate` не сообщает `ID_IMMUTABLE` ни для `REQ-SRC-004`, ни для `SCN-SRC-009`; удаление того же требования без архивной delta — сообщает
+
+#### Scenario: Висячая ссылка в tasks.md
+<!-- id: SCN-KRN-113 -->
+- **WHEN** `openspec/changes/add-search/tasks.md` содержит `SCN-SRC-042`, который не объявлен ни в `openspec/specs/**`, ни в `openspec/changes/**`
+- **THEN** `errors[]` содержит `ID_DANGLING` с путём `tasks.md`, номером строки и `SCN-SRC-042`, код выхода 3
+
+#### Scenario: Тесты и архив
+<!-- id: SCN-KRN-114 -->
+- **WHEN** `warrant.json` задаёт `paths.tests: "tests"`, `tests/search.test.py` ссылается на `REQ-SRC-001` из архивной delta и на необъявленный `REQ-SRC-777`, а архивный `tasks.md` ссылается на необъявленный ID
+- **THEN** `ID_DANGLING` сообщён только для `REQ-SRC-777`; без `paths.tests` файлы тестов не проверяются
 
 ### Requirement: Команда fmt
 <!-- id: REQ-KRN-022 -->
@@ -681,7 +713,9 @@ AREA SHALL быть в `.warrant/local/areas.json`. `warrant id EVID` и `warran
 `warrant resolve <change> [--explain] [--classification <file>]` SHALL вычислить effective policy как чистую функцию
 от classification (из record или из файла), overlays packs и `.warrant/local/` в порядке
 `default → project → profile(s) → risk → waiver` по правилам [05 §5](../../../../docs/05-policy.md): объединение множеств, запрет ослабления,
-`forbidden` абсолютен, конфликт `required` ∧ `forbidden` → `POLICY_CONFLICT`. Результат SHALL содержать `hash`
+`forbidden` абсолютен, конфликт `required` ∧ `forbidden` → `POLICY_CONFLICT`; kind из `evidence.required`, которого нет в
+`requires_evidence` ни одного gate effective policy (ни на одном переходе), SHALL давать `POLICY_CONFLICT` с элементом
+`{ "code": "EVIDENCE_KIND_UNGATED", "kind" }` (такой kind нечем проверить по свежести и attestation; R-7). Результат SHALL содержать `hash`
 (SHA-256 canonical JSON, RFC 8785), `sources[]`, `risk_level`, `artifacts`, `gates`, `capabilities`, `approvals`, `evidence`,
 а с `--explain` — происхождение каждого элемента. Одинаковый вход SHALL давать одинаковый `hash`.
 
@@ -709,6 +743,11 @@ AREA SHALL быть в `.warrant/local/areas.json`. `warrant id EVID` и `warran
 <!-- id: SCN-KRN-069 -->
 - **WHEN** classification из golden case подана через `--classification`
 - **THEN** результат (без `hash`) равен ожидаемому JSON golden case
+
+#### Scenario: Kind без gate
+<!-- id: SCN-KRN-115 -->
+- **WHEN** overlay проекта добавляет в `evidence.required` kind `perf-report`, который не требует ни один gate effective policy
+- **THEN** `ok: false`, `errors[0].code` равен `POLICY_CONFLICT`, конфликт содержит `EVIDENCE_KIND_UNGATED` с `perf-report`, `controller_action` равен `ESCALATE`, код выхода 2
 
 ### Requirement: Команда status
 <!-- id: REQ-KRN-027 -->
@@ -769,8 +808,13 @@ unenforced }` — число правил `rule/1` и число правил б
 измерений от proposer'а; (5) `--set <dim>=<value>` и `--set profile=<id>` (повторяемые) — значения человека, требуют `--by <login>`,
 где `login` входит хотя бы в одну роль `roles` `warrant.json` (иначе `ROLE_REQUIRED`, код 3), и записываются с `from: human:<login>`.
 Итог измерения = максимум по порядку значений [05 §4](../../../../docs/05-policy.md) из floor, proposer и human; каждое значение
-SHALL нести `from` (`floor:<pack>:<rule-index>`, `proposer`, `human:<login>`, ранее записанное — `record`). `--set` ниже floor SHALL
-отказывать с `BELOW_FLOOR`, код 3, record не изменён (понижение — вне этого требования). Повторный `classify` SHALL NOT понижать ранее
+SHALL нести `from` (`floor:<pack>:<rule-index>`, `proposer`, `human:<login>`, ранее записанное — `record`). `--set` ниже floor без
+`--ref` SHALL отказывать с `BELOW_FLOOR`, код 3, record не изменён. Понижение ниже floor ([04 §8](../../../../docs/04-lifecycle.md)) SHALL
+выполняться только как `--set <dim>=<value> --by <login> --ref <url>` (http(s) URL approval), где `login` входит в роль из `approvals[]`
+перехода `SPECIFIED->APPROVED` effective policy (без `approvals[]` — `maintainer`; иначе `ROLE_REQUIRED`), и только при `change_state`
+`PROPOSED` или `SPECIFIED` (иначе `STATE_INVALID`, код 3); значение записывается как `{ value, from: "human:<login>", ref }`, и
+последующие `classify` SHALL сохранять его, пока нет нового `--set` этого измерения: floor по этому измерению попадает в `data.ignored[]`
+с причиной `approved-below-floor`. `ref` не верифицируется до `warrant ci` (фаза 4). Повторный `classify` SHALL NOT понижать ранее
 записанное значение измерения и SHALL NOT удалять ранее записанный profile. `risk_level` SHALL NOT записываться: его вычисляет resolver.
 Измерения без значения SHALL остаться отсутствующими (resolver трактует их как `UNKNOWN`). Команда SHALL печатать итоговую
 `classification` и `effective_policy` из `resolve` в `data`.
@@ -807,13 +851,23 @@ SHALL нести `from` (`floor:<pack>:<rule-index>`, `proposer`, `human:<login>
 
 #### Scenario: Ниже floor
 <!-- id: SCN-KRN-106 -->
-- **WHEN** floor даёт `blast_radius: SYSTEM`, а вызван `--set blast_radius=LOCAL --by kat`
+- **WHEN** floor даёт `blast_radius: SYSTEM`, а вызван `--set blast_radius=LOCAL --by kat` без `--ref`
 - **THEN** `errors[0].code` равен `BELOW_FLOOR`, код 3, record не изменён
 
 #### Scenario: --set без роли
 <!-- id: SCN-KRN-107 -->
 - **WHEN** `--set data_loss=LOW` без `--by`, или с `--by bob` вне `roles`
 - **THEN** `errors[0].code` равен `USAGE` либо `ROLE_REQUIRED`, record не изменён
+
+#### Scenario: Понижение ниже floor с approval
+<!-- id: SCN-KRN-116 -->
+- **WHEN** floor даёт `blast_radius: SYSTEM`, record `add-search` в `SPECIFIED`, вызван `--set blast_radius=LOCAL --by kat --ref https://github.com/o/r/pull/7#issuecomment-1` при `roles.maintainer: ["kat"]`
+- **THEN** record содержит `blast_radius: { value: "LOCAL", from: "human:kat", ref: "https://github.com/o/r/pull/7#issuecomment-1" }`; повторный `classify` без `--set` сохраняет его, а `data.ignored[]` содержит `blast_radius` с причиной `approved-below-floor`
+
+#### Scenario: Понижение после APPROVED
+<!-- id: SCN-KRN-117 -->
+- **WHEN** тот же вызов при record `add-search` в `APPROVED`
+- **THEN** `errors[0].code` равен `STATE_INVALID`, код 3, record не изменён
 
 ### Requirement: Схема rule
 <!-- id: REQ-KRN-029 -->
@@ -832,3 +886,67 @@ SHALL нести `from` (`floor:<pack>:<rule-index>`, `proposer`, `human:<login>
 <!-- id: SCN-KRN-109 -->
 - **WHEN** `paths` пуст или отсутствует
 - **THEN** файл невалиден с указанием `/paths`
+
+### Requirement: Команда link
+<!-- id: REQ-KRN-030 -->
+
+`warrant link <change> (--amends <target> | --supersedes <target>) [--remove]` SHALL добавить `target` в `amends[]` или
+`supersedes[]` record `<change>` (без дубликатов, сохраняя порядок) либо, с `--remove`, удалить его оттуда
+([ADR-0021](../../../../docs/adr/WARRANT-ADR-0021-archive-immutability.md) п. 4, 9). Команда SHALL принимать ровно один из флагов
+`--amends`, `--supersedes` (иначе `USAGE`) и SHALL менять record только в `change_state` `PROPOSED` или `SPECIFIED`: в `APPROVED` и далее —
+`STATE_INVALID`, код 3 (метаданные после approval меняются только новой ревизией approval); `ARCHIVED`, `ABANDONED` — `RECORD_FROZEN`, код 3.
+Цель `--amends` SHALL быть существующим Change в `MERGED` или `ARCHIVED`, цель `--supersedes` — в `ABANDONED`, и SHALL NOT совпадать с
+`<change>`; иначе `LINK_TARGET_INVALID`, код 3, record не изменён. Record SHALL записываться канонически; после записи `warrant validate`
+(проверка (10) [REQ-KRN-021](#requirement-команда-validate)) SHALL проходить, а `warrant status <target>` — показывать `<change>` в
+`amended_by[]` или `superseded_by[]`.
+
+#### Scenario: Исправление архивного Change
+<!-- id: SCN-KRN-118 -->
+- **WHEN** `warrant link fix-search --amends add-search` при record `fix-search` в `PROPOSED` и record `add-search` в `ARCHIVED`
+- **THEN** record `fix-search` содержит `amends: ["add-search"]`, код 0, повторный вызов не создаёт дубликата, `warrant status add-search` даёт `amended_by: ["fix-search"]`
+
+#### Scenario: Цель не в допустимом состоянии
+<!-- id: SCN-KRN-119 -->
+- **WHEN** `warrant link fix-search --supersedes add-search` при record `add-search` в `ARCHIVED`
+- **THEN** `errors[0].code` равен `LINK_TARGET_INVALID`, код 3, record не изменён
+
+#### Scenario: После APPROVED
+<!-- id: SCN-KRN-120 -->
+- **WHEN** `warrant link fix-search --amends add-search` при record `fix-search` в `APPROVED`
+- **THEN** `errors[0].code` равен `STATE_INVALID`, код 3; `--remove` в `SPECIFIED` удаляет цель из `amends[]`
+
+### Requirement: Команда waive
+<!-- id: REQ-KRN-031 -->
+
+`warrant waive` SHALL создавать и менять waiver-файлы `.warrant/waivers/<WAV>.json` ([05 §7](../../../../docs/05-policy.md)); файлы
+SHALL записываться канонически и проходить [REQ-KRN-019](#requirement-схема-waiver) и проверку (11) [REQ-KRN-021](#requirement-команда-validate).
+(1) `warrant waive <change> <gate> --reason <text> --risk <LOW|MEDIUM|HIGH> --control <text>… --owner <human:login> --expires <YYYY-MM-DD>`
+SHALL создать waiver в состоянии `PROPOSED` без `approved_by`, с `id` `WAV-<год UTC>-NNN`, где `NNN` — следующий номер после
+максимального среди waivers `.warrant/waivers/` этого года; Change SHALL существовать и не быть заморожен (иначе `CHANGE_NOT_FOUND`
+или `RECORD_FROZEN`), gate SHALL быть объявлен подключённым pack и иметь `waivable: true` (иначе `WAIVER_INVALID`), `--expires` SHALL
+быть датой не раньше сегодняшней UTC (иначе `USAGE`); `targets[]` команда SHALL NOT записывать (поведение частичного waiver — фаза 5).
+(2) `warrant waive --activate <WAV> --by <login>` SHALL перевести waiver из `PROPOSED` в `ACTIVE` и записать `approved_by: "human:<login>"`;
+(3) `warrant waive --revoke <WAV> --by <login>` SHALL перевести waiver из `PROPOSED` или `ACTIVE` в `REVOKED`. Для (2) и (3) `login`
+SHALL входить в `roles.maintainer` (иначе `ROLE_REQUIRED`, код 3), неизвестный `<WAV>` — `WAIVER_INVALID`, недопустимое исходное
+состояние — `STATE_INVALID`, код 3; waiver в `EXPIRED` или `REVOKED` SHALL NOT меняться. Команда SHALL печатать waiver в `data.waiver`.
+Агент MAY выполнять (1); активация — акт человека (05 §7), предел проверки `--by` — как у `transition` (заявление до `warrant ci`).
+
+#### Scenario: Предложить waiver
+<!-- id: SCN-KRN-121 -->
+- **WHEN** `warrant waive add-search analyze-clean --reason "no analyze yet" --risk HIGH --control "maintainer review" --owner human:kat --expires 2026-12-31` при существующих `WAV-2026-001`, `WAV-2026-004`
+- **THEN** создан `.warrant/waivers/WAV-2026-005.json` с `waiver_state: "PROPOSED"` без `approved_by`, `warrant validate` даёт `ok: true`, gate `analyze-clean` по-прежнему `BLOCKED`
+
+#### Scenario: Активировать
+<!-- id: SCN-KRN-122 -->
+- **WHEN** `warrant waive --activate WAV-2026-005 --by kat` при `roles.maintainer: ["kat"]`
+- **THEN** waiver в `ACTIVE` с `approved_by: "human:kat"`, `warrant gate add-search` даёт `analyze-clean: WAIVED`; с `--by bob` вне `roles.maintainer` — `ROLE_REQUIRED`, файл не изменён
+
+#### Scenario: Невэйвабельный gate
+<!-- id: SCN-KRN-123 -->
+- **WHEN** `warrant waive add-search scope-valid …`
+- **THEN** `errors[0].code` равен `WAIVER_INVALID`, код 3, файл не создан
+
+#### Scenario: Отозвать
+<!-- id: SCN-KRN-124 -->
+- **WHEN** `warrant waive --revoke WAV-2026-005 --by kat` для `ACTIVE` waiver
+- **THEN** waiver в `REVOKED`, gate `analyze-clean` снова `BLOCKED`; повторный `--activate` даёт `STATE_INVALID`

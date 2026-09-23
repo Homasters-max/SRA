@@ -22,10 +22,10 @@
 
 ## 3. Схемы и validate
 
-- [ ] 3.1 `change-record.1`: `ref` у значений risk только при `from: human:*`; `waiver.1`: `approved_by` обязателен кроме `PROPOSED` (design §9); `warrant sync` обновляет `.warrant/schemas/`. Проверка: unit схем SCN-KRN-110, SCN-KRN-111; прежние SCN-KRN-022, 023, 038, 039, 093 зелёные. (REQ-KRN-011, REQ-KRN-019)
-- [ ] 3.2 `validate` (11): `approved_by` сверяется с roles только если задан; `PROPOSED` waiver без него валиден и не влияет на gates. Проверка: e2e SCN-KRN-099 и waiver `PROPOSED` без `approved_by` → `ok: true`. (REQ-KRN-021)
-- [ ] 3.3 I-77: `ID_IMMUTABLE` не срабатывает для требований, снятых `## REMOVED Requirements` архивной delta, появившейся в рабочем дереве (design §11). Проверка: e2e SCN-KRN-112 в temp-репозитории (оба случая). (REQ-KRN-021)
-- [ ] 3.4 Проверка (13) `ID_DANGLING` по `tasks.md` активных Changes и `paths.tests` (design §11). Проверка: e2e SCN-KRN-113, SCN-KRN-114; `warrant validate` на репозитории `ok: true` (ни одной висячей ссылки в `tasks.md` `phase-3b`). (REQ-KRN-021)
+- [x] 3.1 `change-record.1`: `ref` у значений risk только при `from: human:*`; `waiver.1`: `approved_by` обязателен кроме `PROPOSED` (design §9); `warrant sync` обновляет `.warrant/schemas/`. Проверка: unit схем SCN-KRN-110, SCN-KRN-111; прежние SCN-KRN-022, 023, 038, 039, 093 зелёные. (REQ-KRN-011, REQ-KRN-019)
+- [x] 3.2 `validate` (11): `approved_by` сверяется с roles только если задан; `PROPOSED` waiver без него валиден и не влияет на gates. Проверка: e2e SCN-KRN-099 и waiver `PROPOSED` без `approved_by` → `ok: true`. (REQ-KRN-021)
+- [x] 3.3 I-77: `ID_IMMUTABLE` не срабатывает для требований, снятых `## REMOVED Requirements` архивной delta, появившейся в рабочем дереве (design §11). Проверка: e2e SCN-KRN-112 в temp-репозитории (оба случая). (REQ-KRN-021)
+- [x] 3.4 Проверка (13) `ID_DANGLING` по `tasks.md` активных Changes и `paths.tests` (design §11). Проверка: e2e SCN-KRN-113, SCN-KRN-114; `warrant validate` на репозитории `ok: true` (ни одной висячей ссылки в `tasks.md` `phase-3b`). (REQ-KRN-021)
 
 ## 4. Команды link, waive, classify ниже floor
 

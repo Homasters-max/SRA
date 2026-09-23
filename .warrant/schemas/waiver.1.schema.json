@@ -46,7 +46,7 @@
       "minLength": 1
     },
     "approved_by": {
-      "description": "Human who approved the waiver, as `human:<login>`. An agent may propose but not approve.",
+      "description": "Human who approved the waiver, as `human:<login>`. An agent may propose but not approve. Required in every state except `PROPOSED` (05 section 7).",
       "type": "string",
       "pattern": "^human:[A-Za-z0-9._-]+$"
     },
@@ -76,9 +76,10 @@
     "gate",
     "reason",
     "owner",
-    "approved_by",
     "expires_at",
     "waiver_state"
   ],
+  "if": { "properties": { "waiver_state": { "const": "PROPOSED" } } },
+  "else": { "properties": { "approved_by": true }, "required": ["approved_by"] },
   "additionalProperties": false
 }

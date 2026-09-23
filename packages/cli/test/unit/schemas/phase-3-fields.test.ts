@@ -147,6 +147,37 @@ describe("waiver/1: targets", () => {
   });
 });
 
+describe("phase-3b: ref of a risk value and approved_by of a PROPOSED waiver", () => {
+  it("accepts a ref on a human risk value and rejects it on a floor value (SCN-KRN-110)", () => {
+    expectValid(fixture("change-record", "valid-risk-human-ref.json"));
+    expect(pointers(fixture("change-record", "invalid-risk-ref-not-human.json"))).toContain(
+      "/classification/risk/blast_radius"
+    );
+  });
+
+  it("rejects a ref with a proposer source and a ref that is not a URL (SCN-KRN-110)", () => {
+    const record = fixture("change-record", "valid-doc-example.json");
+    const withRisk = (entry: Record<string, unknown>): Record<string, unknown> => ({
+      ...record,
+      classification: { risk: { blast_radius: entry } }
+    });
+    const ref = "https://github.com/o/r/pull/7#issuecomment-1";
+    expect(pointers(withRisk({ value: "LOCAL", from: "proposer:llm", ref }))).toContain("/classification/risk/blast_radius");
+    expect(pointers(withRisk({ value: "LOCAL", from: "human:kat", ref: "not a url" }))).toContain(
+      "/classification/risk/blast_radius/ref"
+    );
+  });
+
+  it("accepts a PROPOSED waiver without approved_by and rejects the same waiver in ACTIVE (SCN-KRN-111)", () => {
+    expectValid(fixture("waiver", "valid-proposed-without-approver.json"));
+    expect(pointers(fixture("waiver", "invalid-active-without-approver.json"))).toContain("/approved_by");
+    const proposed = fixture("waiver", "valid-proposed-without-approver.json");
+    for (const state of ["REVOKED", "EXPIRED"]) {
+      expect(pointers({ ...proposed, waiver_state: state }), state).toContain("/approved_by");
+    }
+  });
+});
+
 describe("rule/1", () => {
   it("accepts a rule with enforced_by (SCN-KRN-108)", () => {
     expectValid(fixture("rule", "valid-json-canonical.json"));

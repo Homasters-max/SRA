@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/classification/risk/blast_radius",
+  "scenario": "SCN-KRN-110"
+}

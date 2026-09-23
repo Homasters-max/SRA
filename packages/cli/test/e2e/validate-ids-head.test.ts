@@ -132,6 +132,98 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant validate (9): stable ids again
     expect(codes(run)).not.toContain("ID_IMMUTABLE");
   }, 60_000);
 
+  describe("I-77: a requirement removed by the delta of the archive commit", () => {
+    const SEARCH_SPEC = `# search Specification
+
+## Purpose
+Search behaviour for the tests.
+
+## Requirements
+
+### Requirement: Поиск по имени
+<!-- id: REQ-SRC-001 -->
+The system SHALL find records by name.
+
+#### Scenario: Found
+<!-- id: SCN-SRC-002 -->
+- **WHEN** a known name is searched
+- **THEN** the record is returned
+
+### Requirement: Поиск по тегам
+<!-- id: REQ-SRC-004 -->
+The system SHALL find records by tag.
+
+#### Scenario: Tag found
+<!-- id: SCN-SRC-009 -->
+- **WHEN** a known tag is searched
+- **THEN** the tagged records are returned
+`;
+
+    /** The main spec after \`openspec archive\` applied the REMOVED delta. */
+    const SEARCH_SPEC_AFTER = SEARCH_SPEC.slice(0, SEARCH_SPEC.indexOf("### Requirement: Поиск по тегам"));
+
+    const DROP_TAGS_DELTA = `## REMOVED Requirements
+
+###   Requirement:  Поиск   по тегам
+**Reason**: Tags are gone.
+**Migration**: Search by name.
+`;
+
+    const ARCHIVED = "openspec/changes/archive/2026-09-24-drop-tags";
+
+    function withSearch(): string {
+      const root = project();
+      write(root, "openspec/specs/search/spec.md", SEARCH_SPEC);
+      write(root, "openspec/changes/drop-tags/proposal.md", "## Why\n\nTags are gone.\n");
+      write(root, "openspec/changes/drop-tags/specs/search/spec.md", DROP_TAGS_DELTA);
+      write(root, ".warrant/changes/drop-tags.json", record("drop-tags", "MERGED"));
+      git(root, "init", "--quiet");
+      git(root, "add", "-A");
+      git(root, "commit", "--quiet", "-m", "fixture");
+      return root;
+    }
+
+    function gone(run: Awaited<ReturnType<typeof validate>>): string[] {
+      return (run.json?.errors as { code: string; message: string }[])
+        .filter((e) => e.code === "ID_IMMUTABLE")
+        .map((e) => e.message.split(" ")[0] as string)
+        .sort();
+    }
+
+    it("exempts the requirement and its scenarios when the archive directory is new (SCN-KRN-112)", async () => {
+      const root = withSearch();
+      write(root, "openspec/specs/search/spec.md", SEARCH_SPEC_AFTER);
+      mkdirSync(path.join(root, "openspec", "changes", "archive"), { recursive: true });
+      renameSync(path.join(root, "openspec", "changes", "drop-tags"), path.join(root, ...ARCHIVED.split("/")));
+      const run = await validate(root);
+      expect(gone(run)).toEqual([]);
+      expect(run.json?.ok, JSON.stringify(run.json?.errors)).toBe(true);
+    }, 60_000);
+
+    it("reports the removal without an archived delta, and other ids next to an exempt one (SCN-KRN-112)", async () => {
+      const bare = withSearch();
+      write(bare, "openspec/specs/search/spec.md", SEARCH_SPEC_AFTER);
+      expect(gone(await validate(bare))).toEqual(["REQ-SRC-004", "SCN-SRC-009"]);
+
+      // Archived delta present, but the name requirement lost its scenario id too: only that one is reported.
+      const mixed = withSearch();
+      write(mixed, "openspec/specs/search/spec.md", SEARCH_SPEC_AFTER.replace("<!-- id: SCN-SRC-002 -->\n", ""));
+      mkdirSync(path.join(mixed, "openspec", "changes", "archive"), { recursive: true });
+      renameSync(path.join(mixed, "openspec", "changes", "drop-tags"), path.join(mixed, ...ARCHIVED.split("/")));
+      expect(gone(await validate(mixed))).toEqual(["SCN-SRC-002"]);
+    }, 120_000);
+
+    it("does not exempt through an archive directory already committed in HEAD", async () => {
+      const root = withSearch();
+      mkdirSync(path.join(root, "openspec", "changes", "archive"), { recursive: true });
+      renameSync(path.join(root, "openspec", "changes", "drop-tags"), path.join(root, ...ARCHIVED.split("/")));
+      git(root, "add", "-A");
+      git(root, "commit", "--quiet", "-m", "archive without applying the delta");
+      write(root, "openspec/specs/search/spec.md", SEARCH_SPEC_AFTER);
+      expect(gone(await validate(root))).toEqual(["REQ-SRC-004", "SCN-SRC-009"]);
+    }, 60_000);
+  });
+
   it("skips the check with a warning outside a git work tree", async () => {
     const root = project();
     const run = await validate(root);

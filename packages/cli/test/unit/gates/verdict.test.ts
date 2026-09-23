@@ -247,6 +247,16 @@ describe("verdict algorithm (06 section 3)", () => {
     }
   });
 
+  it("a PROPOSED waiver without approved_by waives nothing, reason state (REQ-KRN-019)", () => {
+    const proposed = waiver("analyze-clean", { waiver_state: "PROPOSED" });
+    delete proposed.json["approved_by"];
+    const result = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], { waivers: [proposed], approvers: new Set(["kat"]) });
+    expect(result.gates["analyze-clean"]).toBe("BLOCKED");
+    expect(result.findings).toContainEqual(
+      expect.objectContaining({ code: "WAIVER_IGNORED", gate: "analyze-clean", waiver: "WAV-2026-001", reason: "state" })
+    );
+  });
+
   it("WAIVER_IGNORED reason approver for a waiver by a login outside roles (SCN-VER-043)", () => {
     const result = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], {
       waivers: [waiver("analyze-clean", { approved_by: "human:bob" })],

@@ -1,8 +1,11 @@
 /**
- * `warrant validate` checks (8), (10), (11) and (12) of REQ-KRN-021: path
- * rules, links between Changes, waivers and evidence (SCN-KRN-084, 092, 095,
- * 098, 099). Check (9) is in `validate-ids-head.test.ts`.
+ * `warrant validate` checks (8), (10), (11), (12) and (13) of REQ-KRN-021: path
+ * rules, links between Changes, waivers, evidence and dangling references
+ * (SCN-KRN-084, 092, 095, 098, 099, 111, 113, 114). Check (9) is in
+ * `validate-ids-head.test.ts`.
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { openspecAvailable } from "../../src/core/openspec/cli.js";
@@ -140,6 +143,27 @@ describe.skipIf(!hasOpenspec)("warrant validate (11): waivers", () => {
     expect(run.stderr).toContain(".warrant/waivers/WAV-2026-001.json");
   }, 60_000);
 
+  it("accepts a PROPOSED waiver without approved_by: nothing to compare with roles yet (REQ-KRN-019, SCN-KRN-111)", async () => {
+    const root = project();
+    write(root, ".warrant/changes/add-search.json", record("add-search", "IMPLEMENTING"));
+    const proposed = waiver({ waiver_state: "PROPOSED" });
+    delete proposed["approved_by"];
+    write(root, ".warrant/waivers/WAV-2026-001.json", proposed);
+    const run = await validate(root);
+    expect(run.json?.errors).toEqual([]);
+    expect(run.json?.ok).toBe(true);
+    expect(run.status).toBe(0);
+
+    // The same file in ACTIVE is a schema violation, not a role finding.
+    write(root, ".warrant/waivers/WAV-2026-001.json", { ...proposed, waiver_state: "ACTIVE" });
+    const active = await validate(root);
+    expect(active.status).toBe(3);
+    expect(new Set(codes(active))).toEqual(new Set(["SCHEMA_VIOLATION"]));
+    expect((active.json?.errors as { path: string }[]).map((e) => e.path)).toContain(
+      ".warrant/waivers/WAV-2026-001.json#/approved_by"
+    );
+  }, 60_000);
+
   it("reports PACK_FORM_UNKNOWN for targets[]: no gate declares their form in phase 3 (D-13)", async () => {
     const root = project();
     write(root, ".warrant/changes/add-search.json", record("add-search", "IMPLEMENTING"));
@@ -270,4 +294,85 @@ describe.skipIf(!hasOpenspec)("warrant validate (12): evidence records and manif
     const paths = (run.json?.errors as { code: string; path: string }[]).map((e) => `${e.code} ${e.path}`);
     expect(paths).toEqual([`SEMANTIC_INVALID ${DIR}/manifest.json#/evidence`, `SEMANTIC_INVALID ${DIR}/manifest.json#/evidence/0`]);
   }, 60_000);
+});
+
+describe.skipIf(!hasOpenspec)("warrant validate (13): dangling REQ/SCN references", () => {
+  const SEARCH_DELTA = `## ADDED Requirements
+
+### Requirement: Search
+<!-- id: REQ-SRC-001 -->
+The system SHALL find records by name.
+
+#### Scenario: Found
+<!-- id: SCN-SRC-002 -->
+- **WHEN** a known name is searched
+- **THEN** the record is returned
+`;
+
+  const SEARCH_SPEC = `# search Specification
+
+## Purpose
+Search behaviour for the tests.
+
+## Requirements
+
+### Requirement: Search
+<!-- id: REQ-SRC-001 -->
+The system SHALL find records by name.
+
+#### Scenario: Found
+<!-- id: SCN-SRC-002 -->
+- **WHEN** a known name is searched
+- **THEN** the record is returned
+`;
+
+  function withConfigTests(root: string, tests: string): void {
+    const file = path.join(root, ".warrant", "warrant.json");
+    const config = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+    write(root, ".warrant/warrant.json", { ...config, paths: { tests } });
+  }
+
+  it("reports ID_DANGLING for an undeclared id in tasks.md of an active Change (SCN-KRN-113)", async () => {
+    const root = project();
+    write(root, ".warrant/changes/add-search.json", record("add-search", "SPECIFIED"));
+    write(root, "openspec/changes/add-search/proposal.md", "## Why\n\nSearch.\n");
+    write(root, "openspec/specs/search/spec.md", SEARCH_SPEC);
+    write(
+      root,
+      "openspec/changes/add-search/tasks.md",
+      "## 1. Search\n\n- [ ] 1.1 Implement REQ-SRC-001 (SCN-SRC-002)\n- [ ] 1.2 Cover `SCN-SRC-042`\n"
+    );
+    const run = await validate(root);
+    expect(run.status).toBe(3);
+    expect(codes(run)).toEqual(["ID_DANGLING"]);
+    const found = findError(run, "ID_DANGLING");
+    expect(found?.path).toBe("openspec/changes/add-search/tasks.md");
+    expect(found?.message).toContain("SCN-SRC-042");
+    expect(found?.message).toContain("line 4");
+  }, 60_000);
+
+  it("checks paths.tests only when set, counts archive declarations, skips archived tasks.md (SCN-KRN-114)", async () => {
+    const root = project();
+    const archived = "openspec/changes/archive/2026-09-20-add-search";
+    write(root, `${archived}/proposal.md`, "## Why\n\nSearch.\n");
+    write(root, `${archived}/specs/search/spec.md`, SEARCH_DELTA);
+    write(root, `${archived}/tasks.md`, "## 1. Search\n\n- [x] 1.1 Implement SCN-SRC-555\n");
+    write(root, "tests/search.test.py", "# REQ-SRC-001\ndef test_search():\n    pass  # REQ-SRC-777\n");
+    write(root, "tests/fixture.bin", Buffer.from([0x52, 0x45, 0x51, 0x00]).toString("latin1") + "REQ-SRC-778");
+    write(root, "tests/huge.txt", `REQ-SRC-779\n${"x".repeat(1024 * 1024)}`);
+
+    const without = await validate(root);
+    expect(without.json?.errors).toEqual([]);
+    expect(without.json?.ok).toBe(true);
+
+    withConfigTests(root, "tests");
+    const run = await validate(root);
+    expect(run.status).toBe(3);
+    const dangling = (run.json?.errors as { code: string; message: string; path: string }[]).filter(
+      (e) => e.code === "ID_DANGLING"
+    );
+    expect(dangling.map((e) => `${e.path} ${e.message.split(" ")[0] ?? ""}`)).toEqual(["tests/search.test.py REQ-SRC-777"]);
+    expect(dangling[0]?.message).toContain("line 3");
+    expect(codes(run)).toEqual(["ID_DANGLING"]);
+  }, 120_000);
 });

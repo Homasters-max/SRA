@@ -5,7 +5,12 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: []
+amended_by: [WARRANT-ADR-0025]
 ---
+
+> Уточнено [ADR-0025](WARRANT-ADR-0025-test-levels.md): ADR применяется и к самому WARRANT — в фазе 5 pack `bdd-tdd`
+> ведёт `packages/cli` (Stryker на diff). Поэтому логика CLI покрывается тестами уровней `unit` и `app` без процесса: e2e
+> запускают собранный `dist`, мутанты `src` для них невидимы; код, покрытый только e2e, — долг.
 
 ## Context
 

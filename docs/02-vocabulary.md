@@ -208,3 +208,17 @@ The system SHALL produce the same logical result when ingestion is repeated for 
 | Skill | `namespace/name` | `specification/authoring` |
 
 Одинаково в документах и в JSON.
+
+## 5. Уровни тестов самого WARRANT
+
+[ADR-0025](adr/WARRANT-ADR-0025-test-levels.md). Каталог `packages/cli/test/<level>/` = уровень. Для проектов под WARRANT
+классификация не вводится (долг фазы 5, pack `bdd-tdd`).
+
+| Уровень | Значение |
+|---|---|
+| `unit` | Функции `core/*` без порождения процессов; файловая система во временном каталоге разрешена |
+| `app` | Команда `runX()` в процессе теста с фейковыми портами (`FakeOpenSpec`, `FakeGit`, фейк запуска checks); процессы запрещены |
+| `contract` | Настоящий адаптер порта против настоящего `openspec` / `git` / child process и соответствие фейка настоящему |
+| `e2e` | Запуск бинаря `warrant` процессом; только по причине из закрытого списка (`argv`, `exit-codes`, `output`, `platform-spawn`, `golden`, `package`, `lifecycle`) |
+
+«Vertical slice» — не уровень тестов, а поставка одного изменения от intent до archive ([13 §1](13-roadmap.md)).

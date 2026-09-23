@@ -1,0 +1,16 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-2026-005",
+  "change": "test-levels",
+  "gate": "analyze-clean",
+  "reason": "warrant analyze is not implemented before phase 4 (decision V-1): analyze-clean has no producer and stays BLOCKED/NO_INPUT.",
+  "risk": "HIGH",
+  "compensating_controls": [
+    "phase-4 change implements the producer",
+    "maintainer review of PR"
+  ],
+  "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
+  "expires_at": "2026-12-31",
+  "waiver_state": "ACTIVE"
+}

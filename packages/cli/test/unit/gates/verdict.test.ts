@@ -302,6 +302,19 @@ describe("verdict algorithm (06 section 3)", () => {
     expect(evaluate("IMPLEMENTING->VERIFYING", ["tests-passed"], [local]).gates["tests-passed"]).toBe("PASS");
   });
 
+  it("tests-passed and factory-golden-passed accept only ci on VERIFYING->MERGED (review R-5)", () => {
+    for (const gate of ["tests-passed", "factory-golden-passed"]) {
+      expect(CORE_GATES.get(gate)?.["accepts_attestation"]).toEqual(["ci"]);
+    }
+    // A test-report is reproducible (06a section 3): a human-review or signature string does not stand in for CI.
+    for (const type of ["human-review", "signature"]) {
+      const other = record("test-report", "PROVEN", { attestation: { type, ref: "https://example/1" } });
+      const result = evaluate("VERIFYING->MERGED", ["tests-passed"], [other]);
+      expect(result.gates["tests-passed"]).toBe("BLOCKED");
+      expect(result.findings).toEqual([expect.objectContaining({ code: "ATTESTATION_REQUIRED", gate: "tests-passed", items: [other.id] })]);
+    }
+  });
+
   it("a gate of another pack without a calculator and without requires_evidence is BLOCKED/NO_INPUT (INV-10)", () => {
     const definitions = new Map(CORE_GATES);
     definitions.set("adr-present", { id: "adr-present", level: "L0", waivable: true });

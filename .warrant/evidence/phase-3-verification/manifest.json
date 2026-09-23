@@ -1,0 +1,19 @@
+{
+  "$schema": "warrant://evidence-manifest/1",
+  "change": "phase-3-verification",
+  "commit": "90479c973da506eb1d58c9ca1ee7795b76596469",
+  "versions": {
+    "warrant": "0.3.0",
+    "openspec": "1.13.1",
+    "lock_hash": "sha256:c56c3d269991f67166730d5c3695aa9669ee506dee9c6dbf7288547f102cb111",
+    "effective_policy_hash": "sha256:af9374fea32ab0fa81f8b3562f57b3d56eeb69c8d6b2a8161ee7f08a78fad6c1"
+  },
+  "evidence": [
+    "EVID-01M37BF0T058BDC4ZQPFXF5FYZ"
+  ],
+  "gates": {
+    "ids-valid": "PASS",
+    "required-artifacts-present": "PASS",
+    "spec-valid": "PASS"
+  }
+}

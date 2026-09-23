@@ -15,11 +15,16 @@ version: 0.3.0
 - **Фазы 1 и 2 закрыты**: `phase-1-kernel` и `phase-2-core-sdd` заархивированы (`openspec/changes/archive/2026-09-22-*`,
   main specs `openspec/specs/{kernel,core-sdd}/spec.md`), tag `v0.2.0`. Record `phase-2-core-sdd` остаётся
   `ARCHIVED_WITHOUT_TRANSITION` (P-13) — единственный ожидаемый `stale[]`.
-- **Фаза 3 реализована** — change `phase-3-verification`: spec-PR #6 (`spec/phase-3-verification`) смержен в `main`;
-  код — ветка `worktree/phase-3-verification` (worktree `D:\project\SRA-phase3-impl`), группы 1–6 tasks.md, коммит на
-  группу. Решения по ходу реализации **I-66…I-97** — таблица в конце `openspec/changes/phase-3-verification/design.md`
-  (после archive — в `openspec/changes/archive/<date>-phase-3-verification/`). Версии: CLI **0.3.0**, pack `core-sdd` **0.2.0**
+- **Фаза 3 закрыта** — change `phase-3-verification` прошёл `PROPOSED → … → ARCHIVED` только через `warrant transition` /
+  `warrant archive` (P-18 (2)): spec-PR #6, impl-PR #7 (`worktree/phase-3-verification`, merge commit `ea3b856`, impl-head
+  `bd1e829`), archive-PR `archive/phase-3-verification` (evidence CI run 35881659520, `transition MERGED --commit bd1e829`,
+  `warrant archive`), tag `v0.3.0`. Решения по ходу реализации **I-66…I-101** — таблица в конце design.md архива
+  `openspec/changes/archive/<date>-phase-3-verification/`. Версии: CLI **0.3.0**, pack `core-sdd` **0.2.0**
   (`kernel: ">=0.1 <0.4"`), `.warrant/warrant.json` `kernel: "0.3"`.
+- **Первый прогон на Linux** (CI impl-PR) нашёл два дефекта, невидимых на Windows: I-100 (prefix проекта через
+  `path.relative` к `--show-toplevel` обнулял diff при 8.3-имени/symlink temp-каталога → `scope-valid` ложно `PASS`) и I-101
+  (обёртка fake `openspec` в тестах звала внешний `dirname` при PATH только из fake). Оба исправлены в impl-PR; CI зелёный
+  на ubuntu и windows — 616/616, 0 skipped (P-18 (3)).
 - **Итог фазы 3:**
   - capability `verification` (REQ-VER-001…008): `warrant check` (runner без shell, замок `exclusive` в `git-common-dir`,
     `timeout_s` с kill дерева, parsers `junit`/`openspec-validate`, evidence + manifest, attestation `ci` под GitHub Actions),
@@ -34,22 +39,20 @@ version: 0.3.0
   - CI `.github/workflows/ci.yml`: job `test` (ubuntu + windows) и job `evidence` (impl-PR из `worktree/*`);
   - dogfooding: override `.warrant/local/checks/tests-passed.json` (`npm test` с junit), waivers `WAV-2026-001`
     (`analyze-clean`) и `WAV-2026-002` (`adversarial-review`) до 2026-12-31, `.gitignore` `.warrant/evidence/**/raw/`.
-- Прогон выхода (6.1, 6.4): `npm test` — 615 passed / 54 файла, 0 skipped; `warrant check phase-3-verification tests-passed` —
-  `test-report` `PROVEN`, `metrics.tests: 615` (SCN-SDD-019); `verify` `PROPOSED->SPECIFIED` — `CONTINUE`;
-  `warrant validate` `ok: true` при записанном evidence. Локальные записи удалены: на финальных commit'ах их пишет 6.5.
+- Прогон выхода: `npm test` — 616 passed / 55 файлов, 0 skipped (локально и в CI на обеих ОС); `warrant check
+  phase-3-verification tests-passed` — `test-report` `PROVEN` (SCN-SDD-019); `verify` `PROPOSED->SPECIFIED` — `CONTINUE`;
+  CI job `evidence` на impl-head — `tests-passed`/`factory-golden-passed` `PASS` с attestation `ci`, `WAIT` только по
+  `human-approval`; `transition MERGED` — все gates `VERIFYING->MERGED` `PASS`/`WAIVED`.
 
-### Что осталось по 6.5 (координатор)
+### Как прошёл 6.5 (образец для следующего change)
 
-1. На `worktree/phase-3-verification`: `transition SPECIFIED`, `APPROVED --ref <review spec-PR #6> --by Homasters-max`,
-   `IMPLEMENTING` (порядок P-2 нарушен — см. долг), последним коммитом — `VERIFYING`; открыть impl-PR, CI `test`
-   зелёный на обеих ОС, job `evidence` даёт artifact `evidence-phase-3-verification` с `attestation.type: "ci"`
-   (его `WAIT` из-за `human-approval` на `VERIFYING->MERGED` — ожидаем).
-2. Merge impl-PR **только «Create a merge commit»** (I-97).
-3. archive-PR `archive/phase-3-verification` от `main`: `manifest.json` и `EVID-*.json` из artifact'а →
-   `.warrant/evidence/phase-3-verification/`; `warrant transition phase-3-verification MERGED --ref <run-url> --commit <impl-head>
-   --by Homasters-max` (profile `factory-change` ставит `human-approval` и на `VERIFYING->MERGED`); `warrant archive
-   phase-3-verification`; PR, merge; tag `v0.3.0`.
-4. Критерий P-18 (4): `warrant status` репозитория — `stale[]` только у `phase-2-core-sdd`.
+1. `worktree/phase-3-verification`: `verify` + `transition SPECIFIED`; `transition APPROVED --ref <PR #6> --by Homasters-max`
+   (evidence `human-approval`, `adversarial-review` — WAV-2026-002); `IMPLEMENTING`; `VERIFYING` — по коммиту на переход.
+2. impl-PR #7: CI `test` (ubuntu + windows) и `evidence` (artifact `evidence-phase-3-verification`, `WAIT` по `human-approval` —
+   ожидаемо); merge «Create a merge commit».
+3. archive-PR от `main`: `gh run download <run> -n evidence-<change>` → `.warrant/evidence/<change>/`; `transition MERGED
+   --ref <run-url> --commit <impl-head> --by <login>`; `warrant archive <change>`; PR, merge, tag.
+4. P-18 (4): `warrant status` репозитория — `stale[]` только у `phase-2-core-sdd`.
 
 ### Долг после фазы 3
 
@@ -83,7 +86,7 @@ version: 0.3.0
 
 ```text
 Прочитай docs/NEXT-SESSION.md целиком (состояние фазы 3, «Долг после фазы 3», «Вход в phase-3b / фазу 4», решения P-1…P-20,
-«Долг схем и CLI» C–E, D-1…D-25), затем design.md архива phase-3-verification (таблица I-66…I-97), docs/13-roadmap.md §2 и
+«Долг схем и CLI» C–E, D-1…D-25), затем design.md архива phase-3-verification (таблица I-66…I-101), docs/13-roadmap.md §2 и
 §3 (S8), ADR-0011, 0016, 0021. Фаза 3 закрыта: impl-PR и archive-PR смержены, tag v0.3.0.
 Сначала — долг, не требующий spec: package.json files (sra/), 13 §2 (analyze/link → phase-3b). Затем решим нарезку:
 /opsx:propose change `phase-3b` (link, targets[] и warrant waive, spec-approved, execution.local/guard_prefixes,

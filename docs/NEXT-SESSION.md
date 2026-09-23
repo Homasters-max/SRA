@@ -81,6 +81,7 @@ version: 0.4.0
 | `analyze` | **Решено V-1**: фаза 4 | — |
 | тесты под нагрузкой | `warrant validate` на репозитории — ~30 с (вызовы `openspec` на каждый Change/spec); полный `npm test` с параллелизмом по умолчанию на машине maintainer'а даёт таймауты e2e `validate`/`golden` (поодиночке и с `--maxWorkers=3` — зелёные, CI — зелёный). Ускорить `validate` (один `openspec` на проект) или поднять таймауты e2e | по failure mode; `/group-done` пока гоняет `--maxWorkers=3` вручную |
 | I-103 | Пред-фильтр исключает запись, чей `metrics.waivers[]` ссылается на waiver с `targets[]` — пересмотреть вместе с D-10 | фаза 5 |
+| Graft | Эксперимент ADR-0026 активен ([process/graft.md](process/graft.md), `status: active`): группы `test-levels` чередуются ON (нечётные) / OFF (чётные), тег `[graft:on\|off]` в description субагента, блок промпта из §5; фон phase-3b g1–g5 записан | `/graft-report` после ≥ 2 групп в каждом режиме |
 | `fmt` packs | `warrant fmt --check` без пути не проверяет `packs/**`; `packs/core-sdd/pack.json` неканоничен (порядок `rules`/`skills`), а правило `json-canonical` из черновика `rule/1` покрывает `packs/**/*.json` | вместе с первым правилом `rule/1` или отдельным fix |
 
 ### Ревью фазы 3 (2026-09-23) — R-1…R-16
@@ -142,6 +143,10 @@ verify → transition`, gate engine, runner) — нет. Нерешённые в
 | Одна ветка — один worktree, ветку проверять перед коммитом | «Организационное», memory | проза: машина не знает, какой ветке принадлежит работа; шаг процедуры `/group-done` (ниже) |
 | Отклонение от spec — строкой I-N в design.md, вопросом maintainer'у | pack `rules.design` (1.4) | правило о решении (ADR-0022 допускает без `enforced_by`); нумерацию I-N ведёт `/decision` (ниже) |
 | NEXT-SESSION обновляется в конце сессии | этот файл | процедура `/next-session` (ниже) |
+| Graft: только разрешённые подкоманды, в OFF-группе — никаких | ADR-0026 п. 2, [process/graft.md](process/graft.md) §3 | `graft-metrics run` код 1 (`violations`) в `/graft-log` — шаг 6 `/group-done` |
+| Graft не пачкает дерево | ADR-0026 п. 3 | `GRAFT_NO_GITIGNORE`/`GRAFT_NO_IGNORE` + `.git/info/exclude`; `git status --short` в `/group-done` |
+| Субагент группы помечен `[graft:on\|off]` | ADR-0026 п. 4 | `graft-metrics run` без тега запись не пишет |
+| `scripts/dev/` не поставляется | ADR-0026 | `package-contents.test.ts` |
 
 Процедуры `.claude/commands/` — `/decision` (следующий I-N строкой в таблицу design.md), `/group-done <N>` (ветка и worktree,
 typecheck, test, validate, `versions:check`, коммит, галочки tasks.md), `/next-session` — были в плане «Карта агента» и

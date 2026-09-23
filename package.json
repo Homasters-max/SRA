@@ -14,7 +14,8 @@
     "packages/cli/dist",
     "packages/cli/schemas",
     "packs",
-    "!packs/core-sdd/golden"
+    "!packs/core-sdd/golden",
+    "sra/skills"
   ],
   "engines": {
     "node": ">=20.19"

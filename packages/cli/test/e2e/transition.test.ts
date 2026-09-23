@@ -311,6 +311,86 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
     expect((await validate(root)).json?.errors).toEqual([]);
   }, 180_000);
 
+  it("refuses MERGED on a commit that is not the head of the merged impl-PR (review R-1)", async () => {
+    const root = repo("VERIFYING", CHORE, (r) => {
+      write(r, "scripts/fake-tests.cjs", FAKE_TESTS);
+      write(r, ".warrant/local/checks/tests-passed.json", {
+        $schema: "warrant://check/1",
+        id: "tests-passed",
+        version: "1.0.0",
+        overrides: "core-sdd:tests-passed",
+        level: "L1",
+        run: { command: [NODE, "scripts/fake-tests.cjs", "{out}"] }
+      });
+    });
+
+    // impl-PR: CI evidence on an early commit, then a later commit outside the impl-PR scope.
+    git(root, "checkout", "--quiet", "-b", "worktree/add-search");
+    write(root, "src/search.ts", "export const search = 1;\n");
+    const early = commitAll(root, "impl, early");
+    const ci = await cli(root, ["verify", "add-search", "--transition", "VERIFYING->MERGED"], CI_ENV);
+    expect(ci.json.data.gates["tests-passed"]).toBe("PASS");
+    write(root, "openspec/specs/other/spec.md", "# other\n");
+    git(root, "add", "openspec/specs/other/spec.md");
+    git(root, "commit", "--quiet", "-m", "impl, late");
+    const late = git(root, "rev-parse", "HEAD");
+
+    git(root, "checkout", "--quiet", "main");
+    git(root, "merge", "--quiet", "--no-ff", "-m", "Merge impl", "worktree/add-search");
+    const merge = git(root, "rev-parse", "HEAD");
+    git(root, "checkout", "--quiet", "-b", "archive/add-search");
+    commitAll(root, "evidence of the early CI run");
+    const before = recordText(root);
+
+    // The freshest record is on the early commit: refused, not judged on base...early.
+    const byDefault = await transition(root, ["MERGED", "--ref", CI_RUN]);
+    expect(byDefault.json.errors[0].code).toBe("COMMIT_NOT_MERGED");
+    expect(byDefault.json.errors[0].message).toContain(`not the head of the impl-PR merged by ${merge} (head ${late})`);
+    expect(byDefault.status).toBe(3);
+    const explicit = await transition(root, ["MERGED", "--ref", CI_RUN, "--commit", early]);
+    expect(explicit.json.errors[0].code).toBe("COMMIT_NOT_MERGED");
+    // A commit of the base line itself has no PR boundary.
+    const onLine = await transition(root, ["MERGED", "--ref", CI_RUN, "--commit", `${merge}^1`]);
+    expect(onLine.json.errors[0].code).toBe("COMMIT_NOT_MERGED");
+    expect(onLine.json.errors[0].message).toContain("first-parent line");
+    expect(recordText(root)).toBe(before);
+
+    // The head passes the commit check; its gates see the late commit.
+    const onHead = await transition(root, ["MERGED", "--ref", CI_RUN, "--commit", late]);
+    expect(onHead.json.errors[0].code).toBe("GATES_NOT_PASSED");
+    expect(onHead.json.data).toMatchObject({ commit: late, gates: { "scope-valid": "FAIL", "tests-passed": "BLOCKED" } });
+    expect(recordText(root)).toBe(before);
+  }, 180_000);
+
+  it("refuses MERGED after a fast-forward merge of the impl-PR (review R-1)", async () => {
+    const root = repo("VERIFYING", CHORE, (r) => {
+      write(r, "scripts/fake-tests.cjs", FAKE_TESTS);
+      write(r, ".warrant/local/checks/tests-passed.json", {
+        $schema: "warrant://check/1",
+        id: "tests-passed",
+        version: "1.0.0",
+        overrides: "core-sdd:tests-passed",
+        level: "L1",
+        run: { command: [NODE, "scripts/fake-tests.cjs", "{out}"] }
+      });
+    });
+    git(root, "checkout", "--quiet", "-b", "worktree/add-search");
+    write(root, "src/a.ts", "export const a = 1;\n");
+    commitAll(root, "impl 1");
+    write(root, "src/b.ts", "export const b = 1;\n");
+    const head = commitAll(root, "impl 2");
+    await cli(root, ["verify", "add-search", "--transition", "VERIFYING->MERGED"], CI_ENV);
+    git(root, "checkout", "--quiet", "main");
+    git(root, "merge", "--quiet", "--ff-only", "worktree/add-search");
+    git(root, "checkout", "--quiet", "-b", "archive/add-search");
+    commitAll(root, "evidence from CI");
+
+    // Before R-1 the base was head^1 and the diff held "impl 2" only.
+    const run = await transition(root, ["MERGED", "--ref", CI_RUN, "--commit", head]);
+    expect(run.json.errors[0].code).toBe("COMMIT_NOT_MERGED");
+    expect(run.json.errors[0].message).toContain("fast-forward");
+  }, 180_000);
+
   it("evidence-complete on merge counts the approval of an earlier commit and review excused by a waiver (I-96)", async () => {
     const root = repo("SPECIFIED", FEATURE, (r) => {
       waiver(r, "WAV-2026-001", "analyze-clean");

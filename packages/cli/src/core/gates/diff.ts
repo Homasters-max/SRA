@@ -198,24 +198,16 @@ export function resolveCommit(root: string, ref: string): string | null {
 }
 
 /**
- * Base of a merged commit (design §9: `merge-base(main, <commit>)` as it was
- * before `<commit>` was merged). Once `<commit>` is merged, `main` contains it
- * and the literal merge-base is `<commit>` itself — an empty diff, and every
- * record's `base_commit` stale. So the base is taken against the state of the
- * base line just before the merge: `M` is the oldest commit on the
- * first-parent line of `of` that contains `<commit>` (the merge commit that
- * brought it in), and the base is `merge-base(M^1, <commit>)`, the fork point
- * the impl-PR was checked against. When `<commit>` itself lies on that line
- * (fast-forward), `M^1` is its parent. Null when no base can be found.
+ * The commit that brought `commit` into the first-parent line of `of`: the
+ * oldest commit on that line that contains it — the merge commit of its
+ * impl-PR, or `commit` itself when it lies on the line. Null when the line is
+ * unknown or does not contain `commit`.
  */
-export function forkPointOf(root: string, commit: string, of = "HEAD"): string | null {
+export function mergeCommitOf(root: string, commit: string, of = "HEAD"): string | null {
   const chain = git(["rev-list", "--first-parent", of], root);
   if (!chain.ok) return null;
   const line = chain.stdout.split("\n").map((l) => l.trim()).filter((l) => l !== "");
-  if (line.length === 0 || !isAncestor(root, commit, line[0] as string)) {
-    const base = git(["merge-base", of, commit], root);
-    return base.ok && base.stdout.trim() !== "" ? base.stdout.trim() : null;
-  }
+  if (line.length === 0 || !isAncestor(root, commit, line[0] as string)) return null;
   // Containment is monotonic along the first-parent line (newest first): binary
   // search for the oldest commit that still contains `commit`.
   let lo = 0;
@@ -225,7 +217,52 @@ export function forkPointOf(root: string, commit: string, of = "HEAD"): string |
     if (isAncestor(root, commit, line[mid] as string)) lo = mid;
     else hi = mid - 1;
   }
-  const merge = line[lo] as string;
+  return line[lo] as string;
+}
+
+/** Parents of `commit`, the first parent first; empty when git cannot say. */
+export function parentsOf(root: string, commit: string): string[] {
+  const run = git(["rev-list", "--parents", "-n", "1", commit], root);
+  return run.ok ? run.stdout.trim().split(/\s+/).slice(1) : [];
+}
+
+/**
+ * Why `commit` is not the head of a merged impl-PR, or null when it is
+ * (review of phase 3, R-1). The gates of `MERGED` judge `base...commit` only,
+ * so the commit must be the last one of the impl-PR: a parent other than the
+ * first of the merge commit that brought it into the first-parent line of
+ * `of`. An older commit of the PR would leave the commits after it unjudged;
+ * a commit on the line itself (fast-forward, a commit of the base branch)
+ * has no PR boundary at all.
+ */
+export function notMergedHeadReason(root: string, commit: string, of = "HEAD"): string | null {
+  const merge = mergeCommitOf(root, commit, of);
+  if (merge === null) return `commit ${commit} is not on the first-parent line of ${of}`;
+  if (merge === commit) {
+    return `commit ${commit} lies on the first-parent line of ${of} itself (a fast-forward or a commit of the base branch), not on a merged impl-PR: merge the impl-PR with a merge commit`;
+  }
+  const heads = parentsOf(root, merge).slice(1);
+  if (heads.includes(commit)) return null;
+  return `commit ${commit} is not the head of the impl-PR merged by ${merge} (head ${heads.join(", ") || "unknown"}): the commits after it would go unjudged; take the evidence of the CI run on the head and pass --commit <head>`;
+}
+
+/**
+ * Base of a merged commit (design §9: `merge-base(main, <commit>)` as it was
+ * before `<commit>` was merged). Once `<commit>` is merged, `main` contains it
+ * and the literal merge-base is `<commit>` itself — an empty diff, and every
+ * record's `base_commit` stale. So the base is taken against the state of the
+ * base line just before the merge: `M` is {@link mergeCommitOf} `<commit>`
+ * (the merge commit that brought it in), and the base is
+ * `merge-base(M^1, <commit>)`, the fork point the impl-PR was checked against.
+ * When `<commit>` itself lies on that line (fast-forward), `M^1` is its parent.
+ * Null when no base can be found.
+ */
+export function forkPointOf(root: string, commit: string, of = "HEAD"): string | null {
+  const merge = mergeCommitOf(root, commit, of);
+  if (merge === null) {
+    const base = git(["merge-base", of, commit], root);
+    return base.ok && base.stdout.trim() !== "" ? base.stdout.trim() : null;
+  }
   const parent = git(["rev-parse", "--verify", "--quiet", `${merge}^1`], root);
   if (!parent.ok || parent.stdout.trim() === "") return null;
   const base = git(["merge-base", parent.stdout.trim(), commit], root);

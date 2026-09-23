@@ -1,6 +1,6 @@
 ---
 id: WARRANT-NEXT
-title: WARRANT — следующий шаг: закрытие фазы 3, вход в phase-3b / фазу 4
+title: WARRANT — следующий шаг: phase-3b (apply), затем фаза 4
 status: informative
 maturity: MVP
 version: 0.3.0
@@ -61,15 +61,15 @@ version: 0.3.0
 
 | # | Долг | Куда |
 |---|---|---|
-| I-77 | Удаление ID delta'ой `REMOVED` в коммите archive даёт `ID_IMMUTABLE` по проверке (9) `validate`: archive-коммит нужно сравнивать с архивной копией delta, как для MODIFIED (I-73) | phase-3b |
+| I-77 | Удаление ID delta'ой `REMOVED` в коммите archive даёт `ID_IMMUTABLE` по проверке (9) `validate`: archive-коммит нужно сравнивать с архивной копией delta, как для MODIFIED (I-73) | phase-3b, задача 3.3 |
 | I-90 | `branch-isolated` на detached HEAD — `FAIL`; в CI `pull_request` HEAD detached. Сейчас не мешает (gate на `APPROVED->IMPLEMENTING`, считается локально); пересмотреть по первому failure mode | по failure mode |
 | I-93 | `transition` пишет `by: "cli:local"` и на `APPROVED`/`MERGED` (REQ-VER-007), а 04 §9 называет такую запись невалидной — противоречие нормы и spec; 04 §9 не правился | ADR или правка 04 §9 |
 | `files` | ~~`package.json` `files` не включает `sra/`~~ — **закрыт R-15** (`sra/skills` в `files`, тест состава `npm pack`) | — |
-| 13 §2 | Строка фазы 3 всё ещё перечисляет `analyze` и `warrant link`, а по P-4 это `phase-3b`; поправить 13 §2 (и строку 4-й фазы, если `analyze` уйдёт туда) | с первым change phase-3b |
+| 13 §2 | Строка фазы 3 всё ещё перечисляет `analyze` и `warrant link`, а по P-4 это `phase-3b`; поправить 13 §2 (и строку 4-й фазы, если `analyze` уйдёт туда) | phase-3b, задача 1.4 |
 | P-2 | Порядок P-2 нарушен в фазе 3: spec-PR #6 смержен до появления `transition`, поэтому `SPECIFIED`/`APPROVED`/`IMPLEMENTING`/`VERIFYING` пишутся в impl-PR. Со следующего change — строго по ADR-0011 (`SPECIFIED` в spec-PR) | процесс |
 | I-59 | `packContentHash` исключает `golden/` pack'а — пересмотреть, если golden начнёт влиять на policy | later |
 | I-64 | `runCli` и `golden-lib.js` асинхронные; короткие `spawnSync` остались для `git` и `openspecAvailable()` | later |
-| `analyze` | P-4 относит `analyze` к `phase-3b`, «Чего не делать» и таблица D ниже — к фазе 4; решить при нарезке | нарезка phase-3b |
+| `analyze` | **Решено V-1**: фаза 4 | — |
 
 ### Ревью фазы 3 (2026-09-23) — R-1…R-16
 
@@ -141,37 +141,45 @@ Skills (reasoning SRA, [07](07-skills.md)) — где они в плане: ко
 расширение набора (bdd-tdd, arch) — фаза 5; интеграция каталога SRA — фаза 9. Расхождение: 13 §2 пишет «adversarial review»
 в фазе 5, а D-5 и «Вход в фазу 4» — в фазе 4; правится вместе с 13 §2 (отложенные документы).
 
-### Вход в phase-3b / фазу 4
+### phase-3b — нарезка (V-1…V-9, grilling 2026-09-23, приняты maintainer'ом)
 
-- **phase-3b** — вторая очередь P-4 (всё, что валидируется как поле, но не исполняется): `warrant link` (`--amends` /
-  `--supersedes`, до `APPROVED`), поведение `waiver.targets[]` (D-10) и `warrant waive`, gate `spec-approved` (D-3),
-  исполнение `execution.local` / `guard_prefixes`, `analyze` (см. долг), `validate --files`, проверки (d) висячие REQ/SCN и
-  (f) pragma, `AGENTS.md` побайтно, понижение classification ниже floor с approval (P-5); плюс I-77 и находки ревью фазы 3:
-  delta REQ-VER-002/003/004/007 и REQ-SDD-001 под фиксы R-1, R-2, R-4, R-14 и открытые R-6…R-10, R-13 (раздел «Ревью фазы 3»
-  выше); первая группа — процедуры `.claude/commands/` («Процессные правила»).
+Change `phase-3b` предложен в worktree `D:\project\SRA-phase3b`, ветка `spec/phase-3b` (spec-PR): proposal, delta specs `kernel`
+(REQ-KRN-030 `link`, REQ-KRN-031 `waive`, MODIFIED 011/019/021/026/028), `verification` (MODIFIED REQ-VER-002…007), `core-sdd`
+(MODIFIED REQ-SDD-001/002/007), design (§1–§14), tasks (6 групп, 25 задач); waivers `WAV-2026-003` (`analyze-clean`),
+`WAV-2026-004` (`adversarial-review`) до 2026-12-31.
+
+| # | Решение |
+|---|---|
+| V-1 | Из 3b вынесено: поведение `waiver.targets[]` (D-10) и проверка (f) pragma → фаза 5 (`bdd-tdd`: нет producer'а, формы target, S7); `guard_prefixes`, `validate --files`, `AGENTS.md` побайтно, `analyze` → фаза 4 (единственный исполнитель/потребитель там; WAV-2026-001 уже ссылается на фазу 4). В 3b: `link`, `waive` без targets, `spec-approved`, `execution.local`, (d) висячие REQ/SCN, понижение ниже floor, I-77, delta R-1/2/4/5/14, R-6…R-10, R-13, `.claude/commands`, I-93 |
+| V-2 | Группы: 1 процедуры и документы; 2 версии + gate engine + controller; 3 схемы + validate; 4 `link`, `waive`, `classify` ниже floor; 5 `spec-approved`, `execution.local`; 6 выход |
+| V-3 | `warrant waive <change> <gate> …` создаёт `PROPOSED` без `approved_by`; `--activate <WAV> --by`, `--revoke <WAV> --by` (`roles.maintainer`); waiver на невэйвабельный gate и `targets[]` — отказ; `approved_by` в схеме обязателен кроме `PROPOSED` |
+| V-4 | Понижение ниже floor: `classify --set <dim>=<v> --by <login> --ref <url>`, только до `APPROVED`; значение `{ value, from: human:<login>, ref }`; отдельной evidence нет; `ref` не верифицируется до `warrant ci` |
+| V-5 | `spec-approved`: overlay `core-default`, `VERIFYING->MERGED`; дерево Change на commit записи `human-approval` перехода `APPROVED` ↔ на оцениваемом commit; нет записи → `BLOCKED/NO_INPUT` (состав дерева и `waivable` — V-9) |
+| V-6 | R-6 → `REF_MISMATCH` на `transition MERGED`; R-7 → `EVIDENCE_KIND_UNGATED` как `POLICY_CONFLICT` resolver'а; R-13 → правило `CONTINUE` при `FAIL`/`BLOCKED` пропускается (`CONTROLLER_RULE_IGNORED`) |
+| V-7 | CLI `0.4.0`, pack `core-sdd` `0.3.0` (`kernel: ">=0.1 <0.5"`) первой задачей группы 2 (R-14); tag `v0.4.0` после archive-PR |
+| V-8 | Profiles/risk — `classify` по diff spec-PR; waivers `analyze-clean`, `adversarial-review` — файлами в spec-PR (`warrant waive` появится только в impl-PR, а `adversarial-review` стоит на `SPECIFIED->APPROVED`) |
+| V-9 | **Уточняет D-3**: дерево `spec-approved` — только `{proposal.md, specs/**}` (`design.md` с I-N и `tasks.md` — журнал реализации); gate `waivable: true` — правка контракта после approval снимается waiver'ом maintainer'а (`warrant waive`, reason `I-N`). Повторный `APPROVED` из `IMPLEMENTING` невозможен (`scope-valid` `SPECIFIED->APPROVED` не пропускает код). Норма — ADR-0024 (amends ADR-0020 п. 9), задача 1.2 |
+
+I-93 решается без нового ADR: ADR-0010 п. 2 уже заменил правило 04 §9 «`cli:local` невалиден» — 04 §9 просто не приведён к нему (задача 1.3).
+
 - **Фаза 4** (MVP frontend, [13 §2](13-roadmap.md)): `sync` (`.codex/hooks.json`, `AGENTS.md`), `run start` / `run submit`,
-  схемы `run/1` и `skill-result/1`, `guard` (pre/post, без Run → `deny`, D-4), `warrant ci` (verdict impl-PR вместо ручного
-  переноса artifact'а), адаптер `codex` — после spike **S8** (hooks Codex под `codex-acp` и `codex exec`, 13 §3), finding
-  `FRONTEND_HOOKS_INACTIVE` (D-14), producer'ы `analyze-clean` и `adversarial-review` (снимают WAV-2026-001/002).
-- **Нарезка**: phase-3b — отдельный change по той же схеме (≤ 6 групп, ~30 задач, G-8), он же первый, который проходит
-  P-2 без отступлений. Фаза 4 — после phase-3b или параллельно по S8; если S8 затягивается, `ci` и `run`/`guard`
-  можно резать в два change.
+  схемы `run/1` и `skill-result/1`, `guard` (pre/post, без Run → `deny`, D-4, `guard_prefixes`), `validate --files`, `analyze`,
+  `warrant ci` (verdict impl-PR вместо ручного переноса artifact'а, верификация `--ref`), адаптер `codex` — после spike **S8**
+  (hooks Codex под `codex-acp` и `codex exec`, 13 §3), finding `FRONTEND_HOOKS_INACTIVE` (D-14), producer'ы `analyze-clean` и
+  `adversarial-review` (снимают WAV-2026-001…004). Если S8 затягивается, `ci` и `run`/`guard` можно резать в два change.
 
 ### Продолжение — готовый запрос
 
 ```text
-Прочитай docs/NEXT-SESSION.md целиком (состояние фазы 3, «Долг после фазы 3», «Ревью фазы 3» R-1…R-16, «Процессные правила», «Вход в phase-3b / фазу 4», решения P-1…P-20,
-«Долг схем и CLI» C–E, D-1…D-25), затем design.md архива phase-3-verification (таблица I-66…I-101), docs/13-roadmap.md §2 и
-§3 (S8), ADR-0011, 0016, 0021. Фаза 3 закрыта: impl-PR и archive-PR смержены, tag v0.3.0.
-Сначала — долг, не требующий spec: package.json files (sra/), 13 §2 (analyze/link → phase-3b). Затем решим нарезку:
-/opsx:propose change `phase-3b` (link, targets[] и warrant waive, spec-approved, execution.local/guard_prefixes,
-validate --files, (d)/(f), AGENTS.md, понижение ниже floor, I-77; delta REQ-VER/REQ-SDD под R-1/R-2/R-4/R-14 и открытые
-R-6…R-10, R-13; группа 1 — процедуры .claude/commands; analyze — по решению). Ветка fix/phase-3-review (R-1…R-5, R-14…R-16)
-смержена в main и tag v0.3.1 поставлен до propose. Порядок P-2 строго: spec-PR с
-transition SPECIFIED, impl-PR с APPROVED/IMPLEMENTING первым и VERIFYING последним коммитом, CI job evidence, archive-PR
-с artifact'ом, merge impl-PR только merge commit. Потолок ≤ 6 групп, ~30 задач (G-8). Изменение REQ — delta spec, не молча.
-Схема работы прежняя: координатор — ты (Fable), субагент Opus на группу, отчёт ≤ 70 строк с Decisions/deviations.
-Одна ветка — один worktree. Отклонения от spec/design — вопросом ко мне; принятые — I-N в design.md.
+Прочитай docs/NEXT-SESSION.md целиком (состояние, «Ревью фазы 3» R-1…R-16, «Процессные правила», «phase-3b — нарезка»
+V-1…V-9, решения P-1…P-20), затем openspec/changes/phase-3b/{proposal,design,tasks}.md и specs/** целиком. Spec-PR
+spec/phase-3b смержен в main. Создай worktree D:\project\SRA-phase3b-impl на ветке worktree/phase-3b от main
+(npm ci). Первым коммитом impl-PR: warrant transition phase-3b APPROVED --ref <review spec-PR> --by Homasters-max
+(это акт maintainer'а — спроси ref и подтверждение) и transition IMPLEMENTING. Затем /opsx:apply phase-3b по группам 1…6:
+координатор — ты, субагент Opus на группу (run_in_background: false), отчёт ≤ 70 строк с Decisions/deviations; после группы
+сам гоняешь npm test, typecheck, warrant validate, fmt --check, sync --check, versions:check и коммитишь (процедура
+/group-done). Отклонения от spec/design — вопросом ко мне; принятые — I-N (с I-102) в design.md. Последним коммитом impl-PR —
+transition VERIFYING; merge impl-PR только merge commit; archive-PR — evidence из artifact'а одного CI run'а (R-6).
 ```
 
 ### Решения grilling 2026-09-22 по фазе 3 (P-1…P-20) — приняты maintainer'ом
@@ -317,7 +325,7 @@ transition SPECIFIED, impl-PR с APPROVED/IMPLEMENTING первым и VERIFYING
 
 | Команда | REQ | Добавить | ADR | Фаза |
 |---|---|---|---|---|
-| `validate` | REQ-KRN-021 | `--files`; висячие REQ / SCN; pragma mutation-инструментов; `AGENTS.md` побайтно и ≤ 16 KiB | 0019, 0022 | 3b |
+| `validate` | REQ-KRN-021 | `--files`; висячие REQ / SCN; pragma mutation-инструментов; `AGENTS.md` побайтно и ≤ 16 KiB | 0019, 0022 | висячие REQ/SCN — 3b; `--files`, `AGENTS.md` — 4; pragma — 5 (V-1) |
 | `status` | REQ-KRN-027 | finding `FRONTEND_HOOKS_INACTIVE` (D-14) | 0018 | 4 |
 | `init` | REQ-KRN-023 | проверка `codex --version ≥ MIN` при генерации `.codex/hooks.json` (D-7) | 0018 | 4 |
 | `sync` | REQ-KRN-025 | `.codex/hooks.json` (постоянная строка `warrant guard --frontend codex`), `AGENTS.md` | 0018, 0022 | 4 |
@@ -326,10 +334,10 @@ transition SPECIFIED, impl-PR с APPROVED/IMPLEMENTING первым и VERIFYING
 
 | Команда | Требования | Фаза |
 |---|---|---|
-| `check` | `--wait`, `local: ci-only`, `max_paths`, авто-снятие замка мёртвого pid — later (D-23); исполнение `execution.local`/`guard_prefixes` | 3b / later |
-| `gate` / `verify` | gate `spec-approved` транспортно-нейтральный (D-3); отпечатки `targets` в пред-фильтре (D-10, D-12); finding `FRONTEND_HOOKS_INACTIVE` (D-14) | 3b, 4 |
-| `waive` | создание waiver-файла; частичный `targets[]` | 3b |
-| `analyze` | `STALE` для неприменимого target waiver; обратные ссылки; TASK ↔ sef item | 3b или 4 (см. долг) |
+| `check` | `--wait`, `local: ci-only`, `max_paths`, авто-снятие замка мёртвого pid — later (D-23); исполнение `execution.local`/`guard_prefixes` | `local` — 3b; `guard_prefixes` — 4; остальное later (V-1) |
+| `gate` / `verify` | gate `spec-approved` транспортно-нейтральный (D-3); отпечатки `targets` в пред-фильтре (D-10, D-12); finding `FRONTEND_HOOKS_INACTIVE` (D-14) | `spec-approved` — 3b (V-9); `targets` — 5; `FRONTEND_HOOKS_INACTIVE` — 4 |
+| `waive` | создание waiver-файла; частичный `targets[]` | создание — 3b; `targets[]` — 5 (V-1) |
+| `analyze` | `STALE` для неприменимого target waiver; обратные ссылки; TASK ↔ sef item | 4 (V-1) |
 | `link` | `--amends` / `--supersedes`, до `APPROVED` | 3b (0021) |
 | `ci` | verdict impl-PR по evidence CI вместо ручного переноса artifact'а | 4 |
 | `run start` | Context Pack и JSON-вывод с `rules[]` по `write_scope` | 4 (0022) |
@@ -435,7 +443,7 @@ docs/integrations/2026-09-17-sef-platform-design.md (черновик SEF, ПР�
 
 ## Чего не делать
 
-- Не реализовывать `guard`, `ci`, `run` вне фазы 4; `analyze` — только по решению нарезки (P-4 — `phase-3b`, раньше — фаза 4).
+- Не реализовывать `guard`, `ci`, `run` вне фазы 4; `analyze` — фаза 4 (V-1).
 - Не мержить impl-PR squash'ем или rebase'ом: commit CI-evidence должен стать предком `main` (I-97).
 - Не коммитить `.warrant/evidence/**/raw/` и не писать record/evidence руками — только CLI (ADR-0009).
 - Не добавлять profiles `bugfix`, `refactor`, `experiment`: без failure mode (ADR-0013).

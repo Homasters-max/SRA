@@ -56,6 +56,3 @@ argument-hint: "<номер группы>"
    git log -1 --format='%h %s'
    ```
    Не пушить. Итог: hash, subject, результаты шага 2 одной строкой каждый.
-
-6. **Эксперимент Graft** (ADR-0026). Во frontmatter `docs/process/graft.md` — `status: active` → `/graft-log N`
-   (метрики группы и карточка; красные прогоны шага 2 этой группы — `red_runs`). Иначе шаг пропустить.

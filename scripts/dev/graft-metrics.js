@@ -3,23 +3,25 @@
  * aggregate all records.
  *
  *   node scripts/dev/graft-metrics.js run --change <c> --group <n> [--find <text>] [--agent <jsonl>]
- *        [--mode on|off|baseline] [--red-runs <n>] [--helped yes|partly|no] [--misled none|<text>] [--notes <text>]
+ *        [--mode baseline] [--red-runs <n>] [--helped yes|partly|no] [--misled none|<text>] [--notes <text>]
  *   node scripts/dev/graft-metrics.js report
  *
  * `run` finds the subagent transcript by `--agent`, or by `--find` (substring of
  * the Agent description; default `<change> group <n>`) under every
- * `~/.claude/projects/D--project-SRA*` directory; ON / OFF mode comes from the
- * `[graft:on|off]` tag of the description, `--mode` only for `baseline` or a
- * check. Records go to `<git-common-dir>/graft-lab/runs/<change>-g<n>.json` —
- * shared by every worktree, never tracked. `report` prints the aggregate JSON.
- * Exit: 0 ok, 1 violations or verdict reject, 2 usage / not found.
+ * `~/.claude/projects/D--project-SRA*` directory; the arm comes from the blind
+ * label at the end of the description (`[A]` — graft, `[B]` — control),
+ * `--mode baseline` only for an unlabelled historical run. Records go to
+ * `<git-common-dir>/graft-lab/runs/<change>-g<n>.json` — shared by every
+ * worktree, never tracked. `report` prints the aggregate JSON and lists groups
+ * closed in tasks.md without a record (`missing`).
+ * Exit: 0 ok; 1 — run: violations, report: verdict reject or missing groups; 2 usage / not found.
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { buildReport, buildRun, modeOf, parseTranscript } from "./graft-metrics-lib.js";
+import { buildReport, buildRun, closedGroups, modeOf, parseTranscript } from "./graft-metrics-lib.js";
 
 function fail(msg, code = 2) {
   process.stderr.write(`graft-metrics: ${msg}\n`);
@@ -40,10 +42,22 @@ function args(argv) {
   return out;
 }
 
-function labDir() {
-  const r = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" });
+function git(...a) {
+  const r = spawnSync("git", a, { encoding: "utf8" });
   if (r.status !== 0) fail("not inside a git repository");
-  return path.join(r.stdout.trim(), "graft-lab");
+  return r.stdout.trim();
+}
+
+const labDir = () => path.join(git("rev-parse", "--path-format=absolute", "--git-common-dir"), "graft-lab");
+
+/** tasks.md of a change — active or archived (`archive/<date>-<change>`). */
+function tasksOf(change) {
+  const changes = path.join(git("rev-parse", "--show-toplevel"), "openspec", "changes");
+  const active = path.join(changes, change, "tasks.md");
+  if (existsSync(active)) return readFileSync(active, "utf8");
+  const archive = path.join(changes, "archive");
+  const hit = existsSync(archive) ? readdirSync(archive).find((d) => d.endsWith(`-${change}`)) : undefined;
+  return hit && existsSync(path.join(archive, hit, "tasks.md")) ? readFileSync(path.join(archive, hit, "tasks.md"), "utf8") : null;
 }
 
 function findTranscripts(text) {
@@ -84,9 +98,9 @@ function run(o) {
   if (!existsSync(jsonl)) fail(`transcript not found: ${jsonl}`);
 
   const tagged = modeOf(meta.description);
-  const mode = o.mode ?? tagged;
-  if (!["on", "off", "baseline"].includes(mode ?? "")) fail("mode unknown: tag the Agent description [graft:on|off] or pass --mode baseline");
-  if (tagged && o.mode && o.mode !== tagged) fail(`--mode ${o.mode} contradicts description tag [graft:${tagged}]`);
+  if (tagged && o.mode) fail(`--mode is only for unlabelled runs; the description is labelled (${tagged})`);
+  const mode = tagged ?? (o.mode === "baseline" ? "baseline" : null);
+  if (!mode) fail("arm unknown: the Agent description must end with [A] or [B] (or pass --mode baseline for a historical run)");
 
   const metrics = parseTranscript(readFileSync(jsonl, "utf8"));
   const record = buildRun({
@@ -117,9 +131,16 @@ function report() {
         .filter((f) => f.endsWith(".json"))
         .map((f) => JSON.parse(readFileSync(path.join(dir, f), "utf8")))
     : [];
-  const rep = buildReport(runs);
+  const missing = [];
+  for (const change of new Set(runs.filter((r) => r.mode !== "baseline").map((r) => r.change))) {
+    const tasks = tasksOf(change);
+    if (tasks === null) continue;
+    const recorded = new Set(runs.filter((r) => r.change === change).map((r) => r.group));
+    for (const g of closedGroups(tasks)) if (!recorded.has(g)) missing.push(`${change}#${g}`);
+  }
+  const rep = buildReport(runs, { missing });
   process.stdout.write(`${JSON.stringify(rep, null, 2)}\n`);
-  process.exit(rep.verdict === "reject" ? 1 : 0);
+  process.exit(rep.verdict === "reject" || missing.length > 0 ? 1 : 0);
 }
 
 const o = args(process.argv.slice(2));

@@ -19,7 +19,7 @@
 | [0013](WARRANT-ADR-0013-mvp-refinement.md) | Уточнение MVP: sample-проект, TypeScript, агент ведёт slice, core-sdd@0.1 = feature/chore/factory-change | ACCEPTED (уточнён 0018, 0020) |
 | [0014](WARRANT-ADR-0014-claude-code-enforcement.md) | Enforcement в Claude Code: static deny + `warrant guard`, review как subagent | ACCEPTED (уточнён 0017, 0018, 0020; адаптер `claude` — later) |
 | [0015](WARRANT-ADR-0015-openspec-sync-contract.md) | Контракт `warrant sync` с OpenSpec 1.13.1: что генерируется, schema `warrant-sdd`, что WARRANT читает у OpenSpec (S2, остаток S3) | ACCEPTED |
-| [0016](WARRANT-ADR-0016-mutation-diff-scope.md) | Mutation score по diff: формула, порог 0.9, эквивалентные мутанты — частичный waiver, evidence `metrics` | ACCEPTED |
+| [0016](WARRANT-ADR-0016-mutation-diff-scope.md) | Mutation score по diff: формула, порог 0.9, эквивалентные мутанты — частичный waiver, evidence `metrics` | ACCEPTED (уточнён 0025) |
 | [0017](WARRANT-ADR-0017-check-execution.md) | `execution` в check: машинный замок `exclusive`, `local` allowed / scoped-only / ci-only, `--paths`, guard по `guard_prefixes` | ACCEPTED (уточнён 0020) |
 | [0018](WARRANT-ADR-0018-frontend-adapters.md) | Frontend adapters: нейтральный `warrant guard`, три слоя (ACP client, hooks агента, CI), MVP — Codex в ручном режиме (ACP — S1 SEF, ADR-0020) | ACCEPTED (уточнён 0020, 0022, 0023) |
 | [0019](WARRANT-ADR-0019-post-edit-hints.md) | Подсказки после правки: `validate --files`, канал, видимый модели, без блокировки | ACCEPTED (уточнён 0022) |
@@ -28,6 +28,7 @@
 | [0022](WARRANT-ADR-0022-path-rules.md) | Правила по путям: JSON `rule/1`, `AGENTS.md`, подсказка при правке, Context Pack; guard без Run → `deny` | ACCEPTED |
 | [0023](WARRANT-ADR-0023-warrant-dev-frontend.md) | Frontend разработки самого WARRANT: сессии Claude Code без guard, защита — топология PR, review, CI, `validate`; адаптер `claude` — кандидат фазы 4 по S8 | ACCEPTED |
 | [0024](WARRANT-ADR-0024-spec-approved-contract.md) | `spec-approved`: контракт `{proposal.md, specs/**}` без `design.md`, gate waivable — правка контракта после approval снимается waiver'ом maintainer'а | ACCEPTED |
+| [0025](WARRANT-ADR-0025-test-levels.md) | Уровни тестов WARRANT: `unit`, `app`, `contract`, `e2e`; порты процессов и `Ctx`, фейки с контрактом соответствия, проверки уровней, `validate` без N вызовов `openspec` подряд | ACCEPTED |
 | [0026](WARRANT-ADR-0026-graft-experiment.md) | Graft в разработке WARRANT: слепой эксперимент `[A]` / `[B]` по группам задач, только CLI через `scripts/dev/cs.js`, навык `code-search`, без записи в конфиги агента; порог −20 % токенов или tool calls | ACCEPTED (эксперимент, итог — отдельным ADR) |
 
 Новый ADR: следующий номер, frontmatter как в существующих, строка в этой таблице.

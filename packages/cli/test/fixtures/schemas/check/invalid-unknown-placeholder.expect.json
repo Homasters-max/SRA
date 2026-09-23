@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/run/command/2",
+  "scenario": "SCN-KRN-090"
+}

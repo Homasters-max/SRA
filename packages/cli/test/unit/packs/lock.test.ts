@@ -118,4 +118,24 @@ describe("checkLock", () => {
     expect(errors.map((e) => e.code)).toEqual(["LOCK_MISMATCH"]);
     expect(errors[0]?.path).toBe(".warrant/warrant.lock.json#/generated/openspec/config.yaml");
   });
+
+  it("reports a pack the lock records but warrant.json no longer enables (B3, SCN-KRN-094)", () => {
+    const root = project();
+    const loaded = loadPacks(root);
+    const hash = packContentHash(path.join(FIXTURE_PACKS, "base"));
+    writeFileSync(
+      path.join(root, ".warrant", "warrant.lock.json"),
+      JSON.stringify({
+        $schema: "warrant://lock/1",
+        kernel: CLI_VERSION,
+        openspec: "1.13.1",
+        packs: {
+          base: { version: "1.0.0", source: "bundled", hash },
+          "bdd-tdd": { version: "0.1.0", source: "bundled", hash }
+        }
+      })
+    );
+    const errors = checkLock({ projectRoot: root, config: loaded.config, packs: loaded.packs });
+    expect(errors.map((e) => [e.code, e.path])).toEqual([["LOCK_MISMATCH", ".warrant/warrant.lock.json#/packs/bdd-tdd"]]);
+  });
 });

@@ -1,12 +1,14 @@
 /**
- * Golden-фикстуры pack `core-sdd` (REQ-SDD-009, SCN-SDD-004, 005, 007, 015).
+ * Golden-фикстуры pack `core-sdd` (REQ-SDD-009, SCN-SDD-004, 005, 007, 015, 020).
  *
  * Тест гоняет ровно ту же процедуру, что `npm run golden:update`: общий код
  * лежит в `scripts/golden-lib.js`, поэтому скрипт и тест не могут разойтись.
  * Тест только сравнивает — переписывает `expected/*` исключительно скрипт.
  */
 // @ts-expect-error — общий helper со скриптом: plain Node ESM без типов (design Decision 8).
-import { GOLDEN_NAMES, PACKS_DIR, makeTempRoot, prepareGolden, readExpected, removeDir, runGolden } from "../../../../scripts/golden-lib.js";
+import { GOLDEN_NAMES, GOLDEN_ROOT, PACKS_DIR, makeTempRoot, prepareGolden, readExpected, removeDir, runGolden } from "../../../../scripts/golden-lib.js";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
@@ -18,6 +20,9 @@ interface GoldenRun {
   changed: string[];
   resolve: Record<string, unknown>;
   status: Record<string, unknown>;
+  verify: Record<string, unknown>;
+  verifyExit: number;
+  verifyErrors: unknown[];
 }
 
 const tempRoot: string = makeTempRoot();
@@ -41,15 +46,20 @@ describe("golden-фикстуры core-sdd", () => {
   const runs = new Map<string, GoldenRun>();
 
   for (const name of GOLDEN_NAMES as string[]) {
-    it(`${name}: resolve и status совпадают с expected/* (SCN-SDD-015)`, async () => {
+    it(`${name}: resolve, status и verify совпадают с expected/* (SCN-SDD-015)`, async () => {
       const run = (await runGolden(name, tempRoot)) as GoldenRun;
       runs.set(name, run);
       // Снимки сравниваются первыми: правка pack, меняющая effective policy,
       // должна показывать diff по policy, а не по локу (SCN-SDD-016).
       expectCanonicalEqual(run.resolve, readExpected(name, "resolve"));
       expectCanonicalEqual(run.status, readExpected(name, "status"));
+      expect(run.verifyErrors).toEqual([]);
+      expect(run.verifyExit).toBe(0);
+      expectCanonicalEqual(run.verify, readExpected(name, "verify"));
       // Фикстура хранит уже синхронизированные лок и сгенерированные файлы.
       expect(run.changed).toEqual([]);
+      // verify пишет evidence только в копию: рабочее дерево фикстуры не меняется.
+      expect(existsSync(path.join(GOLDEN_ROOT, name, ".warrant", "evidence"))).toBe(false);
     });
   }
 
@@ -61,12 +71,20 @@ describe("golden-фикстуры core-sdd", () => {
     expect(gates["SPECIFIED->APPROVED"]).toContain("adversarial-review");
   });
 
+  it("feature: verify PROPOSED->SPECIFIED — три gate PASS и CONTINUE (SCN-SDD-020)", async () => {
+    const run = runs.get("feature") ?? ((await runGolden("feature", tempRoot)) as GoldenRun);
+    expect(run.verify["gates"]).toEqual({ "ids-valid": "PASS", "required-artifacts-present": "PASS", "spec-valid": "PASS" });
+    expect(run.verify["controller_action"]).toBe("CONTINUE");
+    expect(run.verify["rule"]).toBeNull();
+    expect(run.verifyExit).toBe(0);
+  });
+
   it("chore: LOW, без adversarial-review, risk-low в sources (SCN-SDD-005)", async () => {
     const run = runs.get("chore") ?? ((await runGolden("chore", tempRoot)) as GoldenRun);
     expect(run.resolve["risk_level"]).toBe("LOW");
     const gates = run.resolve["gates"] as Record<string, string[]>;
     expect(gates["SPECIFIED->APPROVED"]).not.toContain("adversarial-review");
-    expect(run.resolve["sources"]).toContain("core-sdd@0.1.0:overlay/risk-low@1.0.0");
+    expect(run.resolve["sources"]).toContain("core-sdd@0.2.0:overlay/risk-low@1.0.0");
   });
 
   it("factory-change: HIGH, factory-golden-passed, PRODUCTION_WRITE, наследование feature (SCN-SDD-007)", async () => {

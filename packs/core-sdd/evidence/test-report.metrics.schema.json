@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "core-sdd test-report metrics",
+  "description": "Shape of `metrics` in evidence of kind `test-report`: the counters of a junit report, summed over all test suites.",
+  "type": "object",
+  "properties": {
+    "tests": {
+      "description": "Number of tests run.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "failures": {
+      "description": "Number of tests that failed an assertion.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "errors": {
+      "description": "Number of tests that ended with an error.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "skipped": {
+      "description": "Number of tests that were skipped.",
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "tests",
+    "failures",
+    "errors",
+    "skipped"
+  ],
+  "additionalProperties": false
+}

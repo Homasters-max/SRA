@@ -21,15 +21,27 @@ export const WARRANT_DIR = ".warrant";
  */
 export const SCHEMA_COPIES_PREFIX = `${WARRANT_DIR}/schemas/`;
 
+/**
+ * Raw check output `.warrant/evidence/**\/raw/**` (`{out}` of a check) is not
+ * part of any record: it is whatever the tool wrote, JSON without `$schema`
+ * included, so checks (1), (6) and (7) of `validate` and `fmt` leave it alone
+ * (I-76, REQ-KRN-021, REQ-VER-001).
+ */
+export function isRawEvidencePath(reported: string): boolean {
+  return /^\.warrant\/evidence\/(?:[^/]+\/)*raw\//.test(reported);
+}
+
 function isJson(absolute: string): boolean {
   return absolute.toLowerCase().endsWith(".json");
 }
 
 /** Every `*.json` under `.warrant/**` that the canonical form governs, as absolute paths. */
 export function canonicalTargets(root: string): string[] {
-  return walkFiles(path.join(root, WARRANT_DIR)).filter(
-    (absolute) => isJson(absolute) && !reportPath(absolute, root).startsWith(SCHEMA_COPIES_PREFIX)
-  );
+  return walkFiles(path.join(root, WARRANT_DIR)).filter((absolute) => {
+    if (!isJson(absolute)) return false;
+    const reported = reportPath(absolute, root);
+    return !reported.startsWith(SCHEMA_COPIES_PREFIX) && !isRawEvidencePath(reported);
+  });
 }
 
 /** Outcome of comparing one file with its canonical form. */

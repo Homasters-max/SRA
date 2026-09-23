@@ -1,0 +1,18 @@
+{
+  "$schema": "warrant://pack/1",
+  "id": "bdd-tdd",
+  "version": "0.1.0",
+  "kernel": ">=0.1 <0.4",
+  "provides": {
+    "rules": [
+      "rules/feature-files.json"
+    ],
+    "evidence_kinds": [
+      "review",
+      {
+        "kind": "test-report",
+        "metrics_schema": "evidence/test-report.metrics.schema.json"
+      }
+    ]
+  }
+}

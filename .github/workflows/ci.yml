@@ -1,0 +1,151 @@
+# CI of the WARRANT repository (phase 3, task 1.1; P-9, design D-17).
+#
+# Job `test`, one per OS: the kernel has only ever run on Windows, and every
+# path, spawn and lock decision of phase 3 must hold on Linux too. OpenSpec is
+# installed before the tests so that no `openspec`-dependent test is skipped.
+# Job `evidence` (impl-PRs from worktree/*, task 6.2): see below.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install OpenSpec
+        run: npm i -g @fission-ai/openspec@1.13.1
+
+      - name: Test
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Install warrant from the checkout
+        run: npm i -g .
+
+      - name: warrant validate (repository)
+        run: warrant validate
+
+      # `packages/cli/test/fixtures` holds schema and pack fixtures, not a
+      # WARRANT project; the golden project `feature` of pack core-sdd is the
+      # smallest real one, and it is validated from a copy outside the checkout.
+      - name: warrant validate (fixture project)
+        run: |
+          fixture="$(mktemp -d)/feature"
+          cp -R packs/core-sdd/golden/feature "$fixture"
+          cd "$fixture"
+          warrant validate
+
+  # Evidence of an impl-PR (P-15, design §17, task 6.2): only on pull requests
+  # from `worktree/<change>`. The job produces records with
+  # `attestation.type: "ci"` and uploads them; the maintainer lays
+  # `manifest.json` and `EVID-*.json` from the artifact into the archive-PR and
+  # records `MERGED` there. It judges nothing itself (the verdict job is
+  # `warrant ci`, phase 4): WAIT or STOP of the controller does not fail it,
+  # a configuration error (exit 3: unknown change, check not configured or
+  # timed out) does, because then no usable evidence was produced.
+  # No `needs: test`: a failing suite is itself evidence (test-report
+  # NOT_PROVEN), and the two jobs run in parallel.
+  evidence:
+    name: evidence
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'worktree/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # The PR head, not the synthetic merge commit: subject.commit must be a
+      # commit that becomes an ancestor of main when the PR is merged (I-97).
+      # Full history, so that origin/main and the fork point are known.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install OpenSpec
+        run: npm i -g @fission-ai/openspec@1.13.1
+
+      - name: Install warrant from the checkout
+        run: npm i -g .
+
+      - name: Change of the branch
+        id: change
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          change="${HEAD_REF#worktree/}"
+          if ! [[ "$change" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+            echo "::error::branch $HEAD_REF does not name a Change (worktree/<kebab-id>)"
+            exit 3
+          fi
+          echo "name=$change" >> "$GITHUB_OUTPUT"
+
+      - name: warrant verify (VERIFYING->MERGED)
+        env:
+          CHANGE: ${{ steps.change.outputs.name }}
+        run: |
+          # Base: the fork point of the PR head from main (I-97); there is no local main in CI.
+          base="$(git merge-base origin/main HEAD)"
+          set +e
+          warrant verify "$CHANGE" --transition 'VERIFYING->MERGED' --base "$base" > "$RUNNER_TEMP/verify.json"
+          code=$?
+          set -e
+          cat "$RUNNER_TEMP/verify.json"
+          action="$(node -e 'const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(String(j.data?.controller_action ?? "none"))' "$RUNNER_TEMP/verify.json" || echo unknown)"
+          echo "warrant verify $CHANGE: exit $code, controller_action $action (commit $(git rev-parse HEAD), base $base)" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -ge 3 ]; then
+            echo "::error::warrant verify exited with $code: configuration error, the evidence is not usable"
+            exit "$code"
+          fi
+          if [ "$code" -ne 0 ]; then
+            echo "::warning::controller_action $action (exit $code): the evidence is recorded, the merge verdict is the maintainer's"
+          fi
+
+      # The whole directory, raw/ included (junit and stdout behind artifacts[].sha256);
+      # only manifest.json and EVID-*.json go into the archive-PR (P-19).
+      - name: Upload evidence
+        if: always() && steps.change.outputs.name != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-${{ steps.change.outputs.name }}
+          path: .warrant/evidence/${{ steps.change.outputs.name }}/
+          include-hidden-files: true
+          if-no-files-found: warn

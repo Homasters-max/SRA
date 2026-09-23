@@ -1,4 +1,5 @@
 {
+  "amended_by": [],
   "artifacts": {
     "design": "done",
     "proposal": "done",
@@ -36,13 +37,34 @@
   },
   "effective_policy": {
     "hash": "sha256:af9374fea32ab0fa81f8b3562f57b3d56eeb69c8d6b2a8161ee7f08a78fad6c1",
+    "risk_level": "HIGH",
     "sources": [
       "kernel@{CLI_VERSION}",
-      "core-sdd@0.1.0:overlay/core-default@1.0.0",
-      "core-sdd@0.1.0:profile/feature@1.0.0",
-      "core-sdd@0.1.0:profile/factory-change@1.0.0",
-      "core-sdd@0.1.0:overlay/risk-high@1.0.0"
+      "core-sdd@0.2.0:overlay/core-default@1.0.0",
+      "core-sdd@0.2.0:profile/feature@1.0.0",
+      "core-sdd@0.2.0:profile/factory-change@1.0.0",
+      "core-sdd@0.2.0:overlay/risk-high@1.0.0"
     ]
   },
-  "stale": []
+  "stale": [],
+  "superseded_by": [],
+  "verification": {
+    "controller_action": "WAIT",
+    "findings": [
+      {
+        "code": "NO_EVIDENCE",
+        "gate": "spec-valid",
+        "kind": "spec-report",
+        "message": "no admissible spec-report record; run the check that produces it"
+      }
+    ],
+    "gates": {
+      "ids-valid": "PASS",
+      "required-artifacts-present": "PASS",
+      "spec-valid": "BLOCKED"
+    },
+    "next": "verify",
+    "rule": "verify-incomplete",
+    "transition": "PROPOSED->SPECIFIED"
+  }
 }

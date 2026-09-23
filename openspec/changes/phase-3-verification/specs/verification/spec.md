@@ -48,7 +48,8 @@ Evidence Change SHALL храниться в `<state>/evidence/<change>/`: `manif
 `warrant check <change> [id...] [--paths <a,b>] [--base <ref>]` SHALL выполнить указанные checks (без `id` — все checks, чьи
 `produces` пересекаются с `requires_evidence` gates следующего перехода вперёд из `change_state` record), каждый — командой `run.command`
 после подстановки плейсхолдеров `{out}`, `{change}`, `{paths}` ([REQ-KRN-010](#requirement-схема-check)); с `--paths` SHALL выполняться
-`run.scoped_command`, а запись SHALL нести `limitations: ["scoped: <paths>"]`. Check без `run.command` (например, `tests-passed` pack'а без
+`run.scoped_command`, а запись SHALL нести `limitations: ["scoped: <paths>"]`; check без `scoped_command` при `--paths` SHALL выполнять
+полный `run.command` без этой пометки с предупреждением в stderr (I-80). Check без `run.command` (например, `tests-passed` pack'а без
 override в `.warrant/local/checks/`) SHALL давать `CHECK_NOT_CONFIGURED`, код 3. Вывод SHALL разбираться parser'ом (`junit` → kind
 `test-report`; `openspec-validate` → kind `spec-report`) в `evidence_status` (`PROVEN` при отсутствии падений, иначе `NOT_PROVEN`;
 `NOT_APPLICABLE` — когда parser детерминированно установил отсутствие предмета проверки, D-11) и `metrics` по форме kind'а.
@@ -104,7 +105,8 @@ Check с `execution.exclusive: true` SHALL брать file lock `<git-common-dir
 Затем по порядку [06 §3](../../../../docs/06-verification.md): `applies_when.changed_paths` не пересекает diff, или все
 `requires_evidence` имеют `NOT_APPLICABLE` от check → `NOT_APPLICABLE`; нет входа (не git-репозиторий, нет `openspec`, нет ни одной
 допустимой записи требуемого kind) → `BLOCKED` с finding (`NO_EVIDENCE`, `NO_INPUT`); все `requires_evidence` `PROVEN` → `PASS`;
-`ACTIVE` waiver на этот gate и Change при `waivable: true` → `WAIVED` (finding `WAIVED_BY: <WAV>`); иначе `FAIL`.
+иначе `FAIL`. `ACTIVE` waiver на этот gate и Change при `waivable: true` SHALL превращать `BLOCKED` и `FAIL` в `WAIVED`
+(finding `WAIVED_BY: <WAV>`; I-84).
 На переходе `VERIFYING->MERGED` запись с `attestation.type: "none"` SHALL NOT засчитываться, если gate не объявляет `none` в
 `accepts_attestation` (06a §3): verdict `BLOCKED`, finding `ATTESTATION_REQUIRED`. Команда SHALL печатать `data.gates` (id → verdict),
 `data.findings[]`, `data.transition`; код выхода — по controller ([REQ-VER-005](#requirement-controller)).
@@ -151,7 +153,8 @@ Gates без `requires_evidence` SHALL вычисляться CLI из сост�
 `artifacts.required` effective policy имеет статус `done` по `openspec status --json` (для `chore` со `skip_specs` — `skipped`
 засчитывается для `specs`); `ids-valid` — проверка (5) `validate` без находок; `blocking-unknowns-resolved` — в record нет `unknowns[]`
 с `blocking: true` без `resolution`; `branch-isolated` — текущая ветка git существует и не равна base (`main`); `evidence-complete` —
-для каждого kind из `evidence.required` есть допустимая запись; `scope-valid` — пути diff `base...HEAD` входят в множество, разрешённое
+для каждого kind из `evidence.required` у Change есть хотя бы одна запись на любом commit (свежесть проверяют gates, читающие
+этот kind), либо на gate, требующий этот kind в `requires_evidence`, есть `ACTIVE` waiver этого Change (I-96); `scope-valid` — пути diff `base...HEAD` входят в множество, разрешённое
 переходу ([ADR-0011](../../../../docs/adr/WARRANT-ADR-0011-pr-topology.md), D-15): для `SPECIFIED->APPROVED` — `openspec/changes/<change>/**`
 и `.warrant/changes/<change>.json`; для `VERIFYING->MERGED` — всё, кроме `openspec/specs/**`, `openspec/changes/archive/**`,
 records и evidence других Changes, и кроме policy-путей (`match.paths` profile `factory-change`), если `factory-change` не в profiles;
@@ -191,7 +194,8 @@ record и evidence этого Change. Каждый FAIL SHALL сопровожд
 (худший verdict перехода в порядке `FAIL` > `BLOCKED` > `WAIVED` > `NOT_APPLICABLE` > `PASS`) и `gate_waivable` этого gate,
 `blocking_unknowns`, `pending_approvals`, `gates_awaiting_attestation`, `unevaluated_gates`, `missing_required_artifacts`;
 применить правила `controller/rules.json` всех подключённых packs в порядке загрузки, первое совпавшее — результат
-(`controller_action`, `next`?, `rule`); ни одно не совпало → `CONTINUE` без `next`, `rule: null`. Controller SHALL быть чистой функцией
+(`controller_action`, `next`?, `rule`); ни одно не совпало и худший verdict — `BLOCKED` → правило kernel `verify-incomplete`
+(`WAIT`, `next: "verify"`; P-7, I-91); ни одно не совпало иначе → `CONTINUE` без `next`, `rule: null`. Controller SHALL быть чистой функцией
 входов. Код выхода `gate` и `verify`: `CONTINUE` → 0, `STOP` → 1, `WAIT` и `ESCALATE` → 2.
 
 #### Scenario: Gate FAIL → WAIT
@@ -208,6 +212,11 @@ record и evidence этого Change. Каждый FAIL SHALL сопровожд
 <!-- id: SCN-VER-026 -->
 - **WHEN** все gates перехода `PASS`, `WAIVED` или `NOT_APPLICABLE`, конфликтов и UNKNOWN нет
 - **THEN** `controller_action` равен `CONTINUE`, `rule` равен `null`, код выхода 0
+
+#### Scenario: Только BLOCKED
+<!-- id: SCN-VER-039 -->
+- **WHEN** gates перехода не дали `FAIL`, хотя бы один — `BLOCKED` (например, `NO_EVIDENCE` после нового commit), правила packs не совпали
+- **THEN** `controller_action` равен `WAIT`, `next` равен `verify`, `rule` равен `verify-incomplete`, код выхода 2
 
 ### Requirement: Команда verify
 <!-- id: REQ-VER-006 -->
@@ -238,7 +247,9 @@ record и evidence этого Change. Каждый FAIL SHALL сопровожд
 `login` ∈ `roles[<role>]` для `role` из `approvals[]` перехода, и команда SHALL до вычисления gates записать evidence kind `human-approval`
 (`produced_by: { "type": "human", "id": "<login>" }`, `attestation: { "type": "human-review", "ref": <--ref> }`, `evidence_status: "PROVEN"`).
 Для `MERGED` оцениваемый commit SHALL быть `--commit` или commit самой свежей записи evidence Change; он SHALL быть предком HEAD
-(иначе `COMMIT_NOT_MERGED`, код 3); все записи перехода SHALL быть на этом commit; base = `merge-base(main, commit)`.
+(иначе `COMMIT_NOT_MERGED`, код 3); все записи перехода SHALL быть на этом commit; base — точка ответвления: для merge-коммита M, первого на first-parent линии
+HEAD, содержащего commit, base = `merge-base(M^1, commit)`; commit, ещё не влитый в first-parent линию, — `merge-base(main, commit)`
+(I-97; impl-PR вливается merge-коммитом, squash и rebase дают `COMMIT_NOT_MERGED`).
 Запись transition SHALL содержать `to`, `at`, `by: "cli:local"`, `effective_policy_hash`, `gates{}`, `evidence[]` (id записей,
 на которых вынесены verdicts), `ref` при наличии. Переход назад (`VERIFYING->IMPLEMENTING`, `IMPLEMENTING->SPECIFIED`) SHALL записываться
 без gates. `ABANDONED` SHALL удалить `openspec/changes/<change>/` и записать переход; после `ABANDONED` и `ARCHIVED` любая команда,

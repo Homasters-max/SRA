@@ -33,4 +33,23 @@ describe("computeStale", () => {
     const location = { where: "archive", path: "openspec/changes/archive/2026-09-22-add-search" } as const;
     expect(computeStale("add-search", location, "ARCHIVED")).toEqual([]);
   });
+
+  it("reports an ABANDONED record whose directory is still there (SCN-KRN-102, D-22)", () => {
+    expect(computeStale("add-search", { where: "active", path: "openspec/changes/add-search" }, "ABANDONED")).toEqual([
+      {
+        code: "ABANDONED_DIR_PRESENT",
+        message: 'record is ABANDONED but the change directory of "add-search" still exists',
+        path: "openspec/changes/add-search"
+      }
+    ]);
+  });
+
+  it("does not report CHANGE_DIR_MISSING for an ABANDONED record (SCN-KRN-102)", () => {
+    expect(computeStale("add-search", null, "ABANDONED")).toEqual([]);
+  });
+
+  it("still reports an archived copy of an ABANDONED change as ARCHIVED_WITHOUT_TRANSITION", () => {
+    const location = { where: "archive", path: "openspec/changes/archive/2026-09-22-add-search" } as const;
+    expect(computeStale("add-search", location, "ABANDONED").map((s) => s.code)).toEqual(["ARCHIVED_WITHOUT_TRANSITION"]);
+  });
 });

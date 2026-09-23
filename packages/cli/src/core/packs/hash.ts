@@ -15,10 +15,19 @@ import { validateFile } from "../schemas/semantic.js";
 import { CLI_VERSION, KERNEL_VERSION } from "../../version.js";
 import semver from "semver";
 
-import { walkFiles } from "./loader.js";
+import { bundledPacksDir, reportPath, walkFiles } from "./loader.js";
 import type { LoadedPack } from "./types.js";
 
 export const LOCK_REL = ".warrant/warrant.lock.json";
+
+/**
+ * Root of what ships with the CLI: the directory holding the bundled `packs/`
+ * (the repository, or the installed package). `lock.skills.*.path` with
+ * `source: "bundled"` is relative to it (I-52).
+ */
+export function bundleRoot(): string {
+  return path.dirname(bundledPacksDir());
+}
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -149,6 +158,20 @@ export function checkLock(input: LockCheckInput): CliError[] {
     }
   }
 
+  // B3: a pack removed from `warrant.json` but still in the lock is a stale
+  // lock, not a harmless leftover — `sync --check` already sees it (SCN-KRN-094).
+  const configured = isPlainObject(config["packs"]) ? config["packs"] : {};
+  for (const id of Object.keys(lockPacks).sort()) {
+    if (id === "$comment" || id in configured) continue;
+    errors.push(
+      err(
+        "LOCK_MISMATCH",
+        `lock records pack ${id}, which .warrant/warrant.json does not enable; run \`warrant sync\``,
+        `${LOCK_REL}#/packs/${id}`
+      )
+    );
+  }
+
   const generated = isPlainObject(lock["generated"]) ? lock["generated"] : {};
   for (const [rel, hash] of Object.entries(generated)) {
     if (rel === "$comment") continue;
@@ -168,7 +191,8 @@ export function checkLock(input: LockCheckInput): CliError[] {
   for (const [name, entry] of Object.entries(skills)) {
     if (name === "$comment" || !isPlainObject(entry)) continue;
     const rel = typeof entry["path"] === "string" ? entry["path"] : "";
-    const target = path.join(projectRoot, rel);
+    const bundled = entry["source"] === "bundled";
+    const target = path.join(bundled ? bundleRoot() : projectRoot, rel);
     if (rel === "" || !existsSync(target)) {
       errors.push(err("LOCK_MISMATCH", `skill ${name} listed in the lock is missing`, `${LOCK_REL}#/skills/${name}/path`));
       continue;
@@ -178,7 +202,11 @@ export function checkLock(input: LockCheckInput): CliError[] {
       // The path reported is the skill itself: that is the file to look at,
       // and `warrant sync` is what reconciles the lock with it (SCN-SDD-014).
       errors.push(
-        err("LOCK_MISMATCH", `content of skill ${name} does not match the hash in the lock; run \`warrant sync\``, rel)
+        err(
+          "LOCK_MISMATCH",
+          `content of skill ${name} does not match the hash in the lock; run \`warrant sync\``,
+          bundled ? reportPath(target, projectRoot) : rel
+        )
       );
     }
   }

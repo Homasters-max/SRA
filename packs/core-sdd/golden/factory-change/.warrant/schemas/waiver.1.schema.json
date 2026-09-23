@@ -58,6 +58,15 @@
     "waiver_state": {
       "description": "State of the waiver.",
       "$ref": "warrant://common/1#/$defs/waiver_state"
+    },
+    "targets": {
+      "description": "Narrows the waiver to individual objects the gate counts one by one (05 section 7, ADR-0016). The kernel only requires objects: their shape is declared by the pack that provides the gate and is checked by `warrant validate` as a second step (D-13).",
+      "type": "array",
+      "items": {
+        "description": "One waived target; its shape is declared by the pack of the gate.",
+        "type": "object",
+        "additionalProperties": true
+      }
     }
   },
   "required": [

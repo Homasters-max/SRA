@@ -1,8 +1,8 @@
 {
   "$schema": "warrant://pack/1",
   "id": "core-sdd",
-  "version": "0.1.0",
-  "kernel": ">=0.1 <0.3",
+  "version": "0.2.0",
+  "kernel": ">=0.1 <0.4",
   "description": "Baseline spec-driven workflow for OpenSpec with the WARRANT governance rules.",
   "depends_on": {},
   "provides": {
@@ -45,6 +45,7 @@
       "controller/rules.json"
     ],
     "recipes": [],
+    "rules": [],
     "templates": [
       "openspec/templates/proposal.md",
       "openspec/templates/spec.md",
@@ -57,8 +58,14 @@
       "specification/adversarial-review@^0.1"
     ],
     "evidence_kinds": [
-      "test-report",
-      "spec-report",
+      {
+        "kind": "test-report",
+        "metrics_schema": "evidence/test-report.metrics.schema.json"
+      },
+      {
+        "kind": "spec-report",
+        "metrics_schema": "evidence/spec-report.metrics.schema.json"
+      },
       "review",
       "human-approval"
     ]

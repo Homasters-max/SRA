@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parse } from "yaml";
+import { parse, parseDocument } from "yaml";
 
 import { GENERATED_MARKER, emitYaml, type YamlObject } from "../../../src/core/openspec/yaml-emit.js";
 
@@ -131,6 +131,21 @@ describe("emitYaml", () => {
 
   it("quotes keys that are not plain identifiers", () => {
     roundTrip({ "with space": "x", "a.b": "y", plain_key: "z", "kebab-key": "w" });
+  });
+
+  it("quotes keys a YAML reader would not keep as strings (B5, SCN-KRN-100)", () => {
+    const value = { null: ["x"], true: "a", False: "b", yes: "c", no: "d", on: "e", off: "f", Null: "g" };
+    const text = emitYaml(value);
+    for (const key of Object.keys(value)) expect(text).toContain(`${JSON.stringify(key)}:`);
+    for (const version of ["1.1", "1.2"] as const) {
+      const doc = parseDocument(text, { version });
+      const keys = (doc.contents as unknown as { items: { key: { value: unknown } }[] }).items.map(
+        (pair) => pair.key.value
+      );
+      expect(keys).toEqual(Object.keys(value));
+    }
+    // Plain identifiers stay plain.
+    expect(emitYaml({ nullable: "x", yesterday: "y" })).toBe("nullable: x\nyesterday: y\n");
   });
 
   it("emits empty containers inline", () => {

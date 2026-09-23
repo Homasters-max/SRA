@@ -1,0 +1,8 @@
+{
+  "$schema": "warrant://rule/1",
+  "id": "language-split",
+  "paths": [
+    "**"
+  ],
+  "text": "Documents for humans are in Russian, files read by machines are in English."
+}

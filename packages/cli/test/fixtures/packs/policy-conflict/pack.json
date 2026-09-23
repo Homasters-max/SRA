@@ -2,7 +2,7 @@
   "$schema": "warrant://pack/1",
   "id": "policy-conflict",
   "version": "1.0.0",
-  "kernel": ">=0.1 <0.3",
+  "kernel": ">=0.1 <0.4",
   "description": "Fixture pack: two overlays that require and forbid the same artifact.",
   "depends_on": {},
   "provides": {

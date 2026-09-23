@@ -62,6 +62,20 @@ export function configDocument(kernel: string, openspecVersion: string, packVers
   };
 }
 
+/** `.gitignore` entry for the raw check output, which is never committed (REQ-VER-001, P-19). */
+export const RAW_EVIDENCE_IGNORE = ".warrant/evidence/**/raw/";
+
+/**
+ * `.gitignore` text with {@link RAW_EVIDENCE_IGNORE} present, or null when the
+ * current text (null: no file) already has it. Existing lines are kept as they are.
+ */
+export function gitignoreWithRawEvidence(current: string | null): string | null {
+  const text = current ?? "";
+  if (text.split(/\r?\n/).some((line) => line.trim() === RAW_EVIDENCE_IGNORE)) return null;
+  const separator = text === "" || text.endsWith("\n") ? "" : "\n";
+  return `${text}${separator}${RAW_EVIDENCE_IGNORE}\n`;
+}
+
 /** Empty but valid AREA registry. */
 export function areasDocument(): Record<string, unknown> {
   return { $schema: "warrant://areas/1" };

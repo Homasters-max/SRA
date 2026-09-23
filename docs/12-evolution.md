@@ -138,8 +138,6 @@ Status: informative · Maturity: MVP
 
 | Норма | Фактическая практика | Решение | Где |
 |---|---|---|---|
-| Код в MVP пишет Codex; сессии Claude — spec и tasks с человеком ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md) п. 7) | Фазы 1–2 целиком написаны в Claude Code, фаза 3 будет там же | Изменить норму: ADR-0023 внутри Change `phase-3-verification`; адаптер `claude` — кандидат фазы 4 | ADR-0023 |
 | ADR — через Change с ADR ([03 §7](03-architecture.md)); specification предшествует implementation (INV-01) | ADR-0016…0022 и правки восьми нормативных документов прошли вне Change | Зафиксировать и не повторять: дальнейшая работа — внутри Change | [NEXT-SESSION](NEXT-SESSION.md), «Долг» |
-| Два PR на Change плюс archive ([ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)) | Одна ветка `feature/<change>`, один merge; CI нет | Проверить норму на Change `agent-session-guide`: либо практика подтягивается, либо `chore` получает явное исключение | [NEXT-SESSION](NEXT-SESSION.md), план |
 
 Строка живёт здесь, пока решение не исполнено; исполненное уходит в ADR или в практику и из таблицы удаляется.

@@ -1,0 +1,92 @@
+/**
+ * One synced core-sdd project per test file (`openspec init` + `warrant sync`,
+ * built once in `beforeAll`), copied fresh for every case, so that a clean
+ * `validate` is `ok: true` and each test sees only the findings it provokes.
+ */
+import { cpSync, mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { afterAll, beforeAll } from "vitest";
+
+import { canonicalText } from "../../src/core/canon/format-json.js";
+import { packContentHash } from "../../src/core/packs/hash.js";
+import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
+import { CLI_VERSION } from "../../src/version.js";
+import { REPO_ROOT, makeTempDir, removeDir, runCli, type CliRun } from "./cli.js";
+
+export const PACKS = path.join(REPO_ROOT, "packs");
+
+/** Writes a file; objects in canonical form, so check (7) stays quiet. */
+export function write(root: string, rel: string, content: string | object): void {
+  const absolute = path.join(root, rel);
+  mkdirSync(path.dirname(absolute), { recursive: true });
+  writeFileSync(absolute, typeof content === "string" ? content : canonicalText(content).text, "utf8");
+}
+
+export function record(change: string, state: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    $schema: "warrant://change-record/1",
+    change,
+    change_state: state,
+    transitions: [{ to: "PROPOSED", at: "2026-09-22T09:00:00Z", by: "cli:local" }],
+    ...extra
+  };
+}
+
+export function validate(root: string): Promise<CliRun> {
+  return runCli(["validate"], root, { WARRANT_PACKS_DIR: PACKS });
+}
+
+export function codes(run: CliRun): string[] {
+  return (run.json?.errors as { code: string }[]).map((e) => e.code);
+}
+
+export function findError(run: CliRun, code: string): { code: string; message: string; path: string } | undefined {
+  return (run.json?.errors as { code: string; message: string; path: string }[]).find((e) => e.code === code);
+}
+
+/**
+ * Registers the hooks and returns `project()`, which copies the synced base.
+ * Nothing is built when `openspec` is not on PATH; callers skip their suites.
+ */
+export function useSyncedProject(): () => string {
+  const tempDirs: string[] = [];
+  let base = "";
+
+  beforeAll(async () => {
+    if (!openspecAvailable()) return;
+    base = makeTempDir("warrant-e2e-synced-base-");
+    tempDirs.push(base);
+    write(base, ".warrant/warrant.json", {
+      $schema: "warrant://config/1",
+      kernel: "0.1",
+      openspec: "1.13.x",
+      packs: { "core-sdd": { version: "^0.2" } },
+      roles: { maintainer: ["kat"] }
+    });
+    write(base, ".warrant/local/areas.json", {
+      $schema: "warrant://areas/1",
+      KRN: { capability: "kernel" },
+      SRC: { capability: "search" }
+    });
+    write(base, ".warrant/warrant.lock.json", {
+      $schema: "warrant://lock/1",
+      kernel: CLI_VERSION,
+      openspec: "1.13.1",
+      packs: { "core-sdd": { version: "0.2.0", source: "bundled", hash: packContentHash(path.join(PACKS, "core-sdd")) } }
+    });
+    if (!runOpenspec(["init", "--tools", "none"], base).ok) throw new Error("openspec init failed");
+    const sync = await runCli(["sync"], base, { WARRANT_PACKS_DIR: PACKS });
+    if (sync.status !== 0) throw new Error(`warrant sync failed: ${sync.stdout}${sync.stderr}`);
+  }, 120_000);
+
+  afterAll(() => {
+    for (const dir of tempDirs) removeDir(dir);
+  });
+
+  return () => {
+    const root = makeTempDir("warrant-e2e-synced-");
+    tempDirs.push(root);
+    cpSync(base, root, { recursive: true });
+    return root;
+  };
+}

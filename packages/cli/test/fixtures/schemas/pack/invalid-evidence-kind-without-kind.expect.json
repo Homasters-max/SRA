@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/provides/evidence_kinds/1",
+  "scenario": "SCN-KRN-088"
+}

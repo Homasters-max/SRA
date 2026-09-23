@@ -8,9 +8,11 @@
  *      приводятся к тому, что даёт текущий pack;
  *   2. копия во временный каталог и та же процедура, что в
  *      `golden.test.ts` (общий `scripts/golden-lib.js`): `sync`, `resolve
- *      --explain`, `status` с fake `openspec`;
- *   3. запись `expected/resolve.json` и `expected/status.json` каноническим
- *      писателем (тем же, что `warrant fmt`), без волатильных полей.
+ *      --explain`, `status`, `verify --transition PROPOSED->SPECIFIED` с
+ *      fake `openspec`;
+ *   3. запись `expected/resolve.json`, `expected/status.json` и
+ *      `expected/verify.json` каноническим писателем (тем же, что `warrant
+ *      fmt`), без волатильных полей.
  *
  * Повторный запуск не должен давать diff: и лок, и снимки детерминированы.
  * После правки фикстур не забыть `warrant sync` в корне репозитория — лок
@@ -77,9 +79,14 @@ try {
       process.stderr.write(`golden ${name}: sync в копии переписал ${run.changed.join(", ")}\n`);
       failed = true;
     }
+    if (run.verifyExit !== 0) {
+      process.stderr.write(`golden ${name}: warrant verify exited ${run.verifyExit}: ${JSON.stringify(run.verifyErrors)}\n`);
+      failed = true;
+    }
     const dir = expectedDir(name);
     if (writeIfChanged(path.join(dir, "resolve.json"), run.resolve)) written.push(`${name}/expected/resolve.json`);
     if (writeIfChanged(path.join(dir, "status.json"), run.status)) written.push(`${name}/expected/status.json`);
+    if (writeIfChanged(path.join(dir, "verify.json"), run.verify)) written.push(`${name}/expected/verify.json`);
   }
 } finally {
   removeDir(tempRoot);

@@ -7,6 +7,7 @@ import {
   changeNameConflict,
   changeRecord,
   configDocument,
+  gitignoreWithRawEvidence,
   isChangeName,
   openspecRange,
   rulesDocument,
@@ -71,5 +72,16 @@ describe("init scaffold helpers", () => {
     mkdirSync(path.join(root, ".warrant", "changes"), { recursive: true });
     writeFileSync(path.join(root, ".warrant", "changes", "third.json"), "{}", "utf8");
     expect(changeNameConflict(root, "third")).toBe(".warrant/changes/third.json");
+  });
+});
+
+describe("gitignoreWithRawEvidence (REQ-VER-001)", () => {
+  it("creates the entry, appends it after existing lines and leaves a file that has it alone", () => {
+    const line = ".warrant/evidence/**/raw/";
+    expect(gitignoreWithRawEvidence(null)).toBe(`${line}\n`);
+    expect(gitignoreWithRawEvidence("node_modules/")).toBe(`node_modules/\n${line}\n`);
+    expect(gitignoreWithRawEvidence("dist/\r\n")).toBe(`dist/\r\n${line}\n`);
+    expect(gitignoreWithRawEvidence(`dist/\n${line}\n`)).toBeNull();
+    expect(gitignoreWithRawEvidence(`  ${line}  \r\n`)).toBeNull();
   });
 });

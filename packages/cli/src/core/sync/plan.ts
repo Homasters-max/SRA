@@ -16,7 +16,7 @@ import { bytesHash } from "../canon/hash.js";
 import { canonicalText } from "../canon/format-json.js";
 import type { CliError } from "../errors.js";
 import { emitYaml, type YamlObject, type YamlValue } from "../openspec/yaml-emit.js";
-import { packContentHash, LOCK_REL } from "../packs/hash.js";
+import { bundleRoot, packContentHash, LOCK_REL } from "../packs/hash.js";
 import { reportPath } from "../packs/loader.js";
 import type { LoadResult, LoadedPack } from "../packs/types.js";
 import { ALL_SCHEMAS, KERNEL_MAJOR, schemaFileName } from "../schemas/registry.js";
@@ -190,6 +190,11 @@ interface ResolvedSkill {
   absolute: string;
   /** Path relative to the project root, POSIX — set only when the file is inside the project. */
   rel: string | undefined;
+  /**
+   * For a skill outside the project that ships with the CLI: path relative to
+   * the bundle root (the directory holding the bundled `packs/`), POSIX (I-52).
+   */
+  bundled: string | undefined;
 }
 
 /**
@@ -214,10 +219,12 @@ export function skillFrontmatterVersion(text: string): string | undefined {
  *
  * Search order, first hit wins: the pack's own `skills/` directory, the
  * project's `sra/skills/`, and — for a pack developed in the WARRANT monorepo —
- * the `sra/skills/` next to `packs/`. Only a file inside the project root can
- * be written into the lock, because `warrant://lock/1` stores project-relative
- * paths; a skill that lives beside the CLI is resolved and version-checked but
- * not locked (see the report of group 3: this is a maintainer question).
+ * the `sra/skills/` next to `packs/`. A file inside the project root is locked
+ * by its project-relative path; a file that ships with the CLI outside the
+ * project is locked with `source: "bundled"` and a path relative to the bundle
+ * root (I-52, P-11). Anything else — possible only with a pack directory that
+ * is neither in the project nor in the bundle — is resolved and
+ * version-checked but cannot be addressed by the lock.
  */
 function resolveSkill(pack: LoadedPack, root: string, spec: string, errors: CliError[]): ResolvedSkill | undefined {
   const at = spec.lastIndexOf("@");
@@ -259,23 +266,29 @@ function resolveSkill(pack: LoadedPack, root: string, spec: string, errors: CliE
     return undefined;
   }
 
-  const relative = path.relative(root, absolute);
-  const inProject = !relative.startsWith("..") && !path.isAbsolute(relative);
-  return { name, version, absolute, rel: inProject ? relative.split(path.sep).join("/") : undefined };
+  return { name, version, absolute, rel: inside(root, absolute), bundled: inside(bundleRoot(), absolute) };
 }
 
-/** `lock.skills` for every skill the enabled packs declare and the project holds. */
+/** POSIX path of `absolute` relative to `dir`, or undefined when it lies outside. */
+function inside(dir: string, absolute: string): string | undefined {
+  const relative = path.relative(dir, absolute);
+  if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) return undefined;
+  return relative.split(path.sep).join("/");
+}
+
+/** `lock.skills` for every skill the enabled packs declare, in the project or in the bundle. */
 function planSkills(root: string, packs: LoadedPack[], errors: CliError[]): Record<string, unknown> {
   const skills: Record<string, unknown> = {};
   for (const pack of packs) {
     for (const spec of providedList(pack, "skills")) {
       const resolved = resolveSkill(pack, root, spec, errors);
-      if (resolved === undefined || resolved.rel === undefined) continue;
-      skills[resolved.name] = {
-        version: resolved.version,
-        path: resolved.rel,
-        hash: bytesHash(readFileSync(resolved.absolute))
-      };
+      if (resolved === undefined) continue;
+      const hash = bytesHash(readFileSync(resolved.absolute));
+      if (resolved.rel !== undefined) {
+        skills[resolved.name] = { version: resolved.version, path: resolved.rel, hash };
+      } else if (resolved.bundled !== undefined) {
+        skills[resolved.name] = { version: resolved.version, path: resolved.bundled, hash, source: "bundled" };
+      }
     }
   }
   return skills;
@@ -419,8 +432,8 @@ export function planSync(input: PlanInput): SyncPlan {
     for (const file of [...files].sort((a, b) => (a.path < b.path ? -1 : 1))) {
       generated[file.path] = bytesHash(file.bytes);
     }
-    // `skills` stays out of the lock when no enabled pack declares one that
-    // lives inside the project: the schema makes the key optional.
+    // `skills` stays out of the lock when no enabled pack declares one: the
+    // schema makes the key optional.
     const skills = planSkills(root, loaded.packs, errors);
     const lock = {
       $schema: "warrant://lock/1",

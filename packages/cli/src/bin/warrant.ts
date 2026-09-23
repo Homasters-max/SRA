@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command, CommanderError } from "commander";
 import { EXIT, WarrantError } from "../core/errors.js";
-import { emit, failure, resultFromThrown, type CommandResult } from "../io/output.js";
+import { emitToProcess, failure, resultFromThrown, writeStdout, type CommandResult } from "../io/output.js";
 import { CLI_VERSION } from "../version.js";
 import { requireConfigPath } from "../commands/context.js";
 import { runInitCommand } from "../commands/init.js";
@@ -12,6 +12,11 @@ import { runSync } from "../commands/sync.js";
 import { runResolve } from "../commands/resolve.js";
 import { runStatus } from "../commands/status.js";
 import { runClassify } from "../commands/classify.js";
+import { runCheck } from "../commands/check.js";
+import { runGate } from "../commands/gate.js";
+import { runVerify } from "../commands/verify.js";
+import { runTransition } from "../commands/transition.js";
+import { runArchive } from "../commands/archive.js";
 
 export type Runner = (args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -26,14 +31,21 @@ const program = new Command("warrant")
     writeErr: (text) => process.stderr.write(text)
   });
 
-async function run(name: string, runner: Runner, args: string[], opts: Record<string, unknown>): Promise<never> {
+async function run(name: string, runner: Runner, args: string[], opts: Record<string, unknown>): Promise<void> {
   let result: CommandResult;
   try {
     result = await runner(args, opts);
   } catch (thrown) {
     result = resultFromThrown(thrown);
   }
-  process.exit(emit(name, result));
+  // No `process.exit`: the exit code is set after stdout accepted the whole
+  // envelope, and Node ends the process once the pipe has drained (B4).
+  await emitToProcess(name, result);
+}
+
+/** Commander collector of a repeatable option. */
+function collect(value: string, previous: string[]): string[] {
+  return [...previous, value];
 }
 
 function register(name: string, description: string, runner: Runner, configure?: (cmd: Command) => void): void {
@@ -97,7 +109,9 @@ register(
     runClassify(args[0] as string, {
       ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {}),
       ...(typeof opts["paths"] === "string" ? { paths: opts["paths"] } : {}),
-      ...(typeof opts["propose"] === "string" ? { propose: opts["propose"] } : {})
+      ...(typeof opts["propose"] === "string" ? { propose: opts["propose"] } : {}),
+      ...(Array.isArray(opts["set"]) && opts["set"].length > 0 ? { set: opts["set"] as string[] } : {}),
+      ...(typeof opts["by"] === "string" ? { by: opts["by"] } : {})
     }),
   (c) =>
     c
@@ -105,12 +119,85 @@ register(
       .option("--base <ref>", "git ref to diff HEAD against (default: main)")
       .option("--paths <file>", "file with one changed path per line, instead of git")
       .option("--propose <json>", "proposer's profiles and risk values as JSON")
+      .option("--set <dim=value>", "a human value: <dimension>=<value> or profile=<id> (repeatable; needs --by)", collect, [])
+      .option("--by <login>", "login of the human behind --set; must be listed in roles of warrant.json")
 );
 register(
   "status",
   "show change status",
   (args) => runStatus(args[0] as string | undefined),
   (c) => c.argument("[change]")
+);
+register(
+  "check",
+  "run checks of a change and record evidence",
+  (args, opts) =>
+    runCheck(args[0] as string, args.slice(1), {
+      ...(typeof opts["paths"] === "string" ? { paths: opts["paths"] } : {}),
+      ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {})
+    }),
+  (c) =>
+    c
+      .argument("<change>")
+      .argument("[ids...]")
+      .option("--paths <a,b>", "run run.scoped_command over these comma-separated paths")
+      .option("--base <ref>", "base commit of the evidence (default: merge-base of HEAD and main)")
+);
+
+register(
+  "gate",
+  "evaluate the gates of a transition and the controller",
+  (args, opts) =>
+    runGate(args[0] as string, args.slice(1), {
+      ...(typeof opts["transition"] === "string" ? { transition: opts["transition"] } : {}),
+      ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {})
+    }),
+  (c) =>
+    c
+      .argument("<change>")
+      .argument("[ids...]")
+      .option("--transition <FROM->TO>", "transition to evaluate (default: the next forward one)")
+      .option("--base <ref>", "base commit of the diff (default: merge-base of HEAD and main)")
+);
+register(
+  "verify",
+  "run the checks of a transition, then its gates and the controller",
+  (args, opts) =>
+    runVerify(args[0] as string, {
+      ...(typeof opts["transition"] === "string" ? { transition: opts["transition"] } : {}),
+      ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {}),
+      ...(typeof opts["paths"] === "string" ? { paths: opts["paths"] } : {})
+    }),
+  (c) =>
+    c
+      .argument("<change>")
+      .option("--transition <FROM->TO>", "transition to verify (default: the next forward one)")
+      .option("--base <ref>", "base commit of the evidence and the diff (default: merge-base of HEAD and main)")
+      .option("--paths <a,b>", "run run.scoped_command of the checks over these comma-separated paths")
+);
+
+register(
+  "transition",
+  "record a transition of a change, if 04 section 2 and its gates allow it",
+  (args, opts) =>
+    runTransition(args[0] as string, args[1] as string, {
+      ...(typeof opts["ref"] === "string" ? { ref: opts["ref"] } : {}),
+      ...(typeof opts["by"] === "string" ? { by: opts["by"] } : {}),
+      ...(typeof opts["commit"] === "string" ? { commit: opts["commit"] } : {})
+    }),
+  (c) =>
+    c
+      .argument("<change>")
+      .argument("<state>")
+      .option("--ref <url>", "URL of the act on the forge (review, CI run); required for APPROVED and MERGED")
+      .option("--by <login>", "the approving human, when the transition has gate human-approval")
+      .option("--commit <sha>", "MERGED: the commit of the evidence (default: that of the freshest record)")
+);
+register(
+  "archive",
+  "validate, gate and archive a MERGED change, then record ARCHIVED",
+  (args) => runArchive(args[0] as string),
+  (c) => c.argument("<change>")
 );
 
 async function main(): Promise<void> {
@@ -119,14 +206,17 @@ async function main(): Promise<void> {
   } catch (thrown) {
     if (thrown instanceof CommanderError) {
       // --version and --help exit through here with code 0; their text already went to stderr.
+      // Same path as every command (design D-15): write, then set the code.
       if (thrown.exitCode === 0) {
-        if (thrown.code === "commander.version") process.stdout.write(CLI_VERSION + "\n");
-        process.exit(EXIT.OK);
+        if (thrown.code === "commander.version") await writeStdout(CLI_VERSION + "\n");
+        process.exitCode = EXIT.OK;
+        return;
       }
       const command = process.argv[2] ?? "";
-      process.exit(emit(command, failure(new WarrantError("USAGE", thrown.message.trim()))));
+      await emitToProcess(command, failure(new WarrantError("USAGE", thrown.message.trim())));
+      return;
     }
-    process.exit(emit(process.argv[2] ?? "", resultFromThrown(thrown)));
+    await emitToProcess(process.argv[2] ?? "", resultFromThrown(thrown));
   }
 }
 

@@ -32,14 +32,15 @@ function write(root: string, rel: string, content: string | object): void {
 }
 
 /** A project on the bundled pack `core-sdd` with one PROPOSED change record. */
-function project(change = "demo"): string {
+function project(change = "demo", roles?: Record<string, string[]>): string {
   const root = makeTempDir("warrant-classify-");
   tempDirs.push(root);
   write(root, ".warrant/warrant.json", {
     $schema: "warrant://config/1",
     kernel: "0.1",
     openspec: "1.13.x",
-    packs: { "core-sdd": { version: "^0.1" } }
+    packs: { "core-sdd": { version: "^0.2" } },
+    ...(roles === undefined ? {} : { roles })
   });
   write(root, `.warrant/changes/${change}.json`, {
     $schema: "warrant://change-record/1",
@@ -167,6 +168,54 @@ describe("warrant classify", () => {
     const run = await runCli(["classify", "demo", "--paths", "changed.txt", "--propose", '{"risk":{"nope":"HIGH"}}'], root);
     expect(run.status).toBe(3);
     expect(run.json?.errors[0].code).toBe("USAGE");
+  });
+
+  it("records values and profiles set by a human with from human:<login> (SCN-KRN-105)", async () => {
+    const root = project("add-search", { maintainer: ["kat"] });
+    write(root, "changed.txt", "src/search.ts\n");
+    const run = await runCli(
+      ["classify", "add-search", "--paths", "changed.txt", "--set", "security_impact=HIGH", "--set", "profile=feature", "--by", "kat"],
+      root
+    );
+    expect(run.json?.errors).toEqual([]);
+    expect(run.status).toBe(0);
+    expect(run.json?.data.profiles).toEqual([{ id: "feature", from: "human:kat" }]);
+    const stored = record(root, "add-search") as { classification: { profiles: string[]; risk: Record<string, unknown> } };
+    expect(stored.classification.risk["security_impact"]).toEqual({ value: "HIGH", from: "human:kat" });
+    expect(stored.classification.profiles).toEqual(["feature"]);
+    expect(run.json?.data.effective_policy.risk_level).toBe("HIGH");
+  });
+
+  it("refuses a human value below the floor with BELOW_FLOOR and writes nothing (SCN-KRN-106)", async () => {
+    const root = project("add-search", { maintainer: ["kat"] });
+    write(root, "changed.txt", ".warrant/local/areas.json\n");
+    const before = readFileSync(path.join(root, ".warrant", "changes", "add-search.json"), "utf8");
+    const run = await runCli(
+      ["classify", "add-search", "--paths", "changed.txt", "--set", "blast_radius=LOCAL", "--by", "kat"],
+      root
+    );
+    expect(run.json?.errors[0].code).toBe("BELOW_FLOOR");
+    expect(run.status).toBe(3);
+    expect(readFileSync(path.join(root, ".warrant", "changes", "add-search.json"), "utf8")).toBe(before);
+  });
+
+  it("refuses --set without --by (USAGE) and with a login outside roles (ROLE_REQUIRED) (SCN-KRN-107)", async () => {
+    const root = project("add-search", { maintainer: ["kat"] });
+    write(root, "changed.txt", "src/search.ts\n");
+    const file = path.join(root, ".warrant", "changes", "add-search.json");
+    const before = readFileSync(file, "utf8");
+
+    const noBy = await runCli(["classify", "add-search", "--paths", "changed.txt", "--set", "data_loss=LOW"], root);
+    expect(noBy.json?.errors[0].code).toBe("USAGE");
+    expect(noBy.status).toBe(3);
+
+    const bob = await runCli(["classify", "add-search", "--paths", "changed.txt", "--set", "data_loss=LOW", "--by", "bob"], root);
+    expect(bob.json?.errors[0].code).toBe("ROLE_REQUIRED");
+    expect(bob.status).toBe(3);
+
+    const badValue = await runCli(["classify", "add-search", "--paths", "changed.txt", "--set", "data_loss=HUGE", "--by", "kat"], root);
+    expect(badValue.json?.errors[0].code).toBe("USAGE");
+    expect(readFileSync(file, "utf8")).toBe(before);
   });
 
   it("reports CHANGE_NOT_FOUND for a change without a record", async () => {

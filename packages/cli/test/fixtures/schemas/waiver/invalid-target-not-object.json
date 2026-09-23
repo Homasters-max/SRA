@@ -1,0 +1,19 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-2026-004",
+  "change": "orders-currency-migration",
+  "gate": "reconciliation-passed",
+  "reason": "Historical source snapshot unavailable.",
+  "risk": "MEDIUM",
+  "compensating_controls": [
+    "consumer-validation",
+    "post-release-monitoring"
+  ],
+  "owner": "data-platform-owner",
+  "approved_by": "human:kat",
+  "expires_at": "2026-10-15",
+  "waiver_state": "ACTIVE",
+  "targets": [
+    "x"
+  ]
+}

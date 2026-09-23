@@ -24,8 +24,10 @@ import { KERNEL_VERSION } from "../../version.js";
 import {
   PROVIDES_LISTS,
   PROVIDES_SINGLES,
+  type EvidenceKind,
   type LoadResult,
   type LoadedPack,
+  type LoadedRule,
   type ObjectKind,
   type PackObject
 } from "./types.js";
@@ -334,7 +336,85 @@ export function weakenings(kind: ObjectKind, original: unknown, override: unknow
 
 interface Collected {
   objects: Map<string, PackObject>;
+  rules: Map<string, LoadedRule>;
+  evidenceKinds: Map<string, EvidenceKind>;
   errors: CliError[];
+}
+
+/** Directory of project-local path rules (ADR-0022 point 1). */
+export const LOCAL_RULES_DIR = path.join(LOCAL_DIR, "rules");
+
+/**
+ * Adds one validated `warrant://rule/1` document to the rule set. Rules cannot
+ * be overridden (the schema has no `overrides`), so a second declaration of an
+ * id — in another pack or in `.warrant/local/rules/` — is a duplicate.
+ */
+function addRule(json: unknown, pack: string, reported: string, collected: Collected): void {
+  if (!isPlainObject(json) || typeof json["id"] !== "string") return;
+  const id = json["id"];
+  const existing = collected.rules.get(id);
+  if (existing !== undefined) {
+    collected.errors.push(
+      err(
+        "DUPLICATE_OBJECT_ID",
+        `rule "${id}" is declared by ${existing.pack} (${existing.path}) and by ${pack} (${reported})`,
+        reported
+      )
+    );
+    return;
+  }
+  collected.rules.set(id, {
+    id,
+    pack,
+    path: reported,
+    paths: asStringArray(json["paths"]),
+    enforcedBy: typeof json["enforced_by"] === "string" ? json["enforced_by"] : undefined
+  });
+}
+
+/**
+ * `provides.evidence_kinds` in normal form (D-13): a string is a kind without a
+ * `metrics` form, an object names the JSON Schema of the form. The schema file
+ * is read here and compiled by `validate` (12); it is a JSON Schema document,
+ * not a WARRANT one, so it is not matched against a kernel schema.
+ */
+function loadEvidenceKinds(pack: LoadedPack, projectRoot: string, collected: Collected, files: string[]): void {
+  const provides = pack.manifest["provides"];
+  if (!isPlainObject(provides) || !Array.isArray(provides["evidence_kinds"])) return;
+
+  for (const entry of provides["evidence_kinds"]) {
+    let normal: EvidenceKind;
+    if (typeof entry === "string") {
+      normal = { kind: entry, pack: pack.id };
+    } else if (isPlainObject(entry) && typeof entry["kind"] === "string" && typeof entry["metrics_schema"] === "string") {
+      const absolute = path.join(pack.dir, entry["metrics_schema"]);
+      const reported = reportPath(absolute, projectRoot);
+      files.push(reported);
+      if (!existsSync(absolute)) {
+        collected.errors.push(err("PACK_NOT_FOUND", `pack ${pack.id} provides a missing metrics schema`, reported));
+        continue;
+      }
+      const json = readJson(absolute, reported, collected.errors);
+      if (json === undefined) continue;
+      normal = { kind: entry["kind"], pack: pack.id, metricsSchema: { path: reported, json } };
+    } else {
+      continue; // the pack schema has already reported the malformed entry
+    }
+
+    const existing = collected.evidenceKinds.get(normal.kind);
+    if (existing !== undefined) {
+      // Two declarations would leave the form of `metrics` ambiguous (D-13).
+      collected.errors.push(
+        err(
+          "DUPLICATE_OBJECT_ID",
+          `evidence kind "${normal.kind}" is declared by pack ${existing.pack} and by pack ${pack.id}`,
+          pack.manifestPath
+        )
+      );
+      continue;
+    }
+    collected.evidenceKinds.set(normal.kind, normal);
+  }
 }
 
 function objectKey(kind: ObjectKind, id: string): string {
@@ -373,6 +453,26 @@ function loadProvides(pack: LoadedPack, projectRoot: string, collected: Collecte
       }
       collected.objects.set(objectKey(kind, id), { kind, id, pack: pack.id, path: reported, json });
     }
+  }
+
+  // Path rules (ADR-0022): validated like objects, but not overridable policy.
+  for (const rel of asStringArray(provides["rules"])) {
+    const absolute = path.join(pack.dir, rel);
+    const reported = reportPath(absolute, projectRoot);
+    files.push(reported);
+    if (!existsSync(absolute)) {
+      collected.errors.push(err("PACK_NOT_FOUND", `pack ${pack.id} provides a missing file`, reported));
+      continue;
+    }
+    const json = readJson(absolute, reported, collected.errors);
+    if (json === undefined) continue;
+    if (!validateInto(json, reported, collected.errors)) continue;
+    const ref = parseSchemaUri(isPlainObject(json) ? json["$schema"] : undefined);
+    if (ref === null || ref.name !== "rule") {
+      collected.errors.push(err("SCHEMA_VIOLATION", "provides.rules must list warrant://rule/1 documents", reported));
+      continue;
+    }
+    addRule(json, pack.id, reported, collected);
   }
 
   for (const [key, schemaName] of Object.entries(PROVIDES_SINGLES)) {
@@ -481,6 +581,10 @@ function loadLocalLayer(
     if (!validateInto(json, reported, collected.errors)) continue;
 
     const ref = parseSchemaUri(isPlainObject(json) ? json["$schema"] : undefined);
+    if (ref?.name === "rule" && absolute.startsWith(path.join(projectRoot, LOCAL_RULES_DIR) + path.sep)) {
+      addRule(json, "local", reported, collected);
+      continue;
+    }
     const kind = ref === null ? undefined : KIND_BY_SCHEMA[ref.name];
     if (kind === undefined) continue;
 
@@ -540,7 +644,14 @@ function loadLocalLayer(
       continue;
     }
 
-    collected.objects.set(objectKey(kind, targetId), { kind, id: targetId, pack: "local", path: reported, json });
+    collected.objects.set(objectKey(kind, targetId), {
+      kind,
+      id: targetId,
+      pack: "local",
+      path: reported,
+      json,
+      overridden: target
+    });
   }
 }
 
@@ -632,8 +743,11 @@ export function loadPacks(projectRoot: string): LoadResult {
   }
 
   const packs = topologicalOrder(found, errors);
-  const collected: Collected = { objects: new Map(), errors };
-  for (const pack of packs) loadProvides(pack, projectRoot, collected, files);
+  const collected: Collected = { objects: new Map(), rules: new Map(), evidenceKinds: new Map(), errors };
+  for (const pack of packs) {
+    loadProvides(pack, projectRoot, collected, files);
+    loadEvidenceKinds(pack, projectRoot, collected, files);
+  }
   loadLocalLayer(
     projectRoot,
     new Set(packs.map((p) => p.dir)),
@@ -648,6 +762,8 @@ export function loadPacks(projectRoot: string): LoadResult {
     objects: [...collected.objects.values()].sort((a, b) =>
       a.kind === b.kind ? (a.id < b.id ? -1 : 1) : a.kind < b.kind ? -1 : 1
     ),
+    rules: [...collected.rules.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    evidenceKinds: [...collected.evidenceKinds.values()],
     files: [...new Set(files)].sort(),
     errors
   };

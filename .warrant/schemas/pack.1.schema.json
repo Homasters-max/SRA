@@ -109,10 +109,39 @@
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*@.+$"
           }
         },
-        "evidence_kinds": {
-          "description": "Evidence kinds this pack declares.",
+        "rules": {
+          "description": "Path rule files (`warrant://rule/1`, ADR-0022).",
           "type": "array",
-          "items": { "$ref": "warrant://common/1#/$defs/kebab_id" }
+          "items": { "$ref": "warrant://common/1#/$defs/relative_path" }
+        },
+        "evidence_kinds": {
+          "description": "Evidence kinds this pack declares: a kind id, or an object naming the JSON Schema of the kind's `metrics` (D-13).",
+          "type": "array",
+          "items": {
+            "description": "One evidence kind.",
+            "oneOf": [
+              {
+                "description": "Kind id without a declared `metrics` shape.",
+                "$ref": "warrant://common/1#/$defs/kebab_id"
+              },
+              {
+                "description": "Kind id with the JSON Schema its records' `metrics` must satisfy.",
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "description": "Kind id, for example `test-report`.",
+                    "$ref": "warrant://common/1#/$defs/kebab_id"
+                  },
+                  "metrics_schema": {
+                    "description": "JSON Schema file of the `metrics` object, relative to the pack directory.",
+                    "$ref": "warrant://common/1#/$defs/relative_path"
+                  }
+                },
+                "required": ["kind", "metrics_schema"],
+                "additionalProperties": false
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false

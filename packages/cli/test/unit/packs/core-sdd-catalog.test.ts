@@ -84,12 +84,18 @@ describe("pack core-sdd: каталог", () => {
     // себя: loader их не читает, `packContentHash` исключает (иначе лок фикстуры
     // менял бы хэш, который он же записывает). Тест «нет файлов вне provides»
     // смотрит только каталоги объектов, поэтому исключение фиксируется здесь.
+    // `evidence/` держит формы `metrics`, на которые ссылается
+    // `provides.evidence_kinds` (SCN-SDD-017): каждый файл там объявлен.
     const objectDirs = new Set(Object.values(OBJECT_DIRS));
     const extra = readdirSync(PACK_DIR, { withFileTypes: true })
       .filter((e) => e.isDirectory() && !objectDirs.has(e.name) && e.name !== "openspec")
       .map((e) => e.name)
       .sort();
-    expect(extra).toEqual(["golden"]);
+    expect(extra).toEqual(["evidence", "golden"]);
+    const metricsSchemas = (provides["evidence_kinds"] as unknown as (string | { metrics_schema: string })[])
+      .flatMap((e) => (typeof e === "string" ? [] : [e.metrics_schema]))
+      .sort();
+    expect(filesOf("evidence")).toEqual(metricsSchemas);
     for (const name of ["chore", "factory-change", "feature"]) {
       expect(existsSync(path.join(PACK_DIR, "golden", name, "expected", "resolve.json"))).toBe(true);
       expect(existsSync(path.join(PACK_DIR, "golden", name, "expected", "status.json"))).toBe(true);
@@ -168,8 +174,73 @@ describe("pack core-sdd: каталог", () => {
     expect(tests.parser).toBe("junit");
     expect(tests.produces).toEqual(["test-report"]);
     const openspec = readJson("checks/openspec-validate.json");
-    expect(openspec.run.command).toEqual(["openspec", "validate", "--strict", "--json"]);
+    expect(openspec.run.command).toEqual(["openspec", "validate", "{change}", "--strict", "--json"]);
     expect(openspec.produces).toEqual(["spec-report"]);
+    expect(openspec.parser).toBe("openspec-validate");
+  });
+
+  it("checks несут execution: openspec-validate — {change} и timeout 300, tests-passed — exclusive без run (SCN-SDD-018)", () => {
+    const openspec = readJson("checks/openspec-validate.json");
+    expect(openspec.run.command).toContain("{change}");
+    expect(openspec.execution).toEqual({ timeout_s: 300 });
+    const tests = readJson("checks/tests-passed.json");
+    expect(tests.execution).toEqual({ exclusive: true });
+    expect(tests.run).toBeUndefined();
+    for (const rel of ["checks/openspec-validate.json", "checks/tests-passed.json"]) {
+      const result = validateFile(readJson(rel), rel);
+      expect(result.ok, `${rel}: ${JSON.stringify(result.ok ? [] : result.errors)}`).toBe(true);
+    }
+  });
+
+  it("версия 0.2.0, kernel >=0.1 <0.4, rules пуст (REQ-SDD-001)", () => {
+    expect(manifest.version).toBe("0.2.0");
+    expect(manifest.kernel).toBe(">=0.1 <0.4");
+    expect(provides["rules"]).toEqual([]);
+    const result = validateFile(manifest, "pack.json");
+    expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true);
+  });
+
+  it("evidence_kinds: test-report и spec-report — объекты с существующими metrics_schema, review и human-approval — строки (SCN-SDD-017)", () => {
+    const kinds = provides["evidence_kinds"] as unknown as (string | { kind: string; metrics_schema: string })[];
+    expect(kinds).toEqual([
+      { kind: "test-report", metrics_schema: "evidence/test-report.metrics.schema.json" },
+      { kind: "spec-report", metrics_schema: "evidence/spec-report.metrics.schema.json" },
+      "review",
+      "human-approval"
+    ]);
+    const shapes: Record<string, Record<string, string>> = {
+      "test-report": { tests: "integer", failures: "integer", errors: "integer", skipped: "integer" },
+      "spec-report": { issues: "integer" }
+    };
+    for (const entry of kinds) {
+      if (typeof entry === "string") continue;
+      expect(existsSync(path.join(PACK_DIR, entry.metrics_schema)), entry.metrics_schema).toBe(true);
+      const schema = readJson(entry.metrics_schema);
+      expect(schema.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
+      expect(schema.type).toBe("object");
+      const types = Object.fromEntries(
+        Object.entries(schema.properties as Record<string, { type: string }>).map(([k, v]) => [k, v.type])
+      );
+      expect(types).toEqual(shapes[entry.kind]);
+    }
+  });
+
+  it("каждый kind, который производит check pack, объявлен в evidence_kinds (REQ-SDD-001)", () => {
+    const declared = new Set(
+      (provides["evidence_kinds"] as unknown as (string | { kind: string })[]).map((e) =>
+        typeof e === "string" ? e : e.kind
+      )
+    );
+    for (const rel of provides["checks"] as string[]) {
+      for (const kind of readJson(rel).produces as string[]) expect(declared.has(kind), `${rel}: ${kind}`).toBe(true);
+    }
+  });
+
+  it("openspec/rules.json: rules.design требует строку I-N для отклонения от spec (REQ-SDD-007)", () => {
+    const rules = readJson("openspec/rules.json");
+    expect(rules.rules.design).toContain(
+      "Record every deviation from the spec as an I-N row in the decisions table of design.md"
+    );
   });
 
   it("skill adversarial-review лежит на месте с frontmatter 0.1.0 (REQ-SDD-008)", () => {

@@ -66,12 +66,17 @@
               "$ref": "warrant://common/1#/$defs/semver"
             },
             "path": {
-              "description": "Path to the skill relative to the project root.",
+              "description": "Path to the skill: relative to the project root, or to the distribution root (the directory holding the bundled `packs/`) when `source` is `bundled` (I-52, I-72).",
               "$ref": "warrant://common/1#/$defs/relative_path"
             },
             "hash": {
               "description": "Content hash of the skill.",
               "$ref": "warrant://common/1#/$defs/sha256"
+            },
+            "source": {
+              "description": "`bundled` for a skill found inside a pack bundled with the CLI, outside the project; absent for a skill inside the project.",
+              "type": "string",
+              "enum": ["bundled"]
             }
           },
           "required": ["version", "path", "hash"],

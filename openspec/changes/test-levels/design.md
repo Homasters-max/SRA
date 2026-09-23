@@ -99,10 +99,42 @@ gates, неизменяемость id относительно `HEAD`). `warn` 
 
 | Метрика | До | После |
 |---|---|---|
-| `npm test` локально (default workers) | | |
+| `npm test` локально (default workers) | 178 с, зелёный (17 forks на 18 ядрах, 1 прогон); `--maxWorkers=3` — 266 с | |
 | шаг `npm test` CI ubuntu / windows | 346 с / 751 с | |
-| `warrant validate` репозитория | ~30 с | |
-| тестов e2e / процессов на прогон | ~250 / | |
+| `warrant validate` репозитория | 11–12,5 с (3 прогона; 13 процессов: 9 `openspec`, 4 `git`) | |
+| тестов e2e / процессов на прогон | 216 (22 файла) / 2 280; всего тестов 693, процессов 2 300 | |
+
+Замер «до» по файлам (группа 1, `v0.4.0` + bump; `--maxWorkers=3`, время файла — json-репортер vitest, процессы — все
+порождения внутри файла, включая вложенные из `warrant` и `openspec`; метод — I-118). Файлы без процессов (37 unit, каждый
+≤ 0,4 с, вместе 4,3 с) не показаны.
+
+| Файл | Тестов | с | Процессов |
+|---|---|---|---|
+| e2e/validate-ids-head | 9 | 97,3 | 154 |
+| e2e/validate-verification | 18 | 92,2 | 113 |
+| e2e/validate | 21 | 77,7 | 100 |
+| e2e/sync | 13 | 62,2 | 68 |
+| e2e/gate | 13 | 59,6 | 469 |
+| e2e/transition | 11 | 57,9 | 480 |
+| e2e/check | 19 | 47,1 | 231 |
+| e2e/waive | 5 | 29,7 | 115 |
+| e2e/golden | 10 | 29,4 | 61 |
+| e2e/init | 8 | 23,0 | 33 |
+| e2e/archive | 3 | 21,0 | 59 |
+| e2e/link | 5 | 19,7 | 32 |
+| e2e/status | 16 | 13,7 | 56 |
+| e2e/exit-criterion | 6 | 13,6 | 18 |
+| e2e/verify | 5 | 13,6 | 100 |
+| e2e/classify | 14 | 11,5 | 48 |
+| e2e/resolve | 11 | 5,1 | 12 |
+| e2e/versions | 5 | 4,3 | 104 |
+| e2e/fmt | 9 | 4,0 | 10 |
+| e2e/id | 8 | 3,0 | 10 |
+| e2e/cli-skeleton | 3 | 0,9 | 3 |
+| e2e/package-contents | 4 | 0,0 | 4 |
+| unit/check/check-core (→ contract) | 12 | 1,1 | 4 |
+| unit/gates/diff-prefix (→ contract) | 1 | 0,6 | 14 |
+| unit/check/interrupt (→ contract) | 2 | 0,2 | 2 |
 
 ## Risks / Trade-offs
 
@@ -117,3 +149,8 @@ gates, неизменяемость id относительно `HEAD`). `warn` 
 
 | # | Решение | Где |
 |---|---|---|
+| I-117 | Версия CLI живёт только в корневом `package.json` (и `package-lock.json`): у `packages/cli/package.json` поля `version` нет (D-1), задача 1.1 его не добавляет. Bump `0.4.1` меняет `kernel` в `.warrant/warrant.lock.json` и в локах golden (`warrant sync`, `golden:update`) и строку `kernel@0.4.0` → `kernel@0.4.1` в выводе `status` и `resolve --explain` — единственное расхождение вывода CLI «до/после» группы 1; `validate` совпадает байт в байт. | `package.json`, `package-lock.json`, `.warrant/warrant.lock.json`, `packs/core-sdd/golden/*/.warrant/warrant.lock.json`; задача 1.1 |
+| I-118 | Счётчик процессов для замера §10 — не в `runCli` и адаптерах, а preload `scripts/dev/spawn-count.cjs` (`NODE_OPTIONS=--require`, активен только при `WARRANT_SPAWN_LOG`): оборачивает функции `child_process`, файл теста берёт из стека в worker и передаёт потомкам через env, поэтому `openspec` и `git`, порождённые `warrant`, считаются за тот же файл. Запуск — `node scripts/dev/test-measure.js [аргументы vitest]` (время файла — json-репортер, таблица Markdown). `src` и `test` его не загружают; группа 6 повторяет замер той же командой. База «до» — 693 теста, а не 686 из ADR: после `v0.4.0` добавились `unit/dev/graft-metrics` и др. Проверка 1.3 «число тестов = 686» читается как «= 693». | `scripts/dev/spawn-count.cjs`, `scripts/dev/test-measure.js`, design §10; задачи 1.2, 1.3 |
+| I-119 | Ограничение параллельности тяжёлых уровней: в vitest 3.2.7 `maxWorkers` — не опция project (`NonProjectOptions`), а `poolOptions` project допускает только `singleFork`/`isolate`; пул создаётся один на тип. Поэтому `unit`/`app` идут в пуле `threads` (workers по умолчанию), `contract`/`e2e` — в пуле `forks` с корневым `poolOptions.forks.maxForks = max(1, min(4, ядер − 1))`. Флаг `--maxWorkers=N` теперь ограничивает только `threads` (у `maxForks` приоритет). Запасной вариант из Risks (отдельный запуск тяжёлых projects) не нужен. | `packages/cli/vitest.config.ts`; задача 1.3 |
+| I-120 | После 1.3 `npm test` локально без `--maxWorkers`: зелёный, 693 теста, 213 с (18 ядер: `threads` — 17, `forks` — 4; один прогон). До 1.3 тот же прогон с 17 forks был зелёным за 178 с — таймауты по умолчанию нестабильны, а не постоянны; критерий «3 раза подряд» — задача 6.3. `/group-done` группы 1 гоняет `npm test` без флага. | `packages/cli/vitest.config.ts`; задача 1.3 |
+| I-121 | Проверки 1.4 — постоянные тесты, а не временные: `unit/meta/levels.test.ts` (каждый `*.test.ts` — в каталоге уровня; projects vitest = четыре каталога; `node:child_process`, `cross-spawn` и порождение из импортированного модуля бросают `SPAWN_FORBIDDEN_AT_LEVEL`) и `app/meta/spawn-guard.test.ts` — первый файл `app`, без него project пуст и `npm run test:app` падает «No test files found». Setup-файл `test/helpers/forbid-spawn.ts` подменяет все функции модуля; импорт `child_process` без `node:` ловится тем же `vi.mock` (проверено временным тестом). Временные файлы из проверки 1.4 (spawn в `unit/`, тест вне уровней) падали как ожидалось и удалены. | `packages/cli/test/helpers/forbid-spawn.ts`, `test/unit/meta/levels.test.ts`, `test/app/meta/spawn-guard.test.ts`; задача 1.4 |

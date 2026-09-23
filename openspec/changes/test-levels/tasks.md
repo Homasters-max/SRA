@@ -7,10 +7,10 @@ maintainer'у, принятые — строкой I-N (с I-117) в design.md. 
 
 ## 1. Каркас и замер
 
-- [ ] 1.1 Bump CLI `0.4.1` (`package.json`, `packages/cli/package.json`). Проверка: `npm run versions:check` зелёный.
-- [ ] 1.2 Замер «до» (§10): время по файлу, процессы по файлу, `warrant validate` репозитория; колонка «До» таблицы §10. Проверка: таблица заполнена, счётчик процессов не остаётся в коде без переменной окружения.
-- [ ] 1.3 Раскладка `test/{unit,app,contract,e2e}`, projects vitest с таймаутами и ограничением параллелизма, скрипты `test:*` (§1); `unit/gates/diff-prefix`, `unit/check/interrupt`, `unit/check/check-core` → `contract/`. Проверка: `npm test` запускает четыре projects, число тестов = 686; `npm test` локально без `--maxWorkers` — результат записан в I-N.
-- [ ] 1.4 Проверки уровней (§8): setup-файл `SPAWN_FORBIDDEN_AT_LEVEL` для `unit`/`app`, мета-тест раскладки. Проверка: временный тест с `spawnSync` в `unit/` падает с `SPAWN_FORBIDDEN_AT_LEVEL`; файл вне уровней — мета-тест падает.
+- [x] 1.1 Bump CLI `0.4.1` (`package.json`, `packages/cli/package.json`). Проверка: `npm run versions:check` зелёный.
+- [x] 1.2 Замер «до» (§10): время по файлу, процессы по файлу, `warrant validate` репозитория; колонка «До» таблицы §10. Проверка: таблица заполнена, счётчик процессов не остаётся в коде без переменной окружения.
+- [x] 1.3 Раскладка `test/{unit,app,contract,e2e}`, projects vitest с таймаутами и ограничением параллелизма, скрипты `test:*` (§1); `unit/gates/diff-prefix`, `unit/check/interrupt`, `unit/check/check-core` → `contract/`. Проверка: `npm test` запускает четыре projects, число тестов = 686; `npm test` локально без `--maxWorkers` — результат записан в I-N.
+- [x] 1.4 Проверки уровней (§8): setup-файл `SPAWN_FORBIDDEN_AT_LEVEL` для `unit`/`app`, мета-тест раскладки. Проверка: временный тест с `spawnSync` в `unit/` падает с `SPAWN_FORBIDDEN_AT_LEVEL`; файл вне уровней — мета-тест падает.
 
 ## 2. Порты, адаптеры, Ctx
 

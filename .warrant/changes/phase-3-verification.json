@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://change-record/1",
   "change": "phase-3-verification",
-  "change_state": "APPROVED",
+  "change_state": "IMPLEMENTING",
   "classification": {
     "profiles": [
       "chore",
@@ -52,6 +52,16 @@
         "EVID-01M37BFZRNDTWV8RGHM506RB8M"
       ],
       "ref": "https://github.com/Homasters-max/SRA/pull/6"
+    },
+    {
+      "to": "IMPLEMENTING",
+      "at": "2026-09-23T14:42:58.337Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:af9374fea32ab0fa81f8b3562f57b3d56eeb69c8d6b2a8161ee7f08a78fad6c1",
+      "gates": {
+        "branch-isolated": "PASS"
+      },
+      "evidence": []
     }
   ]
 }

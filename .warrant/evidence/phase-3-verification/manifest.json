@@ -16,6 +16,7 @@
   "gates": {
     "adversarial-review": "WAIVED",
     "blocking-unknowns-resolved": "PASS",
+    "branch-isolated": "PASS",
     "human-approval": "PASS",
     "ids-valid": "PASS",
     "required-artifacts-present": "PASS",

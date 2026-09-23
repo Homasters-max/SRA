@@ -1,15 +1,25 @@
 /**
- * Cleanup on SIGINT / SIGTERM while a check runs (design §3, §4).
+ * Cleanup on SIGINT / SIGTERM / SIGHUP (and SIGBREAK on Windows) while a
+ * check runs (design §3, §4).
  *
  * The lock and the child process tree must not outlive an interrupted
  * `warrant check`. Each holder registers a synchronous cleanup; on a signal
  * all of them run (latest first), the handlers are removed and the signal is
  * raised again, so the process ends the way it would have without us.
+ *
+ * SIGHUP matters on POSIX (review of phase 3, R-3): the child runs `detached`,
+ * in a session of its own, so closing the terminal hangs up the CLI only —
+ * without a handler the CLI died with the lock taken and the child tree
+ * running. Windows reports a closed console as SIGHUP and Ctrl+Break as
+ * SIGBREAK; it cannot raise either again, so there the CLI exits with
+ * 128 + the signal number instead.
  */
+import { constants } from "node:os";
 
 type Cleanup = () => void;
 
-const SIGNALS = ["SIGINT", "SIGTERM"] as const;
+const SIGNALS: readonly NodeJS.Signals[] =
+  process.platform === "win32" ? ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"] : ["SIGINT", "SIGTERM", "SIGHUP"];
 const cleanups: Cleanup[] = [];
 
 function runAll(): void {
@@ -26,7 +36,12 @@ function runAll(): void {
 function onSignal(signal: NodeJS.Signals): void {
   runAll();
   uninstall();
-  process.kill(process.pid, signal);
+  try {
+    process.kill(process.pid, signal);
+  } catch {
+    // Windows emulates only SIGINT, SIGTERM and SIGKILL for process.kill.
+    process.exit(128 + (constants.signals[signal] ?? 1));
+  }
 }
 
 function install(): void {

@@ -14,7 +14,7 @@
 | [0008](WARRANT-ADR-0008-naming.md) | Название и границы компонентов | ACCEPTED |
 | [0009](WARRANT-ADR-0009-change-record-attestation.md) | Change record и attestation: доверенные писатели состояния | ACCEPTED (уточнён 0010) |
 | [0010](WARRANT-ADR-0010-trust-by-reference.md) | Доверие по верифицируемой ссылке; CI не пишет в репозиторий; bot-идентичность агента; форж GitHub | ACCEPTED (уточнён 0020) |
-| [0011](WARRANT-ADR-0011-pr-topology.md) | Два PR на Change + archive; транзиции record в следующем PR; `warrant archive` | ACCEPTED (уточнён 0020) |
+| [0011](WARRANT-ADR-0011-pr-topology.md) | Два PR на Change + archive; транзиции record в следующем PR; `warrant archive` | ACCEPTED (уточнён 0020, 0033) |
 | [0012](WARRANT-ADR-0012-id-allocation.md) | Выдача ID: NNN immutable с MERGED, ULID для EVID/RUN, реестр AREA | ACCEPTED |
 | [0013](WARRANT-ADR-0013-mvp-refinement.md) | Уточнение MVP: sample-проект, TypeScript, агент ведёт slice, core-sdd@0.1 = feature/chore/factory-change | ACCEPTED (уточнён 0018, 0020) |
 | [0014](WARRANT-ADR-0014-claude-code-enforcement.md) | Enforcement в Claude Code: static deny + `warrant guard`, review как subagent | ACCEPTED (уточнён 0017, 0018, 0020; адаптер `claude` — later) |
@@ -34,7 +34,8 @@
 | [0028](WARRANT-ADR-0028-graft-adoption.md) | Graft: итог эксперимента — `accept` (прочитанное −46 %, токены −22 %, recall 1,0); поиск через `cs.js` и навык `code-search` — стандарт субагентов; обновление Graft — только через регрессию бенчмарка | ACCEPTED |
 | [0029](WARRANT-ADR-0029-graft-audit-dev-hooks.md) | Graft: итог аудита — `cs impact` вместо голого `callers`, `cs deps` / `cs dups` / `--json`, регрессия графа против компилятора, хуки разработки в `.claude/settings.json` (только `hooks`) | ACCEPTED (уточнён 0031, 0032) |
 | [0030](WARRANT-ADR-0030-module-boundaries.md) | Границы модулей CLI: ранги `core` R0–R4, сценарий перехода `core/transition`, мета-тест `architecture.test.ts` с реестрами помощников и перечислений и храповиком A-N; аудит перед фазой | ACCEPTED |
-| [0031](WARRANT-ADR-0031-pretooluse-deny.md) | `PreToolUse deny` у субагентов: отступление от навыка `code-search`, видимое по входу вызова, запрещается до выполнения; код — `packages/`, `scripts/` рабочего дерева; `blocked` в метриках; `cs impact` по слову для не-функций | ACCEPTED |
-| [0032](WARRANT-ADR-0032-dev-context.md) | Контекст разработки: у каждого вида знания одно место, NEXT-SESSION упразднён — передача файлом на поток `docs/handoff/`, состояние вычисляет `brief.js` (хук `SessionStart`), долг — `docs/backlog.md`; стандарт навыков и мета-тест; `CLAUDE.md`; навыки OpenSpec без `archive`/`sync`; auto-memory — только личное | ACCEPTED |
+| [0031](WARRANT-ADR-0031-pretooluse-deny.md) | `PreToolUse deny` у субагентов: отступление от навыка `code-search`, видимое по входу вызова, запрещается до выполнения; код — `packages/`, `scripts/` рабочего дерева; `blocked` в метриках; `cs impact` по слову для не-функций | ACCEPTED (уточнён 0033) |
+| [0032](WARRANT-ADR-0032-dev-context.md) | Контекст разработки: у каждого вида знания одно место, NEXT-SESSION упразднён — передача файлом на поток `docs/handoff/`, состояние вычисляет `brief.js` (хук `SessionStart`), долг — `docs/backlog.md`; стандарт навыков и мета-тест; `CLAUDE.md`; навыки OpenSpec без `archive`/`sync`; auto-memory — только личное | ACCEPTED (уточнён 0033) |
+| [0033](WARRANT-ADR-0033-git-process.md) | Git и PR разработки WARRANT: человек только решает («merge #N», waivers в теле spec-PR), агент выполняет; навыки `git-start` / `git-land` и `change-*-pr` цепочкой, хук `deny` и у основной сессии (git в основном checkout, force push, `openspec archive`), `pr-form` в CI, гигиена и `structure.test.ts`, `review-impl` до merge | ACCEPTED |
 
 Новый ADR: следующий номер, frontmatter как в существующих, строка в этой таблице.

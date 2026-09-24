@@ -5,7 +5,11 @@ adr_state: ACCEPTED
 date: 2026-09-24
 supersedes: []
 amends: [WARRANT-ADR-0029]
+amended_by: [WARRANT-ADR-0033]
 ---
+
+> Уточнено [ADR-0033](WARRANT-ADR-0033-git-process.md) п. 9: `deny` и у основной сессии — узкий список команд git и
+> `openspec archive`; решения этого ADR о `Read` / `Grep` субагентов не меняются.
 
 ## Context
 

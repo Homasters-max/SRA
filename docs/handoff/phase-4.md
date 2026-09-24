@@ -1,10 +1,12 @@
 # phase-4
 
+После: git-automation
+
 ## Цель
 
 Фаза 4 — MVP frontend Codex ([13 §2](../13-roadmap.md), строка 4): `sync`, `run`, `guard`, `validate --files`, `analyze`,
 `warrant ci`, адаптер `codex` после S8. Первый шаг — аудит и grilling нарезки; начинать после потока
-[skills-git-hygiene](skills-git-hygiene.md) (grilling навыков git; ADR-0032 п. 12).
+[git-automation](git-automation.md) (реализация ADR-0033: навыки git и Change, хуки).
 
 ## Готовый запрос
 
@@ -27,13 +29,15 @@ codex --version, slice) — или один Change;
 (3) warrant ci ходит в GitHub API — ForgePort и как держать его контракт (настоящий GitHub в CI с токеном или
 записанные ответы, которые ADR-0025 отверг для OpenSpec);
 (4) где живёт sample-проект slice (Python + pytest, ADR-0013);
-(5) producers analyze-clean / adversarial-review — до 2026-12-31 (срок waivers WAV-2026-001…008).
+(5) producers analyze-clean / adversarial-review — до 2026-12-31 (срок waivers WAV-2026-001…008);
+(6) контракт CLI новых команд — линза cli-contract (ADR-0033 п. 8): --dry-run у transition / archive / waive, поле
+подсказки у WarrantError.
 После раунда — сводка решений, затем ADR / нарезка в 13 §2 и этот файл на отдельной ветке.
 ```
 
 ## Открытые вопросы
 
-- Вопросы (1)–(5) раунда 1 — в готовом запросе.
+- Вопросы (1)–(6) раунда 1 — в готовом запросе.
 
 ## Не забыть
 

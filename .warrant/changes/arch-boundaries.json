@@ -1,0 +1,12 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "arch-boundaries",
+  "change_state": "PROPOSED",
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-09-24T17:24:02.426Z",
+      "by": "cli:local"
+    }
+  ]
+}

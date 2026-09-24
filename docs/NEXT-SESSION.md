@@ -1,6 +1,6 @@
 ---
 id: WARRANT-NEXT
-title: WARRANT — следующий шаг: change arch-boundaries (ADR-0030) до фазы 4, затем аудит и grilling нарезки фазы 4
+title: WARRANT — следующий шаг: impl-PR arch-boundaries (ADR-0030) после merge spec-PR, затем аудит и grilling фазы 4
 status: informative
 maturity: MVP
 version: 0.4.1
@@ -76,7 +76,12 @@ version: 0.4.1
   `scripts/dev/arch-snapshot.js` поверх `cs deps` / `cs dups` / `callers --json`). Циклов файлов нет, рёбер «вверх» из
   `core` нет; находки **A-1…A-10** — таблица «Архитектурный долг» ниже. Grilling по итогам (Q1–Q22, приняты maintainer'ом):
   до фазы 4 — change **`arch-boundaries`** (ADR-0030, строка 3d в 13 §2) — решения в разделе «arch-boundaries» ниже;
-  аудит — перед spec-PR каждой фазы (шаг `/next-session`).
+  аудит — перед spec-PR каждой фазы (шаг `/next-session`). Process-PR #21 смержен (`1f0d01c`).
+- **`arch-boundaries` — spec-PR** (ветка `spec/arch-boundaries`, worktree `D:\project\SRA-arch-boundaries`): ADR-0030,
+  proposal / design / tasks (6 групп), строка 3d в 13 §2, строки 0029 и 0030 в индексе ADR (0029 туда не попал с PR #19);
+  waivers `analyze-clean` / `adversarial-review`; `SPECIFIED`. При подготовке найдены **A-11…A-13** (разбор вывода
+  `openspec` в домене, `onInterrupt` из `core/check` в адаптере, перечисления вне владельца кроме lifecycle).
+  ADR-0029 п. 8 (замер 2–3 групп → решение о `PreToolUse deny`) проводится на группах 1–3 impl-PR `arch-boundaries`.
 - **Итог фазы 3:**
   - capability `verification` (REQ-VER-001…008): `warrant check` (runner без shell, замок `exclusive` в `git-common-dir`,
     `timeout_s` с kill дерева, parsers `junit`/`openspec-validate`, evidence + manifest, attestation `ci` под GitHub Actions),
@@ -140,7 +145,10 @@ version: 0.4.1
 | A-7 | Роли и waivers разрезаны между `validate`, `gates`, `commands` | P2 | `arch-boundaries` гр. 4 (`core/waivers`, `core/roles`) |
 | A-8 | `findChangeDir` в `core/init/scaffold.ts` → рёбра `ids → init`, `status → init` | P3 | долг (храповик) |
 | A-9 | `commands/validate.ts` — ручная последовательность 13 проверок, самый частый churn команд | P3 | долг; реестр проверок — при 14-й |
-| A-10 | Цикл `core ↔ core/ports ↔ core/openspec` только через `import type` | P3 | долг (храповик) |
+| A-10 | Цикл `core ↔ core/ports ↔ core/openspec` только через `import type` | P3 | `arch-boundaries` гр. 4 (вместе с A-11) |
+| A-11 | `adapters/openspec-cli.ts → core/openspec/status.ts` (`parseOpenspecStatus`): разбор вывода `openspec` в домене (spec `arch-boundaries`) | P2 | `arch-boundaries` гр. 4 |
+| A-12 | `adapters/check-runner.ts → core/check/interrupt.ts` (`onInterrupt`): обработка сигналов общая у адаптера и `core/check/lock.ts` (spec `arch-boundaries`) | P3 | долг (храповик) |
+| A-13 | Перечисления вне владельца, кроме lifecycle: `commands/waive.ts:L50` `RISKS`, `commands/transition.ts:L109` `PASSING`, прочие — реестр группы 1 (spec `arch-boundaries`) | P2 | `arch-boundaries` гр. 3 |
 
 ### Ревью фазы 3 (2026-09-23) — R-1…R-16
 
@@ -274,15 +282,15 @@ ADR-0020 п. 11), но добавляет входы (`guard`, `run`, `ci`, `ana
 ### Продолжение — готовый запрос
 
 ```text
-Change arch-boundaries — spec-PR. Прочитай docs/NEXT-SESSION.md (раздел «arch-boundaries — решения grilling», таблица
-«Архитектурный долг»), docs/process/audits/2026-09-24.md, ADR-0011, ADR-0022, ADR-0025, ADR-0029, архив
-openspec/changes/archive/2026-09-24-test-levels (образец change без specs: skip_specs, профили chore + factory-change,
-waivers analyze-clean / adversarial-review). Worktree D:\project\SRA-arch-boundaries, ветка spec/arch-boundaries.
-Сделать: warrant init change arch-boundaries; proposal (A-1…A-7, без Capabilities), design (ранги Q10, проверки Q11–Q13,
-храповик, core/transition Q9, поведение Q17; таблица I-N пустая), tasks (группы Q16, у задач — ссылки на A-N);
-ADR-0030 «Границы модулей CLI и архитектурные проверки» (принцип рангов, JSON — источник, храповик, аудит перед фазой);
-строка 3d в 13 §2; waivers; PROPOSED→SPECIFIED, classify. Вопросы maintainer'у — только то, чего нет в решениях Q1–Q22.
-После merge spec-PR — impl-PR в worktree/arch-boundaries, группы по одному субагенту (docs/process/coordinator.md).
+Change arch-boundaries — impl-PR (координатор). spec-PR смержен. Прочитай docs/NEXT-SESSION.md (раздел «arch-boundaries —
+решения grilling», «Архитектурный долг»), openspec/changes/arch-boundaries/{proposal,design,tasks}.md, ADR-0030, ADR-0025,
+ADR-0029 (п. 1 — `cs impact` перед переносом символа; п. 8 — замер групп), docs/process/coordinator.md — перед первой
+раздачей. Worktree D:\project\SRA-arch-boundaries-impl, ветка worktree/arch-boundaries от main. Первым коммитом —
+`warrant transition arch-boundaries APPROVED --ref <URL spec-PR> --by Homasters-max` и `IMPLEMENTING`; затем группы 1–6,
+по одному субагенту на группу, после каждой — /group-done и /group-stats (группы 1–3 — замер ADR-0029 п. 8 против базы
+test-levels [A]); последним — `VERIFYING`, impl-PR. Правка ожидаемого значения в существующем тесте — стоп и I-N (с I-140);
+нарушение без строки A-N в группе 1 — вопрос maintainer'у. После impl-PR — archive-PR по образцу test-levels, tag v0.4.2;
+затем process-PR с решением о `PreToolUse deny` по замеру.
 ```
 
 После `arch-boundaries` — фаза 4. Её grilling начинается с архитектурного аудита (снимок 2026-09-24 к тому времени устареет:
@@ -340,8 +348,9 @@ ADR-0013); (5) producers analyze-clean / adversarial-review — до истеч�
 в общем каталоге. В фазе 3: `D:\project\SRA-phase3` — `spec/phase-3-verification`, `D:\project\SRA-phase3-impl` —
 `worktree/phase-3-verification`; после archive-PR оба удалить. В phase-3b: D:\project\SRA-phase3b — spec/phase-3b (PR #10 смержен, можно удалить), D:\project\SRA-phase3b-impl — worktree/phase-3b (impl-PR #11). В test-levels: `spec/test-levels` — spec-PR #14 (смержен, ветку можно удалить); impl — `D:\project\SRA-test-levels-impl` (`worktree/test-levels`, PR #15 смержен), archive — `D:\project\SRA-test-levels-archive` (`archive/test-levels`); после merge archive-PR оба удалить. Аудит Graft: `D:\project\SRA-graft-audit` (`process/graft-audit`, PR #19 смержен;
 затем `docs/next-session-graft-audit`) — удалены. Архитектурный аудит: `D:\project\SRA-arch-audit`
-(`process/architecture-audit`, process-PR) — после merge удалить. `arch-boundaries`: `D:\project\SRA-arch-boundaries`
-(`spec/arch-boundaries`), затем `worktree/arch-boundaries`, `archive/arch-boundaries` — по одному worktree на ветку.
+(`process/architecture-audit`, PR #21 смержен) — удалён. `arch-boundaries`: spec — `D:\project\SRA-arch-boundaries`
+(`spec/arch-boundaries`, после merge удалить); impl — `D:\project\SRA-arch-boundaries-impl` (`worktree/arch-boundaries`);
+archive — отдельный worktree `archive/arch-boundaries`.
 
 ## Backlog из ревью фазы 1
 

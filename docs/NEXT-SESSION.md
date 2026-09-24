@@ -1,6 +1,6 @@
 ---
 id: WARRANT-NEXT
-title: WARRANT — следующий шаг: merge impl-PR #15 и archive-PR test-levels (tag v0.4.1), затем grilling фазы 4
+title: WARRANT — следующий шаг: grilling нарезки фазы 4 (frontend Codex), spike S8
 status: informative
 maturity: MVP
 version: 0.4.1
@@ -43,8 +43,10 @@ version: 0.4.1
   `classify` — `chore` + `factory-change`, risk HIGH; waivers `WAV-2026-005` `analyze-clean`, `WAV-2026-006` `adversarial-review`).
   Impl: worktree `D:\project\SRA-test-levels-impl`, ветка `worktree/test-levels`, **impl-PR #15** — первым коммитом `APPROVED
   --ref #14 --by Homasters-max` + `IMPLEMENTING`, группы 1–6 по коммиту (CI зелёный на ubuntu и windows на каждой), последним —
-  `VERIFYING`. Решения **I-117…I-139** — таблица design.md `openspec/changes/test-levels/`. **Следующее — merge #15
-  maintainer'ом (merge commit), затем archive-PR и tag `v0.4.1`** (6.4, по образцу phase-3b). Итог (design §10):
+  `VERIFYING`; смержен merge-коммитом `a78108d` (impl-head `bd1f069`). **test-levels закрыт** (2026-09-24): archive-PR
+  `archive/test-levels` — evidence CI run 35950663998, `transition MERGED --commit bd1f069`, `warrant archive` →
+  `openspec/changes/archive/2026-09-24-test-levels` (main specs не менялись — `skip_specs`), tag `v0.4.1`. Решения
+  **I-117…I-139** — таблица design.md архива. Версии: CLI **0.4.1**, pack `core-sdd` **0.3.0**. Итог (design §10):
   - уровни `unit`/`app`/`contract`/`e2e` — projects vitest; `unit`/`app` идут первой группой (`sequence.groupOrder`, I-138),
     `contract`/`e2e` — пул forks с `maxForks` (I-119); `SPAWN_FORBIDDEN_AT_LEVEL`, мета-тесты раскладки, причины e2e и
     «процессы только в `src/adapters/**`»;
@@ -54,7 +56,7 @@ version: 0.4.1
     lifecycle `init → … → archive` в `e2e/exit-criterion`; `fake-openspec.ts` удалён; SCN-теги не потеряны;
   - `npm test` локально без флагов — 178 с → ~70 с, зелёный 3 раза подряд (788 тестов); CI шаг тестов ubuntu / windows —
     346 / 751 с → 137 / 263 с; `warrant validate` репозитория — 11–12 с → 4,5 с (кэш `show` не нужен, I-128).
-  - Эксперимент Graft: записи групп test-levels g1–g5 (g6 — после записи) помечены `blind-leak` — индекс `MEMORY.md` сессии
+  - Эксперимент Graft: записи групп test-levels g1–g6 помечены `blind-leak` — индекс `MEMORY.md` сессии
     называл эксперимент (зонд это поймал; индекс исправлен для следующих сессий, снимок текущей сессии — нет). Засчитывать ли
     их — решение maintainer'а при `/stats-report`.
 - **Итог фазы 3:**
@@ -212,14 +214,16 @@ I-93 решается без нового ADR: ADR-0010 п. 2 уже замен�
 ### Продолжение — готовый запрос
 
 ```text
-Закрой change test-levels: impl-PR #15 (worktree/test-levels, record VERIFYING, группы 1–6 закрыты, кроме 6.4) смержен
-maintainer'ом merge-коммитом — проверь (`gh pr view 15`). Прочитай docs/NEXT-SESSION.md (состояние, «Как прошёл 6.5») и
-openspec/changes/test-levels/tasks.md (6.4). Archive-PR по образцу phase-3b: ветка archive/test-levels от main (свой worktree),
-`gh run download <run impl-head> -n evidence-test-levels` → .warrant/evidence/test-levels/, `warrant transition test-levels MERGED
---ref <run-url> --commit <impl-head> --by Homasters-max`, `warrant archive test-levels`, галочка 6.4, PR → maintainer делает merge
-(`gh pr merge <N> --merge`) → tag v0.4.1 на merge-коммите. Проверка: `warrant status` — test-levels ARCHIVED, stale[] только у
-phase-2-core-sdd. Затем удалить worktree test-levels и grilling по нарезке фазы 4 (13 §2 строка 4, NEXT-SESSION «Фаза 4»; новые
-команды сразу с тестами app через Ctx, новый внешний вызов — метод порта + фейк + контракт; S8 до адаптера codex).
+Grilling по нарезке фазы 4 (MVP frontend Codex). Прочитай docs/NEXT-SESSION.md (состояние, «Фаза 4», долг B/C/D, «Чего не
+делать»), docs/13-roadmap.md (§2 строка 4, §3 S8), ADR-0017…0020, ADR-0022, ADR-0025 (новые команды — сразу с тестами app через
+Ctx; новый внешний вызов — метод порта + адаптер + фейк + сценарий контракта). Вопросы раунда 1:
+(1) spike S8 (hooks Codex под codex-acp и codex exec) — отдельной сессией до spec фазы 4? codex на машине maintainer'а не
+установлен; (2) нарезка: 4a без Codex (run/1, skill-result/1, run start/submit, guard pre/post, guard_prefixes, validate --files,
+analyze, warrant ci) и 4b после S8 (адаптер codex, .codex/hooks.json, AGENTS.md, FRONTEND_HOOKS_INACTIVE, codex --version,
+slice) — или один Change; (3) warrant ci ходит в GitHub API — ForgePort и как держать его контракт (настоящий GitHub в CI
+с токеном или записанные ответы, которые ADR-0025 отверг для OpenSpec); (4) где живёт sample-проект slice (Python + pytest,
+ADR-0013); (5) producers analyze-clean / adversarial-review — до истечения WAV-2026-001…006 (2026-12-31).
+После раунда — сводка решений, затем ADR/нарезка в 13 §2 и NEXT-SESSION на отдельной ветке (процесс «Decision workflow»).
 ```
 
 ### Решения grilling 2026-09-22 по фазе 3 (P-1…P-20) — приняты maintainer'ом
@@ -255,7 +259,7 @@ phase-2-core-sdd. Затем удалить worktree test-levels и grilling п�
 **Правило: одна ветка — один worktree** (`git worktree add`); несколько сессий делят `D:\project\SRA`, поэтому перед
 коммитом проверять ветку. Появилось после фазы 2: коммит `d2d8fd3` ушёл не в ту ветку, когда сессии переключали ветку
 в общем каталоге. В фазе 3: `D:\project\SRA-phase3` — `spec/phase-3-verification`, `D:\project\SRA-phase3-impl` —
-`worktree/phase-3-verification`; после archive-PR оба удалить. В phase-3b: D:\project\SRA-phase3b — spec/phase-3b (PR #10 смержен, можно удалить), D:\project\SRA-phase3b-impl — worktree/phase-3b (impl-PR #11). В test-levels: `spec/test-levels` — spec-PR #14 (смержен, ветку можно удалить); impl — worktree `D:\project\SRA-test-levels-impl` на `worktree/test-levels`; после archive-PR удалить.
+`worktree/phase-3-verification`; после archive-PR оба удалить. В phase-3b: D:\project\SRA-phase3b — spec/phase-3b (PR #10 смержен, можно удалить), D:\project\SRA-phase3b-impl — worktree/phase-3b (impl-PR #11). В test-levels: `spec/test-levels` — spec-PR #14 (смержен, ветку можно удалить); impl — `D:\project\SRA-test-levels-impl` (`worktree/test-levels`, PR #15 смержен), archive — `D:\project\SRA-test-levels-archive` (`archive/test-levels`); после merge archive-PR оба удалить.
 
 ## Backlog из ревью фазы 1
 

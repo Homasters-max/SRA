@@ -41,16 +41,15 @@ const CODE_FILE = /\.(?:[cm]?[jt]s)$/;
 const CODE_GLOB = /\.(?:[cm]?[jt]sx?|\{[^}]*\b[cm]?[jt]sx?\b[^}]*\})$/;
 const EXT_GLOB = /\.(?:[\w-]+|\{[^}]*\})$/;
 const CODE_TYPE = /^(?:[cm]?[jt]s|tsx|jsx|typescript|javascript)$/i;
-const CODE_DIR = /^(?:\.\/)?(?:packages|scripts|src|test)(?:\/|$)/;
-const CODE_PATH = /(?:^|\/)(?:packages|scripts)(?:\/|$)/;
+/** H-1: code of the code-search skill lives under packages/ or scripts/ of a WARRANT work tree. */
+const CODE_TOP = /^(?:packages|scripts)(?:\/|$)/;
+/** A leading wildcard segment (`*.ts`, `**` + `/x`) reaches every top directory, packages/ and scripts/ included. */
+const WILD_TOP = /^[^/]*[*?[{]/;
 /** Not WARRANT code even under packages/ or scripts/: dependencies, build output, data, fixtures, JSON schemas. */
-const NOT_CODE_ALWAYS =
+const NOT_CODE =
   /(?:^|\/)(?:node_modules|dist|\.git|\.claude)(?:\/|$)|(?:^|\/)packages\/[^/]+\/schemas(?:\/|$)|(?:^|\/)test\/(?:fixtures|golden)(?:\/|$)|\.(?:json|jsonc|jsonl|ya?ml|md|lock|txt|toml|html|css|svg|log|csv)$/i;
-/** Docs and specs at the repo root (`packages/cli/src/core/openspec/` is code). */
-const DOC_DIR = /(?:^|\/)(?:docs|openspec)(?:\/|$)/;
-const NOT_CODE = { test: (p) => NOT_CODE_ALWAYS.test(p) || (DOC_DIR.test(p) && !CODE_PATH.test(p)) };
-/** A repo or worktree root by name (`D:/project/SRA`, `/d/project/SRA-graft-audit`) when the real root is unknown. */
-const ROOT_NAME = /(?:^|\/)SRA(?:-[\w.-]+)?\/?$/i;
+/** A work-tree root by name (`D:/project/SRA`, `/d/project/SRA-graft-audit`) in a canonical path, when no lookup is given. */
+const ROOT_SEGMENT = /^(.*?(?:^|\/)sra(?:-[\w.-]+)?)(?:\/|$)/;
 /** D-8: a whole read of a code file this short is cheap and not a deviation. */
 export const SMALL_FILE_LINES = 40;
 /** Read without `limit` returns at most this many lines. */
@@ -99,18 +98,55 @@ const canon = (p) =>
     .replace(/\/+$/, "")
     .toLowerCase();
 
-const isBroad = (p, root) => {
-  const c = collapse(norm(p));
-  return c === "." || c === "*" || (Boolean(root) && canon(c) === canon(root)) || ROOT_NAME.test(c);
-};
+/** Root of a WARRANT work tree named on a path (`SRA`, `SRA-*`), canonical; null when none. */
+const rootByName = (p) => (p ? (ROOT_SEGMENT.exec(canon(p))?.[1] ?? null) : null);
 
-/** The path (file, directory, glob) reaches WARRANT code: packages/**, scripts/**, a code file, or the repo root. */
-export function coversCode(p, root) {
-  const t = norm(p);
-  return !NOT_CODE.test(t) && (CODE_FILE.test(t) || CODE_GLOB.test(t) || CODE_DIR.test(t) || CODE_PATH.test(t) || isBroad(t, root));
+/**
+ * Where a path (file, directory, glob — already joined with the call's cwd) is against WARRANT work trees (H-1):
+ * `{ rel }` — inside one, relative to its root (canonical); `"tree"` — a root, or an ancestor of the call's root (a
+ * search there reaches code); null — outside every work tree (scratchpad, temp, other repos). A relative path is taken
+ * from the root. The root of an absolute path: `where.rootOf(path)` when given (the live hook — `.git` and
+ * scripts/dev/cs.js on disk), else `where.root` when the path is inside it, else a directory named `SRA` / `SRA-*`.
+ */
+function locate(p, where) {
+  const c = collapse(norm(p));
+  if (!isAbs(c)) {
+    if (c === "." || c === "*" || c === "**") return "tree";
+    return c === ".." || c.startsWith("../") ? null : { rel: c };
+  }
+  const k = canon(c);
+  const root = where.root ?? null;
+  if (root && (k === root || root.startsWith(`${k}/`))) return "tree";
+  let base;
+  if (where.rootOf) {
+    const r = where.rootOf(c);
+    base = r ? canon(r) : null;
+  } else base = root && k.startsWith(`${root}/`) ? root : rootByName(k);
+  if (!base) return null;
+  if (k === base) return "tree";
+  return k.startsWith(`${base}/`) ? { rel: k.slice(base.length + 1) } : null;
 }
 
-const isCodeFile = (p) => CODE_FILE.test(norm(p)) && !NOT_CODE.test(norm(p));
+/** `where` of a detector call: the canonical root (`ctx.root`, else by the name of the cwd) and the optional lookup. */
+const whereOf = (ctx) => ({ root: ctx.root ? canon(ctx.root) : rootByName(ctx.cwd), rootOf: ctx.rootOf });
+
+const underCode = (rel) => (CODE_TOP.test(rel) || WILD_TOP.test(rel)) && !NOT_CODE.test(rel);
+
+/** The path (file, directory, glob) reaches WARRANT code: a work tree, or packages/ or scripts/ of one with a code or no extension. */
+export function coversCode(p, where = {}) {
+  const at = locate(p, where);
+  if (at === null) return false;
+  if (at === "tree") return true;
+  if (!underCode(at.rel)) return false;
+  const last = at.rel.split("/").pop();
+  return !EXT_GLOB.test(last) || CODE_FILE.test(last) || CODE_GLOB.test(last);
+}
+
+/** A `.ts` / `.js` file under packages/ or scripts/ of a WARRANT work tree (H-1). */
+const isCodeFile = (p, where) => {
+  const at = locate(p, where);
+  return at !== null && at !== "tree" && CODE_TOP.test(at.rel) && CODE_FILE.test(at.rel) && !NOT_CODE.test(at.rel);
+};
 
 /** File filters of a search or listing (`--include`, `-g`, `-t`, `-name`, `-Include`): code | noncode | none. */
 function filterKind(globs = [], types = []) {
@@ -127,11 +163,16 @@ function filterKind(globs = [], types = []) {
   return kind;
 }
 
-function hitsCode(paths, globs, types, root) {
+function hitsCode(paths, globs, types, where) {
   const kind = filterKind(globs, types);
   if (kind === "noncode") return false;
-  if (kind === "code") return paths.some((p) => !NOT_CODE.test(norm(p)));
-  return paths.some((p) => coversCode(p, root));
+  if (kind === "code") {
+    return paths.some((p) => {
+      const at = locate(p, where);
+      return at === "tree" || (at !== null && underCode(at.rel));
+    });
+  }
+  return paths.some((p) => coversCode(p, where));
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -625,11 +666,12 @@ function wholeRead(file, range, fileLines, outLines) {
 const compose = (a, b) => (a === null ? b : b === null ? a : "partial");
 
 function shellDeviations(command, ctx, ps) {
+  const where = whereOf(ctx);
   const out = [];
   const stagesList = plan(command, { ps, cwd: ctx.cwd });
   const heads = stagesList.filter(([s]) => s.kind === "read" && !s.captured);
   const outLines = ctx.result === undefined || heads.length !== 1 ? null : countLines(ctx.result);
-  const codeListing = (s) => s?.kind === "list" && hitsCode(s.paths, s.globs, s.types, ctx.root);
+  const codeListing = (s) => s?.kind === "list" && hitsCode(s.paths, s.globs, s.types, where);
   for (const stages of stagesList) {
     for (const [i, s] of stages.entries()) {
       if (s.writes) continue;
@@ -639,10 +681,10 @@ function shellDeviations(command, ctx, ps) {
         if (later.some((x) => x.kind === "filter" && x.truncating)) out.push(DEV_CS_TRUNCATED);
       } else if (s.kind === "search") {
         if (s.paths) {
-          if (hitsCode(s.paths, s.globs, s.types, ctx.root)) out.push(DEV_SHELL_SEARCH);
+          if (hitsCode(s.paths, s.globs, s.types, where)) out.push(DEV_SHELL_SEARCH);
         } else if (i > 0) {
           const up = stages[0];
-          if ((up.kind === "read" && up.range === null && up.files.some(isCodeFile)) || (s.name === "select-string" && up.name === "get-childitem" && codeListing(up))) {
+          if ((up.kind === "read" && up.range === null && up.files.some((f) => isCodeFile(f, where))) || (s.name === "select-string" && up.name === "get-childitem" && codeListing(up))) {
             out.push(DEV_SHELL_SEARCH);
           }
         }
@@ -650,13 +692,13 @@ function shellDeviations(command, ctx, ps) {
         const inner = s.kind === "xargs" ? s.inner : s.exec;
         const source = s.kind === "xargs" ? (i > 0 ? stages[0] : null) : s;
         const fromCode = codeListing(source);
-        if (inner.kind === "search" && ((inner.paths && hitsCode(inner.paths, inner.globs, inner.types, ctx.root)) || (!inner.paths && fromCode))) {
+        if (inner.kind === "search" && ((inner.paths && hitsCode(inner.paths, inner.globs, inner.types, where)) || (!inner.paths && fromCode))) {
           out.push(DEV_SHELL_SEARCH);
-        } else if (inner.kind === "read" && (inner.files.some(isCodeFile) || (inner.files.length === 0 && fromCode)) && wholeRead("", inner.range, null, null)) {
+        } else if (inner.kind === "read" && (inner.files.some((f) => isCodeFile(f, where)) || (inner.files.length === 0 && fromCode)) && wholeRead("", inner.range, null, null)) {
           out.push(DEV_SHELL_WHOLE);
         }
       } else if (s.kind === "read" && i === 0 && !s.captured) {
-        const files = s.files.filter(isCodeFile);
+        const files = s.files.filter((f) => isCodeFile(f, where));
         if (files.length === 0) continue;
         const next = later[0];
         let range = s.range;
@@ -686,7 +728,9 @@ function readResultLines(text) {
  * quoted text (commit messages, `echo`), whole reads of files of ≤ SMALL_FILE_LINES lines.
  * `ctx` (all optional): `result` — the tool result text (a Read's numbered lines, a command's output) to see where
  * a read stopped; `fileLines(path)` — line count of a file (null when unknown); `cwd` — directory of the call;
- * `root` — repo root.
+ * `root` — root of the call's work tree (else found by name on `cwd`); `rootOf(absPath)` — root of the WARRANT work
+ * tree holding a path, or null. Code (H-1) — `.ts` / `.js` under packages/ or scripts/ of a WARRANT work tree: a file
+ * in a scratchpad or another repository is not code.
  */
 export function deviationsOf(block, ctx = {}) {
   const input = block?.input ?? {};
@@ -697,10 +741,10 @@ export function deviationsOf(block, ctx = {}) {
     const globs = glob && !glob.includes("/") ? [glob] : [];
     const paths = glob.includes("/") ? [joinPath(path, glob)] : [path];
     const types = input.type ? [String(input.type)] : [];
-    if (hitsCode(paths, globs, types, ctx.root)) out.push(DEV_GREP);
+    if (hitsCode(paths, globs, types, whereOf(ctx))) out.push(DEV_GREP);
   } else if (block?.name === "Read") {
     const file = joinPath(ctx.cwd ?? "", input.file_path ?? "");
-    if (!isCodeFile(file)) return out;
+    if (!isCodeFile(file, whereOf(ctx))) return out;
     const start = typeof input.offset === "number" ? input.offset : 1;
     if (start > 1) return out;
     const lines = ctx.result === undefined ? null : readResultLines(ctx.result);
@@ -722,8 +766,15 @@ const resultText = (content) =>
   typeof content === "string" ? content : Array.isArray(content) ? content.map((c) => (typeof c?.text === "string" ? c.text : "")).join("") : "";
 
 /**
+ * ADR-0031 (H-6): a call the `PreToolUse` hook denied — its result is an error whose text is exactly the hook's reason
+ * (`code-search: …`, `adviceFor` of cs-hook-lib.js); a failed command's output starts otherwise (`Exit code N`).
+ */
+export const isBlockedResult = (block, text) => block?.is_error === true && /^code-search: /.test(text);
+
+/**
  * Metrics of one transcript (JSONL text). Deviations of a call are judged with its result (where a read stopped);
  * `fileLines(path)` — optional line count of a file as the agent saw it (D-8: a range covering the whole file).
+ * A call denied by the hook did not run: it is counted in `tool_calls.blocked`, not in deviations or bytes (H-6).
  */
 export function parseTranscript(text, { fileLines } = {}) {
   const seenMsg = new Set();
@@ -737,6 +788,7 @@ export function parseTranscript(text, { fileLines } = {}) {
   const searchCommands = [];
   const deviations = [];
   let shellSearch = 0;
+  let blocked = 0;
   let rawGraft = 0;
   let edited = false;
   let start = null;
@@ -769,6 +821,12 @@ export function parseTranscript(text, { fileLines } = {}) {
         if (block.type !== "tool_result") continue;
         const text = resultText(block.content);
         const bytes = Buffer.byteLength(text);
+        if (isBlockedResult(block, text) && pending.has(block.tool_use_id)) {
+          blocked++;
+          pending.delete(block.tool_use_id);
+          kindOf.delete(block.tool_use_id);
+          continue;
+        }
         if (pending.has(block.tool_use_id)) {
           judge(pending.get(block.tool_use_id), text, bytes);
           pending.delete(block.tool_use_id);
@@ -837,7 +895,7 @@ export function parseTranscript(text, { fileLines } = {}) {
     requests: seenMsg.size,
     tokens,
     ingest,
-    tool_calls: { total, by_name: byName, read_like: readLike, shell_search: shellSearch, graft: searchCommands.length, raw_graft: rawGraft },
+    tool_calls: { total, by_name: byName, read_like: readLike, shell_search: shellSearch, graft: searchCommands.length, raw_graft: rawGraft, blocked },
     graft_commands: searchCommands,
     deviations,
     whole_reads: wholeReads,
@@ -937,6 +995,7 @@ function summarize(runs) {
     misled: runs.filter((r) => r.card.misled && r.card.misled !== "none").length,
     violations: runs.reduce((a, r) => a + r.violations.length, 0),
     deviations: runs.reduce((a, r) => a + (r.deviations?.length ?? 0), 0),
+    blocked: runs.reduce((a, r) => a + (r.tool_calls.blocked ?? 0), 0),
   };
 }
 

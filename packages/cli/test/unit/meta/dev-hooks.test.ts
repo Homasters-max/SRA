@@ -1,6 +1,6 @@
 /**
- * Form of the WARRANT development hooks (ADR-0029 п. 6, 7): the committed `.claude/settings.json` holds only `$schema`
- * and `hooks`; the only events are `SubagentStart` and `PostToolUse`; every hook command is
+ * Form of the WARRANT development hooks (ADR-0029 п. 6, 7, ADR-0031): the committed `.claude/settings.json` holds only
+ * `$schema` and `hooks`; the only events are `SubagentStart`, `PreToolUse` and `PostToolUse`; every hook command is
  * `node "${CLAUDE_PROJECT_DIR}/scripts/dev/cs-hook.js" <event>` with an event the script handles. No permissions, no
  * statusline, no graft's own hooks (ADR-0026 п. 2, ADR-0023).
  */
@@ -12,8 +12,8 @@ import { CLI_ROOT } from "../../helpers/cli.js";
 
 const REPO_ROOT = path.resolve(CLI_ROOT, "..", "..");
 const SETTINGS = path.join(REPO_ROOT, ".claude", "settings.json");
-const COMMAND = /^node "\$\{CLAUDE_PROJECT_DIR\}\/scripts\/dev\/cs-hook\.js" (subagent-start|post-tool)$/;
-const EVENT_ARG: Record<string, string> = { SubagentStart: "subagent-start", PostToolUse: "post-tool" };
+const COMMAND = /^node "\$\{CLAUDE_PROJECT_DIR\}\/scripts\/dev\/cs-hook\.js" (subagent-start|pre-tool|post-tool)$/;
+const EVENT_ARG: Record<string, string> = { SubagentStart: "subagent-start", PreToolUse: "pre-tool", PostToolUse: "post-tool" };
 
 interface HookGroup {
   matcher?: string;
@@ -27,8 +27,8 @@ describe(".claude/settings.json — development hooks only", () => {
     expect(Object.keys(settings).sort()).toEqual(["$schema", "hooks"]);
   });
 
-  it("uses only SubagentStart and PostToolUse", () => {
-    expect(Object.keys(settings.hooks).sort()).toEqual(["PostToolUse", "SubagentStart"]);
+  it("uses only SubagentStart, PreToolUse and PostToolUse", () => {
+    expect(Object.keys(settings.hooks).sort()).toEqual(["PostToolUse", "PreToolUse", "SubagentStart"]);
   });
 
   it("every hook runs scripts/dev/cs-hook.js with the event of its section", () => {
@@ -48,6 +48,11 @@ describe(".claude/settings.json — development hooks only", () => {
   it("PostToolUse watches only reading and searching tools", () => {
     const matchers = settings.hooks.PostToolUse!.map((g) => g.matcher);
     expect(matchers).toEqual(["Read|Grep|Glob|Bash|PowerShell"]);
+  });
+
+  it("PreToolUse (deny, ADR-0031) sees only the tools the detector can flag — not Glob, never Edit or Write", () => {
+    const matchers = settings.hooks.PreToolUse!.map((g) => g.matcher);
+    expect(matchers).toEqual(["Read|Grep|Bash|PowerShell"]);
   });
 
   it("the hook script exists", () => {

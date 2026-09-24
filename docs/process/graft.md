@@ -51,9 +51,12 @@ setx DO_NOT_TRACK 1
   `callers` — до 80 строк.
 - [.claude/skills/code-search/SKILL.md](../../.claude/skills/code-search/SKILL.md) — алгоритм (правила 1–6, команды,
   сценарии); навык вызывается моделью сам, субагенту указатель на него даёт хук `SubagentStart`.
-- **Хуки разработки** (ADR-0029 п. 6): `.claude/settings.json` — только `hooks`, команды —
-  `scripts/dev/cs-hook.js`: `SubagentStart` (указатель на навык, `cs impact`, `cs map`), `PostToolUse` на
-  `Read|Grep|Glob|Bash|PowerShell` у субагентов — предупреждение по детектору отступлений. Форму файла держит
+- **Хуки разработки** (ADR-0029 п. 6, ADR-0031): `.claude/settings.json` — только `hooks`, команды —
+  `scripts/dev/cs-hook.js`: `SubagentStart` (указатель на навык, `cs impact`, `cs map`); `PreToolUse` на
+  `Read|Grep|Bash|PowerShell` у субагентов — **запрет** (`deny`) вызова, который детектор отступлений помечает по
+  входу, причина — что сделать вместо; `PostToolUse` на `Read|Grep|Glob|Bash|PowerShell` у субагентов — предупреждение
+  для видимого только по выводу. Код для детектора — `.ts`/`.js` под `packages/`, `scripts/` рабочего дерева WARRANT
+  (ближайший `.git` с `scripts/dev/cs.js`); основную сессию хуки не ограничивают. Форму файла держит
   `test/unit/meta/dev-hooks.test.ts`. Отключить у себя — `"disableAllHooks": true` в `.claude/settings.local.json`
   (выключает и пользовательские хуки).
 - `graft init`, `upgrade`, `mcp`, `brain`, хуки самого graft, MCP, statusline — не используются (ADR-0026 п. 2).
@@ -65,16 +68,20 @@ setx DO_NOT_TRACK 1
 | `ingest.explore_bytes`, `explore_before_edit_bytes` | байты результатов исследующих вызовов (Read/Grep/Glob, `cat`/`sed -n`/`grep`/…, `cs`), всего и до первой правки |
 | `ingest.cs_bytes`, `results_bytes` | доля `cs`; все результаты инструментов |
 | `tokens.*`, `tool_calls.*`, `graft_commands` | usage (раз на `message.id`), `tool_use` (раз на id), команды `cs.js` / `graft` |
-| `deviations`, `compliant` | отступления от правил навыка (> 3 — `compliant: false`); тот же детектор `deviationsOf`, что у хука `PostToolUse`; чтение целиком — и диапазоном, покрывающим файл (кроме файлов до 40 строк); не отступления: запись файлов, JSON / конфиги / документы, `node_modules`, список файлов |
+| `tool_calls.blocked` | вызовы, отклонённые хуком `PreToolUse` (ADR-0031): результат — ошибка с текстом причины `code-search: …`; не выполнялись — не отступления и без байтов |
+| `deviations`, `compliant` | отступления от правил навыка (> 3 — `compliant: false`); тот же детектор `deviationsOf`, что у хуков `PreToolUse` / `PostToolUse`; чтение целиком — и диапазоном, покрывающим файл (кроме файлов до 40 строк); не отступления: запись файлов, JSON / конфиги / документы, `node_modules`, список файлов |
 | `score.recall`, `precision` (бенчмарк) | ответ агента против эталона |
 | `card.red_runs`, `helped`, `misled`, `notes` (поле) | координатор по отчёту субагента |
 
-## 5. Наблюдение и пересмотр (ADR-0028 п. 5, ADR-0029 п. 8)
+## 5. Наблюдение и пересмотр (ADR-0028 п. 5, ADR-0029 п. 8, ADR-0031)
 
 - **База для сравнения после ADR-0029** — группы `test-levels` `[A]` (g1, g3, g5), пересчитанные детектором
-  ADR-0029 (`rescore`; прежние записи — `graft-lab/runs-before-audit/`). Следующие 2–3 группы с хуками сравниваются
-  с ней по отступлениям, байтам чтений целиком и `explore_bytes`; нет ложных срабатываний хука — решение о
-  `PreToolUse deny`.
+  ADR-0029 (`rescore`; прежние записи — `graft-lab/runs-before-audit/`). Сравнение сделано на группах 1–3
+  `arch-boundaries` → решение о `PreToolUse deny` (ADR-0031).
+- **После ADR-0031** записи пересчитаны с областью кода H-1 (`arch-boundaries` g3: отступлений 2 → 1, прочие без
+  изменений). Следующие 2–3 группы сравниваются с `arch-boundaries` g1–g3 и базой `test-levels` `[A]`: отступления
+  (должны остаться только видимые по выводу), `tool_calls.blocked`, `explore_bytes`; отказ, мешавший законной работе, —
+  в `notes` и повод пересмотра ADR-0031 п. 5.
 
 - После каждой группы — `graft-metrics.js run --mode on` (`/group-stats`, [coordinator.md](coordinator.md) §3);
   записи — `<git-common-dir>/graft-lab/runs/`, транскрипты — `graft-lab/transcripts/` (вне git); пересчёт —

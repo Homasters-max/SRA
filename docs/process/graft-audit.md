@@ -79,6 +79,7 @@
 | `additionalContext` (`hookSpecificOutput`) доходит до модели, сделавшей вызов; простой stdout при коде 0 — нет | зонд |
 | `SessionStart` — только основная сессия; `SubagentStart` добавляет контекст только субагенту | зонд |
 | `PostToolUse` на `Agent` срабатывает сразу после старта субагента, а не по его завершении | зонд |
+| `PreToolUse` с `permissionDecision: "deny"` в субагенте: вызов не выполняется, `tool_result` — `is_error: true` с текстом ровно `permissionDecisionReason`; модель получает причину и действует по ней; основная сессия с тем же хуком — без отказа (по `agent_id`) | зонд ADR-0031 |
 | Хуки слоёв настроек сливаются; файл только с `hooks` права не трогает; `disableAllHooks` в `settings.local.json` выключает все | документация + зонд |
 | Хук под Git Bash; `tool_input.file_path` — с `\`, `CLAUDE_PROJECT_DIR` — с `/`; запуск node ~150–200 мс | зонд |
 | `graft init` пишет `.claude/settings.json` (4 события, statusline, `permissions.allow`), `~/.claude/settings.json`, `.mcp.json`; таймауты в мс там, где Claude Code ждёт секунды | исходники graft 0.19.0 |

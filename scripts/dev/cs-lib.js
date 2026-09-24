@@ -362,15 +362,33 @@ export function ensureIndex(root, build, opts = {}) {
 
 const escapeRegex = (/** @type {string} */ s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const CALLABLE_KINDS = new Set(["function", "method"]);
+
 /**
- * What `cs impact <symbol>` searches: the bare name (`CheckRunner.run` → `run`) and one graft grep regex. A bare name
- * — calls `name(` / `name<T>(` (a `.name(` call included), `import` / `export {` lines naming it, a line that is only the
- * name (a member of a multi-line import, a value in a list) and local bindings `const name` (to spot shadowing). A
- * `Type.name` — only `.name(` calls.
+ * How `cs impact <symbol>` searches (H-7): `calls` — the symbol is a function or method in the graph (`Type.name` — that
+ * very method); `word` — anything else (a module constant, a type, an interface method, a name the graph lacks), whose
+ * uses are values, not calls.
  * @param {string} symbol
- * @returns {{ name: string, typed: boolean, pattern: string, call: RegExp, dotCall: RegExp, importLine: RegExp, bare: RegExp, decl: RegExp }}
+ * @param {{ id: string, name: string, kind: string }[]} nodes
+ * @returns {"calls" | "word"}
  */
-export function impactQuery(symbol) {
+export function impactMatch(symbol, nodes) {
+  const name = symbol.slice(symbol.lastIndexOf(".") + 1);
+  const typed = symbol.includes(".");
+  const hit = nodes.some((n) => CALLABLE_KINDS.has(n.kind) && n.name === name && (!typed || n.id.slice(n.id.indexOf("#") + 1) === symbol));
+  return hit ? "calls" : "word";
+}
+
+/**
+ * What `cs impact <symbol>` searches: the bare name (`CheckRunner.run` → `run`) and one graft grep regex. `calls` (see
+ * `impactMatch`): a bare name — calls `name(` / `name<T>(` (a `.name(` call included), `import` / `export {` lines naming
+ * it, a line that is only the name (a member of a multi-line import, a value in a list) and local bindings `const name`
+ * (to spot shadowing); a `Type.name` — only `.name(` calls. `word`: every `\bname\b` (a `Type.name` — every `.name`).
+ * @param {string} symbol
+ * @param {"calls" | "word"} [match]
+ * @returns {{ name: string, typed: boolean, match: "calls" | "word", pattern: string, call: RegExp, dotCall: RegExp, importLine: RegExp, bare: RegExp, decl: RegExp }}
+ */
+export function impactQuery(symbol, match = "calls") {
   const name = symbol.slice(symbol.lastIndexOf(".") + 1);
   const typed = symbol.includes(".");
   const n = escapeRegex(name);
@@ -379,8 +397,9 @@ export function impactQuery(symbol) {
   const importLine = `^\\s*(?:import\\b[^"'\`]*|export\\s+(?:type\\s+)?\\{[^}]*)\\b${n}\\b`;
   const bare = `^\\s*(?:type\\s+)?${n}(?:\\s+as\\s+[\\w$]+)?\\s*,?\\s*$`;
   const decl = `\\b(?:const|let|var)\\s+(?:\\{[^}]*|\\[[^\\]]*)?\\b${n}\\b`;
-  const pattern = typed ? dotCall : [call, importLine, bare, decl].join("|");
-  return { name, typed, pattern, call: new RegExp(call), dotCall: new RegExp(dotCall), importLine: new RegExp(importLine), bare: new RegExp(bare), decl: new RegExp(decl) };
+  const word = typed ? `\\.${n}\\b` : `\\b${n}\\b`;
+  const pattern = match === "word" ? word : typed ? dotCall : [call, importLine, bare, decl].join("|");
+  return { name, typed, match, pattern, call: new RegExp(call), dotCall: new RegExp(dotCall), importLine: new RegExp(importLine), bare: new RegExp(bare), decl: new RegExp(decl) };
 }
 
 /**
@@ -411,7 +430,9 @@ const symbolOf = (/** @type {GraphNode} */ n) => n.id.slice(n.id.indexOf("#") + 
  * name); ` port` — a `.name(` call on a port-looking receiver; ` local?` — inside a scope that declares its own
  * `name`. Definition lines of the name and comment lines are not sites; several definitions of the name are listed.
  *
- * The JSON of `cs impact --json` (format `cs-impact/1`): `{ format, symbol, name, counts: { sites, files, graph,
+ * `word` (`impactMatch`): every use of the name is a site; a module-level `const NAME` is a definition (`kind: const`).
+ *
+ * The JSON of `cs impact --json` (format `cs-impact/1`): `{ format, symbol, name, match, counts: { sites, files, graph,
  * grepOnly, graphOnly }, definitions: [{ path, line, symbol, kind }], graph: { callers: N } | { error },
  * shadows: [{ path, line, scope }], grepTruncated: { files, hits }, sites: [{ path, line, enclosing, tags, text,
  * span?, relation? }] }`; `tags` — `graph+grep` | `grep` | `graph`, then `port` / `local?`; a graph-only site has
@@ -419,9 +440,9 @@ const symbolOf = (/** @type {GraphNode} */ n) => n.id.slice(n.id.indexOf("#") + 
  * @param {{ symbol: string, callers: CallersJson | null, callersError?: string, grep: GrepJson, nodes: GraphNode[] }} input
  */
 export function impactData({ symbol, callers, callersError, grep, nodes }) {
-  const q = impactQuery(symbol);
-  const defs = nodes.filter((n) => n.name === q.name && n.kind !== "file");
-  const defLines = new Set(defs.map((n) => `${n.path}:${parseSpan(n.span)[0]}`));
+  const q = impactQuery(symbol, impactMatch(symbol, nodes));
+  const defs = nodes.filter((n) => n.name === q.name && n.kind !== "file").map((n) => ({ path: n.path, line: parseSpan(n.span)[0], symbol: symbolOf(n), kind: n.kind }));
+  const defLines = new Set(defs.map((d) => `${d.path}:${d.line}`));
   const byPath = new Map();
   for (const n of nodes) {
     if (!SCOPE_KINDS.has(n.kind)) continue;
@@ -451,7 +472,12 @@ export function impactData({ symbol, callers, callersError, grep, nodes }) {
     for (const h of g.hits ?? []) {
       if (defLines.has(`${g.path}:${h.line}`) || COMMENT.test(h.text)) continue;
       const scope = enclosing(g.path, h.line);
-      if (!q.typed && q.decl.test(h.text) && !q.call.test(h.text) && !q.importLine.test(h.text)) {
+      // word: a module-level `const NAME` is the definition of a constant (constants are not graph nodes)
+      if (q.match === "word" && !q.typed && !scope && q.decl.test(h.text) && !q.importLine.test(h.text)) {
+        defs.push({ path: g.path, line: h.line, symbol: q.name, kind: "const" });
+        continue;
+      }
+      if (q.match === "calls" && !q.typed && q.decl.test(h.text) && !q.call.test(h.text) && !q.importLine.test(h.text)) {
         shadows.push({ path: g.path, line: h.line, scope });
         continue;
       }
@@ -514,8 +540,9 @@ export function impactData({ symbol, callers, callersError, grep, nodes }) {
     format: "cs-impact/1",
     symbol,
     name: q.name,
+    match: q.match,
     counts: { sites: rows.length, files: new Set(rows.map((r) => r.path)).size, graph: count("graph+grep"), grepOnly: count("grep"), graphOnly: count("graph") },
-    definitions: defs.map((d) => ({ path: d.path, line: parseSpan(d.span)[0], symbol: symbolOf(d), kind: d.kind })),
+    definitions: defs,
     graph,
     shadows: [...usedShadows].map((s) => ({ path: s.path, line: s.line, scope: s.scope ? symbolOf(s.scope) : "(module)" })),
     grepTruncated: { files: grep.truncated?.files ?? 0, hits: grep.truncated?.hits ?? 0 },
@@ -535,6 +562,11 @@ export function impactData({ symbol, callers, callersError, grep, nodes }) {
 export function formatImpact(d) {
   const c = d.counts;
   const out = [`impact ${d.symbol} — ${c.sites} sites in ${c.files} files (graph: ${c.graph}, grep-only: ${c.grepOnly}, graph-only: ${c.graphOnly})`];
+  if (d.match === "word") {
+    const word = d.symbol.includes(".") ? `.${d.name}` : d.name;
+    out.push(`match: word — every "${word}" (not a function or method in the graph): values, types and re-exports, not only calls`);
+    if (d.definitions.length === 1) out.push(`definition: ${d.definitions[0].path}:${d.definitions[0].line}  ${d.definitions[0].kind}`);
+  }
   if (d.definitions.length > 1) {
     out.push(`${d.definitions.length} definitions share the name "${d.name}" — which one each site refers to is not resolved:`);
     for (const def of d.definitions) out.push(`  ${def.path}:${def.line}  ${def.symbol}  ${def.kind}`);
@@ -545,7 +577,7 @@ export function formatImpact(d) {
     out.push(`verify: ${s.scope} (${s.path}:${s.line}) declares its own "${d.name}" — sites there tagged local? likely use it, not ${d.symbol}`);
   }
   if (d.grepTruncated.hits > 0 || d.grepTruncated.files > 0) out.push(`grep truncated by graft: +${d.grepTruncated.hits} hits not shown — narrow with --in <path>`);
-  if (c.sites === 0) out.push(`no call sites of "${d.name}" found in indexed code (packages/**, scripts/**)`);
+  if (c.sites === 0) out.push(`no ${d.match === "word" ? "uses" : "call sites"} of "${d.name}" found in indexed code (packages/**, scripts/**)`);
   for (const r of d.sites) {
     const text =
       r.text === null ? `(${r.relation}, span ${r.span}) verify: graph-only edge (possible false edge by name)` : r.text.length > 140 ? `${r.text.slice(0, 139)}…` : r.text;

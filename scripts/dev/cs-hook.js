@@ -3,10 +3,11 @@
  * input JSON on stdin:
  *
  *   node scripts/dev/cs-hook.js subagent-start   SubagentStart: the rule + `cs map` as additionalContext
- *   node scripts/dev/cs-hook.js post-tool        PostToolUse: a warning when a subagent's call deviates from the rules
+ *   node scripts/dev/cs-hook.js pre-tool         PreToolUse: deny a subagent's call that deviates from the rules (ADR-0031)
+ *   node scripts/dev/cs-hook.js post-tool        PostToolUse: a warning for what only the call's output shows
  *
  * Decisions — `hookResponse` in cs-hook-lib.js (pure); this file is only IO. A hook must never break a session: any
- * failure → exit 0 and no output; stdout is valid JSON or nothing. Warn only, never blocks.
+ * failure → exit 0 and no output (the call is allowed); stdout is valid JSON or nothing.
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -18,7 +19,7 @@ function nativePath(p) {
   return process.platform === "win32" ? s.replace(/^\/([a-zA-Z])(?=\/|$)/, (_, d) => `${d.toUpperCase()}:`) : s;
 }
 
-/** Work-tree root: nearest ancestor with `.git` (a directory, or a file in a linked worktree). */
+/** Work-tree root: nearest ancestor (or the path itself) with `.git` (a directory, or a file in a linked worktree). */
 function findRoot(dir) {
   let d = path.resolve(nativePath(dir));
   for (;;) {
@@ -62,7 +63,7 @@ async function main() {
   if (!raw.trim()) return;
   const input = JSON.parse(raw);
   // fast path: the main session's calls (most of them) never load the detector — hookResponse says nothing for them
-  if (event === "post-tool" && !input?.agent_id) return;
+  if ((event === "pre-tool" || event === "post-tool") && !input?.agent_id) return;
   const { hookResponse } = await import("./cs-hook-lib.js");
   const res = hookResponse(event, input, { env: process.env, findRoot, exists: (p) => existsSync(nativePath(p)), csMap, fileLines });
   if (res) process.stdout.write(JSON.stringify(res));

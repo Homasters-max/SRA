@@ -32,5 +32,7 @@
 | [0026](WARRANT-ADR-0026-graft-experiment.md) | Graft в разработке WARRANT: слепой эксперимент `[A]` / `[B]` по группам задач, только CLI через `scripts/dev/cs.js`, навык `code-search`, без записи в конфиги агента; порог −20 % токенов или tool calls | ACCEPTED (эксперимент закрыт; уточнён 0027, 0028) |
 | [0027](WARRANT-ADR-0027-graft-tuning.md) | Graft: донастройка после `test-levels` — парный бенчмарк 8 вопросов, метрика прочитанных байт, детектор отступлений без ложных срабатываний, слепота без памяти и навыка, одна группа — один агент | ACCEPTED (уточнён 0028) |
 | [0028](WARRANT-ADR-0028-graft-adoption.md) | Graft: итог эксперимента — `accept` (прочитанное −46 %, токены −22 %, recall 1,0); поиск через `cs.js` и навык `code-search` — стандарт субагентов; обновление Graft — только через регрессию бенчмарка | ACCEPTED |
+| [0029](WARRANT-ADR-0029-graft-audit-dev-hooks.md) | Graft: итог аудита — `cs impact` вместо голого `callers`, `cs deps` / `cs dups` / `--json`, регрессия графа против компилятора, хуки разработки в `.claude/settings.json` (только `hooks`) | ACCEPTED |
+| [0030](WARRANT-ADR-0030-module-boundaries.md) | Границы модулей CLI: ранги `core` R0–R4, сценарий перехода `core/transition`, мета-тест `architecture.test.ts` с реестрами помощников и перечислений и храповиком A-N; аудит перед фазой | ACCEPTED |
 
 Новый ADR: следующий номер, frontmatter как в существующих, строка в этой таблице.

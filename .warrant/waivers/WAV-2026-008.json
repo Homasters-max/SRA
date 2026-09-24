@@ -1,0 +1,16 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-2026-008",
+  "change": "arch-boundaries",
+  "gate": "adversarial-review",
+  "reason": "No producer of review evidence exists before phase 4 (D-5): the adversarial-review skill is not run by the CLI, so the gate cannot be satisfied.",
+  "risk": "HIGH",
+  "compensating_controls": [
+    "phase-4 change implements the producer",
+    "maintainer review of PR"
+  ],
+  "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
+  "expires_at": "2026-12-31",
+  "waiver_state": "ACTIVE"
+}

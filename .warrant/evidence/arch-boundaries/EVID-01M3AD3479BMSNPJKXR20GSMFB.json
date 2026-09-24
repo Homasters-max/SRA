@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3AD3479BMSNPJKXR20GSMFB",
+  "claim": {
+    "text": "Homasters-max approved arch-boundaries for VERIFYING->MERGED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "43c8f2f0401f4c98cccbbf09e6384e376b1a1227",
+    "base_commit": "2eba96c75d772d8b1fc592f5d2ac2542dd6354c4",
+    "spec_revision": "openspec/changes/arch-boundaries@43c8f2f0401f4c98cccbbf09e6384e376b1a1227",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/36044935441"
+  },
+  "context_hash": "sha256:7e7b7969fa178c61a5c9892f0f07564b65cc26caa5fc37b89b46c497ea0438ec",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-24T19:08:19.049Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

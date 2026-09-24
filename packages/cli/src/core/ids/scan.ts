@@ -327,19 +327,77 @@ function collectPlaced(texts: readonly string[], into: Set<string>): void {
   }
 }
 
+/** At most this many `openspec` calls of check 5d at once — OpenSpec's own `--concurrency` default (ADR-0025 п. 9). */
+export const SHOW_CONCURRENCY = 6;
+
+/** Runs `task` over `items` with at most `limit` in flight; results keep the order of `items`. */
+async function mapLimit<T, R>(items: readonly T[], limit: number, task: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array<R>(items.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await task(items[index] as T);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+/**
+ * Names `show` is asked about for the files that hold a REQ or SCN id: the
+ * change directory of a change spec; every directory above a main spec file,
+ * because OpenSpec spec ids nest (`specs/<area>/<id>/spec.md` is `<area>/<id>`).
+ */
+function showCandidates(relevant: readonly FoundId[]): { changes: string[]; specs: string[] } {
+  const changes = new Set<string>();
+  const specs = new Set<string>();
+  for (const found of relevant) {
+    const parts = found.file.split("/");
+    if (parts[1] === "changes") changes.add(parts[2] as string);
+    else for (let end = 3; end < parts.length; end += 1) specs.add(parts.slice(2, end).join("/"));
+  }
+  return { changes: [...changes].sort(), specs: [...specs].sort() };
+}
+
 /**
  * Check 5d: an id found by the scanner in an active change spec or in a main
  * spec must come back from `openspec show --json` as the first line of its
  * requirement or scenario, with a non-empty body after it (SCN-KRN-046).
+ *
+ * `show` runs only for the directories that hold a file with a REQ or SCN id
+ * the scanner already read (ADR-0025 п. 9): `show` returns text of its own
+ * directory only, so the others cannot place an id. The two `list` calls and
+ * the `show` calls run together, at most {@link SHOW_CONCURRENCY} at once; a
+ * `show` counts only for a name `list` returned, as when `show` followed
+ * `list`. Findings follow the scan order, not the order the calls finish in.
  */
-export async function checkPlacement(ctx: Ctx, ids: FoundId[]): Promise<{ errors: CliError[]; skipped: boolean }> {
+export async function checkPlacement(
+  ctx: Pick<Ctx, "openspec">,
+  ids: FoundId[]
+): Promise<{ errors: CliError[]; skipped: boolean }> {
   const relevant = ids.filter((f) => isPlacementChecked(f.file) && (f.prefix === "REQ" || f.prefix === "SCN"));
   if (relevant.length === 0) return { errors: [], skipped: false };
   if (!(await openspecAvailable(ctx.openspec))) return { errors: [], skipped: true };
 
+  const { openspec } = ctx;
+  const candidates = showCandidates(relevant);
+  const calls: Array<() => Promise<string[]>> = [
+    () => openspec.listChanges(),
+    () => openspec.listSpecs(),
+    ...candidates.changes.map((name) => () => openspec.showChange(name)),
+    ...candidates.specs.map((id) => () => openspec.showSpec(id))
+  ];
+  const [listedChanges = [], listedSpecs = [], ...shown] = await mapLimit(calls, SHOW_CONCURRENCY, (call) => call());
+  const changes = new Set(listedChanges);
+  const specs = new Set(listedSpecs);
+  const counted = [...candidates.changes.map((name) => changes.has(name)), ...candidates.specs.map((id) => specs.has(id))];
+
   const placed = new Set<string>();
-  for (const name of await ctx.openspec.listChanges()) collectPlaced(await ctx.openspec.showChange(name), placed);
-  for (const id of await ctx.openspec.listSpecs()) collectPlaced(await ctx.openspec.showSpec(id), placed);
+  shown.forEach((texts, i) => {
+    if (counted[i] === true) collectPlaced(texts, placed);
+  });
 
   const errors: CliError[] = [];
   for (const found of relevant) {

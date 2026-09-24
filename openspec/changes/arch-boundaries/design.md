@@ -3,7 +3,7 @@
 ## Context
 
 Вход — архитектурный аудит [2026-09-24](../../../docs/process/audits/2026-09-24.md) (снимок `2026-09-24.json`) и
-решения grilling Q1–Q22 (docs/NEXT-SESSION.md, раздел «arch-boundaries»); норма — [ADR-0030](../../../docs/adr/WARRANT-ADR-0030-module-boundaries.md).
+решения grilling Q1–Q25 (docs/NEXT-SESSION.md, раздел «arch-boundaries»; Q23–Q25 — по A-10…A-12 и замеру ADR-0029); норма — [ADR-0030](../../../docs/adr/WARRANT-ADR-0030-module-boundaries.md).
 Код на входе: 95 файлов `packages/cli/src`, 23 модуля (глубина 2), 84 ребра модулей, циклы `core/canon ↔ core/packs`
 (runtime) и `core ↔ core/ports ↔ core/openspec` (только `import type`).
 

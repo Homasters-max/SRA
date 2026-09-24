@@ -257,7 +257,7 @@ I-93 решается без нового ADR: ADR-0010 п. 2 уже замен�
   (hooks Codex под `codex-acp` и `codex exec`, 13 §3), finding `FRONTEND_HOOKS_INACTIVE` (D-14), producer'ы `analyze-clean` и
   `adversarial-review` (снимают WAV-2026-001…004). Если S8 затягивается, `ci` и `run`/`guard` можно резать в два change.
 
-### arch-boundaries — решения grilling 2026-09-24 (Q1–Q22, приняты maintainer'ом)
+### arch-boundaries — решения grilling 2026-09-24 (Q1–Q25, приняты maintainer'ом)
 
 Вход — аудит [process/audits/2026-09-24.md](process/audits/2026-09-24.md). Фаза 4 зовёт `warrant` бинарником (ADR-0018 п. 2,
 ADR-0020 п. 11), но добавляет входы (`guard`, `run`, `ci`, `analyze`) — без выделенного сценария каждый собрал бы конвейер A-2
@@ -278,6 +278,9 @@ ADR-0020 п. 11), но добавляет входы (`guard`, `run`, `ci`, `ana
 | Q17 | Поведение не меняется: существующие `app`/`contract`/`e2e`/golden — без правок, кроме путей импорта; правка ожидаемого значения — остановка и I-N. Новые тесты — `architecture.test.ts` и `core/transition` (`app`, через `ctx`). Переносы — по `cs impact` (граф не видит вызовов через порты) |
 | Q18 | Gates без producer'ов — два waivers по образцу test-levels (`analyze-clean`, `adversarial-review`), ссылка из proposal |
 | Q4–Q8, Q15, Q20–Q22 | Методика: инвентарь понятий из словаря; снимок `arch-snapshot/1` в `docs/process/audits/` и тренд; аудит перед spec-PR каждой фазы (`/next-session`); A-N в NEXT-SESSION; облегчённый проход `test/`; срез заканчивается на порту; качество графа — не предмет аудита (ADR-0029) — **сделано** process-PR |
+| Q23 | A-10 и A-11 чинятся в группе 4 вместе с A-6: типы статусов артефактов — в `core/ports/openspec.ts`, `parseOpenspecStatus` — в `adapters/openspec-cli.ts`; цикл A-10 исчезает попутно |
+| Q24 | A-12 (`onInterrupt` из `core/check` в адаптере) — долг под храповиком, P3; решать вместе с портом `guard` в фазе 4 (перенос в R0 дал бы лист с побочным эффектом `process.on`) |
+| Q25 | Решение о `PreToolUse deny` (ADR-0029 п. 8) — отдельным process-PR после замера групп 1–3 impl-PR `arch-boundaries`, не внутри change |
 
 ### Продолжение — готовый запрос
 

@@ -1,18 +1,16 @@
 # phase-4
 
-После: git-automation
-
 ## Цель
 
 Фаза 4 — MVP frontend Codex ([13 §2](../13-roadmap.md), строка 4): `sync`, `run`, `guard`, `validate --files`, `analyze`,
-`warrant ci`, адаптер `codex` после S8. Первый шаг — аудит и grilling нарезки; начинать после потока
-[git-automation](git-automation.md) (реализация ADR-0033: навыки git и Change, хуки).
+`warrant ci`, адаптер `codex` после S8. Первый шаг — аудит и grilling нарезки; процесс — навыки ADR-0033
+(`git-start`, `git-land`, `change-*`, `review-impl`, `cli-contract`).
 
 ## Готовый запрос
 
 ```text
-Сначала — навык architecture-audit по packages/cli/src (облегчённо — packages/cli/test) со сравнением --against
-docs/process/audits/2026-09-24.json; находки — строками A-N в docs/backlog.md, отчёт и снимок — в
+Сначала — навык repo-hygiene (ADR-0033 п. 13), затем architecture-audit по packages/cli/src (облегчённо —
+packages/cli/test) со сравнением --against docs/process/audits/2026-09-24.json; находки — строками A-N в docs/backlog.md, отчёт и снимок — в
 docs/process/audits/. Снимок 2026-09-24.json старше arch-boundaries (группы 2–5 меняли core) — снимок устарел,
 аудит обязателен. Открытые A-N из backlog.md (A-5, A-8, A-9, A-12) — вход grilling'а.
 Затем grilling по нарезке фазы 4 (MVP frontend Codex). Прочитай: строки docs/backlog.md с «Куда: фаза 4»,

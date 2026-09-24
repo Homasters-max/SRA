@@ -33,7 +33,7 @@ argument-hint: "<change> <номер spec-PR>"
    $W transition <change> VERIFYING
    ```
 5. Ревью до PR — навык `review-impl` (п. 6): 🔴 — исправить в этой ветке и снова шаг 4; 🟡 / 💭 — строками R-N в
-   `docs/backlog.md`. Навыка ещё нет — в теле PR пометка «ревью: review-impl не реализован».
+   `docs/backlog.md`; отчёт — разделом «Ревью» в тело PR.
 6. PR — шаги 1–3 `git-land`; тело — группы, решения I-N, отчёт ревью. CI: `test` ubuntu + windows и job `evidence`
    (artifact `evidence-<change>`; `WAIT` по `human-approval` — штатно). Зелёный — «жду merge #N».
 7. По «merge #N» — шаги 4–5 `git-land` (только `--merge`, I-97). Затем навык `change-archive-pr <change>` с номером

@@ -4,7 +4,7 @@
 
 Фаза 4 — MVP frontend Codex ([13 §2](../13-roadmap.md), строка 4): `sync`, `run`, `guard`, `validate --files`, `analyze`,
 `warrant ci`, адаптер `codex` после S8. Первый шаг — аудит и grilling нарезки; начинать после потока
-`skills-git-hygiene` (grilling навыков git, ветка `docs/drafts-2026-09-24`; ADR-0032 п. 12).
+[skills-git-hygiene](skills-git-hygiene.md) (grilling навыков git; ADR-0032 п. 12).
 
 ## Готовый запрос
 

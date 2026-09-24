@@ -7,6 +7,7 @@
  * partial waiver it applied that is no longer in force. What is left is the
  * only evidence the verdict algorithm sees.
  */
+import { isPlainObject } from "../json.js";
 import type { EvidenceInput, Finding, WaiverInput } from "./types.js";
 
 export type StaleReason = "commit" | "base" | "threshold" | "scoped" | "waiver";
@@ -33,19 +34,10 @@ export interface PrefilterResult {
   excluded: Excluded[];
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /** A waiver counts while `ACTIVE` and `expires_at >= today` (UTC date, I-75). */
 export function isWaiverInForce(waiver: Record<string, unknown>, today: string): boolean {
   const expires = waiver["expires_at"];
   return waiver["waiver_state"] === "ACTIVE" && typeof expires === "string" && expires >= today;
-}
-
-/** Login of a waiver's `approved_by`, without the `human:` prefix. */
-export function approverLogin(waiver: Record<string, unknown>): string {
-  return String(waiver["approved_by"]).replace(/^human:/, "");
 }
 
 /** Ids of the waivers in force. */

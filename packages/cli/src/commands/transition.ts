@@ -31,10 +31,10 @@ import { rmSync } from "node:fs";
 import path from "node:path";
 
 import { canonicalHash } from "../core/canon/hash.js";
-import { exitCodeOf } from "../core/controller/evaluate.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, WarrantError, type ExitCode } from "../core/errors.js";
+import { EXIT, WarrantError } from "../core/errors.js";
 import { evidenceDir, readRecords } from "../core/evidence/store.js";
+import { manifestVersions, storeRecord } from "../core/evidence/write.js";
 import {
   isAncestor,
   mergedCommitFacts,
@@ -42,41 +42,24 @@ import {
   readGitFacts,
   resolveCommit,
   type GitFacts
-} from "../core/gates/diff.js";
+} from "../core/git/facts.js";
 import { activeWaiverIds, staleReason } from "../core/gates/prefilter.js";
-import type { Verdict } from "../core/gates/types.js";
 import { freshest } from "../core/gates/verdict.js";
 import { allocateUlid } from "../core/ids/allocate.js";
 import { findChangeDir } from "../core/init/scaffold.js";
-import { loadPacks } from "../core/packs/loader.js";
+import { isPlainObject } from "../core/json.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
-import {
-  appendTransition,
-  assertNotFrozen,
-  isChangeState,
-  recordPath,
-  stateOfRecord,
-  transitionKind,
-  type TransitionEntry
-} from "../core/record/write.js";
+import { isChangeState, REF_REQUIRED_STATES, transitionKind } from "../core/record/lifecycle.js";
+import { appendTransition, assertNotFrozen, recordPath, stateOfRecord, type TransitionEntry } from "../core/record/write.js";
 import type { EffectivePolicy } from "../core/resolve/index.js";
-import { readWaivers, roleMembers } from "../core/validate/waivers.js";
+import { approvalRoles, checkRef, roleMembers } from "../core/roles.js";
+import { judgeGates, prepare } from "../core/transition/evaluate.js";
+import { decisionFields, evaluationFindings, gateDefinitions, type Evaluation } from "../core/transition/gates.js";
+import { evidenceOf, forwardEntry, gatesNotPassed, gatesNotPassedRefusal, RECORDED_BY } from "../core/transition/outcome.js";
+import { readWaivers } from "../core/waivers/read.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { manifestVersions, storeRecord } from "./check.js";
 import { requireConfigPath } from "./context.js";
-import {
-  artifactStatuses,
-  conflictDecision,
-  decisionFields,
-  evaluateTransition,
-  evaluationFindings,
-  gateDefinitions,
-  projectFacts,
-  recordVerdicts,
-  resolveRecord,
-  type Evaluation
-} from "./gate.js";
 
 export interface TransitionOptions {
   /** `--ref <url>`: the forge artefact of the act (review, CI run); required for `APPROVED` and `MERGED`. */
@@ -87,16 +70,7 @@ export interface TransitionOptions {
   commit?: string | undefined;
 }
 
-/** Who records a transition made by this command (REQ-VER-007). */
-export const RECORDED_BY = "cli:local";
-
 export const HUMAN_APPROVAL = "human-approval";
-
-/** Role asked for when the policy names none at the transition (design §10). */
-export const FALLBACK_ROLE = "maintainer";
-
-/** States whose transition needs `--ref` (P-6). */
-const REF_REQUIRED = ["APPROVED", "MERGED"];
 
 /**
  * Limitation of every `human-approval` record: `--ref` is only checked to be
@@ -104,44 +78,6 @@ const REF_REQUIRED = ["APPROVED", "MERGED"];
  * through the forge (ADR-0010 point 2, R-10).
  */
 export const REF_NOT_VERIFIED = "ref not verified (phase 4: warrant ci)";
-
-/** Verdicts a forward transition passes with (REQ-VER-007). */
-const PASSING: ReadonlySet<Verdict> = new Set<Verdict>(["PASS", "WAIVED", "NOT_APPLICABLE"]);
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** Gates of an evaluation whose verdict does not let the transition through, sorted. */
-export function gatesNotPassed(gates: Record<string, Verdict>): string[] {
-  return Object.keys(gates)
-    .filter((id) => !PASSING.has(gates[id] as Verdict))
-    .sort();
-}
-
-/** Ids of the records the verdicts rest on, sorted and unique. */
-export function evidenceOf(evaluation: Evaluation): string[] {
-  return [...new Set(Object.values(evaluation.engine.evidence).flat())].sort();
-}
-
-/** Roles of `approvals[]` at the transition; `maintainer` when there is none. */
-export function approvalRoles(policy: EffectivePolicy, transition: string): string[] {
-  const roles = [...new Set(policy.approvals.filter((a) => a.at === transition).map((a) => a.role))].sort();
-  return roles.length > 0 ? roles : [FALLBACK_ROLE];
-}
-
-/** `USAGE` unless `ref` is an http(s) URL (the forge act); also `classify --ref`. */
-export function checkRef(ref: string): void {
-  let url: URL;
-  try {
-    url = new URL(ref);
-  } catch {
-    throw new WarrantError("USAGE", `--ref ${JSON.stringify(ref)} is not a URL`);
-  }
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new WarrantError("USAGE", `--ref ${JSON.stringify(ref)} is not an http(s) URL of the forge`);
-  }
-}
 
 /** `data` of a failed forward transition and of a passed one, before the record entry. */
 function gateFields(evaluation: Evaluation): Record<string, unknown> {
@@ -304,31 +240,6 @@ function assertRunRef(root: string, change: string, env: NodeJS.ProcessEnv, eval
   );
 }
 
-/** The entry written for a forward transition that passed its gates. */
-export function forwardEntry(to: string, policy: EffectivePolicy, evaluation: Evaluation, ref: string | undefined): TransitionEntry {
-  const entry: TransitionEntry = {
-    to,
-    at: new Date().toISOString(),
-    by: RECORDED_BY,
-    effective_policy_hash: policy.hash,
-    gates: evaluation.engine.gates,
-    evidence: evidenceOf(evaluation)
-  };
-  if (ref !== undefined) entry.ref = ref;
-  return entry;
-}
-
-/**
- * `GATES_NOT_PASSED` with the verdicts; the exit code is the controller's, and
- * never 0 — a gate that did not pass always keeps the transition out.
- */
-export function gatesNotPassedResult(change: string, data: Record<string, unknown>, evaluation: Evaluation, failed: string[]): CommandResult {
-  let code: ExitCode = exitCodeOf(evaluation.decision.controller_action);
-  if (code === EXIT.OK) code = EXIT.WAIT;
-  const message = `${evaluation.transition}: gates not passed: ${failed.map((id) => `${id} ${String(evaluation.engine.gates[id])}`).join(", ")}`;
-  return failures([{ code: "GATES_NOT_PASSED", message }], code, data, change);
-}
-
 export async function runTransition(
   ctx: Ctx,
   change: string,
@@ -354,7 +265,7 @@ export async function runTransition(
   }
   if (target === "ARCHIVED") throw new WarrantError("USAGE", `ARCHIVED is entered through \`warrant archive ${change}\``);
   if (opts.commit !== undefined && target !== "MERGED") throw new WarrantError("USAGE", "--commit applies to MERGED only");
-  if (opts.ref === undefined && REF_REQUIRED.includes(target)) {
+  if (opts.ref === undefined && (REF_REQUIRED_STATES as readonly string[]).includes(target)) {
     throw new WarrantError("USAGE", `${target} needs --ref <url> of the act (review or CI run)`);
   }
   if (opts.ref !== undefined) checkRef(opts.ref);
@@ -392,15 +303,13 @@ interface ForwardParams {
 async function forward(params: ForwardParams): Promise<CommandResult> {
   const { ctx, change, record, target, transition, opts, env } = params;
   const { root, warn } = ctx;
-  const loaded = loadPacks(root);
-  if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
-  const resolved = resolveRecord(loaded, change, record);
-  if (!resolved.ok) {
-    if (!resolved.conflict) return failures(resolved.errors, EXIT.CONFIG, {}, change);
-    const decision = conflictDecision(loaded, record);
-    return failures([resolved.error], EXIT.WAIT, { transition, gates: {}, findings: [], ...decisionFields(decision) }, change);
+  const prepared = prepare(ctx, change, { transition, env, record });
+  if (!prepared.ok) {
+    if (!prepared.conflict) return failures(prepared.errors, EXIT.CONFIG, {}, change);
+    const { error, decision } = prepared;
+    return failures([error], EXIT.WAIT, { transition, gates: {}, findings: [], ...decisionFields(decision) }, change);
   }
-  const policy = resolved.policy;
+  const { loaded, policy } = prepared;
 
   // The commit and base the gates speak of (design §9).
   let git: GitFacts;
@@ -435,22 +344,14 @@ async function forward(params: ForwardParams): Promise<CommandResult> {
     warn(`transition: --by is ignored: ${transition} has no gate ${HUMAN_APPROVAL} in the effective policy\n`);
   }
 
-  const evaluation = await evaluateTransition({
-    ctx,
-    change,
-    record,
-    loaded,
-    policy,
-    transition,
-    facts: await projectFacts(ctx, git),
-    artifacts: await artifactStatuses(ctx, change),
-    env
-  });
-  recordVerdicts(root, change, env, evaluation.engine.gates);
+  const evaluation = await judgeGates(ctx, change, prepared, git, undefined);
   Object.assign(data, gateFields(evaluation));
 
   const failed = gatesNotPassed(evaluation.engine.gates);
-  if (failed.length > 0) return gatesNotPassedResult(change, data, evaluation, failed);
+  if (failed.length > 0) {
+    const refused = gatesNotPassedRefusal(evaluation, failed);
+    return failures([refused.error], refused.exitCode, data, change);
+  }
   if (target === "MERGED" && opts.ref !== undefined) assertRunRef(root, change, env, evaluation, opts.ref);
 
   const entry = forwardEntry(target, policy, evaluation, opts.ref);

@@ -9,7 +9,7 @@
  */
 import { readFileSync } from "node:fs";
 
-import { walkFiles } from "../../packs/loader.js";
+import { walkFiles } from "../../fs.js";
 import type { ParseResult } from "./types.js";
 
 export interface JunitCounts {

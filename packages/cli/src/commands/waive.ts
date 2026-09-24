@@ -24,12 +24,15 @@ import { writeJsonFile } from "../core/canon/format-json.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { allocateWaiver } from "../core/ids/allocate.js";
+import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { assertNotFrozen } from "../core/record/write.js";
+import { RISK_LEVELS } from "../core/resolve/types.js";
 import type { Json } from "../core/schemas/loader.js";
 import { validateFile } from "../core/schemas/semantic.js";
-import { roleMembers, WAIVERS_DIR } from "../core/validate/waivers.js";
+import { roleMembers, WAIVER_ROLE } from "../core/roles.js";
+import { WAIVERS_DIR } from "../core/waivers/read.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath } from "./context.js";
 
@@ -44,20 +47,12 @@ export interface WaiveOptions {
   by?: string | undefined;
 }
 
-/** Role whose members activate and revoke waivers (05 section 7). */
-export const WAIVER_ROLE = "maintainer";
-
-const RISKS = ["LOW", "MEDIUM", "HIGH"];
 const LOGIN_RE = /^[A-Za-z0-9._-]+$/;
 const OWNER_RE = /^human:[A-Za-z0-9._-]+$/;
 const WAIVER_ID_RE = /^WAV-[0-9]{4}-[0-9]{3}$/;
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 const CREATE_FLAGS = ["reason", "risk", "control", "owner", "expires"] as const;
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function waiverRel(id: string): string {
   return `.warrant/waivers/${id}.json`;
@@ -111,8 +106,8 @@ function create(ctx: Ctx, args: string[], opts: WaiveOptions): CommandResult {
   const [change, gateId] = args as [string, string];
   const reason = opts.reason?.trim() ?? "";
   if (reason === "") throw new WarrantError("USAGE", "--reason <text> is required: why the gate cannot be satisfied");
-  if (opts.risk === undefined || !RISKS.includes(opts.risk)) {
-    throw new WarrantError("USAGE", `--risk must be one of ${RISKS.join(", ")}`);
+  if (opts.risk === undefined || !(RISK_LEVELS as readonly string[]).includes(opts.risk)) {
+    throw new WarrantError("USAGE", `--risk must be one of ${RISK_LEVELS.join(", ")}`);
   }
   const controls = (opts.control ?? []).map((c) => c.trim());
   if (controls.length === 0 || controls.some((c) => c === "")) {

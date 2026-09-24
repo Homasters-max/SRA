@@ -38,15 +38,16 @@ import {
 } from "../core/classify/index.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
+import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
+import { BELOW_FLOOR_APPROVABLE_STATES } from "../core/record/lifecycle.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { assertNotFrozen } from "../core/record/write.js";
 import { resolveForProject, RISK_DIMENSIONS, type Classification, type RiskDimension } from "../core/resolve/index.js";
-import { roleMembers } from "../core/validate/waivers.js";
+import { approvalRoles, checkRef, FALLBACK_ROLE, roleMembers } from "../core/roles.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath } from "./context.js";
-import { approvalRoles, checkRef, FALLBACK_ROLE } from "./transition.js";
 
 export interface ClassifyOptions {
   /** Ref, с которым сравнивается HEAD; по умолчанию `main`. */
@@ -65,9 +66,6 @@ export interface ClassifyOptions {
 
 /** The transition whose approvers may approve a value below the floor (REQ-KRN-028). */
 export const BELOW_FLOOR_APPROVAL = "SPECIFIED->APPROVED";
-
-/** States in which a value below the floor may be approved: before `APPROVED`. */
-const APPROVABLE_STATES = ["PROPOSED", "SPECIFIED"];
 
 /** Parsed `--set` values; `USAGE` for anything that is not `<dimension>=<value>` or `profile=<id>`. */
 export function parseSets(sets: readonly string[]): { profiles: string[]; risk: Partial<Record<RiskDimension, string>> } {
@@ -127,10 +125,6 @@ function humanValues(loaded: LoadResult, sets: ReturnType<typeof parseSets>, log
   if (Object.keys(sets.risk).length > 0) human.risk = sets.risk;
   if (ref !== undefined) human.ref = ref;
   return human;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -275,7 +269,7 @@ export async function runClassify(ctx: Ctx, change: string, opts: ClassifyOption
     }
     checkRef(ref);
     const state = String(record["change_state"]);
-    if (!APPROVABLE_STATES.includes(state)) {
+    if (!(BELOW_FLOOR_APPROVABLE_STATES as readonly string[]).includes(state)) {
       throw new WarrantError(
         "STATE_INVALID",
         `record of "${change}" is ${state}: a value below the floor is approved only in PROPOSED or SPECIFIED`,

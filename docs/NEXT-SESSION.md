@@ -136,19 +136,19 @@ version: 0.4.1
 
 | # | Проблема (аудит 2026-09-24) | Приоритет | Куда |
 |---|---|---|---|
-| A-1 | Цепочка состояний lifecycle в 4 копиях (`record/write.ts`, `commands/check.ts`, `commands/gate.ts`, `ids/immutable.ts`) | P1 | `arch-boundaries` гр. 3 |
-| A-2 | Конвейер оценки перехода в `commands/gate.ts` + `check.ts`, копии в verify / archive / transition; 26 рёбер `commands → commands` | P1 | `arch-boundaries` гр. 5 (`core/transition`) |
-| A-3 | God-модуль `core/packs/loader.ts` (783 строки, fan-in 21; утилиты ФС, конфиг, граф pack'ов, `weakenings`) | P2 | `arch-boundaries` гр. 2 (`core/fs`) |
-| A-4 | Цикл модулей `core/canon ↔ core/packs` (runtime) | P2 | `arch-boundaries` гр. 2 (следствие A-3) |
-| A-5 | Нетипизированный JSON: 22 копии `isPlainObject`, 83 `json["…"]` | P2 | общий guard — `arch-boundaries` гр. 2 (`core/json`); типизированные читатели (L) — долг, отдельным ADR |
-| A-6 | Git-факты в `core/gates/diff.ts` (6 команд), `adapters/git-cli.ts → core/gates/diff.ts` | P2 | `arch-boundaries` гр. 4 (`core/git`) |
-| A-7 | Роли и waivers разрезаны между `validate`, `gates`, `commands` | P2 | `arch-boundaries` гр. 4 (`core/waivers`, `core/roles`) |
+| ~~A-1~~ | ~~Цепочка состояний lifecycle в 4 копиях (`record/write.ts`, `commands/check.ts`, `commands/gate.ts`, `ids/immutable.ts`) и подмножества состояний вне владельца (`commands/classify.ts`, `commands/link.ts`, `commands/transition.ts`, `core/ids/renumber.ts`, `core/validate/links.ts`)~~ | P1 | **закрыт** arch-boundaries (гр. 3), [#23](https://github.com/Homasters-max/SRA/pull/23) |
+| ~~A-2~~ | ~~Конвейер оценки перехода в `commands/gate.ts` + `check.ts`, копии в verify / archive / transition; 26 рёбер `commands → commands`~~ | P1 | **закрыт** arch-boundaries (гр. 5), [#23](https://github.com/Homasters-max/SRA/pull/23) |
+| ~~A-3~~ | ~~God-модуль `core/packs/loader.ts` (783 строки, fan-in 21; утилиты ФС, конфиг, граф pack'ов, `weakenings`)~~ | P2 | **закрыт** arch-boundaries (гр. 2), [#23](https://github.com/Homasters-max/SRA/pull/23) |
+| ~~A-4~~ | ~~Цикл модулей `core/canon ↔ core/packs` (runtime)~~ | P2 | **закрыт** arch-boundaries (гр. 2), [#23](https://github.com/Homasters-max/SRA/pull/23) |
+| A-5 | Нетипизированный JSON: 22 копии `isPlainObject`, 83 `json["…"]` | P2 | общий guard — **закрыт** arch-boundaries (гр. 2), [#23](https://github.com/Homasters-max/SRA/pull/23); остаётся: типизированные читатели (L) — долг, отдельным ADR; копии `strings` под другими именами (гр. 2, I-144) — `stringArray` и тело `providedList` в `core/sync/plan.ts`, `stringsOf` в `commands/link.ts`, `stringList` в `core/sync/rules.ts`, `targetsOf` в `core/validate/links.ts` (вне реестра помощников, храповик их не ловит) |
+| ~~A-6~~ | ~~Git-факты в `core/gates/diff.ts` (6 команд), `adapters/git-cli.ts → core/gates/diff.ts`~~ | P2 | **закрыт** arch-boundaries (гр. 4), [#23](https://github.com/Homasters-max/SRA/pull/23) |
+| ~~A-7~~ | ~~Роли и waivers разрезаны между `validate`, `gates`, `commands`~~ | P2 | **закрыт** arch-boundaries (гр. 4), [#23](https://github.com/Homasters-max/SRA/pull/23) |
 | A-8 | `findChangeDir` в `core/init/scaffold.ts` → рёбра `ids → init`, `status → init` | P3 | долг (храповик) |
 | A-9 | `commands/validate.ts` — ручная последовательность 13 проверок, самый частый churn команд | P3 | долг; реестр проверок — при 14-й |
-| A-10 | Цикл `core ↔ core/ports ↔ core/openspec` только через `import type` | P3 | `arch-boundaries` гр. 4 (вместе с A-11) |
-| A-11 | `adapters/openspec-cli.ts → core/openspec/status.ts` (`parseOpenspecStatus`): разбор вывода `openspec` в домене (spec `arch-boundaries`) | P2 | `arch-boundaries` гр. 4 |
+| ~~A-10~~ | ~~Цикл `core ↔ core/ports ↔ core/openspec` только через `import type`~~ | P3 | **закрыт** arch-boundaries (гр. 4), [#23](https://github.com/Homasters-max/SRA/pull/23) |
+| ~~A-11~~ | ~~`adapters/openspec-cli.ts → core/openspec/status.ts` (`parseOpenspecStatus`): разбор вывода `openspec` в домене (spec `arch-boundaries`)~~ | P2 | **закрыт** arch-boundaries (гр. 4), [#23](https://github.com/Homasters-max/SRA/pull/23) |
 | A-12 | `adapters/check-runner.ts → core/check/interrupt.ts` (`onInterrupt`): обработка сигналов общая у адаптера и `core/check/lock.ts` (spec `arch-boundaries`) | P3 | долг (храповик) |
-| A-13 | Перечисления вне владельца, кроме lifecycle: `commands/waive.ts:L50` `RISKS`, `commands/transition.ts:L109` `PASSING`, прочие — реестр группы 1 (spec `arch-boundaries`) | P2 | `arch-boundaries` гр. 3 |
+| ~~A-13~~ | ~~Перечисления вне владельца, кроме lifecycle: `commands/waive.ts:L50` `RISKS`, `commands/transition.ts:L109` `PASSING`, прочие — реестр группы 1 (spec `arch-boundaries`)~~ | P2 | **закрыт** arch-boundaries (гр. 3), [#23](https://github.com/Homasters-max/SRA/pull/23) |
 
 ### Ревью фазы 3 (2026-09-23) — R-1…R-16
 
@@ -211,7 +211,7 @@ verify → transition`, gate engine, runner) — нет. Нерешённые в
 | Отклонение от spec — строкой I-N в design.md, вопросом maintainer'у | pack `rules.design` (1.4) | правило о решении (ADR-0022 допускает без `enforced_by`); нумерацию I-N ведёт `/decision` (ниже) |
 | NEXT-SESSION обновляется в конце сессии | этот файл | процедура `/next-session` (ниже) |
 | Архитектурный аудит перед spec-PR каждой фазы; находки — A-N в «Архитектурный долг» | навык `architecture-audit`, grilling 2026-09-24 (Q6, Q7, Q15) | правило о решении; шаг 5 `/next-session`: следующий шаг — фаза → готовый запрос начинается с аудита, снимок старше последнего тега помечается устаревшим |
-| Направление зависимостей модулей, циклы, копии помощников, один владелец перечислений | grilling 2026-09-24 (Q3, Q10–Q13), ADR-0030 | **после `arch-boundaries`**: `test/unit/meta/architecture.test.ts` (ранги, реестры, храповик A-N); до него — только аудит |
+| Направление зависимостей модулей, циклы, копии помощников, один владелец перечислений | grilling 2026-09-24 (Q3, Q10–Q13), ADR-0030 | `test/unit/meta/architecture.test.ts` + `architecture.json` (ранги, слои, циклы, sibling, реестры, храповик A-N) — arch-boundaries (гр. 1–5) |
 | Graft только через `cs.js`, разрешённые подкоманды, флаги и версия | ADR-0026 п. 2, ADR-0028 п. 2, 4, ADR-0029 п. 3 | `scripts/dev/cs.js` (код 2 / 3), `test/unit/dev/cs.test.ts`; обновление — `graph-audit.js --baseline` + регрессия бенчмарка `bench-score.js report` |
 | Поиск по коду — навык `code-search` | ADR-0028 п. 3, 5, ADR-0029 п. 1, 5, 6 | хук `SubagentStart` (указатель на навык) и `PostToolUse` (подсказка по `deviationsOf`) у субагентов; `graft-metrics run --mode on`: `deviations` (детектор с unit-тестами), > 3 → `compliant: false` |
 | Хуки разработки — только `hooks`, только `cs-hook.js` | ADR-0029 п. 6, 7 | `test/unit/meta/dev-hooks.test.ts` |

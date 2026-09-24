@@ -11,11 +11,13 @@ import path from "node:path";
 
 import { bytesHash, canonicalHash } from "../canon/hash.js";
 import type { CliError } from "../errors.js";
+import { reportPath, walkFiles } from "../fs.js";
+import { isPlainObject } from "../json.js";
 import { validateFile } from "../schemas/semantic.js";
 import { CLI_VERSION, KERNEL_VERSION } from "../../version.js";
 import semver from "semver";
 
-import { bundledPacksDir, reportPath, walkFiles } from "./loader.js";
+import { bundledPacksDir } from "./loader.js";
 import type { LoadedPack } from "./types.js";
 
 export const LOCK_REL = ".warrant/warrant.lock.json";
@@ -27,10 +29,6 @@ export const LOCK_REL = ".warrant/warrant.lock.json";
  */
 export function bundleRoot(): string {
   return path.dirname(bundledPacksDir());
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function err(code: CliError["code"], message: string, p: string): CliError {

@@ -19,12 +19,13 @@
  */
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, type CliError } from "../core/errors.js";
-import { readGitFacts, type Availability } from "../core/gates/diff.js";
+import { readGitFacts, type Availability } from "../core/git/facts.js";
 import type { Finding, Verdict } from "../core/gates/types.js";
 import { findChangeDir } from "../core/init/scaffold.js";
-import type { ArtifactStatuses } from "../core/openspec/status.js";
+import type { ArtifactStatuses } from "../core/ports/openspec.js";
 import { openspecAvailable } from "../core/openspec/version.js";
 import { loadPacks } from "../core/packs/loader.js";
+import { nextForwardTransition } from "../core/record/lifecycle.js";
 import {
   listChangeNames,
   readAllRecords,
@@ -37,10 +38,11 @@ import { rulesSummary } from "../core/validate/rules.js";
 import { computeStale, type StaleEntry } from "../core/status/stale.js";
 import { resolveForProject, type Classification } from "../core/resolve/index.js";
 import type { LoadResult } from "../core/packs/types.js";
+import { projectFacts, type ProjectFacts } from "../core/transition/facts.js";
+import { decisionFields, evaluateTransition, evaluationFindings } from "../core/transition/gates.js";
+import { conflictDecision } from "../core/transition/policy.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { nextForwardTransition } from "./check.js";
 import { requireConfigPath } from "./context.js";
-import { conflictDecision, decisionFields, evaluateTransition, evaluationFindings, projectFacts, type ProjectFacts } from "./gate.js";
 
 /** One Change as `data` (single form) or as one entry of `data.changes[]`. */
 export interface ChangeStatus {

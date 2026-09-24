@@ -10,7 +10,7 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { GitCli } from "../../../src/adapters/git-cli.js";
-import { changedPaths, projectPrefix, readGitFacts } from "../../../src/core/gates/diff.js";
+import { changedPaths, projectPrefix, readGitFacts } from "../../../src/core/git/facts.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 
 const temp: string[] = [];

@@ -7,7 +7,7 @@
  */
 import type { EffectivePolicy } from "../../resolve/types.js";
 import type { EvidenceInput, Finding, GateSignals, Verdict, WaiverInput } from "../types.js";
-import type { WaiverContext } from "../waivers.js";
+import type { WaiverContext } from "../../waivers/status.js";
 
 export interface L0Context {
   gate: string;

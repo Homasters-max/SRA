@@ -1,0 +1,60 @@
+{
+  "root": "packages/cli/src",
+  "modules": [
+    { "id": "core", "path": "core", "direct": true, "rank": 0 },
+    { "id": "version.ts", "path": "version.ts", "rank": 0 },
+    { "id": "core/ports", "path": "core/ports", "rank": 0 },
+    { "id": "core/fs", "path": "core/fs.ts", "rank": 0 },
+    { "id": "core/json", "path": "core/json.ts", "rank": 0 },
+    { "id": "core/canon", "path": "core/canon", "rank": 0 },
+    { "id": "core/schemas", "path": "core/schemas", "rank": 0 },
+    { "id": "core/packs", "path": "core/packs", "rank": 1 },
+    { "id": "core/record", "path": "core/record", "rank": 1 },
+    { "id": "core/openspec", "path": "core/openspec", "rank": 1 },
+    { "id": "core/evidence", "path": "core/evidence", "rank": 1 },
+    { "id": "core/ids", "path": "core/ids", "rank": 1 },
+    { "id": "core/init", "path": "core/init", "rank": 1 },
+    { "id": "core/resolve", "path": "core/resolve", "rank": 2 },
+    { "id": "core/classify", "path": "core/classify", "rank": 2 },
+    { "id": "core/waivers", "path": "core/waivers", "rank": 2 },
+    { "id": "core/roles", "path": "core/roles.ts", "rank": 2 },
+    { "id": "core/git", "path": "core/git", "rank": 2 },
+    { "id": "core/gates", "path": "core/gates", "rank": 3 },
+    { "id": "core/controller", "path": "core/controller", "rank": 3 },
+    { "id": "core/check", "path": "core/check", "rank": 3 },
+    { "id": "core/validate", "path": "core/validate", "rank": 3 },
+    { "id": "core/sync", "path": "core/sync", "rank": 3 },
+    { "id": "core/status", "path": "core/status", "rank": 3 },
+    { "id": "core/transition", "path": "core/transition", "rank": 4 },
+    { "id": "commands", "path": "commands", "layer": "commands" },
+    { "id": "io", "path": "io", "layer": "io" },
+    { "id": "bin", "path": "bin", "layer": "bin" },
+    { "id": "adapters", "path": "adapters", "layer": "adapters" }
+  ],
+  "layers": {
+    "commands": ["rank:*", "io", "version.ts"],
+    "io": ["core"],
+    "bin": ["commands", "adapters", "core/ports", "core", "io", "version.ts"],
+    "adapters": ["core/ports", "core"]
+  },
+  "no_sibling_imports": { "commands": ["commands/context.ts"] },
+  "helpers": [
+    { "name": "isPlainObject", "owner": "core/json.ts" },
+    { "name": "strings", "owner": "core/json.ts" },
+    { "name": "posix", "owner": "core/fs.ts" },
+    { "name": "reportPath", "owner": "core/fs.ts" },
+    { "name": "walkFiles", "owner": "core/fs.ts" },
+    { "name": "readJson", "owner": "core/fs.ts" }
+  ],
+  "enums": [
+    { "id": "change-state", "owner": "core/record/lifecycle.ts", "doc": "docs/02-vocabulary.md", "values": ["PROPOSED", "SPECIFIED", "APPROVED", "IMPLEMENTING", "VERIFYING", "MERGED", "ARCHIVED", "ABANDONED"] },
+    { "id": "transition", "owner": "core/record/lifecycle.ts", "doc": "docs/04-lifecycle.md", "values": ["PROPOSED->SPECIFIED", "SPECIFIED->APPROVED", "APPROVED->IMPLEMENTING", "IMPLEMENTING->VERIFYING", "VERIFYING->MERGED", "MERGED->ARCHIVED", "VERIFYING->IMPLEMENTING", "IMPLEMENTING->SPECIFIED"] },
+    { "id": "verdict", "owner": "core/gates/types.ts", "doc": "docs/02-vocabulary.md", "values": ["PASS", "FAIL", "WAIVED", "NOT_APPLICABLE", "BLOCKED"] },
+    { "id": "controller-action", "owner": "core/controller/evaluate.ts", "doc": "docs/02-vocabulary.md", "values": ["CONTINUE", "WAIT", "STOP", "ESCALATE"] },
+    { "id": "risk-level", "owner": "core/resolve/types.ts", "doc": "docs/05-policy.md", "values": ["LOW", "MEDIUM", "HIGH"] },
+    { "id": "id-prefix", "owner": "core/ids/scan.ts", "doc": "docs/02-vocabulary.md", "values": ["REQ", "SCN", "TASK", "ADR", "DCT", "UNK", "ASM", "EVID", "RUN", "WAV"] }
+  ],
+  "exceptions": [
+    { "id": "A-12", "rule": "rank", "from": "adapters/check-runner.ts", "to": "core/check/interrupt.ts" }
+  ]
+}

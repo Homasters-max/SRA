@@ -11,7 +11,7 @@ import { openBlockingUnknowns } from "../gates/l0/blocking-unknowns-resolved.js"
 import { missingArtifacts } from "../gates/l0/required-artifacts-present.js";
 import { requirementsOf, worstVerdict } from "../gates/verdict.js";
 import { MERGE_TRANSITION, type Availability, type Finding, type Verdict } from "../gates/types.js";
-import type { ArtifactStatuses } from "../openspec/status.js";
+import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { EffectivePolicy } from "../resolve/types.js";
 
 export interface ControllerInputs {

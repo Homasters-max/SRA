@@ -14,6 +14,7 @@ import Ajv2020Cjs, { type ValidateFunction } from "ajv/dist/2020.js";
 import addFormatsCjs from "ajv-formats";
 
 import type { CliError } from "../errors.js";
+import { isPlainObject } from "../json.js";
 import type { EvidenceKind, LoadResult } from "../packs/types.js";
 import { messageOf, pointerOf, validateDocument } from "../schemas/loader.js";
 
@@ -26,10 +27,6 @@ const addFormats = addFormatsCjs as unknown as (ajv: AjvLike, formats: string[])
 
 export const EVIDENCE_DIR = path.join(".warrant", "evidence");
 export const MANIFEST_FILE = "manifest.json";
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /**
  * Compiles the `metrics` form of every kind that declares one. A form that is

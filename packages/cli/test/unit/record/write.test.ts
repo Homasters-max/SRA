@@ -7,13 +7,8 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { WarrantError } from "../../../src/core/errors.js";
-import {
-  appendTransition,
-  assertNotFrozen,
-  CHANGE_STATES,
-  transitionKind,
-  withTransition
-} from "../../../src/core/record/write.js";
+import { CHANGE_STATES, transitionKind } from "../../../src/core/record/lifecycle.js";
+import { appendTransition, assertNotFrozen, withTransition } from "../../../src/core/record/write.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 
 const tempDirs: string[] = [];

@@ -6,8 +6,7 @@
  */
 import path from "node:path";
 
-import { parseNameStatus } from "../core/gates/diff.js";
-import type { BlobTree, DiffEntry, GitAnswer, GitPort } from "../core/ports/git.js";
+import type { BlobTree, DiffEntry, DiffStatus, GitAnswer, GitPort } from "../core/ports/git.js";
 import { exec } from "./exec.js";
 
 interface GitRun {
@@ -25,6 +24,35 @@ function detailOf(run: GitRun): string {
 function answer(run: GitRun): string | null {
   const value = run.stdout.trim();
   return run.ok && value !== "" ? value : null;
+}
+
+/**
+ * Parses `git diff --name-status -z` output. With `-z` every field ends in NUL
+ * and paths are never quoted; a rename or copy (`R100`, `C75`) carries two
+ * paths, source first. Parsing git's output is the adapter's (ADR-0030 п. 1, A-6).
+ */
+export function parseNameStatus(output: string): DiffEntry[] {
+  const fields = output.split("\0");
+  const out: DiffEntry[] = [];
+  let i = 0;
+  while (i < fields.length) {
+    const code = fields[i] ?? "";
+    if (code === "") {
+      i += 1;
+      continue;
+    }
+    const status = code[0] as DiffStatus;
+    if (status === "R" || status === "C") {
+      const from = fields[i + 1] ?? "";
+      const to = fields[i + 2] ?? "";
+      out.push({ status, path: to, from });
+      i += 3;
+    } else {
+      out.push({ status, path: fields[i + 1] ?? "" });
+      i += 2;
+    }
+  }
+  return out;
 }
 
 export class GitCli implements GitPort {

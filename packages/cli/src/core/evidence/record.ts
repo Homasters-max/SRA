@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 
 import { bytesHash, canonicalHash } from "../canon/hash.js";
-import { walkFiles } from "../packs/loader.js";
+import { walkFiles } from "../fs.js";
 import type { Attestation } from "./attestation.js";
 import { projectUri } from "./store.js";
 

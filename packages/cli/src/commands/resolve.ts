@@ -10,6 +10,7 @@ import path from "node:path";
 
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
+import { posix } from "../core/fs.js";
 import { loadPacks } from "../core/packs/loader.js";
 import { readChangeRecord, readJsonFile } from "../core/record/read.js";
 import { resolveForProject, type Classification } from "../core/resolve/index.js";
@@ -20,10 +21,6 @@ import { requireConfigPath } from "./context.js";
 export interface ResolveOptions {
   explain?: boolean;
   classification?: string;
-}
-
-function posix(p: string): string {
-  return p.split(path.sep).join("/");
 }
 
 /**

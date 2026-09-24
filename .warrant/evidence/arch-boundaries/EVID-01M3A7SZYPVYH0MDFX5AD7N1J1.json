@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3A7SZYPVYH0MDFX5AD7N1J1",
+  "claim": {
+    "text": "Homasters-max approved arch-boundaries for SPECIFIED->APPROVED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "2eba96c75d772d8b1fc592f5d2ac2542dd6354c4",
+    "base_commit": "2eba96c75d772d8b1fc592f5d2ac2542dd6354c4",
+    "spec_revision": "openspec/changes/arch-boundaries@2eba96c75d772d8b1fc592f5d2ac2542dd6354c4",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/22"
+  },
+  "context_hash": "sha256:b2f0861f2aee7f255011c277ee668dd16b6fac78d147a58d43c74f85178282e0",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-24T17:35:56.887Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

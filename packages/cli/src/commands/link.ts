@@ -13,6 +13,7 @@
  */
 import type { Ctx } from "../core/ctx.js";
 import { WarrantError } from "../core/errors.js";
+import { LINKABLE_STATES } from "../core/record/lifecycle.js";
 import { readAllRecords, readChangeRecord } from "../core/record/read.js";
 import { assertNotFrozen, recordPath, stateOfRecord, writeRecord } from "../core/record/write.js";
 import { linkTargetProblem, type LinkField } from "../core/validate/links.js";
@@ -24,9 +25,6 @@ export interface LinkOptions {
   supersedes?: string | undefined;
   remove?: boolean | undefined;
 }
-
-/** States in which the links of a record may change (REQ-KRN-030). */
-const LINKABLE_STATES = ["PROPOSED", "SPECIFIED"];
 
 function stringsOf(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
@@ -47,7 +45,7 @@ export function runLink(ctx: Ctx, change: string, opts: LinkOptions = {}): Comma
   const record = readChangeRecord(root, change);
   assertNotFrozen(record, change);
   const state = stateOfRecord(record);
-  if (!LINKABLE_STATES.includes(state)) {
+  if (!(LINKABLE_STATES as readonly string[]).includes(state)) {
     throw new WarrantError(
       "STATE_INVALID",
       `record of "${change}" is ${state}: amends/supersedes change only in PROPOSED or SPECIFIED, before approval`,

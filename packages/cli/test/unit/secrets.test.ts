@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { scanSecrets, scanText, SECRET_PATTERNS } from "../../src/core/secrets.js";
-import { reportPath, walkFiles } from "../../src/core/packs/loader.js";
+import { reportPath, walkFiles } from "../../src/core/fs.js";
 import { CLI_ROOT, makeTempDir, removeDir } from "../helpers/cli.js";
 
 const tempDirs: string[] = [];

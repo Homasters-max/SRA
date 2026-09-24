@@ -14,6 +14,7 @@
  * transition lists in `requires_evidence` (`EVIDENCE_KIND_UNGATED`, R-7).
  */
 import { canonicalHash } from "../canon/hash.js";
+import { strings } from "../json.js";
 import {
   LAYER_ORDER,
   type Approval,
@@ -44,10 +45,6 @@ export interface ResolveInput {
 export type ResolveResult =
   | { ok: true; policy: EffectivePolicy }
   | { ok: false; conflict: PolicyConflict };
-
-function strings(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
-}
 
 function sortStrings(values: Iterable<string>): string[] {
   return [...values].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));

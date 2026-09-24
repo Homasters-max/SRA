@@ -2,11 +2,8 @@
  * `blocking-unknowns-resolved`: the record has no `unknowns[]` entry with
  * `blocking: true` and no `resolution` (REQ-VER-004, SCN-VER-022).
  */
+import { isPlainObject } from "../../json.js";
 import { pass, type Calculator } from "./types.js";
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /** Ids of the open blocking UNKNOWNs of a record, in record order. */
 export function openBlockingUnknowns(unknowns: readonly unknown[]): string[] {

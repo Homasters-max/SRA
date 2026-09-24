@@ -4,7 +4,8 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { parseNameStatus, relativeToProject, type DiffEntry } from "../../../src/core/gates/diff.js";
+import { parseNameStatus } from "../../../src/adapters/git-cli.js";
+import { relativeToProject, type DiffEntry } from "../../../src/core/git/facts.js";
 import { scopeViolations } from "../../../src/core/gates/l0/scope-valid.js";
 
 const POLICY_PATHS = [".warrant/**", "openspec/schemas/**", "openspec/config.yaml", "packs/**", "packages/cli/schemas/**", "sra/skills/**"];

@@ -12,10 +12,7 @@ import path from "node:path";
 import { monotonicFactory } from "ulid";
 
 import { WarrantError } from "../errors.js";
-import { SPEC_LEVEL_PREFIXES, loadAreas, scanIds } from "./scan.js";
-
-/** Prefixes carrying a ULID instead of a counter (ADR-0012 point 2). */
-export const ULID_PREFIXES = ["EVID", "RUN"] as const;
+import { SPEC_LEVEL_PREFIXES, ULID_PREFIXES, loadAreas, scanIds } from "./scan.js";
 
 export type SpecLevelPrefix = (typeof SPEC_LEVEL_PREFIXES)[number];
 

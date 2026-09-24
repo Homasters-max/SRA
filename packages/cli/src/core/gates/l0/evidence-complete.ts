@@ -9,7 +9,7 @@
  * counts (`waiverStatus`, design §1 — the same predicate as step 4 of the
  * verdict). A kind accounted for by neither is a `FAIL` naming it.
  */
-import { waiverStatus } from "../waivers.js";
+import { waiverStatus } from "../../waivers/status.js";
 import { pass, type Calculator, type L0Context } from "./types.js";
 
 /** Statuses of a record that account for its kind (R-8): a `NOT_PROVEN` record proves nothing. */

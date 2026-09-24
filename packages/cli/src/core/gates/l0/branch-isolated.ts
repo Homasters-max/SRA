@@ -3,7 +3,7 @@
  * branch exists (HEAD is not detached) and is not the base branch `main`
  * (ADR-0011, REQ-VER-004, SCN-VER-023).
  */
-import { BASE_BRANCH } from "../diff.js";
+import { BASE_BRANCH } from "../../git/facts.js";
 import { noInput, pass, type Calculator } from "./types.js";
 
 export const branchIsolated: Calculator = (ctx) => {

@@ -19,7 +19,8 @@ import path from "node:path";
 
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
-import { walkFiles, loadPacks, reportPath } from "../core/packs/loader.js";
+import { reportPath, walkFiles } from "../core/fs.js";
+import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { openspecAvailable, requireOpenspec } from "../core/openspec/version.js";
 import { planSync } from "../core/sync/plan.js";
@@ -29,7 +30,7 @@ import { checkImmutableIds } from "../core/ids/immutable.js";
 import { readAllRecords } from "../core/record/read.js";
 import { checkRuleScope } from "../core/validate/rules.js";
 import { checkLinkTargets } from "../core/validate/links.js";
-import { checkWaivers } from "../core/validate/waivers.js";
+import { checkWaivers } from "../core/waivers/check.js";
 import { checkEvidence } from "../core/validate/evidence.js";
 import { checkDangling } from "../core/validate/dangling.js";
 import { scanSecrets } from "../core/secrets.js";

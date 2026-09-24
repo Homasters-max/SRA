@@ -15,8 +15,13 @@
  *
  * Whether the waiver is about this gate and this Change is the caller's
  * business: the predicate judges the waiver against the gate it names.
+ * Owner: `core/waivers` (ADR-0030 п. 1, R2; A-7), moved from `core/gates/waivers.ts`.
  */
-import { approverLogin } from "./prefilter.js";
+
+/** Login of a waiver's `approved_by`, without the `human:` prefix. */
+export function approverLogin(waiver: Record<string, unknown>): string {
+  return String(waiver["approved_by"]).replace(/^human:/, "");
+}
 
 export type WaiverIgnoredReason = "state" | "expired" | "approver" | "waivable" | "targets";
 

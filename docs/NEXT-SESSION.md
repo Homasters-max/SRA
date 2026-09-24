@@ -1,6 +1,6 @@
 ---
 id: WARRANT-NEXT
-title: WARRANT — следующий шаг: process-PR о `PreToolUse deny` по замеру ADR-0029 п. 8, затем аудит и grilling фазы 4
+title: WARRANT — следующий шаг: реализация ADR-0031 (`PreToolUse deny` у субагентов, H-1…H-9), затем аудит и grilling фазы 4
 status: informative
 maturity: MVP
 version: 0.4.2
@@ -92,12 +92,19 @@ version: 0.4.2
   - **замер ADR-0029 п. 8** (группы 1–3 против базы test-levels `[A]` g1/g3/g5): отступлений 2 / 1 / 2 (база 2 / 2 / 50), чтений
     целиком 1 / 0 / 0 (база 2 / 2 / 45), explore 137 / 163 / 124 КБ (база 122 / 134 / 1191), вызовов 55 / 70 / 51 (80 / 59 /
     358), все `compliant`, `misled` нет, ложных подсказок хука нет — все отступления настоящие (shell `grep`/`cat` по коду).
-    Группы 4 и 5 — `compliant: false` (10 и 9: чтения целиком, shell-поиск, `cs output truncated` ×3 и ×1), ошибок это не
-    дало. Пробелы `cs`: `impact` пуст для типов и констант модуля (заменял `cs grep`); `cs deps --level 2` считает файлы
+    Группы 4 и 5 — `compliant: false` (10 и 9: чтения целиком, shell-поиск, `cs output truncated` ×3 и ×1 — это агент
+    обрезал вывод `cs` через `head`/`tail`, не лимит `cs`), ошибок это не дало. Пробелы `cs`: `impact` для констант и
+    типов неполон — grep-часть ищет только вызовы и импорт, использования как значения пропускает (`RISK_LEVELS`:
+    `waive.ts:109–110`, `FALLBACK_ROLE`: `classify.ts:108`, `roles.ts:44`); `cs deps --level 2` считает файлы
     `core/*.ts` частью модуля `core`, а ADR-0030 — отдельными модулями (ложный цикл `core ↔ core/resolve`, I-146);
     одноимённая локальная `evaluate` в `test/unit/gates/verdict.test.ts` обрезает срезы `arch-snapshot` (I-147, не
     переименована — ADR-0029 Consequences). Записи — `graft-lab/runs/arch-boundaries-g1…g6.json`. Решение о `PreToolUse
-    deny` — process-PR (Q25).
+    deny` — **принято** (grilling 2026-09-24, H-1…H-9 ниже), реализация — ADR-0031 в следующей сессии.
+  - Разбор транскриптов для H-1…H-9: детектор `deviationsOf` без результата вызова (режим `PreToolUse`) совпал с режимом
+    `PostToolUse` на 20 из 21 помеченных вызовов (промах — `python - <<EOF`, читающий файлы изнутри); **ложное
+    срабатывание** — g3, `grep` по `edits2.js` в scratchpad: `isCodeFile` (`graft-metrics-lib.js`) считает кодом любой
+    `.ts`/`.js`, а навык — только `packages/**`, `scripts/**` репозитория; пограничные — `grep -c` по только что записанному
+    файлу (g2, g5); предупреждения поведение не меняли — после первой подсказки хука ещё 9 отступлений в g4 и 8 в g5.
 - **Итог фазы 3:**
   - capability `verification` (REQ-VER-001…008): `warrant check` (runner без shell, замок `exclusive` в `git-common-dir`,
     `timeout_s` с kill дерева, parsers `junit`/`openspec-validate`, evidence + manifest, attestation `ci` под GitHub Actions),
@@ -142,7 +149,7 @@ version: 0.4.2
 | `analyze` | **Решено V-1**: фаза 4 | — |
 | ~~тесты под нагрузкой~~ | **закрыт** test-levels: `npm test` без флагов ~70 с, зелёный 3 раза подряд (I-138: `unit`/`app` первой группой, тяжёлые — `maxForks`), `validate` репозитория 4,5 с (3.1). Было: `warrant validate` на репозитории — ~30 с (вызовы `openspec` на каждый Change/spec); полный `npm test` с параллелизмом по умолчанию на машине maintainer'а даёт таймауты e2e `validate`/`golden` (поодиночке и с `--maxWorkers=3` — зелёные, CI — зелёный). Один `openspec` на проект невозможен (у OpenSpec 1.13.1 нет пакетного `show`); таймауты не поднимаем | **решено ADR-0025**: `test-levels` — `show` только для файлов с id и параллельно, логика в `unit`/`app` без процессов; до его закрытия `/group-done` гоняет `--maxWorkers=3` вручную |
 | I-103 | Пред-фильтр исключает запись, чей `metrics.waivers[]` ссылается на waiver с `targets[]` — пересмотреть вместе с D-10 | фаза 5 |
-| Graft | **Закрыт** ADR-0028, **аудит** ADR-0029 ([process/graft-audit.md](process/graft-audit.md)): граф не видит вызовов через порты (0/284) → правило 3 навыка — `cs impact`; `cs deps` / `cs dups` / `--json`; строгая обёртка; регрессия графа `graph-audit.js` + бенчмарк q1–q17 (`accept`); хуки разработки `.claude/settings.json` → `scripts/dev/cs-hook.js` (`SubagentStart`, `PostToolUse` — предупреждение) | ~~2–3 группы после ADR-0029 сравнить с базой `test-levels` `[A]`~~ — **сделано** на группах 1–3 `arch-boundaries` (состояние, «arch-boundaries закрыт»); решение о `PreToolUse deny` — process-PR; ~~помощник навыка `architecture-audit` — на `cs deps --json`~~ — **закрыт** (`scripts/dev/arch-snapshot.js` поверх `cs --json`) |
+| Graft | **Закрыт** ADR-0028, **аудит** ADR-0029 ([process/graft-audit.md](process/graft-audit.md)): граф не видит вызовов через порты (0/284) → правило 3 навыка — `cs impact`; `cs deps` / `cs dups` / `--json`; строгая обёртка; регрессия графа `graph-audit.js` + бенчмарк q1–q17 (`accept`); хуки разработки `.claude/settings.json` → `scripts/dev/cs-hook.js` (`SubagentStart`, `PostToolUse` — предупреждение) | ~~2–3 группы после ADR-0029 сравнить с базой `test-levels` `[A]`~~ — **сделано** на группах 1–3 `arch-boundaries` (состояние, «arch-boundaries закрыт»); решение о `PreToolUse deny` — **принято** H-1…H-9, реализация — ADR-0031 (process-PR); ~~помощник навыка `architecture-audit` — на `cs deps --json`~~ — **закрыт** (`scripts/dev/arch-snapshot.js` поверх `cs --json`) |
 | `fmt` packs | `warrant fmt --check` без пути не проверяет `packs/**`; `packs/core-sdd/pack.json` неканоничен (порядок `rules`/`skills`), а правило `json-canonical` из черновика `rule/1` покрывает `packs/**/*.json` | вместе с первым правилом `rule/1` или отдельным fix |
 
 ### Архитектурный долг — A-N (аудиты [process/audits/](process/audits/))
@@ -296,20 +303,38 @@ ADR-0020 п. 11), но добавляет входы (`guard`, `run`, `ci`, `ana
 | Q4–Q8, Q15, Q20–Q22 | Методика: инвентарь понятий из словаря; снимок `arch-snapshot/1` в `docs/process/audits/` и тренд; аудит перед spec-PR каждой фазы (`/next-session`); A-N в NEXT-SESSION; облегчённый проход `test/`; срез заканчивается на порту; качество графа — не предмет аудита (ADR-0029) — **сделано** process-PR |
 | Q23 | A-10 и A-11 чинятся в группе 4 вместе с A-6: типы статусов артефактов — в `core/ports/openspec.ts`, `parseOpenspecStatus` — в `adapters/openspec-cli.ts`; цикл A-10 исчезает попутно |
 | Q24 | A-12 (`onInterrupt` из `core/check` в адаптере) — долг под храповиком, P3; решать вместе с портом `guard` в фазе 4 (перенос в R0 дал бы лист с побочным эффектом `process.on`) |
-| Q25 | Решение о `PreToolUse deny` (ADR-0029 п. 8) — отдельным process-PR после замера групп 1–3 impl-PR `arch-boundaries`, не внутри change |
+| Q25 | Решение о `PreToolUse deny` (ADR-0029 п. 8) — отдельным process-PR после замера групп 1–3 impl-PR `arch-boundaries`, не внутри change — **принято**, H-1…H-9 ниже |
+
+### `PreToolUse deny` — решения grilling 2026-09-24 (H-1…H-9, приняты maintainer'ом; реализация — ADR-0031)
+
+Вход — замер групп 1–3 и разбор транскриптов g1–g5 `arch-boundaries` (состояние, пункт «arch-boundaries закрыт»).
+
+| # | Решение |
+|---|---|
+| H-1 | Deny вводится — после сужения области детектора до навыка: код — `.ts`/`.js` внутри корня worktree под `packages/**`, `scripts/**` (`isCodeFile`/`hitsCode` в `graft-metrics-lib.js`). Ложное срабатывание g3 (scratchpad) уходит — условие ADR-0029 п. 6 «без ложных срабатываний» выполнено после исправления; записать в ADR |
+| H-2 | Запрещаются (`deviationsOf` без результата = с результатом): Grep и shell-поиск (`grep`/`rg`/`Select-String`) по коду; Read кода без диапазона или диапазоном на весь файл; `cat`/`sed`/`Get-Content` кода целиком; `head`/`tail` на выводе `cs`. Файлы ≤ 40 строк — исключение (как сейчас). Видимое только по выводу (скрипт, читающий файлы изнутри) — предупреждение `PostToolUse` |
+| H-3 | Только субагенты (`agent_id` во входе хука); основная сессия-координатор не блокируется |
+| H-4 | Ответ хука — `permissionDecision: "deny"`, `permissionDecisionReason` — строка `adviceFor` (что сделать вместо); `ask` не подходит — фоновому субагенту некого спросить |
+| H-5 | Исключений сверх «≤ 40 строк» нет (в том числе «файл переносится целиком» — `git mv`, `cs skeleton` + диапазоны); локально выключить — `disableAllHooks` в `settings.local.json`; запрет мешает законной работе → `notes` группы и повод к пересмотру |
+| H-6 | `graft-metrics`: запрещённый вызов не выполнялся — счётчик `blocked`, не `deviations` и не байты (замер после deny сравним с базой) |
+| H-7 | `cs impact`: для символа не из графа или не функции grep-часть ищет `\bNAME\b`, не только вызовы; unit-тест `cs-lib`; вопрос q18 в бенчмарк («где используется `RISK_LEVELS`») |
+| H-8 | `cs deps --level` против модулей-файлов ADR-0030 — долг; строка в навык: «модули-файлы `core/*.ts` в `cs deps --level` входят в `core`; границы — `architecture.json`» |
+| H-9 | ADR-0031 «`PreToolUse deny` у субагентов», `amends: [ADR-0029]` (п. 6); ветка `process/pretooluse-deny`, worktree `D:\project\SRA-pretooluse-deny`. Файлы: ADR-0031, ADR-0029 (`amended_by` + заметка у п. 6), `docs/adr/README.md`; `scripts/dev/graft-metrics-lib.js` (область кода, `blocked`), `cs-hook-lib.js` + `cs-hook.js` (`pre-tool`), `cs-lib.js` (`impact`), `bench/code-search.json` (q18); `.claude/settings.json` (`PreToolUse`), `test/unit/meta/dev-hooks.test.ts`, unit-тесты `test/unit/dev/`; навык `code-search`, `docs/process/coordinator.md`, `graft.md` §5; NEXT-SESSION (строки Graft в долге и хуков в «Процессных правилах»). Проверки: `npm test`, typecheck, `validate`/`fmt`/`sync --check`, `versions:check`; живой зонд `claude -p` с субагентом — deny срабатывает (как в ADR-0029) |
 
 ### Продолжение — готовый запрос
 
 ```text
-Process-PR: решение о `PreToolUse deny` (ADR-0029 п. 8, Q25). Прочитай docs/NEXT-SESSION.md (состояние — пункт
-«arch-boundaries закрыт», замер), ADR-0029 (п. 6, 8), docs/process/graft.md §5, docs/process/coordinator.md, scripts/dev/cs-hook.js
-и test/unit/meta/dev-hooks.test.ts. Записи групп — `node scripts/dev/graft-metrics.js report` и
-.git/graft-lab/runs/arch-boundaries-g*.json. Вопросы maintainer'у: (1) deny — на что именно (shell `grep`/`cat`/`sed` по
-коду, Read целиком без диапазона, Grep/Glob по packages/** и scripts/**) и только у субагентов (`agent_id`); (2) что с
-`cs output truncated` (g4 ×3, g5 ×1) — поднять лимит или подсказка сузить запрос; (3) пробелы `cs` — `impact` для типов и
-констант, модуль-файл в `cs deps --level` против ADR-0030 — в обёртку `cs.js` или вопросом в бенчмарк; (4) файлы до 40
-строк и «файл переносится целиком» — исключения из deny? Ветка process/<имя> от main, свой worktree; процесс «Decision
-workflow» (сводка → ADR → коммит после подтверждения).
+Process-PR: реализация решений H-1…H-9 (`PreToolUse deny` у субагентов) — ADR-0031. Решения приняты maintainer'ом, заново
+не обсуждать. Прочитай docs/NEXT-SESSION.md (таблица «`PreToolUse deny` — решения grilling», состояние — пункт
+«arch-boundaries закрыт»: замер и разбор транскриптов), ADR-0029 (п. 5, 6, 8), ADR-0028, docs/process/graft.md (§4, §5),
+docs/process/graft-audit.md §4 (факты о хуках Claude Code), .claude/skills/code-search/SKILL.md, scripts/dev/cs-hook.js,
+cs-hook-lib.js, graft-metrics-lib.js (`deviationsOf`, `isCodeFile`, `hitsCode`), cs-lib.js (`impact`),
+packages/cli/test/unit/meta/dev-hooks.test.ts и тесты test/unit/dev/. Ветка process/pretooluse-deny от main, worktree
+D:\project\SRA-pretooluse-deny (npm ci). Порядок: H-1 (область кода) и H-7 (`impact`) с unit-тестами → H-2…H-4
+(`pre-tool` в cs-hook-lib + settings.json + dev-hooks.test.ts) → H-6 (`blocked` в graft-metrics; перепроверить записи
+arch-boundaries g1–g6 через `rescore` — ложное g3 уходит) → документы (ADR-0031, 0029, README, навык, coordinator, graft.md,
+NEXT-SESSION) → живой зонд `claude -p` с субагентом (deny на `grep` по packages/**, нет deny у основной сессии и на файле
+≤ 40 строк). Коммит и PR — после показа сводки diff maintainer'у.
 ```
 
 После process-PR — фаза 4. Её grilling начинается с архитектурного аудита (снимок 2026-09-24 устарел: тег `v0.4.2`

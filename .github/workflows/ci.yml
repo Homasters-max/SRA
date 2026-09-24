@@ -67,6 +67,16 @@ jobs:
             exit 1
           fi
 
+      # ADR-0033 п. 10: branch prefix and commit subjects of the PR (a
+      # development check — not `warrant ci`, which takes the Change's topology
+      # in phase 4). HEAD is GitHub's merge commit; --no-merges leaves the PR's own.
+      - name: PR form (branch prefix, commit subjects)
+        if: github.event_name == 'pull_request' && matrix.os == 'ubuntu-latest'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: node scripts/dev/pr-form.js "$HEAD_REF" "$BASE_REF"
+
       - name: Test
         run: npm test
 

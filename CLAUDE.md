@@ -33,6 +33,8 @@ Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SE
 |---|---|
 | Найти код, кто вызывает, что обновить при изменении символа | `code-search` (`node scripts/dev/cs.js`) — [ADR-0028](docs/adr/WARRANT-ADR-0028-graft-adoption.md) |
 | Архитектурный аудит (обязательно перед spec-PR фазы) | `architecture-audit` |
+| Начать поток в worktree, «где я», коммит через файл | `git-start` |
+| PR, CI, merge по «merge #N», чистка после merge | `git-land` (+ `recovery.md`, `ci.md`) |
 | Решение по ходу реализации → строка `I-N` в design.md | `decision` |
 | Закрыть группу задач tasks.md (проверки, галочки, коммит) | `group-done` |
 | Статистика группы по транскрипту субагента (координатор) | `group-stats` |
@@ -69,7 +71,7 @@ Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SE
 
 Документы — по-русски, термины и команды — по-английски как есть; машинные файлы — JSON с `$schema`
 `warrant://<name>/<major>`. Большие переписывания документов — сначала обсудить с пользователем. Коммиты и PR — через
-файл сообщения (`git commit -F`, `gh pr create --body-file`).
+файл сообщения (`git commit -F`, `gh pr create --body-file`) — шаги навыков `git-start` и `git-land`.
 
 ## ADR
 

@@ -4,17 +4,22 @@
  * `.claude/commands/` and no OpenSpec archive / sync-specs skill (п. 8); `CLAUDE.md` ≤ 100 lines and
  * `packages/cli/CLAUDE.md` ≤ 60 (п. 7); every `docs/handoff/<stream>.md` has the sections of п. 3 in order, ≤ 60 lines,
  * ≤ 5 items to remember; `docs/backlog.md` is one table `ID | Что | Куда | Источник` with unique IDs (п. 5);
- * `docs/NEXT-SESSION.md` is gone (п. 2). Rules about decisions (what a stream is, what is computable) stay prose.
+ * `docs/NEXT-SESSION.md` is gone (п. 2). ADR-0033 п. 12: a handoff's `После:` names streams with a handoff file in
+ * this checkout (a predecessor's last PR removes the line with its file), no cycles; `docs/drafts/` holds dated
+ * folders of `NN-<topic>.md` drafts by its README. Rules about decisions (what a stream is, what is computable) stay prose.
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { orderStreams, parseAfter } from "../../../../../scripts/dev/brief-lib.js";
 import { CLI_ROOT } from "../../helpers/cli.js";
 
 const REPO_ROOT = path.resolve(CLI_ROOT, "..", "..");
 const SKILLS = path.join(REPO_ROOT, ".claude", "skills");
 const HANDOFF = path.join(REPO_ROOT, "docs", "handoff");
+const DRAFTS = path.join(REPO_ROOT, "docs", "drafts");
+const DRAFT_SECTIONS = ["Проблема", "Идея", "Вопросы для grilling", "Вне объёма"];
 
 const SKILL_KEYS = ["name", "description", "argument-hint", "disable-model-invocation"];
 const SKILL_SECTIONS = ["Вход", "Шаги", "Стоп", "Отчёт"];
@@ -122,6 +127,32 @@ describe("docs/handoff — ADR-0032 п. 2, 3", () => {
     expect(sections(lines)).toEqual(HANDOFF_SECTIONS);
     expect(lines.length).toBeLessThanOrEqual(60);
     expect(sectionBody(lines, "Не забыть").filter((l) => /^- /.test(l)).length).toBeLessThanOrEqual(5);
+  });
+
+  it("«После:» names streams with a handoff file here, without cycles (ADR-0033 п. 12)", () => {
+    const after = new Map(streams.map((f) => [f.replace(/\.md$/, ""), parseAfter(readFileSync(path.join(HANDOFF, f), "utf8"))]));
+    const order = orderStreams(after);
+    expect(order.filter((s) => s.missing.length > 0).map((s) => `${s.name} → ${s.missing.join(", ")}`)).toEqual([]);
+    expect(order.filter((s) => s.cycle).map((s) => s.name)).toEqual([]);
+  });
+});
+
+describe("docs/drafts — ADR-0033 п. 12", () => {
+  const entries = existsSync(DRAFTS) ? readdirSync(DRAFTS, { withFileTypes: true }) : [];
+  const folders = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+
+  it("README.md (the rule) and dated folders only", () => {
+    expect(entries.filter((e) => !e.isDirectory()).map((e) => e.name)).toEqual(["README.md"]);
+    expect(folders.filter((d) => !/^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$/.test(d))).toEqual([]);
+  });
+
+  it.each(folders)("%s: README.md index and NN-<topic>.md files with sections in order", (folder) => {
+    const names = readdirSync(path.join(DRAFTS, folder));
+    expect(names).toContain("README.md");
+    expect(names.filter((n) => n !== "README.md" && !/^\d{2}-[a-z0-9-]+\.md$/.test(n))).toEqual([]);
+    for (const n of names.filter((x) => x !== "README.md")) {
+      expect(sections(linesOf(readFileSync(path.join(DRAFTS, folder, n), "utf8"))), n).toEqual(DRAFT_SECTIONS);
+    }
   });
 });
 

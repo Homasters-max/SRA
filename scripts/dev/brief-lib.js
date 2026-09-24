@@ -1,6 +1,8 @@
 /**
- * Logic of `scripts/dev/brief.js` (ADR-0032 п. 4, 9, 11): the state of a WARRANT development session, computed from
- * the local repository only (git and files — no network, no `gh`, no `openspec`) and printed in at most 2 KB.
+ * Logic of `scripts/dev/brief.js` (ADR-0032 п. 4, 9, 11; ADR-0033 п. 7, 12): the state of a WARRANT development
+ * session, computed from the local repository only (git and files — no network, no `gh`, no `openspec`) and printed in
+ * at most 2 KB. Streams (handoff files of all worktrees) come in the order of their `После:` lines; merged branches on
+ * origin are counted by the last `git fetch`.
  * Pure — every read goes through the injected `io`, so unit tests need no process:
  *
  *   io.startDir                 directory the session runs in (CLAUDE_PROJECT_DIR or cwd)
@@ -130,6 +132,36 @@ function readJson(io, p) {
   }
 }
 
+/** Streams named by the `После: a, b` line of a handoff file (before its first `## `); [] without one. */
+export function parseAfter(text) {
+  for (const line of lines(text ?? "")) {
+    if (line.startsWith("## ")) break;
+    const m = /^После:s*(.*)$/.exec(line.trim());
+    if (m) return m[1].split(",").map((x) => x.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+/**
+ * Streams in dependency order (`after` first, ties by name): `[{ name, waits, missing, cycle }]` — `waits`: streams
+ * of `after` that still exist; `missing`: named in `После` but without a handoff file (the line should have gone with
+ * the predecessor's last PR); `cycle`: the stream is on a dependency cycle (appended at the end).
+ */
+export function orderStreams(streams) {
+  const names = [...streams.keys()].sort();
+  const deps = new Map(names.map((n) => [n, (streams.get(n) ?? []).filter((d) => streams.has(d) && d !== n)]));
+  const done = new Set();
+  const out = [];
+  for (;;) {
+    const next = names.find((n) => !done.has(n) && deps.get(n).every((d) => done.has(d)));
+    if (next === undefined) break;
+    done.add(next);
+    out.push(next);
+  }
+  const item = (n, cycle) => ({ name: n, waits: deps.get(n), missing: (streams.get(n) ?? []).filter((d) => !streams.has(d)), cycle });
+  return [...out.map((n) => item(n, false)), ...names.filter((n) => !done.has(n)).map((n) => item(n, true))];
+}
+
 /**
  * Collect the state. Null when `io.startDir` is not in a git work tree (print nothing). Missing pieces are null or
  * empty, never an exception from here — except a broken `io`, which brief.js turns into empty output.
@@ -202,7 +234,29 @@ export function collectState(io) {
     }
   }
 
-  return { root, branch, dirty, worktrees, tag, cli, packs, changes, merged, memory };
+  // a stream's own worktree has its newest handoff file: a copy outside the main worktree wins
+  const streamAfter = new Map();
+  for (const w of [...worktrees.slice(1), ...worktrees.slice(0, 1)]) {
+    for (const name of w.handoff) {
+      const stream = name.replace(/.md$/, "");
+      if (!streamAfter.has(stream)) streamAfter.set(stream, parseAfter(io.readFile(join(w.path, "docs", "handoff", name))));
+    }
+  }
+  const streams = orderStreams(streamAfter);
+
+  // merged branches on origin by the last fetch (no network); those checked out in a worktree are in use
+  let mergedOrigin = null;
+  if (io.git(["show-ref", "--verify", "--quiet", "refs/remotes/origin/main"], root) != null) {
+    const out = io.git(["branch", "-r", "--merged", "origin/main", "--format=%(refname:short)"], root);
+    if (out != null) {
+      const inUse = new Set(worktrees.map((w) => w.branch && `origin/${w.branch}`).filter(Boolean));
+      mergedOrigin = lines(out)
+        .map((b) => b.trim())
+        .filter((b) => b.startsWith("origin/") && b !== "origin/main" && b !== "origin/HEAD" && !inUse.has(b)).length;
+    }
+  }
+
+  return { root, branch, dirty, worktrees, tag, cli, packs, changes, merged, mergedOrigin, streams, memory };
 }
 
 /** A worktree as one list item: path, branch (or detached / bare), its handoff files. */
@@ -217,6 +271,15 @@ function worktreeItem(w) {
   return item;
 }
 
+/** A stream with what it waits for: `phase-4 (ждёт git-automation)`, `x (! нет потока y)`, `z (! цикл)`. */
+function streamItem(s) {
+  const notes = [];
+  if (s.cycle) notes.push("! цикл");
+  if (s.waits.length) notes.push(`ждёт ${s.waits.join(", ")}`);
+  if (s.missing.length) notes.push(`! нет потока ${s.missing.join(", ")}`);
+  return notes.length ? `${s.name} (${notes.join("; ")})` : s.name;
+}
+
 /** Document blocks: `{ text }` — a line; `{ head, items, inline }` — a list the byte limit may shorten. */
 function blocks(state) {
   const b = [{ text: TITLE }];
@@ -224,6 +287,7 @@ function blocks(state) {
     text: `Сессия: ${state.root} [${state.branch}], незакоммиченных изменений: ${state.dirty ?? "?"}`,
   });
   b.push({ head: `Worktree (${state.worktrees.length}):`, items: state.worktrees.map(worktreeItem) });
+  if (state.streams?.length) b.push({ head: "Потоки по порядку: ", items: state.streams.map(streamItem), inline: true });
   b.push({ text: `Последний тег: ${state.tag ?? "нет"}; CLI: ${state.cli ?? "?"}` });
   b.push({ head: "Packs: ", items: state.packs, inline: true, empty: "нет" });
   b.push({
@@ -234,6 +298,7 @@ function blocks(state) {
   if (state.merged) {
     b.push({ head: `Ветки, слитые в main и не удалённые (${state.merged.length}): `, items: state.merged, inline: true, empty: "нет" });
   }
+  if (state.mergedOrigin) b.push({ text: `Слитые ветки на origin (по последнему fetch): ${state.mergedOrigin}` });
   if (state.memory && (state.memory.warnings.length || state.memory.project.length)) {
     b.push({ text: `auto-memory (${state.memory.dir}) — только личное, ADR-0032 п. 9:` });
     for (const w of state.memory.warnings) b.push({ text: `  ! ${w}` });

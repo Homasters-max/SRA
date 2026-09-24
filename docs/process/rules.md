@@ -35,7 +35,11 @@
 | auto-memory — только `user`/`feedback`, индекс ≤ 10 строк | ADR-0032 п. 9 | предупреждение `brief.js` (память вне репозитория, тест её не видит) |
 | Профиль OpenSpec: навыки `propose`, `explore`, `apply`, `update`, `delivery: skills` | ADR-0032 п. 8, ADR-0015 п. 6 | настройка машины — команды ниже (конфиг OpenSpec 1.13.1 только глобальный); отсутствие файлов archive/sync — `dev-context.test.ts` |
 | Основной checkout — только `main`: в нём нет `commit`, `merge`, `cherry-pick`, `revert`, `pull` без `--ff-only`, смены ветки; работа — в worktree | ADR-0011 п. 3, ADR-0033 п. 9 | `git-hook.js` — `deny` у основной сессии и субагентов (`test/unit/dev/git-hook.test.ts`); разбор текста команды ловит ошибку, не обход |
-| Одна ветка — один worktree; ветку проверять перед коммитом | архив NEXT-SESSION («Организационное») | шаг 1 навыка `group-done`; машина не знает, какой ветке принадлежит работа |
+| Одна ветка — один worktree; ветку проверять перед коммитом | архив NEXT-SESSION («Организационное»), ADR-0033 п. 3 | шаг «где я» навыка `git-start` (его зовёт `group-done`); машина не знает, какой ветке принадлежит работа |
+| Префикс ветки `spec/ worktree/ archive/ process/ docs/ fix/`, заголовок коммита `<change>: …` / `<префикс>: …` | ADR-0033 п. 10 | шаг CI `PR form` — `scripts/dev/pr-form.js` (`test/unit/dev/pr-form.test.ts`) |
+| Текст коммита и PR — файлом (`-F`, `--body-file`) | ADR-0033 п. 3 | правило держится навыками `git-start`, `git-land`, `group-done`: искажённый оболочкой текст механически не отличить |
+| Merge — только `--merge` по слову «merge #N» maintainer'а; после merge — worktree и ветки удаляются | ADR-0033 п. 5, 13 | шаги 4–5 навыка `git-land`; слово в чате хук не видит; `brief.js` — счётчики слитых веток (локальных и на origin) |
+| Порядок потоков — строка `После:` в файле передачи; черновики — `docs/drafts/<дата>-<тема>/NN-*.md` | ADR-0033 п. 12 | `dev-context.test.ts` (поток из «После» есть, циклов нет; форма черновиков); `brief.js` — «Потоки по порядку» |
 | Force push — только maintainer вручную | ADR-0033 п. 9 | `git-hook.js` — `deny` (`--force`, `-f`, `--force-with-lease`, `+refspec`) |
 | Закрыть Change — `warrant archive`, не `openspec archive` | ADR-0011 п. 4, ADR-0033 п. 9 | `git-hook.js` — `deny` на `openspec archive` (в том числе совет навыка `openspec-apply-change`, BL-22) |
 | Отклонение от spec — строкой `I-N` в design.md, вопросом maintainer'у | pack `rules.design` | правило о решении; нумерацию ведёт навык `decision` |

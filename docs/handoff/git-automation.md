@@ -8,16 +8,12 @@
 ## Готовый запрос
 
 ```text
-Реализация ADR-0033 (поток git-automation), ветки process/<имя> от актуального main, каждая в своём worktree
-../SRA-<имя>. Прочитай ADR-0033 целиком, ADR-0031, ADR-0032 п. 3, 4, 6, 10, 11, docs/process/rules.md.
-Сначала — разовая чистка слитых веток (п. 13: слитые локальные и на origin удаляются без подтверждения; worktree с
-изменениями и неслитое — списком maintainer'у). Затем PR по порядку п. 14, каждый — со своими тестами:
-1) хуки п. 9: deny основной сессии и субагентов (git в основном checkout, force push, openspec archive), белый
-   список команд в dev-hooks.test.ts; permissions.allow для gh pr merge * --merge (п. 5); BL-22 закрыть;
-2) навыки git-start, git-land (+ recovery.md, ci.md), scripts/dev/pr-form.js и шаг CI (п. 10), brief.js: счётчик
-   слитых origin/* и «После:» с порядком потоков (п. 12), dev-context.test.ts: «После:», форма docs/drafts/;
-   group-done и decision ссылаются на сверку ветки git-start;
-3) навыки change-spec-pr, change-impl-pr, change-archive-pr (п. 4), change-coordinate вместо
+Реализация ADR-0033 (поток git-automation), продолжение. Прочитай ADR-0033 целиком, ADR-0032 п. 3, 4, 6, 10, 11,
+docs/process/rules.md. Готово: хук git-hook.js (п. 9), разовая чистка веток, навыки git-start / git-land,
+pr-form.js в CI, «После:» в brief.js и dev-context.test.ts. Работа — навыком git-start (ветка process/<имя>,
+worktree ../SRA-<имя>), доставка — git-land; PR по порядку п. 14, каждый — со своими тестами:
+3) навыки change-spec-pr, change-impl-pr, change-archive-pr (п. 4) — шаги PR, CI, merge и после merge берут из
+   git-land, свои — переходы record, waivers в теле spec-PR, run и evidence, тег; change-coordinate вместо
    docs/process/coordinator.md (п. 7);
 4) structure.test.ts, scripts/dev/hygiene.js, навык repo-hygiene, приведение docs/ (п. 13: zip → markdown, имя с
    пробелом), «Карта» CLAUDE.md, rules.md;
@@ -29,10 +25,12 @@
 
 ## Открытые вопросы
 
-- Нарезку на PR (1–5 готового запроса) сессия может укрупнить или разбить — по объёму, без смены порядка.
+- Нарезку на PR (3–5 готового запроса) сессия может укрупнить или разбить — по объёму, без смены порядка.
 
 ## Не забыть
 
 - Squash и rebase в репозитории уже выключены (2026-09-25); `delete_branch_on_merge` оставить `false`.
-- Хук п. 9 впервые ограничит и эту сессию: после merge PR 1 коммиты — только в worktree.
+- Разрешения `gh pr merge * --merge` и `git push origin --delete *` — в `.claude/settings.local.json` машины
+  maintainer'а (`rules.md` «Настройка машины»), не в коммитимом `settings.json`.
+- `«После:»` может называть только поток с файлом передачи в `main` (`dev-context.test.ts` видит один checkout).
 - `docs/integrations/` и `lattice/` не трогать (`CLAUDE.md`).

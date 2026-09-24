@@ -81,7 +81,7 @@ amended_by: [WARRANT-ADR-0033]
 ## Consequences
 
 - ADR-0029 п. 6 уточнён: `PostToolUse` остаётся для видимого только по выводу; всё видимое по входу — запрет.
-  Навык `code-search`, [coordinator.md](../process/coordinator.md) (отказы хука в отчёте, `blocked` в карточке),
+  Навык `code-search`, [coordinator.md](../../.claude/skills/change-coordinate/SKILL.md) (отказы хука в отчёте, `blocked` в карточке),
   [graft.md](../process/graft.md) §3–§5 — по этому ADR.
 - Субагент, получивший отказ, делает то, что написано в причине, — в зонде он так и сделал; обойти можно скриптом,
   читающим файлы изнутри (п. 2), — это видно предупреждением и в `deviations`.

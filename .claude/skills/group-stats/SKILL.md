@@ -9,7 +9,7 @@ disable-model-invocation: true
 
 Метрики поиска по коду из транскрипта субагента плюс карточка координатора (наблюдение
 [ADR-0028](../../../docs/adr/WARRANT-ADR-0028-graft-adoption.md) п. 5). Процесс —
-[docs/process/coordinator.md](../../../docs/process/coordinator.md) §3.
+шаг 4 навыка [change-coordinate](../change-coordinate/SKILL.md).
 
 ## Вход
 

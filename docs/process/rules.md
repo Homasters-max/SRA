@@ -18,17 +18,17 @@
 | CI на ubuntu + windows | P-9 | `ci.yml` matrix |
 | Record и evidence пишет только CLI; `.warrant/evidence/**/raw/` не коммитится | ADR-0009, P-19 | `.gitignore`; `validate` (схемы record, evidence); `guard` — фаза 4 |
 | Уровни тестов: процессы только в `contract`/`e2e`, у e2e-файла причина, тест только в каталоге уровня | ADR-0025 п. 7 | `SPAWN_FORBIDDEN_AT_LEVEL` (setup `unit`/`app`), `test/unit/meta/levels.test.ts`, `globalSetup` `contract`/`e2e` (openspec 1.13.1); выбор уровня — правило о решении |
-| Порядок P-2 (что в каком PR) | ADR-0011, P-2 | частично: `transition` (последовательность), `scope-valid`; размещение по PR — `warrant ci`, фаза 4 (BL-12) |
+| Порядок P-2 (что в каком PR) | ADR-0011, P-2, ADR-0033 п. 4 | частично: `transition` (последовательность), `scope-valid`; последовательность шагов — навыки `change-spec-pr`, `change-impl-pr`, `change-archive-pr`; размещение по PR — `warrant ci`, фаза 4 (BL-12) |
 | Направление зависимостей модулей, циклы, копии помощников, один владелец перечислений | ADR-0030 | `test/unit/meta/architecture.test.ts` + `architecture.json`; исключения храповика — строки `A-N` в [backlog.md](../backlog.md) |
 | Архитектурный аудит перед spec-PR каждой фазы; находки — `A-N` в `backlog.md` | ADR-0030, навык `architecture-audit` | правило о решении; шаг навыка `handoff`: следующий поток — фаза → готовый запрос начинается с аудита |
 | Graft только через `cs.js`: разрешённые подкоманды, флаги и версия | ADR-0026 п. 2, ADR-0028 п. 2, 4, ADR-0029 п. 3 | `scripts/dev/cs.js` (код 2 / 3), `test/unit/dev/cs.test.ts`; обновление — `graph-audit.js --baseline` + `bench-score.js report` |
 | Поиск по коду — навык `code-search` | ADR-0028, ADR-0029 п. 1, 5, 6, ADR-0031 | у субагентов: `SubagentStart` (указатель), `PreToolUse` — `deny` вызова, помеченного по входу, `PostToolUse` — подсказка (`test/unit/dev/cs-hook.test.ts`); `graft-metrics run --mode on`: `deviations`, `blocked` |
 | Хуки разработки — только `hooks`, белый список скриптов | ADR-0029 п. 6, 7, ADR-0031, ADR-0032 п. 11, ADR-0033 п. 9 | `test/unit/meta/dev-hooks.test.ts`: `cs-hook.js` — `SubagentStart`/`PreToolUse`/`PostToolUse`, `git-hook.js` — `PreToolUse` на Bash/PowerShell (набор правил закреплён), `brief.js` — `SessionStart` |
 | Graft не пачкает дерево | ADR-0026 п. 3 | `cs.js` (переменные, `.git/info/exclude`); `git status --short` в навыке `group-done` |
-| Одна группа — один агент, транскрипт сохранён | ADR-0027 п. 5 | `graft-metrics run --part k`, копия в `graft-lab/transcripts/` |
+| Одна группа — один агент, транскрипт сохранён; роль и самопроверка объёма в промпте | ADR-0027 п. 5, ADR-0033 п. 7 | `graft-metrics run --part k`, копия в `graft-lab/transcripts/` |
 | `scripts/dev/` не поставляется | ADR-0026 | `package-contents.test.ts` |
 | У каждого вида знания одно место; вычислимое прозой не пишется | ADR-0032 п. 1 | правило о решении; состояние — `scripts/dev/brief.js` (хук `SessionStart`) |
-| Навыки — `.claude/skills/<name>/SKILL.md` по стандарту; `.claude/commands/` нет; `openspec-archive-change`, `openspec-sync-specs` нет | ADR-0032 п. 6, 8 | `test/unit/meta/dev-context.test.ts` |
+| Навыки — `.claude/skills/<name>/SKILL.md` по стандарту; frontmatter — YAML (описание с ` #` или `: ` — в кавычках); `.claude/commands/` нет; `openspec-archive-change`, `openspec-sync-specs` нет | ADR-0032 п. 6, 8, ADR-0033 п. 2 | `test/unit/meta/dev-context.test.ts` (frontmatter разбирается пакетом `yaml`) |
 | `CLAUDE.md` ≤ 100 строк, `packages/cli/CLAUDE.md` ≤ 60 | ADR-0032 п. 7 | `dev-context.test.ts` |
 | Передача — `docs/handoff/<поток>.md`: разделы по порядку, ≤ 60 строк, «Не забыть» ≤ 5; `docs/NEXT-SESSION.md` нет | ADR-0032 п. 2, 3 | `dev-context.test.ts`; что считать потоком — правило о решении |
 | Долг — одна таблица `docs/backlog.md`, уникальные ID; закрытая строка удаляется | ADR-0032 п. 5 | `dev-context.test.ts` (колонки, ID); удаление — правило о решении |
@@ -41,7 +41,7 @@
 | Merge — только `--merge` по слову «merge #N» maintainer'а; после merge — worktree и ветки удаляются | ADR-0033 п. 5, 13 | шаги 4–5 навыка `git-land`; слово в чате хук не видит; `brief.js` — счётчики слитых веток (локальных и на origin) |
 | Порядок потоков — строка `После:` в файле передачи; черновики — `docs/drafts/<дата>-<тема>/NN-*.md` | ADR-0033 п. 12 | `dev-context.test.ts` (поток из «После» есть, циклов нет; форма черновиков); `brief.js` — «Потоки по порядку» |
 | Force push — только maintainer вручную | ADR-0033 п. 9 | `git-hook.js` — `deny` (`--force`, `-f`, `--force-with-lease`, `+refspec`) |
-| Закрыть Change — `warrant archive`, не `openspec archive` | ADR-0011 п. 4, ADR-0033 п. 9 | `git-hook.js` — `deny` на `openspec archive` (в том числе совет навыка `openspec-apply-change`, BL-22) |
+| Закрыть Change — `warrant archive`, не `openspec archive` | ADR-0011 п. 4, ADR-0033 п. 9 | `git-hook.js` — `deny` на `openspec archive` (в том числе совет навыка `openspec-apply-change`, BL-22); навык `change-archive-pr` — `dev-context.test.ts` (A8) |
 | Отклонение от spec — строкой `I-N` в design.md, вопросом maintainer'у | pack `rules.design` | правило о решении; нумерацию ведёт навык `decision` |
 | Изменение нормативного документа во время реализации — только через новый ADR | ADR-0021, 12 §7 | правило о решении |
 

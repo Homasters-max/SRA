@@ -10,7 +10,7 @@ graft_version: 0.19.0
 Эксперимент [ADR-0026](../adr/WARRANT-ADR-0026-graft-experiment.md) / [ADR-0027](../adr/WARRANT-ADR-0027-graft-tuning.md)
 **закрыт** 2026-09-24: вердикт `accept` — [отчёт](graft-report.md), решение — [ADR-0028](../adr/WARRANT-ADR-0028-graft-adoption.md).
 Поиск по коду через граф — стандарт субагентов разработки WARRANT: навык
-[code-search](../../.claude/skills/code-search/SKILL.md), раздача групп — [coordinator.md](coordinator.md). Здесь —
+[code-search](../../.claude/skills/code-search/SKILL.md), раздача групп — [change-coordinate](../../.claude/skills/change-coordinate/SKILL.md). Здесь —
 установка, обёртка, хуки, наблюдение, обновление, откат; §6 — протокол бенчмарка и регрессии графа (при обновлении).
 Аудит после принятия — [graft-audit.md](graft-audit.md), решения — [ADR-0029](../adr/WARRANT-ADR-0029-graft-audit-dev-hooks.md).
 
@@ -83,7 +83,7 @@ setx DO_NOT_TRACK 1
   (должны остаться только видимые по выводу), `tool_calls.blocked`, `explore_bytes`; отказ, мешавший законной работе, —
   в `notes` и повод пересмотра ADR-0031 п. 5.
 
-- После каждой группы — `graft-metrics.js run --mode on` (`/group-stats`, [coordinator.md](coordinator.md) §3);
+- После каждой группы — `graft-metrics.js run --mode on` (`/group-stats`, [change-coordinate](../../.claude/skills/change-coordinate/SKILL.md) шаг 4);
   записи — `<git-common-dir>/graft-lab/runs/`, транскрипты — `graft-lab/transcripts/` (вне git); пересчёт —
   `graft-metrics.js rescore`, сводка — `graft-metrics.js report`.
 - **`misled`** (неверный ответ `cs` привёл к ошибке) — условие пересмотра ADR-0028; случай оформить вопросом в

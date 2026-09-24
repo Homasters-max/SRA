@@ -23,6 +23,7 @@ import {
   parseTranscript,
   rawGraftCalls,
   scoreAnswer,
+  SMALL_FILE_LINES,
 } from "../../../../../scripts/dev/graft-metrics-lib.js";
 
 const usage = (input: number, output: number) => ({ input_tokens: input, cache_creation_input_tokens: 10, cache_read_input_tokens: 100, output_tokens: output });
@@ -209,5 +210,173 @@ describe("code-search benchmark", () => {
     expect(worse.reasons).toEqual(["recall A 0.5 < B 1"]);
     expect(buildBenchReport([r("q1", "A", 90, 1, 1), r("q1", "B", 100, 1)], ["q1"]).reasons).toEqual(["median explore ratio 0.9 is not ≤ 0.8"]);
     expect(buildBenchReport([r("q1", "A", 50, 1, 1), r("q1", "B", 100, 1, 3)], ["q1"]).reasons).toEqual(["cs used in [B]: q1"]);
+  });
+});
+
+/** Audit 2026-09-24: cases the detector missed, false positives it raised, and D-8 (a range covering the file). */
+describe("graft-metrics: code-search deviations (audit 2026-09-24)", () => {
+  const grep = (input: Record<string, unknown>, ctx = {}) => deviationsOf(tool("g", "Grep", { pattern: "x", ...input }), ctx);
+  const sh = (command: string, ctx = {}) => deviationsOf(bash("s", command), ctx);
+  const ps = (command: string, ctx = {}) => deviationsOf(tool("p", "PowerShell", { command }), ctx);
+  const read = (input: Record<string, unknown>, ctx = {}) => deviationsOf(tool("r", "Read", input), ctx);
+  /** A Read result of lines 1..n (`     1\t…`). */
+  const numbered = (n: number) => Array.from({ length: n }, (_, i) => `${String(i + 1).padStart(6)}\tline ${i + 1}`).join("\n");
+  const output = (n: number) => Array.from({ length: n }, (_, i) => `line ${i + 1}`).join("\n");
+  const file = "D:/x/packages/cli/src/core/a.ts";
+
+  it("rule 1: Grep over the repo root, without a path, or with a brace glob is over code", () => {
+    expect(grep({})).toEqual(["Grep over code"]);
+    expect(grep({}, { cwd: String.raw`D:\project\SRA` })).toEqual(["Grep over code"]);
+    expect(grep({ path: String.raw`D:\project\SRA` })).toEqual(["Grep over code"]);
+    expect(grep({ path: "D:/project/SRA/packages" })).toEqual(["Grep over code"]);
+    expect(grep({ path: "/d/project/SRA-graft-audit" })).toEqual(["Grep over code"]);
+    expect(grep({ path: "D:/work/repo" }, { root: "D:/work/repo" })).toEqual(["Grep over code"]);
+    expect(grep({ glob: "*.{ts,js}", path: "D:/elsewhere" })).toEqual(["Grep over code"]);
+    expect(grep({ type: "ts" })).toEqual(["Grep over code"]);
+  });
+
+  it("rule 1: Grep over JSON schemas, docs or a non-code glob is not over code", () => {
+    expect(grep({ path: "packages/cli/schemas" })).toEqual([]);
+    expect(grep({ path: String.raw`D:\project\SRA\packages\cli\schemas` })).toEqual([]);
+    expect(grep({ path: "packages/cli/test/fixtures" })).toEqual([]);
+    expect(grep({ glob: "*.md" })).toEqual([]);
+    expect(grep({ glob: "*.{md,json}", path: "D:/project/SRA" })).toEqual([]);
+    expect(grep({ glob: "docs/**" })).toEqual([]);
+    expect(grep({ type: "md" })).toEqual([]);
+    expect(grep({ path: "D:/work/other" }, { root: "D:/work/repo" })).toEqual([]);
+  });
+
+  it("rule 1: shell search over code — git grep, recursive grep and rg over the cwd, cd, PowerShell, xargs, find -exec", () => {
+    const search = ["shell search over code"];
+    expect(sh("git grep foo")).toEqual(search);
+    expect(sh("grep -rn foo .")).toEqual(search);
+    expect(sh("grep -rn foo")).toEqual(search);
+    expect(sh("rg foo")).toEqual(search);
+    expect(sh("rg -t ts foo D:/elsewhere")).toEqual(search);
+    expect(sh("rg -n -g '*.{ts,js}' foo")).toEqual(search);
+    expect(sh("grep -rn --include=*.ts foo D:/elsewhere")).toEqual(search);
+    expect(sh("cd packages/cli/src && grep -rn foo core")).toEqual(search);
+    expect(sh("cd /d/project/SRA-graft && grep -rn foo .")).toEqual(search);
+    expect(sh("git -C packages/cli grep -n foo")).toEqual(search);
+    expect(ps(String.raw`Select-String -Path packages\cli\src\*.ts -Pattern foo`)).toEqual(search);
+    expect(ps(String.raw`Get-ChildItem -Recurse packages\cli\src -Filter *.ts | Select-String -Pattern foo`)).toEqual(search);
+    expect(sh("find packages -name '*.ts' | xargs grep -l foo")).toEqual(search);
+    expect(sh("git ls-files packages | xargs grep -n foo")).toEqual(search);
+    expect(sh("find packages/cli/src -type f -exec grep -n foo {} +")).toEqual(search);
+    expect(sh(String.raw`find . -name "*.ts" -exec grep -l foo {} \;`)).toEqual(search);
+    expect(sh("cat packages/cli/src/a.ts | grep foo")).toEqual(search);
+    expect(sh("git show HEAD:packages/cli/src/a.ts | grep -oE 'SCN-[A-Z]+' | sort -u")).toEqual(search);
+    expect(sh("for f in $(grep -rl foo packages); do echo $f; done")).toEqual(search);
+  });
+
+  it("rule 1: not a search over code — docs, quoted pipes, file-name filters, other trees", () => {
+    for (const command of [
+      'grep -rnE "foo|bar" openspec/**/*.md',
+      "grep -rn 'a|b' docs openspec",
+      "git grep foo -- '*.md'",
+      "cd docs && grep -rn foo .",
+      "rg -t md foo",
+      "rg --files packages | grep lock",
+      "find packages -name '*.ts' | grep lock",
+      "find docs -name '*.md' | xargs grep -l foo",
+      "npm test 2>&1 | grep -n FAIL",
+      "grep -rn foo packages/cli/schemas",
+    ]) {
+      expect(sh(command), command).toEqual([]);
+    }
+    expect(ps("Get-ChildItem -Recurse docs -Filter *.md | Select-String -Pattern foo")).toEqual([]);
+  });
+
+  it("rule 1: raw graft — node on graft's cli.js, not text that mentions graft", () => {
+    expect(sh("node node_modules/@nanonets/graft/dist/cli.js ask 'where'")).toEqual(["raw graft ask"]);
+    expect(sh('node "D:/project/SRA/node_modules/@nanonets/graft/dist/cli.js" callers foo')).toEqual(["raw graft callers"]);
+    expect(sh("cd node_modules/@nanonets/graft && node dist/cli.js skeleton x.ts")).toEqual(["raw graft skeleton"]);
+    expect(sh('git commit -m "process: graft ask wording, graft callers"')).toEqual([]);
+    expect(sh('echo "graft ask" && echo graft callers')).toEqual([]);
+    expect(sh("node D:/project/SRA-graft/scripts/dev/graft-metrics.js report")).toEqual([]);
+    expect(rawGraftCalls('git commit -m "graft ask"')).toEqual([]);
+    expect(csCalls('node "$(git rev-parse --show-toplevel)/scripts/dev/cs.js" skeleton x.ts')).toEqual(["skeleton"]);
+  });
+
+  it("rule 5: cs output cut with head / tail; filtering with grep is fine", () => {
+    expect(sh("node scripts/dev/cs.js grep foo | head -20")).toEqual(["cs output truncated"]);
+    expect(sh("node scripts/dev/cs.js callers foo -d 2 2>&1 | tail -5")).toEqual(["cs output truncated"]);
+    expect(ps("node scripts/dev/cs.js grep foo | Select-Object -First 10")).toEqual(["cs output truncated"]);
+    expect(sh("node scripts/dev/cs.js grep foo | grep -v test")).toEqual([]);
+    expect(sh("node scripts/dev/cs.js grep foo 2>&1")).toEqual([]);
+  });
+
+  it("rule 2 / D-8: a range that covers the whole code file is a whole read", () => {
+    // Read stopped short of its limit: end of file reached
+    expect(read({ file_path: file, offset: 1, limit: 200 }, { result: numbered(120) })).toEqual(["whole read core/a.ts via range"]);
+    // the file length is known (live hook, or rescore from git)
+    expect(read({ file_path: file, offset: 1, limit: 73 }, { result: numbered(73), fileLines: () => 73 })).toEqual(["whole read core/a.ts via range"]);
+    expect(read({ file_path: file, limit: 500 }, { fileLines: () => 300 })).toEqual(["whole read core/a.ts via range"]);
+    // the result beats a stale length (the agent had shortened the file); openspec/ under packages/ is code
+    expect(read({ file_path: file, offset: 1, limit: 80 }, { result: numbered(56), fileLines: () => 409 })).toEqual(["whole read core/a.ts via range"]);
+    expect(read({ file_path: "D:/x/packages/cli/src/core/openspec/cli.ts", offset: 1, limit: 68 }, { result: numbered(68), fileLines: () => 68 })).toEqual([
+      "whole read openspec/cli.ts via range",
+    ]);
+    // Read's own cap
+    expect(read({ file_path: file, offset: 1, limit: 2000 })).toEqual(["whole read core/a.ts via range"]);
+    expect(read({ file_path: file }, { result: numbered(300) })).toEqual(["whole read core/a.ts"]);
+    // shell ranges
+    expect(sh("head -500 packages/cli/src/a.ts", { result: output(300) })).toEqual(["shell whole read of code"]);
+    expect(sh("head -n 120 packages/cli/src/a.ts", { fileLines: () => 110 })).toEqual(["shell whole read of code"]);
+    expect(sh("sed -n 1,9999p packages/cli/src/a.ts", { result: output(300) })).toEqual(["shell whole read of code"]);
+    expect(sh("sed -n '1,120p' packages/cli/src/a.ts", { fileLines: () => 110 })).toEqual(["shell whole read of code"]);
+    expect(sh("sed -n '1,$p' packages/cli/src/a.ts")).toEqual(["shell whole read of code"]);
+    expect(sh("tail -n +1 packages/cli/src/a.ts")).toEqual(["shell whole read of code"]);
+    expect(sh("cat packages/cli/src/a.ts | head -300", { fileLines: () => 250 })).toEqual(["shell whole read of code"]);
+    expect(sh("git show HEAD:packages/cli/src/a.ts")).toEqual(["shell whole read of code"]);
+    expect(sh("git show main~2:scripts/dev/cs.js", { result: output(200) })).toEqual(["shell whole read of code"]);
+    expect(ps("Get-Content packages/cli/src/a.ts -TotalCount 400", { fileLines: () => 380 })).toEqual(["shell whole read of code"]);
+    // the cwd a relative path is joined with feeds the line count
+    const seen: string[] = [];
+    sh("cd packages/cli && head -50 src/a.ts", { cwd: "D:/r", fileLines: (p: string) => (seen.push(p), 200) });
+    expect(seen).toEqual(["D:/r/packages/cli/src/a.ts"]);
+  });
+
+  it("rule 2 / D-8: a real range, a short file, or a filtered read is not a whole read", () => {
+    expect(read({ file_path: file, offset: 1, limit: 50 }, { result: numbered(50) })).toEqual([]);
+    expect(read({ file_path: file, offset: 1, limit: 50 }, { fileLines: () => 51 })).toEqual([]);
+    // the file grew since the known length (more lines came back than it has): not judged whole
+    expect(read({ file_path: file, offset: 1, limit: 370 }, { result: numbered(370), fileLines: () => 347 })).toEqual([]);
+    expect(read({ file_path: file, offset: 30, limit: 5000 }, { result: numbered(10) })).toEqual([]);
+    expect(read({ file_path: file, offset: 1, limit: 100 }, { result: numbered(SMALL_FILE_LINES) })).toEqual([]);
+    expect(read({ file_path: file }, { result: numbered(SMALL_FILE_LINES) })).toEqual([]);
+    expect(read({ file_path: file, offset: 1, limit: 100 }, { result: numbered(SMALL_FILE_LINES + 1) })).toEqual(["whole read core/a.ts via range"]);
+    expect(read({ file_path: file, limit: 100 }, { result: "<system-reminder>Warning: the file exists but the contents are empty.</system-reminder>" })).toEqual([]);
+    expect(read({ file_path: "D:/x/packages/cli/schemas/lock.schema.json" })).toEqual([]);
+    expect(sh("cat packages/cli/src/a.ts | head -50", { result: output(50) })).toEqual([]);
+    expect(sh("cat packages/cli/src/a.ts | wc -l")).toEqual([]);
+    expect(sh("head -50 packages/cli/src/a.ts", { fileLines: () => 200 })).toEqual([]);
+    expect(sh("head -500 packages/cli/src/a.ts", { result: output(30) })).toEqual([]);
+    expect(sh("cat packages/cli/src/a.ts", { result: output(25) })).toEqual([]);
+    expect(sh("sed -n 10,40p packages/cli/src/a.ts")).toEqual([]);
+    expect(sh("sed -n '/export/p' packages/cli/src/a.ts")).toEqual([]);
+    expect(sh("git show HEAD:packages/cli/src/a.ts | sed -n 1,40p", { fileLines: () => 300 })).toEqual([]);
+    expect(sh("git show HEAD --stat")).toEqual([]);
+    // a range piped into grep, and file content captured by $(…) instead of printed
+    expect(sh('sed -n 1,60p packages/cli/test/helpers/cli.ts | grep -n "export"')).toEqual([]);
+    expect(sh("A=$(cat packages/cli/src/a.ts packages/cli/src/b.ts); B=`git show HEAD:packages/cli/src/a.ts`; echo done")).toEqual([]);
+    expect(sh("grep -rn 0.4.0 packages/cli/test/golden packs/*/golden")).toEqual([]);
+  });
+
+  it("judges a transcript call by its result and counts whole reads with their bytes", () => {
+    const text = [
+      line("2026-09-24T10:00:00.000Z", "m1", [tool("r1", "Read", { file_path: file, offset: 1, limit: 400 }), tool("r2", "Read", { file_path: file, offset: 1, limit: 30 })]),
+      result("r1", numbered(250)),
+      result("r2", numbered(30)),
+      line("2026-09-24T10:00:05.000Z", "m2", [tool("r3", "Read", { file_path: file, offset: 1, limit: 90 })]),
+      result("r3", numbered(90)),
+    ].join("\n");
+    const m = parseTranscript(text);
+    expect(m.deviations).toEqual(["whole read core/a.ts via range"]);
+    expect(m.whole_reads).toEqual({ count: 1, bytes: Buffer.byteLength(numbered(250)) });
+    // with the file length known, the read of lines 1..90 of a 90-line file is whole too
+    const known = parseTranscript(text, { fileLines: () => 90 });
+    expect(known.deviations).toEqual(["whole read core/a.ts via range", "whole read core/a.ts via range"]);
+    expect(known.whole_reads.count).toBe(2);
   });
 });

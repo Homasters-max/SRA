@@ -12,7 +12,8 @@
  * run. One group = one agent; a group that had to be split is recorded per subagent with `--part k` and summed by
  * `report`. The transcript is copied to `<git-common-dir>/graft-lab/transcripts/`, the record goes to
  * `<git-common-dir>/graft-lab/runs/<change>-g<n>[-p<k>].json` — shared by every worktree, never tracked.
- * `rescore` recomputes every record from its transcript copy with the current metrics (card kept).
+ * `rescore` recomputes every record from its transcript copy with the current metrics (card kept). Whether a read
+ * range covered a whole file (D-8) is judged by the read's own result, else against the file in git (`fileLinesAt`).
  * `report` prints the aggregate JSON and lists groups closed in tasks.md without a record (`missing`).
  * Exit: 0 ok; 1 — run: violations, report: verdict reject or missing groups; 2 usage / not found.
  */
@@ -45,6 +46,46 @@ function git(...a) {
   const r = spawnSync("git", a, { encoding: "utf8" });
   if (r.status !== 0) fail("not inside a git repository");
   return r.stdout.trim();
+}
+
+/**
+ * D-8: line count of a file as the agent saw it — from git at the last commit before `at` (transcript start), or, for
+ * a file the agent created, before `until` (its end; the group commit); the transcript's absolute path is mapped to
+ * the repo by its longest suffix tracked there (the worktree may be gone); else from disk. null when unknown.
+ */
+function fileLinesAt(at, until) {
+  const count = (text) => (text === "" ? 0 : text.split("\n").length - (text.endsWith("\n") ? 1 : 0));
+  const cache = new Map();
+  let revs;
+  return (p) => {
+    const abs = String(p).replace(/\\/g, "/");
+    if (cache.has(abs)) return cache.get(abs);
+    if (revs === undefined) {
+      revs = [at, until]
+        .map((t) => (t ? spawnSync("git", ["rev-list", "-1", `--before=${t}`, "HEAD"], { encoding: "utf8" }).stdout?.trim() || null : null))
+        .filter((r, i, all) => r && all.indexOf(r) === i)
+        .map((rev) => ({ rev, tree: new Set(spawnSync("git", ["ls-tree", "-r", "--name-only", rev], { encoding: "utf8", maxBuffer: 64 << 20 }).stdout.split("\n")) }));
+    }
+    let n = null;
+    const segs = abs.split("/");
+    for (const { rev, tree } of revs) {
+      const rel = segs.map((_, i) => segs.slice(i).join("/")).find((r) => tree.has(r));
+      if (rel === undefined) continue;
+      const r = spawnSync("git", ["show", `${rev}:${rel}`], { encoding: "utf8", maxBuffer: 64 << 20 });
+      if (r.status === 0) n = count(r.stdout);
+      break;
+    }
+    const native = abs.replace(/^\/([a-zA-Z])(?=\/)/, "$1:");
+    if (n === null && existsSync(native)) n = count(readFileSync(native, "utf8"));
+    cache.set(abs, n);
+    return n;
+  };
+}
+
+/** Transcript metrics; a read range is judged against the file as the agent saw it (D-8, `fileLinesAt`). */
+function metricsOf(text) {
+  const { start, end } = parseTranscript(text).window;
+  return parseTranscript(text, { fileLines: fileLinesAt(start, end) });
 }
 
 const labDir = () => path.join(git("rev-parse", "--path-format=absolute", "--git-common-dir"), "graft-lab");
@@ -104,7 +145,7 @@ function run(o) {
     part,
     mode,
     agent: { id: path.basename(jsonl, ".jsonl"), description: meta.description ?? null, model: meta.model ?? null, source: jsonl, transcript: copy },
-    metrics: parseTranscript(readFileSync(copy, "utf8")),
+    metrics: metricsOf(readFileSync(copy, "utf8")),
     card: {
       red_runs: o["red-runs"] === undefined ? undefined : Number(o["red-runs"]),
       helped: o.helped,
@@ -141,11 +182,11 @@ function rescore() {
       part: record.part ?? null,
       mode: record.mode,
       agent: { ...record.agent, source: record.agent.source ?? record.agent.transcript, transcript: copy },
-      metrics: parseTranscript(readFileSync(copy, "utf8")),
+      metrics: metricsOf(readFileSync(copy, "utf8")),
       card: record.card,
     });
     writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`);
-    out.push({ record: name, mode: next.mode, deviations: next.deviations.length, compliant: next.compliant, explore_bytes: next.ingest.explore_bytes });
+    out.push({ record: name, mode: next.mode, deviations: next.deviations.length, compliant: next.compliant, explore_bytes: next.ingest.explore_bytes, whole_reads: next.whole_reads });
   }
   process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
 }

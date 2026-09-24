@@ -1,5 +1,5 @@
 {
-  "$comment": "Code-search benchmark (ADR-0027): questions from the task groups of change test-levels, asked on the parent commit of the group. truth — built from the TypeScript AST at that commit (enclosing named function of each call; \"(file)\" for file-level questions), not with graft.",
+  "$comment": "Code-search benchmark (ADR-0027): questions from the task groups of change test-levels, asked on the parent commit of the group. truth — built from the TypeScript AST at that commit (enclosing named function of each call; \"(file)\" for file-level questions), not with graft. q9–q17 (group audit-2026-09-24) — from the graph audit (decision D-2), where the graph or grep fail; truth — `node scripts/dev/graph-audit.js callers <file>#<name> --refs --root <worktree at base>`.",
   "format": "code-search-bench/1",
   "questions": [
     {
@@ -139,6 +139,113 @@
         { "file": "packages/cli/src/commands/transition.ts", "symbol": "forward" },
         { "file": "packages/cli/src/commands/transition.ts", "symbol": "runTransition" },
         { "file": "packages/cli/src/commands/verify.ts", "symbol": "runVerify" }
+      ]
+    },
+    {
+      "id": "q9",
+      "base": "4a3c586",
+      "group": "audit-2026-09-24",
+      "question": "Which functions call readRecords from packages/cli/src/core/evidence/store.ts? A call outside any named function (module level, an anonymous test callback) is answered with \"symbol\": \"(file)\".",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/commands/gate.ts", "symbol": "evaluateTransition" },
+        { "file": "packages/cli/src/commands/transition.ts", "symbol": "assertRunRef" },
+        { "file": "packages/cli/src/commands/transition.ts", "symbol": "ensureApproval" },
+        { "file": "packages/cli/src/commands/transition.ts", "symbol": "mergedCommit" }
+      ]
+    },
+    {
+      "id": "q10",
+      "base": "4a3c586",
+      "group": "audit-2026-09-24",
+      "question": "Which functions in packages/cli/src call the head() method of the git port — a value of type GitPort (packages/cli/src/core/ports/git.ts)?",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "readGitFacts" },
+        { "file": "packages/cli/src/core/ids/immutable.ts", "symbol": "checkImmutableIds" }
+      ]
+    },
+    {
+      "id": "q11",
+      "base": "4a3c586",
+      "group": "audit-2026-09-24",
+      "question": "Which functions in packages/cli (src and test) call the version() method of the OpenSpec port — a value of type OpenSpecPort (packages/cli/src/core/ports/openspec.ts)? A call outside any named function (module level, an anonymous test callback) is answered with \"symbol\": \"(file)\".",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/commands/check.ts", "symbol": "manifestOpenspecVersion" },
+        { "file": "packages/cli/src/commands/init.ts", "symbol": "runInit" },
+        { "file": "packages/cli/src/core/openspec/version.ts", "symbol": "openspecAvailable" },
+        { "file": "packages/cli/src/core/openspec/version.ts", "symbol": "requireOpenspec" },
+        { "file": "packages/cli/test/contract/openspec.contract.test.ts", "symbol": "(file)" }
+      ]
+    },
+    {
+      "id": "q12",
+      "base": "4a3c586",
+      "group": "audit-2026-09-24",
+      "question": "Which functions call the function forward defined in packages/cli/src/commands/transition.ts? A call outside any named function (module level, an anonymous test callback) is answered with \"symbol\": \"(file)\".",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/commands/transition.ts", "symbol": "runTransition" }
+      ]
+    },
+    {
+      "id": "q13",
+      "base": "4a3c586",
+      "group": "audit-2026-09-24",
+      "question": "Which functions (src and test) call the function resolve exported by packages/cli/src/core/resolve/merge.ts? A call outside any named function (module level, an anonymous test callback) is answered with \"symbol\": \"(file)\".",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/core/resolve/index.ts", "symbol": "resolveForProject" },
+        { "file": "packages/cli/test/unit/resolve/merge.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/unit/resolve/merge.test.ts", "symbol": "run" }
+      ]
+    },
+    {
+      "id": "q14",
+      "base": "4a3c586",
+      "group": "audit-2026-09-24",
+      "question": "Which functions (src and test) call the toCliError method of WarrantError (packages/cli/src/core/errors.ts)? A call outside any named function (module level, an anonymous test callback) is answered with \"symbol\": \"(file)\".",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/commands/check.ts", "symbol": "executeChecks" },
+        { "file": "packages/cli/src/commands/validate.ts", "symbol": "checkGenerated" },
+        { "file": "packages/cli/src/io/output.ts", "symbol": "failure" },
+        { "file": "packages/cli/test/unit/output.test.ts", "symbol": "(file)" }
+      ]
+    },
+    {
+      "id": "q15",
+      "base": "4a3c586",
+      "group": "audit-2026-09-24",
+      "question": "Which functions in packages/cli/src call the run() method of the check-runner port — a value of type CheckRunnerPort (packages/cli/src/core/ports/checks.ts)?",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/commands/check.ts", "symbol": "runOne" }
+      ]
+    },
+    {
+      "id": "q16",
+      "base": "bd1f069",
+      "group": "audit-2026-09-24",
+      "question": "Which functions call runCli exported by scripts/golden-lib.js? A call outside any named function (module level, an anonymous test callback) is answered with \"symbol\": \"(file)\".",
+      "level": "symbol",
+      "truth": [
+        { "file": "scripts/golden-lib.js", "symbol": "runGolden" },
+        { "file": "scripts/golden-update.js", "symbol": "(file)" }
+      ]
+    },
+    {
+      "id": "q17",
+      "base": "375ccc4",
+      "group": "audit-2026-09-24",
+      "question": "Which test files (*.test.ts) under packages/cli/test use the PATH_KEY constant exported by packages/cli/test/helpers/fake-openspec.ts?",
+      "level": "file",
+      "truth": [
+        { "file": "packages/cli/test/e2e/gate.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/transition.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/verify.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/waive.test.ts", "symbol": "(file)" }
       ]
     }
   ]

@@ -8,14 +8,14 @@
 
 ## 1. Архитектурный тест и храповик
 
-- [ ] 1.1 Bump CLI `0.4.2` (`package.json`, `packages/cli/package.json`). Проверка: `npm run versions:check` зелёный.
-- [ ] 1.2 `test/unit/meta/architecture.json` (§1): модули с рангами R0–R4 и слои по ADR-0030 п. 1 — для модулей, которых
+- [x] 1.1 Bump CLI `0.4.2` (`package.json`, `packages/cli/package.json`). Проверка: `npm run versions:check` зелёный.
+- [x] 1.2 `test/unit/meta/architecture.json` (§1): модули с рангами R0–R4 и слои по ADR-0030 п. 1 — для модулей, которых
   ещё нет (`core/fs`, `core/json`, `core/git`, `core/waivers`, `core/roles`, `core/transition`), строки добавляет группа,
   которая их создаёт; реестры помощников и перечислений (§1). Проверка: каждое значение перечислений найдено в 02 / 04.
-- [ ] 1.3 `test/unit/meta/architecture.test.ts` (§2): правила `module`, `rank`, `cycle`, `sibling`, `helper`, `enum` и
+- [x] 1.3 `test/unit/meta/architecture.test.ts` (§2): правила `module`, `rank`, `cycle`, `sibling`, `helper`, `enum` и
   «исключение ничего не прикрывает». Проверка: временное нарушение каждого правила роняет тест (способ — строкой I-N);
   тест не порождает процессов.
-- [ ] 1.4 Стартовые исключения (§3) — все нарушения на коммите группы, каждое с A-N; нарушение без строки долга — вопрос
+- [x] 1.4 Стартовые исключения (§3) — все нарушения на коммите группы, каждое с A-N; нарушение без строки долга — вопрос
   maintainer'у. Проверка: тест зелёный; число исключений по правилам записано в §10.
 
 ## 2. `core/fs`, `core/json` (A-3, A-4, A-5 — guard)

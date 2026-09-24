@@ -136,7 +136,7 @@ version: 0.4.1
 
 | # | Проблема (аудит 2026-09-24) | Приоритет | Куда |
 |---|---|---|---|
-| A-1 | Цепочка состояний lifecycle в 4 копиях (`record/write.ts`, `commands/check.ts`, `commands/gate.ts`, `ids/immutable.ts`) | P1 | `arch-boundaries` гр. 3 |
+| A-1 | Цепочка состояний lifecycle в 4 копиях (`record/write.ts`, `commands/check.ts`, `commands/gate.ts`, `ids/immutable.ts`) и подмножества состояний вне владельца (`commands/classify.ts`, `commands/link.ts`, `commands/transition.ts`, `core/ids/renumber.ts`, `core/validate/links.ts`) | P1 | `arch-boundaries` гр. 3 |
 | A-2 | Конвейер оценки перехода в `commands/gate.ts` + `check.ts`, копии в verify / archive / transition; 26 рёбер `commands → commands` | P1 | `arch-boundaries` гр. 5 (`core/transition`) |
 | A-3 | God-модуль `core/packs/loader.ts` (783 строки, fan-in 21; утилиты ФС, конфиг, граф pack'ов, `weakenings`) | P2 | `arch-boundaries` гр. 2 (`core/fs`) |
 | A-4 | Цикл модулей `core/canon ↔ core/packs` (runtime) | P2 | `arch-boundaries` гр. 2 (следствие A-3) |

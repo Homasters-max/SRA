@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3AD3GJH6ZJ1WDZYWJ0PXXPZ",
+  "claim": {
+    "text": "openspec-validate passed for arch-boundaries",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "1684c3f73d5684279ca71acde38e5e7c2e6b1718",
+    "base_commit": "189e11584212de40fe2b1ae7cd94197babe32cf3",
+    "spec_revision": "openspec/changes/arch-boundaries@1684c3f73d5684279ca71acde38e5e7c2e6b1718",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:622bb96c89416cd0e34f5a795999279d22d2c06f4a39452ac5d9bdf9bebd1ce8",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-24T19:08:31.698Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/arch-boundaries/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:c73291ed0dce593d4e13c3ba2eda1aee373a069836974c4a77b6f04db6ab065f"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 1
+  }
+}

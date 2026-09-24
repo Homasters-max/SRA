@@ -1,9 +1,9 @@
 ---
 id: WARRANT-NEXT
-title: WARRANT — следующий шаг: impl-PR arch-boundaries (ADR-0030) после merge spec-PR, затем аудит и grilling фазы 4
+title: WARRANT — следующий шаг: process-PR о `PreToolUse deny` по замеру ADR-0029 п. 8, затем аудит и grilling фазы 4
 status: informative
 maturity: MVP
-version: 0.4.1
+version: 0.4.2
 ---
 
 # WARRANT — что делать в следующей сессии
@@ -77,11 +77,27 @@ version: 0.4.1
   `core` нет; находки **A-1…A-10** — таблица «Архитектурный долг» ниже. Grilling по итогам (Q1–Q22, приняты maintainer'ом):
   до фазы 4 — change **`arch-boundaries`** (ADR-0030, строка 3d в 13 §2) — решения в разделе «arch-boundaries» ниже;
   аудит — перед spec-PR каждой фазы (шаг `/next-session`). Process-PR #21 смержен (`1f0d01c`).
-- **`arch-boundaries` — spec-PR** (ветка `spec/arch-boundaries`, worktree `D:\project\SRA-arch-boundaries`): ADR-0030,
-  proposal / design / tasks (6 групп), строка 3d в 13 §2, строки 0029 и 0030 в индексе ADR (0029 туда не попал с PR #19);
-  waivers `analyze-clean` / `adversarial-review`; `SPECIFIED`. При подготовке найдены **A-11…A-13** (разбор вывода
-  `openspec` в домене, `onInterrupt` из `core/check` в адаптере, перечисления вне владельца кроме lifecycle).
-  ADR-0029 п. 8 (замер 2–3 групп → решение о `PreToolUse deny`) проводится на группах 1–3 impl-PR `arch-boundaries`.
+- **`arch-boundaries` закрыт** (2026-09-24, строка 3d 13 §2, ADR-0030): spec-PR #22 (merge `2eba96c`; при подготовке
+  найдены **A-11…A-13**); impl-PR #23 `worktree/arch-boundaries` — первым коммитом `APPROVED --ref #22 --by Homasters-max` +
+  `IMPLEMENTING`, группы 1–6 по коммиту (CI зелёный на ubuntu и windows), последним — `VERIFYING`; смержен merge-коммитом
+  `189e115` (impl-head `43c8f2f`). Archive-PR `archive/arch-boundaries` — evidence CI run 36044935441, `transition MERGED
+  --commit 43c8f2f`, `warrant archive` → `openspec/changes/archive/2026-09-24-arch-boundaries` (main specs не менялись —
+  `skip_specs`), tag `v0.4.2`. Решения **I-140…I-147** — таблица design.md архива (I-143 — A-1 расширен подмножествами
+  состояний, решение maintainer'а). Версии: CLI **0.4.2**, pack `core-sdd` **0.3.0**. Итог (design §10):
+  - `test/unit/meta/architecture.test.ts` + `architecture.json`: ранги R0–R4 и слои, циклы, команда → команда, реестры
+    помощников и перечислений, храповик — исключений 65 → 1 (`rank` A-12);
+  - `core/fs`, `core/json`, `core/record/lifecycle.ts`, `core/git`, `core/waivers`, `core/roles`, сценарий `core/transition`
+    (`evaluate`, `prepare`, `judgeGates`); разбор вывода `git`/`openspec` — в адаптерах; циклов модулей 0, импортов команда →
+    команда 0; golden байт в байт, существующие тесты — только пути импорта; 882 теста;
+  - **замер ADR-0029 п. 8** (группы 1–3 против базы test-levels `[A]` g1/g3/g5): отступлений 2 / 1 / 2 (база 2 / 2 / 50), чтений
+    целиком 1 / 0 / 0 (база 2 / 2 / 45), explore 137 / 163 / 124 КБ (база 122 / 134 / 1191), вызовов 55 / 70 / 51 (80 / 59 /
+    358), все `compliant`, `misled` нет, ложных подсказок хука нет — все отступления настоящие (shell `grep`/`cat` по коду).
+    Группы 4 и 5 — `compliant: false` (10 и 9: чтения целиком, shell-поиск, `cs output truncated` ×3 и ×1), ошибок это не
+    дало. Пробелы `cs`: `impact` пуст для типов и констант модуля (заменял `cs grep`); `cs deps --level 2` считает файлы
+    `core/*.ts` частью модуля `core`, а ADR-0030 — отдельными модулями (ложный цикл `core ↔ core/resolve`, I-146);
+    одноимённая локальная `evaluate` в `test/unit/gates/verdict.test.ts` обрезает срезы `arch-snapshot` (I-147, не
+    переименована — ADR-0029 Consequences). Записи — `graft-lab/runs/arch-boundaries-g1…g6.json`. Решение о `PreToolUse
+    deny` — process-PR (Q25).
 - **Итог фазы 3:**
   - capability `verification` (REQ-VER-001…008): `warrant check` (runner без shell, замок `exclusive` в `git-common-dir`,
     `timeout_s` с kill дерева, parsers `junit`/`openspec-validate`, evidence + manifest, attestation `ci` под GitHub Actions),
@@ -126,7 +142,7 @@ version: 0.4.1
 | `analyze` | **Решено V-1**: фаза 4 | — |
 | ~~тесты под нагрузкой~~ | **закрыт** test-levels: `npm test` без флагов ~70 с, зелёный 3 раза подряд (I-138: `unit`/`app` первой группой, тяжёлые — `maxForks`), `validate` репозитория 4,5 с (3.1). Было: `warrant validate` на репозитории — ~30 с (вызовы `openspec` на каждый Change/spec); полный `npm test` с параллелизмом по умолчанию на машине maintainer'а даёт таймауты e2e `validate`/`golden` (поодиночке и с `--maxWorkers=3` — зелёные, CI — зелёный). Один `openspec` на проект невозможен (у OpenSpec 1.13.1 нет пакетного `show`); таймауты не поднимаем | **решено ADR-0025**: `test-levels` — `show` только для файлов с id и параллельно, логика в `unit`/`app` без процессов; до его закрытия `/group-done` гоняет `--maxWorkers=3` вручную |
 | I-103 | Пред-фильтр исключает запись, чей `metrics.waivers[]` ссылается на waiver с `targets[]` — пересмотреть вместе с D-10 | фаза 5 |
-| Graft | **Закрыт** ADR-0028, **аудит** ADR-0029 ([process/graft-audit.md](process/graft-audit.md)): граф не видит вызовов через порты (0/284) → правило 3 навыка — `cs impact`; `cs deps` / `cs dups` / `--json`; строгая обёртка; регрессия графа `graph-audit.js` + бенчмарк q1–q17 (`accept`); хуки разработки `.claude/settings.json` → `scripts/dev/cs-hook.js` (`SubagentStart`, `PostToolUse` — предупреждение) | 2–3 группы после ADR-0029 сравнить с базой `test-levels` `[A]` (graft.md §5) → решение о `PreToolUse deny`; ~~помощник навыка `architecture-audit` — на `cs deps --json`~~ — **закрыт** (`scripts/dev/arch-snapshot.js` поверх `cs --json`) |
+| Graft | **Закрыт** ADR-0028, **аудит** ADR-0029 ([process/graft-audit.md](process/graft-audit.md)): граф не видит вызовов через порты (0/284) → правило 3 навыка — `cs impact`; `cs deps` / `cs dups` / `--json`; строгая обёртка; регрессия графа `graph-audit.js` + бенчмарк q1–q17 (`accept`); хуки разработки `.claude/settings.json` → `scripts/dev/cs-hook.js` (`SubagentStart`, `PostToolUse` — предупреждение) | ~~2–3 группы после ADR-0029 сравнить с базой `test-levels` `[A]`~~ — **сделано** на группах 1–3 `arch-boundaries` (состояние, «arch-boundaries закрыт»); решение о `PreToolUse deny` — process-PR; ~~помощник навыка `architecture-audit` — на `cs deps --json`~~ — **закрыт** (`scripts/dev/arch-snapshot.js` поверх `cs --json`) |
 | `fmt` packs | `warrant fmt --check` без пути не проверяет `packs/**`; `packs/core-sdd/pack.json` неканоничен (порядок `rules`/`skills`), а правило `json-canonical` из черновика `rule/1` покрывает `packs/**/*.json` | вместе с первым правилом `rule/1` или отдельным fix |
 
 ### Архитектурный долг — A-N (аудиты [process/audits/](process/audits/))
@@ -285,20 +301,21 @@ ADR-0020 п. 11), но добавляет входы (`guard`, `run`, `ci`, `ana
 ### Продолжение — готовый запрос
 
 ```text
-Change arch-boundaries — impl-PR (координатор). spec-PR смержен. Прочитай docs/NEXT-SESSION.md (раздел «arch-boundaries —
-решения grilling», «Архитектурный долг»), openspec/changes/arch-boundaries/{proposal,design,tasks}.md, ADR-0030, ADR-0025,
-ADR-0029 (п. 1 — `cs impact` перед переносом символа; п. 8 — замер групп), docs/process/coordinator.md — перед первой
-раздачей. Worktree D:\project\SRA-arch-boundaries-impl, ветка worktree/arch-boundaries от main. Первым коммитом —
-`warrant transition arch-boundaries APPROVED --ref <URL spec-PR> --by Homasters-max` и `IMPLEMENTING`; затем группы 1–6,
-по одному субагенту на группу, после каждой — /group-done и /group-stats (группы 1–3 — замер ADR-0029 п. 8 против базы
-test-levels [A]); последним — `VERIFYING`, impl-PR. Правка ожидаемого значения в существующем тесте — стоп и I-N (с I-140);
-нарушение без строки A-N в группе 1 — вопрос maintainer'у. После impl-PR — archive-PR по образцу test-levels, tag v0.4.2;
-затем process-PR с решением о `PreToolUse deny` по замеру.
+Process-PR: решение о `PreToolUse deny` (ADR-0029 п. 8, Q25). Прочитай docs/NEXT-SESSION.md (состояние — пункт
+«arch-boundaries закрыт», замер), ADR-0029 (п. 6, 8), docs/process/graft.md §5, docs/process/coordinator.md, scripts/dev/cs-hook.js
+и test/unit/meta/dev-hooks.test.ts. Записи групп — `node scripts/dev/graft-metrics.js report` и
+.git/graft-lab/runs/arch-boundaries-g*.json. Вопросы maintainer'у: (1) deny — на что именно (shell `grep`/`cat`/`sed` по
+коду, Read целиком без диапазона, Grep/Glob по packages/** и scripts/**) и только у субагентов (`agent_id`); (2) что с
+`cs output truncated` (g4 ×3, g5 ×1) — поднять лимит или подсказка сузить запрос; (3) пробелы `cs` — `impact` для типов и
+констант, модуль-файл в `cs deps --level` против ADR-0030 — в обёртку `cs.js` или вопросом в бенчмарк; (4) файлы до 40
+строк и «файл переносится целиком» — исключения из deny? Ветка process/<имя> от main, свой worktree; процесс «Decision
+workflow» (сводка → ADR → коммит после подтверждения).
 ```
 
-После `arch-boundaries` — фаза 4. Её grilling начинается с архитектурного аудита (снимок 2026-09-24 к тому времени устареет:
-новый тег `v0.4.2`); запрос ниже — сохранён, в начало добавить `architecture-audit` со сравнением `--against
-docs/process/audits/2026-09-24.json`.
+После process-PR — фаза 4. Её grilling начинается с архитектурного аудита (снимок 2026-09-24 устарел: тег `v0.4.2`
+новее, аудит обязателен); запрос ниже — сохранён, в начало добавить `architecture-audit` со сравнением `--against
+docs/process/audits/2026-09-24.json`. Открытые A-N как вход grilling'а: A-5 (типизированные читатели, копии `strings` под
+другими именами), A-8, A-9, A-12 (храповик).
 
 ```text
 Grilling по нарезке фазы 4 (MVP frontend Codex). Прочитай docs/NEXT-SESSION.md (состояние, «Фаза 4», долг B/C/D, «Чего не
@@ -352,8 +369,8 @@ ADR-0013); (5) producers analyze-clean / adversarial-review — до истеч�
 `worktree/phase-3-verification`; после archive-PR оба удалить. В phase-3b: D:\project\SRA-phase3b — spec/phase-3b (PR #10 смержен, можно удалить), D:\project\SRA-phase3b-impl — worktree/phase-3b (impl-PR #11). В test-levels: `spec/test-levels` — spec-PR #14 (смержен, ветку можно удалить); impl — `D:\project\SRA-test-levels-impl` (`worktree/test-levels`, PR #15 смержен), archive — `D:\project\SRA-test-levels-archive` (`archive/test-levels`); после merge archive-PR оба удалить. Аудит Graft: `D:\project\SRA-graft-audit` (`process/graft-audit`, PR #19 смержен;
 затем `docs/next-session-graft-audit`) — удалены. Архитектурный аудит: `D:\project\SRA-arch-audit`
 (`process/architecture-audit`, PR #21 смержен) — удалён. `arch-boundaries`: spec — `D:\project\SRA-arch-boundaries`
-(`spec/arch-boundaries`, после merge удалить); impl — `D:\project\SRA-arch-boundaries-impl` (`worktree/arch-boundaries`);
-archive — отдельный worktree `archive/arch-boundaries`.
+(`spec/arch-boundaries`, PR #22 смержен) — удалён; impl — `D:\project\SRA-arch-boundaries-impl` (`worktree/arch-boundaries`,
+PR #23 смержен), archive — `D:\project\SRA-arch-boundaries-archive` (`archive/arch-boundaries`); после merge archive-PR оба удалить.
 
 ## Backlog из ревью фазы 1
 

@@ -5,7 +5,13 @@ adr_state: ACCEPTED
 date: 2026-09-24
 supersedes: []
 amends: [WARRANT-ADR-0026, WARRANT-ADR-0027]
+amended_by: [WARRANT-ADR-0029]
 ---
+
+> Уточнено [ADR-0029](WARRANT-ADR-0029-graft-audit-dev-hooks.md) по итогам аудита: правило 3 — `cs impact` вместо голого
+> `callers` (граф не видит вызовов через порты); п. 4 — обновление Graft также через `graph-audit --baseline`; п. 6
+> (усиление бенчмарка) выполнен; п. 2 — «хуки не используются» относится к хукам самого graft, хуки разработки
+> WARRANT — `.claude/settings.json` → `scripts/dev/cs-hook.js`.
 
 ## Context
 

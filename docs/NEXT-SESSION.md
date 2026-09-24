@@ -103,7 +103,7 @@ version: 0.4.1
 | `analyze` | **Решено V-1**: фаза 4 | — |
 | ~~тесты под нагрузкой~~ | **закрыт** test-levels: `npm test` без флагов ~70 с, зелёный 3 раза подряд (I-138: `unit`/`app` первой группой, тяжёлые — `maxForks`), `validate` репозитория 4,5 с (3.1). Было: `warrant validate` на репозитории — ~30 с (вызовы `openspec` на каждый Change/spec); полный `npm test` с параллелизмом по умолчанию на машине maintainer'а даёт таймауты e2e `validate`/`golden` (поодиночке и с `--maxWorkers=3` — зелёные, CI — зелёный). Один `openspec` на проект невозможен (у OpenSpec 1.13.1 нет пакетного `show`); таймауты не поднимаем | **решено ADR-0025**: `test-levels` — `show` только для файлов с id и параллельно, логика в `unit`/`app` без процессов; до его закрытия `/group-done` гоняет `--maxWorkers=3` вручную |
 | I-103 | Пред-фильтр исключает запись, чей `metrics.waivers[]` ссылается на waiver с `targets[]` — пересмотреть вместе с D-10 | фаза 5 |
-| Graft | Слепой эксперимент ADR-0026/0027 активен ([process/graft.md](process/graft.md), `status: active`): основной замер — парный бенчмарк (`scripts/dev/bench-score.js`), поле — группы по [process/coordinator.md](process/coordinator.md): зонд (включая память), метки `[A]` (нечётные, текст [process/code-search.md](process/code-search.md) в промпте) / `[B]` (чётные), одна группа — один агент; после группы — `/group-stats`. Субагентам об эксперименте не сообщать; в памяти проекта о нём ничего | `/stats-report` — отчёт и итоговый ADR |
+| Graft | **Закрыт** ADR-0028: `accept` ([process/graft-report.md](process/graft-report.md)); поиск по коду — навык `code-search` через `scripts/dev/cs.js`, стандарт субагентов ([process/coordinator.md](process/coordinator.md)); после группы — `/group-stats` (`--mode on`); обновление Graft — только через регрессию бенчмарка ([process/graft.md](process/graft.md) §6) | later: усилить бенчмарк при первом `misled` или обновлении Graft |
 | `fmt` packs | `warrant fmt --check` без пути не проверяет `packs/**`; `packs/core-sdd/pack.json` неканоничен (порядок `rules`/`skills`), а правило `json-canonical` из черновика `rule/1` покрывает `packs/**/*.json` | вместе с первым правилом `rule/1` или отдельным fix |
 
 ### Ревью фазы 3 (2026-09-23) — R-1…R-16
@@ -166,11 +166,9 @@ verify → transition`, gate engine, runner) — нет. Нерешённые в
 | Одна ветка — один worktree, ветку проверять перед коммитом | «Организационное», memory | проза: машина не знает, какой ветке принадлежит работа; шаг процедуры `/group-done` (ниже) |
 | Отклонение от spec — строкой I-N в design.md, вопросом maintainer'у | pack `rules.design` (1.4) | правило о решении (ADR-0022 допускает без `enforced_by`); нумерацию I-N ведёт `/decision` (ниже) |
 | NEXT-SESSION обновляется в конце сессии | этот файл | процедура `/next-session` (ниже) |
-| Graft только через `cs.js`, разрешённые подкоманды и версия | ADR-0026 п. 2 | `scripts/dev/cs.js` (код 2 / 3); `graft` в группе `[B]` — код 1 `graft-metrics run` |
-| Алгоритм поиска в группах `[A]` | ADR-0027 п. 3, 6 | `graft-metrics run`: `deviations` (детектор с unit-тестами на ложные срабатывания), > 3 → `compliant: false` (вне вердикта) |
+| Graft только через `cs.js`, разрешённые подкоманды и версия | ADR-0026 п. 2, ADR-0028 п. 2, 4 | `scripts/dev/cs.js` (код 2 / 3); обновление — регрессия бенчмарка `bench-score.js report` |
+| Поиск по коду — навык `code-search` | ADR-0028 п. 3, 5 | `graft-metrics run --mode on`: `deviations` (детектор с unit-тестами), > 3 → `compliant: false`; строка про навык в промпте — правило о решении ([coordinator.md](process/coordinator.md) §2) |
 | Graft не пачкает дерево | ADR-0026 п. 3 | `cs.js` ставит переменные и проверяет `.git/info/exclude`; `git status --short` в `/group-done` |
-| Каждая группа записана и помечена `[A]`/`[B]` | ADR-0026 п. 5 | `graft-metrics run` без метки не пишет; `report` — `missing` (группа закрыта без записи), код 1 |
-| Слепота эксперимента | ADR-0026 п. 5, ADR-0027 п. 2 | зонд перед первой группой с механической проверкой ответа, включая индекс памяти ([coordinator.md](process/coordinator.md) §1); алгоритма нет в `.claude/`; шаблоны промпта — правило о решении |
 | Одна группа — один агент, транскрипт сохранён | ADR-0027 п. 5 | `graft-metrics run --part k` (иначе отказ при нескольких транскриптах), копия в `graft-lab/transcripts/` |
 | `scripts/dev/` не поставляется | ADR-0026 | `package-contents.test.ts` |
 

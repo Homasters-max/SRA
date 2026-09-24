@@ -1,22 +1,23 @@
 ---
-status: active
+status: closed
 adr: WARRANT-ADR-0026
-amended_by: WARRANT-ADR-0027
+amended_by: [WARRANT-ADR-0027, WARRANT-ADR-0028]
 graft_version: 0.19.0
 ---
 
-# Graft в разработке WARRANT — протокол эксперимента
+# Graft в разработке WARRANT
 
-Решение и обоснование — [ADR-0026](../adr/WARRANT-ADR-0026-graft-experiment.md), донастройка после `test-levels` —
-[ADR-0027](../adr/WARRANT-ADR-0027-graft-tuning.md); раздача групп — [coordinator.md](coordinator.md); алгоритм
-поиска — [code-search.md](code-search.md). Пока `status: active` (frontmatter выше) действует этот протокол; после
-итога — `status: closed` и ссылка на отчёт `graft-report.md`. Субагентам этот файл не передаётся.
+Эксперимент [ADR-0026](../adr/WARRANT-ADR-0026-graft-experiment.md) / [ADR-0027](../adr/WARRANT-ADR-0027-graft-tuning.md)
+**закрыт** 2026-09-24: вердикт `accept` — [отчёт](graft-report.md), решение — [ADR-0028](../adr/WARRANT-ADR-0028-graft-adoption.md).
+Поиск по коду через граф — стандарт субагентов разработки WARRANT: навык
+[code-search](../../.claude/skills/code-search/SKILL.md), раздача групп — [coordinator.md](coordinator.md). Здесь —
+установка, обёртка, наблюдение, обновление, откат; §6 — протокол бенчмарка (для регрессии при обновлении).
 
-## 1. Гипотеза
+## 1. Итог
 
-Субагент, который ищет по коду через граф (`scripts/dev/cs.js` по алгоритму [code-search.md](code-search.md)),
-затягивает в контекст при исследовании кода на ≥ 20 % меньше байт и находит нужные места не хуже, чем субагент с
-обычными средствами.
+Бенчмарк (8 вопросов, пары `[A]`/`[B]`): прочитанное при исследовании — медиана отношения 0,54, токены −22 %,
+вызовы −29 %, recall и precision 1,0 у обеих меток. Поле (`test-levels`) — то же направление, неверных ответов,
+приведших к ошибке, — 0. Риски — [отчёт](graft-report.md) §4.
 
 ## 2. Установка (один раз на машину)
 
@@ -31,62 +32,43 @@ setx DO_NOT_TRACK 1
 Путь установки — короткий: нативная сборка `tree-sitter-kotlin` падает с `C1258` при пути длиннее 260 символов
 (MAX_PATH); глобальная установка npm проходит. `cs.js` импортирует `cross-spawn` — в worktree нужен `npm ci`.
 
-## 3. Обёртка `cs` и алгоритм
+## 3. Обёртка `cs` и навык
 
-- `scripts/dev/cs.js` — единственный вход к graft для субагента: разрешены `ask`, `grep`, `skeleton`, `callers`,
-  `map`, `version` (иначе код 2), флаги `--deep`, `--lsp`, `--no-refresh`, `--dir` — нет; версия ≠ 0.19.0 или
-  `graft/` не исключён — код 3; переменные гигиены и телеметрии ставит сама; индекс строит сама; строки «tokens saved»
-  (с инструкцией агенту отчитаться пользователю) вырезает, подсказки `graft <sub>` переписывает в `cs <sub>`.
-- [code-search.md](code-search.md) — алгоритм (правила 1–6, команды, сценарии). В `.claude/skills/` его нет
-  (ADR-0027 п. 2): координатор вставляет текст в промпт группы `[A]`.
+- `scripts/dev/cs.js` — единственный вход к graft: разрешены `ask`, `grep`, `skeleton`, `callers`, `map`, `version`
+  (иначе код 2), флаги `--deep`, `--lsp`, `--no-refresh`, `--dir` — нет; версия ≠ `GRAFT_VERSION` или `graft/` не
+  исключён — код 3; переменные гигиены и телеметрии ставит сама; индекс строит сама; строки «tokens saved» (с
+  инструкцией агенту отчитаться пользователю) вырезает, подсказки `graft <sub>` переписывает в `cs <sub>`.
+- [.claude/skills/code-search/SKILL.md](../../.claude/skills/code-search/SKILL.md) — алгоритм (правила 1–6, команды,
+  сценарии); навык вызывается моделью сам, субагенту — строка-ссылка в промпте ([coordinator.md](coordinator.md) §2).
 - `graft init`, `upgrade`, `mcp`, `brain`, хуки, MCP, statusline — не используются (ADR-0026 п. 2).
 
-## 4. Дизайн
-
-- **Основной замер — парный бенчмарк** (§6): одни и те же вопросы о коде в обеих метках на одном коммите. Вердикт
-  эксперимента — по нему (ADR-0027 п. 4).
-- **Полевые данные — группы задач.** Группы Change чередуются: нечётная — `[A]`, чётная — `[B]`; метка в конце
-  `description`; записываются **все** группы. Одна группа — один субагент; иначе части `--part k`, `report`
-  суммирует. Поле — справочно: группы различаются по объёму в десятки раз.
-- **Слепота.** Субагент не знает об эксперименте: промпт, `CLAUDE.md`, индекс памяти, `.claude/` его не упоминают;
-  общий блок промпта и разделы отчёта одинаковы у `[A]` и `[B]`; зонд перед первой группой проверяет всё, что
-  попадает в контекст субагента ([coordinator.md](coordinator.md) §1). Остаточный риск — `docs/process/**`, ADR и
-  `scripts/dev/cs.js`, если агент сам туда пойдёт. Запись `[B]` засчитывается, только если в ней нет вызовов `cs` и
-  `graft` (иначе — нарушение); записи с утечкой — с пометкой `blind-leak` в `notes`.
-- **Соблюдение алгоритма (`[A]`).** `graft-metrics` считает отступления: поиск по содержимому кода (Grep, `grep`,
-  `rg`, `git grep` по `packages/`, `scripts/`, `*.ts`), чтение файла кода целиком (Read без `offset`/`limit`, `cat`),
-  `graft` в обход `cs`. Не отступления: запись файлов (heredoc, `sed -i`), JSON / конфиги / локи / документы,
-  `node_modules`, список файлов (`ls`, `find`, Glob), фильтр вывода после `|`. Больше 3 — `compliant: false`: в
-  отчёте видна, в вердикт не идёт.
-
-## 5. Метрики, порог, остановка
+## 4. Метрики
 
 | Метрика | Откуда |
 |---|---|
-| `ingest.explore_bytes` — **основная** | байты результатов исследующих вызовов (Read/Grep/Glob, `cat`/`sed -n`/`grep`/…, `cs`) |
-| `ingest.explore_before_edit_bytes` | то же до первой правки (Edit/Write, запись из shell) |
+| `ingest.explore_bytes`, `explore_before_edit_bytes` | байты результатов исследующих вызовов (Read/Grep/Glob, `cat`/`sed -n`/`grep`/…, `cs`), всего и до первой правки |
 | `ingest.cs_bytes`, `results_bytes` | доля `cs`; все результаты инструментов |
-| `tokens.total`, `output`, `context_peak` | usage ответов API (раз на `message.id`) — вторичные |
-| `tool_calls.*`, `graft_commands` | `tool_use` (раз на id), команды `cs.js <sub>` и `graft <sub>` |
-| `deviations`, `compliant` | правила алгоритма (`[A]`) |
+| `tokens.*`, `tool_calls.*`, `graft_commands` | usage (раз на `message.id`), `tool_use` (раз на id), команды `cs.js` / `graft` |
+| `deviations`, `compliant` | отступления от правил навыка (> 3 — `compliant: false`); не отступления: запись файлов, JSON / конфиги / документы, `node_modules`, список файлов, фильтр вывода после `\|` |
 | `score.recall`, `precision` (бенчмарк) | ответ агента против эталона |
 | `card.red_runs`, `helped`, `misled`, `notes` (поле) | координатор по отчёту субагента |
 
-**Accept** (бенчмарк) — все 8 вопросов в обеих метках, медиана по вопросам отношения `explore_bytes[A] /
-explore_bytes[B]` ≤ 0,8, средний recall `[A]` не ниже `[B]`, ни одного вызова `cs` в `[B]`. Иначе — **reject**;
-неполные пары — **insufficient**. Поле — перекрёстная проверка: те же −20 % по `explore_bytes`, красных прогонов не
-больше, ни одного `misled`.
+## 5. Наблюдение и пересмотр (ADR-0028 п. 5, 6)
 
-**Остановка сразу:** `cs` вернул код 3 или дерево грязное из-за graft; `misled` (неверный ответ привёл к ошибке);
-установка сломалась; нужен upgrade. Тогда — `status: closed`, `/stats-report`, откат (§7).
+- После каждой группы — `graft-metrics.js run --mode on` (`/group-stats`, [coordinator.md](coordinator.md) §3);
+  записи — `<git-common-dir>/graft-lab/runs/`, транскрипты — `graft-lab/transcripts/` (вне git); пересчёт —
+  `graft-metrics.js rescore`, сводка — `graft-metrics.js report`.
+- **`misled`** (неверный ответ `cs` привёл к ошибке) — условие пересмотра ADR-0028; случай оформить вопросом в
+  бенчмарк (`scripts/dev/bench/code-search.json`: одноимённые символы, переименованные импорты, re-export — там, где
+  граф или grep ошибаются).
+- **Остановка** (как ADR-0026 п. 7): `cs` вернул код 3 или дерево грязное из-за graft; установка сломалась.
 
-## 6. Бенчмарк
+## 6. Бенчмарк — протокол и регрессия при обновлении Graft (ADR-0028 п. 4)
 
-- Вопросы и эталон — `scripts/dev/bench/code-search.json` (8 вопросов из групп `test-levels`, эталон — по AST
-  TypeScript на родительском коммите группы, без graft).
+- Вопросы и эталон — `scripts/dev/bench/code-search.json` (эталон — по AST TypeScript на базовом коммите, без graft).
 - Worktree на каждый базовый коммит: `git worktree add --detach ../SRA-bench-<sha> <sha>`, в нём `npm ci
-  --ignore-scripts` и `node scripts/dev/cs.js map` (индекс заранее — параллельные агенты не строят его одновременно).
-- На вопрос — два субагента (`opus`), `description` = `bench <id> [A]` и `bench <id> [B]` ровно так. Промпт:
+  --ignore-scripts` и `node scripts/dev/cs.js map` (индекс заранее).
+- На вопрос — субагент (`opus`), `description` = `bench <id> [A]` (или `[B]`) ровно так. Промпт:
 
   ```text
   Worktree <путь> (коммит <sha>, только чтение: ничего не меняй, тесты не запускай). Вопрос о коде:
@@ -96,24 +78,20 @@ explore_bytes[B]` ≤ 0,8, средний recall `[A]` не ниже `[B]`, ни
   места, ничего лишнего. Перед ответом — два предложения: как искал.
   ```
 
-  Для `[A]` перед вопросом — блок `text` из [code-search.md](code-search.md).
-- Оценка: `node scripts/dev/bench-score.js run --q <id>` (оба транскрипта, ответ из последнего сообщения) →
-  `<git-common-dir>/graft-lab/bench/<id>-<A|B>.json`; сводка — `bench-score.js report`.
+  Для `[A]` перед вопросом — текст разделов «Правила», «Команды», «Сценарии» навыка `code-search`.
+- Оценка: `node scripts/dev/bench-score.js run --q <id>` → `<git-common-dir>/graft-lab/bench/<id>-<A|B>.json`;
+  сводка — `bench-score.js report`.
+- **Регрессия при обновлении Graft:** скопировать `graft-lab/bench/` в `graft-lab/bench-<старая версия>/`; поставить
+  новую версию, поднять `GRAFT_VERSION` в `cs.js` в ветке; прогнать 8 субагентов `[A]` (записи `[B]` остаются
+  прежними); `bench-score.js report` — `accept` (отношение ≤ 0,8, recall `[A]` не ниже `[B]` = 1,0) — версия
+  принимается, иначе остаётся прежняя. Затем — `graft_version` здесь и §2.
 
-## 7. Записи и отчёт (поле)
-
-- Группа: `node scripts/dev/graft-metrics.js run --change <c> --group <N> [--part <k>] --red-runs <k> --helped
-  yes|partly|no --misled none|"<…>" [--notes "<…>"]` → `<git-common-dir>/graft-lab/runs/<c>-g<N>[-p<k>].json`,
-  транскрипт — копией в `graft-lab/transcripts/` (вне git).
-- Пересчёт всех записей текущими метриками: `graft-metrics.js rescore`.
-- Сводка поля: `graft-metrics.js report`. Отчёт и черновик ADR с итогом — `/stats-report`.
-
-## 8. Откат
+## 7. Откат
 
 ```bash
 npm rm -g @nanonets/graft
 ```
 
 Удалить переменные `GRAFT_NO_GITIGNORE`, `GRAFT_NO_IGNORE` (и `DO_NOT_TRACK`, если не нужна) в «Переменные среды»
-Windows; строки `graft/`, `.graft/` — из `.git/info/exclude`; каталоги `graft/` и worktree `SRA-bench-*`. Здесь —
-`status: closed`; [coordinator.md](coordinator.md) §1.2 и блок `[A]` — убрать или оставить по итоговому ADR.
+Windows; строки `graft/`, `.graft/` — из `.git/info/exclude`; каталоги `graft/`; навык `code-search` и строку в
+промпте [coordinator.md](coordinator.md) §2 — убрать; новый ADR вместо ADR-0028.

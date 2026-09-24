@@ -13,6 +13,18 @@
         "matcher": "Read|Grep|Glob|Bash|PowerShell"
       }
     ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "node \"${CLAUDE_PROJECT_DIR}/scripts/dev/cs-hook.js\" pre-tool",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "Read|Grep|Bash|PowerShell"
+      }
+    ],
     "SubagentStart": [
       {
         "hooks": [

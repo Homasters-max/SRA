@@ -5,7 +5,12 @@ adr_state: ACCEPTED
 date: 2026-09-24
 supersedes: []
 amends: [WARRANT-ADR-0028]
+amended_by: [WARRANT-ADR-0031]
 ---
+
+> Уточнено [ADR-0031](WARRANT-ADR-0031-pretooluse-deny.md): п. 6 — отступление, видимое по входу вызова субагента,
+> запрещается хуком `PreToolUse` (`deny`); `PostToolUse` остаётся предупреждением для видимого только по выводу; код для
+> детектора — `.ts`/`.js` под `packages/`, `scripts/` рабочего дерева WARRANT.
 
 ## Context
 
@@ -72,6 +77,8 @@ ADR-0026 п. 2 хуки запретил.
    - `PostToolUse` на `Read|Grep|Glob|Bash|PowerShell` — только у субагентов (`agent_id`): тот же детектор
      `deviationsOf`, что у `graft-metrics`, в режиме **предупреждения** (`additionalContext`). Один код и меряет, и
      подсказывает. Переход на запрет (`PreToolUse deny`) — отдельным решением после 2–3 групп без ложных срабатываний.
+     **Уточнено ADR-0031:** запрет введён — `PreToolUse` на `Read|Grep|Bash|PowerShell` у субагентов, `permissionDecision:
+     "deny"`; предупреждение `PostToolUse` — только для видимого по выводу.
    - **Не ставятся:** `PostToolUse` «callers после правки» (ответ неполон там, где важнее всего; сигнатуры ловит
      `typecheck`; часть правок идёт через Bash / PowerShell; уверенный неполный ответ хука опаснее его отсутствия) —
      пересмотр поверх `cs impact` с замером; `SessionStart` (не доходит до субагентов), `UserPromptSubmit` (токены на

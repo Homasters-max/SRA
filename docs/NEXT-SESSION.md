@@ -1,6 +1,6 @@
 ---
 id: WARRANT-NEXT
-title: WARRANT — следующий шаг: реализация ADR-0031 (`PreToolUse deny` у субагентов, H-1…H-9), затем аудит и grilling фазы 4
+title: WARRANT — следующий шаг: архитектурный аудит и grilling нарезки фазы 4 (MVP frontend Codex)
 status: informative
 maturity: MVP
 version: 0.4.2
@@ -99,12 +99,24 @@ version: 0.4.2
     `core/*.ts` частью модуля `core`, а ADR-0030 — отдельными модулями (ложный цикл `core ↔ core/resolve`, I-146);
     одноимённая локальная `evaluate` в `test/unit/gates/verdict.test.ts` обрезает срезы `arch-snapshot` (I-147, не
     переименована — ADR-0029 Consequences). Записи — `graft-lab/runs/arch-boundaries-g1…g6.json`. Решение о `PreToolUse
-    deny` — **принято** (grilling 2026-09-24, H-1…H-9 ниже), реализация — ADR-0031 в следующей сессии.
+    deny` — **принято** (grilling 2026-09-24, H-1…H-9 ниже) и **реализовано** — ADR-0031 (пункт ниже).
   - Разбор транскриптов для H-1…H-9: детектор `deviationsOf` без результата вызова (режим `PreToolUse`) совпал с режимом
     `PostToolUse` на 20 из 21 помеченных вызовов (промах — `python - <<EOF`, читающий файлы изнутри); **ложное
     срабатывание** — g3, `grep` по `edits2.js` в scratchpad: `isCodeFile` (`graft-metrics-lib.js`) считает кодом любой
     `.ts`/`.js`, а навык — только `packages/**`, `scripts/**` репозитория; пограничные — `grep -c` по только что записанному
     файлу (g2, g5); предупреждения поведение не меняли — после первой подсказки хука ещё 9 отступлений в g4 и 8 в g5.
+- **`PreToolUse deny` у субагентов — [ADR-0031](adr/WARRANT-ADR-0031-pretooluse-deny.md)** (2026-09-24, process-PR
+  `process/pretooluse-deny`, worktree `D:\project\SRA-pretooluse-deny`; решения H-1…H-9 ниже). Хук
+  `scripts/dev/cs-hook.js pre-tool` (`.claude/settings.json`, `PreToolUse` на `Read|Grep|Bash|PowerShell`): вызов
+  субагента, который детектор `deviationsOf` помечает по входу, — `permissionDecision: "deny"`, причина — `adviceFor`;
+  `PostToolUse` — предупреждение только для видимого по выводу; основная сессия не ограничена. Код для детектора (H-1) —
+  `.ts`/`.js` под `packages/`, `scripts/` рабочего дерева WARRANT (хук ищет `.git` с `scripts/dev/cs.js`, пересчёт — каталог
+  `SRA`/`SRA-*`). `graft-metrics`: отказ — `tool_calls.blocked` (не отступление, без байтов); `rescore` —
+  `arch-boundaries` g3 2 → 1 отступление (ушёл `grep` по scratchpad), остальные 16 записей без изменений. `cs impact`
+  для не-функций графа — поиск по слову (`match: word`; `RISK_LEVELS` → `waive.ts:109–110`, `FALLBACK_ROLE` →
+  `classify.ts:108`, `roles.ts:44`), вопрос q18 бенчмарка. Живой зонд `claude -p` с субагентом (Claude Code 2.1.263):
+  Grep и `grep -rn` по `packages/cli/src`, Read 99-строчного файла целиком — отказ с причиной, файл 22 строки — прочитан,
+  тот же Grep в основной сессии — выполнен. Тесты 892/892.
 - **Итог фазы 3:**
   - capability `verification` (REQ-VER-001…008): `warrant check` (runner без shell, замок `exclusive` в `git-common-dir`,
     `timeout_s` с kill дерева, parsers `junit`/`openspec-validate`, evidence + manifest, attestation `ci` под GitHub Actions),
@@ -149,7 +161,7 @@ version: 0.4.2
 | `analyze` | **Решено V-1**: фаза 4 | — |
 | ~~тесты под нагрузкой~~ | **закрыт** test-levels: `npm test` без флагов ~70 с, зелёный 3 раза подряд (I-138: `unit`/`app` первой группой, тяжёлые — `maxForks`), `validate` репозитория 4,5 с (3.1). Было: `warrant validate` на репозитории — ~30 с (вызовы `openspec` на каждый Change/spec); полный `npm test` с параллелизмом по умолчанию на машине maintainer'а даёт таймауты e2e `validate`/`golden` (поодиночке и с `--maxWorkers=3` — зелёные, CI — зелёный). Один `openspec` на проект невозможен (у OpenSpec 1.13.1 нет пакетного `show`); таймауты не поднимаем | **решено ADR-0025**: `test-levels` — `show` только для файлов с id и параллельно, логика в `unit`/`app` без процессов; до его закрытия `/group-done` гоняет `--maxWorkers=3` вручную |
 | I-103 | Пред-фильтр исключает запись, чей `metrics.waivers[]` ссылается на waiver с `targets[]` — пересмотреть вместе с D-10 | фаза 5 |
-| Graft | **Закрыт** ADR-0028, **аудит** ADR-0029 ([process/graft-audit.md](process/graft-audit.md)): граф не видит вызовов через порты (0/284) → правило 3 навыка — `cs impact`; `cs deps` / `cs dups` / `--json`; строгая обёртка; регрессия графа `graph-audit.js` + бенчмарк q1–q17 (`accept`); хуки разработки `.claude/settings.json` → `scripts/dev/cs-hook.js` (`SubagentStart`, `PostToolUse` — предупреждение) | ~~2–3 группы после ADR-0029 сравнить с базой `test-levels` `[A]`~~ — **сделано** на группах 1–3 `arch-boundaries` (состояние, «arch-boundaries закрыт»); решение о `PreToolUse deny` — **принято** H-1…H-9, реализация — ADR-0031 (process-PR); ~~помощник навыка `architecture-audit` — на `cs deps --json`~~ — **закрыт** (`scripts/dev/arch-snapshot.js` поверх `cs --json`) |
+| Graft | **Закрыт** ADR-0028, **аудит** ADR-0029 ([process/graft-audit.md](process/graft-audit.md)): граф не видит вызовов через порты (0/284) → правило 3 навыка — `cs impact`; `cs deps` / `cs dups` / `--json`; строгая обёртка; регрессия графа `graph-audit.js` + бенчмарк q1–q17 (`accept`); хуки разработки `.claude/settings.json` → `scripts/dev/cs-hook.js` (`SubagentStart`, `PostToolUse` — предупреждение) | ~~2–3 группы после ADR-0029 сравнить с базой `test-levels` `[A]`~~ — **сделано** на группах 1–3 `arch-boundaries` (состояние, «arch-boundaries закрыт»); ~~решение о `PreToolUse deny`~~ — **реализовано** ADR-0031 (process-PR `process/pretooluse-deny`); `cs deps --level` против модулей-файлов ADR-0030 (`core/*.ts` входят в `core`, ложный цикл I-146) — долг (H-8, строка в навыке), по failure mode; ~~помощник навыка `architecture-audit` — на `cs deps --json`~~ — **закрыт** (`scripts/dev/arch-snapshot.js` поверх `cs --json`) |
 | `fmt` packs | `warrant fmt --check` без пути не проверяет `packs/**`; `packs/core-sdd/pack.json` неканоничен (порядок `rules`/`skills`), а правило `json-canonical` из черновика `rule/1` покрывает `packs/**/*.json` | вместе с первым правилом `rule/1` или отдельным fix |
 
 ### Архитектурный долг — A-N (аудиты [process/audits/](process/audits/))
@@ -236,8 +248,8 @@ verify → transition`, gate engine, runner) — нет. Нерешённые в
 | Архитектурный аудит перед spec-PR каждой фазы; находки — A-N в «Архитектурный долг» | навык `architecture-audit`, grilling 2026-09-24 (Q6, Q7, Q15) | правило о решении; шаг 5 `/next-session`: следующий шаг — фаза → готовый запрос начинается с аудита, снимок старше последнего тега помечается устаревшим |
 | Направление зависимостей модулей, циклы, копии помощников, один владелец перечислений | grilling 2026-09-24 (Q3, Q10–Q13), ADR-0030 | `test/unit/meta/architecture.test.ts` + `architecture.json` (ранги, слои, циклы, sibling, реестры, храповик A-N) — arch-boundaries (гр. 1–5) |
 | Graft только через `cs.js`, разрешённые подкоманды, флаги и версия | ADR-0026 п. 2, ADR-0028 п. 2, 4, ADR-0029 п. 3 | `scripts/dev/cs.js` (код 2 / 3), `test/unit/dev/cs.test.ts`; обновление — `graph-audit.js --baseline` + регрессия бенчмарка `bench-score.js report` |
-| Поиск по коду — навык `code-search` | ADR-0028 п. 3, 5, ADR-0029 п. 1, 5, 6 | хук `SubagentStart` (указатель на навык) и `PostToolUse` (подсказка по `deviationsOf`) у субагентов; `graft-metrics run --mode on`: `deviations` (детектор с unit-тестами), > 3 → `compliant: false` |
-| Хуки разработки — только `hooks`, только `cs-hook.js` | ADR-0029 п. 6, 7 | `test/unit/meta/dev-hooks.test.ts` |
+| Поиск по коду — навык `code-search` | ADR-0028 п. 3, 5, ADR-0029 п. 1, 5, 6, ADR-0031 | у субагентов: хук `SubagentStart` (указатель на навык), `PreToolUse` — **запрет** (`deny`) вызова, помеченного `deviationsOf` по входу, `PostToolUse` — подсказка по видимому только в выводе (`test/unit/dev/cs-hook.test.ts`); `graft-metrics run --mode on`: `deviations` (детектор с unit-тестами), > 3 → `compliant: false`, отказы — `tool_calls.blocked` |
+| Хуки разработки — только `hooks`, только `cs-hook.js` | ADR-0029 п. 6, 7, ADR-0031 | `test/unit/meta/dev-hooks.test.ts` (события `SubagentStart` / `PreToolUse` / `PostToolUse`, matchers) |
 | Graft не пачкает дерево | ADR-0026 п. 3 | `cs.js` ставит переменные и проверяет `.git/info/exclude`; `git status --short` в `/group-done` |
 | Одна группа — один агент, транскрипт сохранён | ADR-0027 п. 5 | `graft-metrics run --part k` (иначе отказ при нескольких транскриптах), копия в `graft-lab/transcripts/` |
 | `scripts/dev/` не поставляется | ADR-0026 | `package-contents.test.ts` |
@@ -305,7 +317,7 @@ ADR-0020 п. 11), но добавляет входы (`guard`, `run`, `ci`, `ana
 | Q24 | A-12 (`onInterrupt` из `core/check` в адаптере) — долг под храповиком, P3; решать вместе с портом `guard` в фазе 4 (перенос в R0 дал бы лист с побочным эффектом `process.on`) |
 | Q25 | Решение о `PreToolUse deny` (ADR-0029 п. 8) — отдельным process-PR после замера групп 1–3 impl-PR `arch-boundaries`, не внутри change — **принято**, H-1…H-9 ниже |
 
-### `PreToolUse deny` — решения grilling 2026-09-24 (H-1…H-9, приняты maintainer'ом; реализация — ADR-0031)
+### `PreToolUse deny` — решения grilling 2026-09-24 (H-1…H-9, приняты maintainer'ом; реализованы — ADR-0031, process-PR `process/pretooluse-deny`)
 
 Вход — замер групп 1–3 и разбор транскриптов g1–g5 `arch-boundaries` (состояние, пункт «arch-boundaries закрыт»).
 
@@ -323,31 +335,22 @@ ADR-0020 п. 11), но добавляет входы (`guard`, `run`, `ci`, `ana
 
 ### Продолжение — готовый запрос
 
-```text
-Process-PR: реализация решений H-1…H-9 (`PreToolUse deny` у субагентов) — ADR-0031. Решения приняты maintainer'ом, заново
-не обсуждать. Прочитай docs/NEXT-SESSION.md (таблица «`PreToolUse deny` — решения grilling», состояние — пункт
-«arch-boundaries закрыт»: замер и разбор транскриптов), ADR-0029 (п. 5, 6, 8), ADR-0028, docs/process/graft.md (§4, §5),
-docs/process/graft-audit.md §4 (факты о хуках Claude Code), .claude/skills/code-search/SKILL.md, scripts/dev/cs-hook.js,
-cs-hook-lib.js, graft-metrics-lib.js (`deviationsOf`, `isCodeFile`, `hitsCode`), cs-lib.js (`impact`),
-packages/cli/test/unit/meta/dev-hooks.test.ts и тесты test/unit/dev/. Ветка process/pretooluse-deny от main, worktree
-D:\project\SRA-pretooluse-deny (npm ci). Порядок: H-1 (область кода) и H-7 (`impact`) с unit-тестами → H-2…H-4
-(`pre-tool` в cs-hook-lib + settings.json + dev-hooks.test.ts) → H-6 (`blocked` в graft-metrics; перепроверить записи
-arch-boundaries g1–g6 через `rescore` — ложное g3 уходит) → документы (ADR-0031, 0029, README, навык, coordinator, graft.md,
-NEXT-SESSION) → живой зонд `claude -p` с субагентом (deny на `grep` по packages/**, нет deny у основной сессии и на файле
-≤ 40 строк). Коммит и PR — после показа сводки diff maintainer'у.
-```
-
-После process-PR — фаза 4. Её grilling начинается с архитектурного аудита (снимок 2026-09-24 устарел: тег `v0.4.2`
-новее, аудит обязателен); запрос ниже — сохранён, в начало добавить `architecture-audit` со сравнением `--against
-docs/process/audits/2026-09-24.json`. Открытые A-N как вход grilling'а: A-5 (типизированные читатели, копии `strings` под
-другими именами), A-8, A-9, A-12 (храповик).
+Process-PR ADR-0031 (`process/pretooluse-deny`) — смержить, если ещё не смержен; worktree `D:\project\SRA-pretooluse-deny`
+после merge удалить. Следующий шаг — фаза 4. Её grilling начинается с архитектурного аудита: снимок
+`docs/process/audits/2026-09-24.json` той же даты, что тег `v0.4.2`, но старше `arch-boundaries` (группы 2–5 меняли
+`core`) — **снимок устарел, аудит обязателен**. Открытые A-N как вход grilling'а: A-5 (типизированные читатели, копии
+`strings` под другими именами), A-8, A-9, A-12 (храповик). Субагенты сессии работают под `PreToolUse deny`
+(ADR-0031): отказ хука, мешавший законной работе, — в `notes` карточки и maintainer'у.
 
 ```text
-Grilling по нарезке фазы 4 (MVP frontend Codex). Прочитай docs/NEXT-SESSION.md (состояние, «Фаза 4», долг B/C/D, «Чего не
-делать»), docs/13-roadmap.md (§2 строка 4, §3 S8), ADR-0017…0020, ADR-0022, ADR-0025 (новые команды — сразу с тестами
-app через Ctx; новый внешний вызов — метод порта + адаптер + фейк + сценарий контракта), ADR-0029 (поиск по коду
-субагентов — `cs impact` / `cs deps`; навык подключают хуки разработки). Факты о хуках Claude Code, проверенные зондом
-(субагенты, `additionalContext`, `SubagentStart`), — docs/process/graft-audit.md §4: вход к решению об адаптере claude
+Сначала — навык architecture-audit по packages/cli/src (облегчённо — packages/cli/test) со сравнением --against
+docs/process/audits/2026-09-24.json; находки — строками A-N в «Архитектурный долг» NEXT-SESSION, отчёт и снимок — в
+docs/process/audits/. Затем grilling по нарезке фазы 4 (MVP frontend Codex). Прочитай docs/NEXT-SESSION.md
+(состояние, «Фаза 4», долг B/C/D, «Чего не делать»), docs/13-roadmap.md (§2 строка 4, §3 S8), ADR-0017…0020, ADR-0022,
+ADR-0025 (новые команды — сразу с тестами app через Ctx; новый внешний вызов — метод порта + адаптер + фейк + сценарий
+контракта), ADR-0029 и ADR-0031 (поиск по коду субагентов — `cs impact` / `cs deps`; навык подключают хуки разработки,
+нарушение по входу вызова — `deny`). Факты о хуках Claude Code, проверенные зондом (субагенты, `additionalContext`,
+`SubagentStart`, `PreToolUse deny`), — docs/process/graft-audit.md §4: вход к решению об адаптере claude
 (ADR-0023 п. 4). Вопросы раунда 1:
 (1) spike S8 (hooks Codex под codex-acp и codex exec) — отдельной сессией до spec фазы 4? codex на машине maintainer'а не
 установлен; (2) нарезка: 4a без Codex (run/1, skill-result/1, run start/submit, guard pre/post, guard_prefixes, validate --files,
@@ -396,6 +399,7 @@ ADR-0013); (5) producers analyze-clean / adversarial-review — до истеч�
 (`process/architecture-audit`, PR #21 смержен) — удалён. `arch-boundaries`: spec — `D:\project\SRA-arch-boundaries`
 (`spec/arch-boundaries`, PR #22 смержен) — удалён; impl — `D:\project\SRA-arch-boundaries-impl` (`worktree/arch-boundaries`,
 PR #23 смержен), archive — `D:\project\SRA-arch-boundaries-archive` (`archive/arch-boundaries`); после merge archive-PR оба удалить.
+ADR-0031: `D:\project\SRA-pretooluse-deny` (`process/pretooluse-deny`) — после merge удалить.
 
 ## Backlog из ревью фазы 1
 

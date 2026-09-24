@@ -18,7 +18,8 @@
  * к npm.
  *
  * `cs impact <символ>` — «что обновить при изменении символа»: `callers -d 1` графа, сведённый с grep мест вызова по
- * имени, с объемлющим символом из `graft/.graph/wiring.json` и метками `[graph+grep]` / `[grep]` / `[graph]`.
+ * имени (символ не функция и не метод графа — константа, тип, метод интерфейса — все вхождения имени, ADR-0031),
+ * с объемлющим символом из `graft/.graph/wiring.json` и метками `[graph+grep]` / `[grep]` / `[graph]`.
  * `cs deps` — граф импорта файлов из `wiring.json` (индекс сначала освежается через `graft map`): импорты и импортёры
  * файла с пометкой type-only, модули каталога с Ca / Ce / нестабильностью, циклы (Tarjan). `cs dups` — имена,
  * определённые в нескольких файлах (граф теряет межфайловых вызывающих таких имён). Текст ограничен, `--json` —
@@ -51,6 +52,7 @@ import {
   formatDups,
   formatImpact,
   impactData,
+  impactMatch,
   impactQuery,
   importGraph,
   makeKindOf,
@@ -125,9 +127,6 @@ const { sub, arg, opts } = withRepoPaths(cmd, { cwd: process.cwd(), root, exists
 if (sub === "impact") {
   const symbol = /** @type {string} */ (arg);
   const scope = typeof opts.in === "string" ? ["--in", opts.in] : [];
-  const c = runGraft(["callers", "--depth", "1", "--json", ...scope, "--", symbol]);
-  const g = runGraft(["grep", "--json", ...scope, "--", impactQuery(symbol).pattern]);
-  if (g.status !== 0) stop(EXIT_ENV, `graft grep: ${clean(g.stderr || g.stdout)}`);
   const json = (/** @type {string} */ what, /** @type {string} */ text) => {
     try {
       return JSON.parse(text);
@@ -135,8 +134,11 @@ if (sub === "impact") {
       return stop(EXIT_ENV, `graft ${what} --json: not JSON: ${clean(text).slice(0, 400)}`);
     }
   };
-  const callers = c.status === 0 ? json("callers", c.stdout) : null;
+  const c = runGraft(["callers", "--depth", "1", "--json", ...scope, "--", symbol]);
   const wiring = json("wiring.json", readFileSync(path.join(root, "graft", ".graph", "wiring.json"), "utf8"));
+  const g = runGraft(["grep", "--json", ...scope, "--", impactQuery(symbol, impactMatch(symbol, wiring.nodes ?? [])).pattern]);
+  if (g.status !== 0) stop(EXIT_ENV, `graft grep: ${clean(g.stderr || g.stdout)}`);
+  const callers = c.status === 0 ? json("callers", c.stdout) : null;
   const callersError = c.status === 0 ? null : clean(c.stderr || c.stdout).replace(/^✗\s*/, "");
   const data = impactData({ symbol, callers, grep: json("grep", g.stdout), nodes: wiring.nodes ?? [], ...(callersError ? { callersError } : {}) });
   process.stdout.write(opts.json ? `${JSON.stringify(data, null, 2)}\n` : formatImpact(data));

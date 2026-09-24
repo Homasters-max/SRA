@@ -34,6 +34,7 @@ import {
   ensureIndex,
   findGraftPackage,
   graftArgs,
+  impactMatch,
   impactQuery,
   impactReport,
   parseArgv,
@@ -336,7 +337,7 @@ describe("cs impact: graph callers reconciled with a grep of the call sites", ()
         ["src/runner.ts", 51, "const forward = spec.forward ?? ((chunk) => write(chunk));"],
         ["src/runner.ts", 94, "else forward(chunk);"]
       ]),
-      nodes
+      nodes: [...nodes, node("src/t.ts#forward", "function", "L392-L459")]
     });
     expect(report).toContain('verify: runCommand (src/runner.ts:51) declares its own "forward" — sites there tagged local? likely use it, not forward');
     expect(report).toContain("src/runner.ts:94  runCommand  [graph+grep local?]  else forward(chunk);");
@@ -348,7 +349,7 @@ describe("cs impact: graph callers reconciled with a grep of the call sites", ()
       symbol: "GitCli.head",
       callers: { matches: [{ symbol: node("src/git.ts#GitCli.head", "method", "L49-L51"), hits: [] }] },
       grep: { ...grepOf([["src/gate.ts", 230, "const h = await ctx.git.head();"], ["src/gate.ts", 240, "tree.head()"]]), truncated: { files: 0, hits: 7 } },
-      nodes
+      nodes: [...nodes, node("src/git.ts#GitCli.head", "method", "L49-L51")]
     });
     expect(report).toContain("graph: no callers indexed");
     expect(report).toContain("grep truncated by graft: +7 hits not shown — narrow with --in <path>");
@@ -356,10 +357,56 @@ describe("cs impact: graph callers reconciled with a grep of the call sites", ()
     expect(report).toContain("src/gate.ts:240  evaluate  [grep]  tree.head()");
 
     const many = grepOf(Array.from({ length: 200 }, (_, i): [string, number, string] => ["src/gate.ts", 1000 + i, "run()"]));
-    const capped = impactReport({ symbol: "run", callers: null, callersError: '✗ no symbol "run"', grep: many, nodes }).split("\n");
+    const capped = impactReport({ symbol: "run", callers: null, callersError: '✗ no symbol "run"', grep: many, nodes: [...nodes, node("src/t.ts#run", "function", "L1-L5")] }).split("\n");
     expect(capped).toHaveLength(122);
     expect(capped[1]).toBe('graph: ✗ no symbol "run"');
     expect(capped[120]).toMatch(/^… \+\d+ more lines — narrow with --in <path>$/);
+  });
+});
+
+describe("cs impact: a symbol that is not a function or method in the graph is searched by word (ADR-0031, H-7)", () => {
+  const nodes = [
+    { id: "src/types.ts", name: "src/types.ts", kind: "file", path: "src/types.ts", span: "L1-L40" },
+    { id: "src/types.ts#RiskLevel", name: "RiskLevel", kind: "type", path: "src/types.ts", span: "L20-L20" },
+    { id: "src/waive.ts#create", name: "create", kind: "function", path: "src/waive.ts", span: "L100-L130" },
+    { id: "src/runner.ts#CheckRunner.run", name: "run", kind: "method", path: "src/runner.ts", span: "L10-L30" },
+    { id: "src/ports.ts#CheckRunnerPort", name: "CheckRunnerPort", kind: "interface", path: "src/ports.ts", span: "L1-L9" }
+  ];
+
+  it("calls for a function or that very method; word for constants, types, interface methods and unknown names", () => {
+    expect(impactMatch("create", nodes)).toBe("calls");
+    expect(impactMatch("CheckRunner.run", nodes)).toBe("calls");
+    expect(impactMatch("CheckRunnerPort.run", nodes)).toBe("word");
+    expect(impactMatch("RISK_LEVELS", nodes)).toBe("word");
+    expect(impactMatch("RiskLevel", nodes)).toBe("word");
+    const word = new RegExp(impactQuery("RISK_LEVELS", "word").pattern);
+    for (const line of ["if (!(RISK_LEVELS as readonly string[]).includes(r)) {", "throw new E(`${RISK_LEVELS.join(\", \")}`);", "import { RISK_LEVELS } from \"./t.js\";"]) {
+      expect(word.test(line), line).toBe(true);
+    }
+    expect(word.test("const RISK_LEVELS_X = 1;")).toBe(false);
+    expect(new RegExp(impactQuery("CheckRunnerPort.run", "word").pattern).test("const exec = ctx.checks.run;")).toBe(true);
+    expect(new RegExp(impactQuery("CheckRunnerPort.run", "word").pattern).test("run(spec)")).toBe(false);
+  });
+
+  it("lists every use of a constant as a site and its module-level const as the definition", () => {
+    const data = impactData({
+      symbol: "RISK_LEVELS",
+      callers: null,
+      callersError: '✗ no symbol "RISK_LEVELS" in the graph',
+      grep: {
+        groups: [
+          { path: "src/types.ts", hits: [{ line: 17, text: 'export const RISK_LEVELS = ["LOW", "MEDIUM", "HIGH"] as const;' }, { line: 18, text: "export type Risk = (typeof RISK_LEVELS)[number];" }] },
+          { path: "src/waive.ts", hits: [{ line: 3, text: 'import { RISK_LEVELS } from "./types.js";' }, { line: 109, text: "if (!(RISK_LEVELS as readonly string[]).includes(r)) {" }, { line: 110, text: "  // RISK_LEVELS order matters" }] }
+        ]
+      },
+      nodes
+    });
+    expect(data.match).toBe("word");
+    expect(data.definitions).toEqual([{ path: "src/types.ts", line: 17, symbol: "RISK_LEVELS", kind: "const" }]);
+    expect(data.sites.map((s) => `${s.path}:${s.line} ${s.enclosing} ${s.tags.join(" ")}`)).toEqual(["src/types.ts:18 (module) grep", "src/waive.ts:3 (module) grep", "src/waive.ts:109 create grep"]);
+    const text = impactReport({ symbol: "RISK_LEVELS", callers: null, callersError: '✗ no symbol "RISK_LEVELS"', grep: { groups: [] }, nodes }).split("\n");
+    expect(text[1]).toBe('match: word — every "RISK_LEVELS" (not a function or method in the graph): values, types and re-exports, not only calls');
+    expect(text).toContain('no uses of "RISK_LEVELS" found in indexed code (packages/**, scripts/**)');
   });
 });
 
@@ -375,6 +422,7 @@ describe("cs impact --json: the cs-impact/1 shape", () => {
       format: "cs-impact/1",
       symbol: "GitCli.head",
       name: "head",
+      match: "calls",
       counts: { sites: 1, files: 1, graph: 0, grepOnly: 1, graphOnly: 0 },
       definitions: [{ path: "g.ts", line: 5, symbol: "GitCli.head", kind: "method" }],
       graph: { callers: 0 },

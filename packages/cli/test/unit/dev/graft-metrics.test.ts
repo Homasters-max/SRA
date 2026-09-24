@@ -15,6 +15,7 @@ import {
   csCalls,
   deviationsOf,
   extractAnswer,
+  isBlockedResult,
   isShellSearch,
   isShellWrite,
   MAX_DEVIATIONS,
@@ -41,13 +42,13 @@ const transcript = [
   line("2026-09-24T10:00:05.000Z", "m1", [{ type: "text", text: "look" }]),
   line("2026-09-24T10:00:05.000Z", "m1", [bash("t1", "cd /d/project/SRA-graft && cat docs/04-lifecycle.md")]),
   result("t1", "a".repeat(100)),
-  line("2026-09-24T10:00:09.000Z", "m2", [bash("t2", "node scripts/dev/cs.js callers evaluateGates -d 2"), tool("t3", "Read", { file_path: "D:/x/packages/cli/src/a.ts", offset: 10, limit: 20 })]),
+  line("2026-09-24T10:00:09.000Z", "m2", [bash("t2", "node scripts/dev/cs.js callers evaluateGates -d 2"), tool("t3", "Read", { file_path: "D:/project/SRA/packages/cli/src/a.ts", offset: 10, limit: 20 })]),
   line("2026-09-24T10:00:09.000Z", "m2", [bash("t2", "node scripts/dev/cs.js callers evaluateGates -d 2")]), // duplicate tool_use
   result("t2", "b".repeat(40)),
   result("t3", "c".repeat(30)),
-  line("2026-09-24T10:00:30.000Z", "m3", [tool("t5", "Edit", { file_path: "D:/x/packages/cli/src/a.ts" })]),
+  line("2026-09-24T10:00:30.000Z", "m3", [tool("t5", "Edit", { file_path: "D:/project/SRA/packages/cli/src/a.ts" })]),
   result("t5", "ok"),
-  line("2026-09-24T10:01:00.000Z", "m4", [tool("t6", "Read", { file_path: "D:/x/packages/cli/src/b.ts", offset: 1, limit: 5 })]),
+  line("2026-09-24T10:01:00.000Z", "m4", [tool("t6", "Read", { file_path: "D:/project/SRA/packages/cli/src/b.ts", offset: 1, limit: 5 })]),
   result("t6", "d".repeat(7)),
   line("2026-09-24T10:01:40.000Z", "m5", [bash("t4", "npm test 2>&1 | tail -5")], usage(2, 7)),
   result("t4", "e".repeat(50)),
@@ -69,7 +70,7 @@ describe("graft-metrics", () => {
     expect(csCalls('node "D:/project/SRA-graft/scripts/dev/cs.js" ask "q" --source')).toEqual(["ask"]);
     expect(rawGraftCalls("node scripts/dev/cs.js grep foo")).toEqual([]);
     expect(rawGraftCalls("cd /d/project/SRA-graft && npx -y @nanonets/graft ask 'q'")).toEqual(["ask"]);
-    expect(isShellSearch("cd /d/x && sed -n 1,20p f.ts")).toBe(true);
+    expect(isShellSearch("cd /d/project/SRA && sed -n 1,20p f.ts")).toBe(true);
     expect(isShellSearch("npm test 2>&1 | tail -5")).toBe(false);
     expect(isShellWrite("cat > a.ts <<'EOF'\nx\nEOF")).toBe(true);
     expect(isShellWrite("sed -i s/a/b/ package.json")).toBe(true);
@@ -78,8 +79,8 @@ describe("graft-metrics", () => {
 
   it("counts real deviations from the code-search procedure", () => {
     expect(deviationsOf(tool("a", "Grep", { pattern: "x", path: "packages/cli/src" }))).toEqual(["Grep over code"]);
-    expect(deviationsOf(tool("c", "Read", { file_path: "D:/x/packages/cli/src/core/check/lock.ts" }))).toEqual(["whole read check/lock.ts"]);
-    expect(deviationsOf(bash("e", "cd /d/x && grep -rn acquireLock packages/cli/src"))).toEqual(["shell search over code"]);
+    expect(deviationsOf(tool("c", "Read", { file_path: "D:/project/SRA/packages/cli/src/core/check/lock.ts" }))).toEqual(["whole read check/lock.ts"]);
+    expect(deviationsOf(bash("e", "cd /d/project/SRA && grep -rn acquireLock packages/cli/src"))).toEqual(["shell search over code"]);
     expect(deviationsOf(bash("e2", "git grep -n foo packages/cli/src"))).toEqual(["shell search over code"]);
     expect(deviationsOf(bash("e3", 'grep -n "^export" packages/cli/test/helpers/x.ts'))).toEqual(["shell search over code"]);
     expect(deviationsOf(bash("f", "cat packages/cli/src/a.ts"))).toEqual(["shell whole read of code"]);
@@ -90,13 +91,13 @@ describe("graft-metrics", () => {
     const clean = [
       tool("b", "Grep", { pattern: "x", path: "docs" }),
       tool("b2", "Glob", { pattern: "packages/**/*.ts" }),
-      tool("d", "Read", { file_path: "D:/x/docs/adr/README.md" }),
+      tool("d", "Read", { file_path: "D:/project/SRA/docs/adr/README.md" }),
       bash("g", "sed -n 10,40p packages/cli/src/a.ts"),
       bash("i", "node scripts/dev/cs.js grep foo | grep -v test"),
-      bash("j", "cd /d/x/packages/cli/test && cat > unit/tmp-spawn.test.ts <<'EOF'\nimport { spawnSync } from \"node:child_process\";\ncat packages/cli/src/a.ts\nEOF"),
-      bash("k", "cd /d/x && sed -i '3s/0.4.0/0.4.1/' package.json && grep -n version packages/cli/package.json"),
-      bash("l", "cd /d/x/node_modules/vitest/dist && grep -n groupOrder chunks/reporters.d.ts"),
-      bash("m", 'cd /d/x/packages/cli && find test -name "*.test.ts" | wc -l; ls test/unit/*/'),
+      bash("j", "cd /d/project/SRA/packages/cli/test && cat > unit/tmp-spawn.test.ts <<'EOF'\nimport { spawnSync } from \"node:child_process\";\ncat packages/cli/src/a.ts\nEOF"),
+      bash("k", "cd /d/project/SRA && sed -i '3s/0.4.0/0.4.1/' package.json && grep -n version packages/cli/package.json"),
+      bash("l", "cd /d/project/SRA/node_modules/vitest/dist && grep -n groupOrder chunks/reporters.d.ts"),
+      bash("m", 'cd /d/project/SRA/packages/cli && find test -name "*.test.ts" | wc -l; ls test/unit/*/'),
       bash("n", "npm test 2>&1 | tail -20"),
       bash("o", "grep -rn foo docs"),
     ];
@@ -222,7 +223,7 @@ describe("graft-metrics: code-search deviations (audit 2026-09-24)", () => {
   /** A Read result of lines 1..n (`     1\t…`). */
   const numbered = (n: number) => Array.from({ length: n }, (_, i) => `${String(i + 1).padStart(6)}\tline ${i + 1}`).join("\n");
   const output = (n: number) => Array.from({ length: n }, (_, i) => `line ${i + 1}`).join("\n");
-  const file = "D:/x/packages/cli/src/core/a.ts";
+  const file = "D:/project/SRA/packages/cli/src/core/a.ts";
 
   it("rule 1: Grep over the repo root, without a path, or with a brace glob is over code", () => {
     expect(grep({})).toEqual(["Grep over code"]);
@@ -231,7 +232,7 @@ describe("graft-metrics: code-search deviations (audit 2026-09-24)", () => {
     expect(grep({ path: "D:/project/SRA/packages" })).toEqual(["Grep over code"]);
     expect(grep({ path: "/d/project/SRA-graft-audit" })).toEqual(["Grep over code"]);
     expect(grep({ path: "D:/work/repo" }, { root: "D:/work/repo" })).toEqual(["Grep over code"]);
-    expect(grep({ glob: "*.{ts,js}", path: "D:/elsewhere" })).toEqual(["Grep over code"]);
+    expect(grep({ glob: "*.{ts,js}", path: "D:/project/SRA/packages" })).toEqual(["Grep over code"]);
     expect(grep({ type: "ts" })).toEqual(["Grep over code"]);
   });
 
@@ -252,9 +253,9 @@ describe("graft-metrics: code-search deviations (audit 2026-09-24)", () => {
     expect(sh("grep -rn foo .")).toEqual(search);
     expect(sh("grep -rn foo")).toEqual(search);
     expect(sh("rg foo")).toEqual(search);
-    expect(sh("rg -t ts foo D:/elsewhere")).toEqual(search);
+    expect(sh("rg -t ts foo packages/cli")).toEqual(search);
     expect(sh("rg -n -g '*.{ts,js}' foo")).toEqual(search);
-    expect(sh("grep -rn --include=*.ts foo D:/elsewhere")).toEqual(search);
+    expect(sh("grep -rn --include=*.ts foo packages")).toEqual(search);
     expect(sh("cd packages/cli/src && grep -rn foo core")).toEqual(search);
     expect(sh("cd /d/project/SRA-graft && grep -rn foo .")).toEqual(search);
     expect(sh("git -C packages/cli grep -n foo")).toEqual(search);
@@ -267,6 +268,28 @@ describe("graft-metrics: code-search deviations (audit 2026-09-24)", () => {
     expect(sh("cat packages/cli/src/a.ts | grep foo")).toEqual(search);
     expect(sh("git show HEAD:packages/cli/src/a.ts | grep -oE 'SCN-[A-Z]+' | sort -u")).toEqual(search);
     expect(sh("for f in $(grep -rl foo packages); do echo $f; done")).toEqual(search);
+  });
+
+  it("H-1: code is .ts/.js under packages/ or scripts/ of a WARRANT work tree — not a scratchpad, temp or another repo", () => {
+    const scratch = "C:/Users/u/AppData/Local/Temp/claude/D--project-SRA/s1/scratchpad";
+    // arch-boundaries g3: a grep over the coordinator's scratch script was counted as a search over code
+    expect(sh(`cd "${scratch}" && node -e "x" && grep -n rep edits2.js`, { cwd: String.raw`D:\project\SRA` })).toEqual([]);
+    expect(sh("grep -n rep edits2.js", { cwd: scratch })).toEqual([]);
+    expect(read({ file_path: `${scratch}/big.ts` }, { cwd: "D:/project/SRA", fileLines: () => 500 })).toEqual([]);
+    expect(sh("cat /tmp/x/src/a.ts", { fileLines: () => 500 })).toEqual([]);
+    expect(sh("rg -t ts foo D:/elsewhere")).toEqual([]);
+    expect(sh("grep -rn --include=*.ts foo D:/elsewhere")).toEqual([]);
+    expect(grep({ glob: "*.{ts,js}", path: "D:/elsewhere" })).toEqual([]);
+    // inside a work tree but outside packages/ and scripts/
+    expect(read({ file_path: "D:/project/SRA/vitest.config.ts" }, { fileLines: () => 500 })).toEqual([]);
+    expect(sh("grep -n foo docs/x.js lattice/a.ts", { cwd: "D:/project/SRA" })).toEqual([]);
+    // another worktree of the repo, reached by an absolute path from the main checkout's cwd
+    expect(sh("grep -n foo D:/project/SRA-impl/packages/cli/src/a.ts", { cwd: String.raw`D:\project\SRA` })).toEqual(["shell search over code"]);
+    // the live hook looks the root up on disk: a lookup decides, whatever the directory is called
+    const rootOf = (p: string) => (p.toLowerCase().startsWith("e:/work/w") ? "E:/work/w" : null);
+    expect(grep({ path: "E:/work/w/scripts/dev" }, { cwd: "E:/work/w", root: "E:/work/w", rootOf })).toEqual(["Grep over code"]);
+    expect(grep({ path: "D:/project/SRA/packages" }, { cwd: "E:/work/w", root: "E:/work/w", rootOf })).toEqual([]);
+    expect(grep({ path: "E:/work" }, { cwd: "E:/work/w", root: "E:/work/w", rootOf })).toEqual(["Grep over code"]);
   });
 
   it("rule 1: not a search over code — docs, quoted pipes, file-name filters, other trees", () => {
@@ -314,7 +337,7 @@ describe("graft-metrics: code-search deviations (audit 2026-09-24)", () => {
     expect(read({ file_path: file, limit: 500 }, { fileLines: () => 300 })).toEqual(["whole read core/a.ts via range"]);
     // the result beats a stale length (the agent had shortened the file); openspec/ under packages/ is code
     expect(read({ file_path: file, offset: 1, limit: 80 }, { result: numbered(56), fileLines: () => 409 })).toEqual(["whole read core/a.ts via range"]);
-    expect(read({ file_path: "D:/x/packages/cli/src/core/openspec/cli.ts", offset: 1, limit: 68 }, { result: numbered(68), fileLines: () => 68 })).toEqual([
+    expect(read({ file_path: "D:/project/SRA/packages/cli/src/core/openspec/cli.ts", offset: 1, limit: 68 }, { result: numbered(68), fileLines: () => 68 })).toEqual([
       "whole read openspec/cli.ts via range",
     ]);
     // Read's own cap
@@ -333,8 +356,8 @@ describe("graft-metrics: code-search deviations (audit 2026-09-24)", () => {
     expect(ps("Get-Content packages/cli/src/a.ts -TotalCount 400", { fileLines: () => 380 })).toEqual(["shell whole read of code"]);
     // the cwd a relative path is joined with feeds the line count
     const seen: string[] = [];
-    sh("cd packages/cli && head -50 src/a.ts", { cwd: "D:/r", fileLines: (p: string) => (seen.push(p), 200) });
-    expect(seen).toEqual(["D:/r/packages/cli/src/a.ts"]);
+    sh("cd packages/cli && head -50 src/a.ts", { cwd: "D:/project/SRA", fileLines: (p: string) => (seen.push(p), 200) });
+    expect(seen).toEqual(["D:/project/SRA/packages/cli/src/a.ts"]);
   });
 
   it("rule 2 / D-8: a real range, a short file, or a filtered read is not a whole read", () => {
@@ -347,7 +370,7 @@ describe("graft-metrics: code-search deviations (audit 2026-09-24)", () => {
     expect(read({ file_path: file }, { result: numbered(SMALL_FILE_LINES) })).toEqual([]);
     expect(read({ file_path: file, offset: 1, limit: 100 }, { result: numbered(SMALL_FILE_LINES + 1) })).toEqual(["whole read core/a.ts via range"]);
     expect(read({ file_path: file, limit: 100 }, { result: "<system-reminder>Warning: the file exists but the contents are empty.</system-reminder>" })).toEqual([]);
-    expect(read({ file_path: "D:/x/packages/cli/schemas/lock.schema.json" })).toEqual([]);
+    expect(read({ file_path: "D:/project/SRA/packages/cli/schemas/lock.schema.json" })).toEqual([]);
     expect(sh("cat packages/cli/src/a.ts | head -50", { result: output(50) })).toEqual([]);
     expect(sh("cat packages/cli/src/a.ts | wc -l")).toEqual([]);
     expect(sh("head -50 packages/cli/src/a.ts", { fileLines: () => 200 })).toEqual([]);
@@ -376,7 +399,31 @@ describe("graft-metrics: code-search deviations (audit 2026-09-24)", () => {
     expect(m.whole_reads).toEqual({ count: 1, bytes: Buffer.byteLength(numbered(250)) });
     // with the file length known, the read of lines 1..90 of a 90-line file is whole too
     const known = parseTranscript(text, { fileLines: () => 90 });
+    expect(known.tool_calls.blocked).toBe(0);
     expect(known.deviations).toEqual(["whole read core/a.ts via range", "whole read core/a.ts via range"]);
     expect(known.whole_reads.count).toBe(2);
+  });
+
+  it("H-6: a call denied by the PreToolUse hook did not run — counted as blocked, not a deviation, no bytes", () => {
+    const denied = (id: string, reason: string) =>
+      JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: id, is_error: true, content: reason }] } });
+    const failed = (id: string, text: string) =>
+      JSON.stringify({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: id, is_error: true, content: text }] } });
+    const text = [
+      line("2026-09-24T10:00:00.000Z", "m1", [tool("g1", "Grep", { pattern: "x", path: "packages/cli/src" }), bash("b1", "cat packages/cli/src/a.ts")]),
+      denied("g1", 'code-search: rule 1 — Grep tool over code → `node scripts/dev/cs.js grep "<name>"`'),
+      denied("b1", "code-search: rule 2 — whole code file printed by the shell → `cs skeleton <file>`"),
+      line("2026-09-24T10:00:05.000Z", "m2", [bash("b2", "grep -rn foo packages")]),
+      failed("b2", "Exit code 1\ncode-search: rule 1 — …"),
+      line("2026-09-24T10:00:09.000Z", "m3", [bash("c1", "node scripts/dev/cs.js grep x")]),
+      result("c1", "hit"),
+    ].join("\n");
+    const m = parseTranscript(text);
+    expect(m.tool_calls.blocked).toBe(2);
+    expect(m.tool_calls.total).toBe(4);
+    // the failed command ran (the hook was off, or it came through): it stays a deviation with its bytes
+    expect(m.deviations).toEqual(["shell search over code"]);
+    expect(m.ingest.explore_bytes).toBe(Buffer.byteLength("Exit code 1\ncode-search: rule 1 — …") + 3);
+    expect(isBlockedResult({ is_error: false }, "code-search: rule 1")).toBe(false);
   });
 });

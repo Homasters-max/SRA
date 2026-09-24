@@ -1,5 +1,5 @@
 {
-  "$comment": "Code-search benchmark (ADR-0027): questions from the task groups of change test-levels, asked on the parent commit of the group. truth — built from the TypeScript AST at that commit (enclosing named function of each call; \"(file)\" for file-level questions), not with graft. q9–q17 (group audit-2026-09-24) — from the graph audit (decision D-2), where the graph or grep fail; truth — `node scripts/dev/graph-audit.js callers <file>#<name> --refs --root <worktree at base>`.",
+  "$comment": "Code-search benchmark (ADR-0027): questions from the task groups of change test-levels, asked on the parent commit of the group. truth — built from the TypeScript AST at that commit (enclosing named function of each call; \"(file)\" for file-level questions), not with graft. q9–q17 (group audit-2026-09-24) — from the graph audit (decision D-2), where the graph or grep fail; truth — `node scripts/dev/graph-audit.js callers <file>#<name> --refs --root <worktree at base>`. q18 (group adr-0031, H-7) — a module constant used as a value, which `cs impact` searched only as calls and imports before ADR-0031.",
   "format": "code-search-bench/1",
   "questions": [
     {
@@ -246,6 +246,16 @@
         { "file": "packages/cli/test/e2e/transition.test.ts", "symbol": "(file)" },
         { "file": "packages/cli/test/e2e/verify.test.ts", "symbol": "(file)" },
         { "file": "packages/cli/test/e2e/waive.test.ts", "symbol": "(file)" }
+      ]
+    },
+    {
+      "id": "q18",
+      "base": "26ee558",
+      "group": "adr-0031",
+      "question": "Which functions use the RISK_LEVELS constant exported by packages/cli/src/core/resolve/types.ts (any use as a value, not only calls; import lines do not count)? A use outside any named function is answered with \"symbol\": \"(file)\".",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/commands/waive.ts", "symbol": "create" }
       ]
     }
   ]

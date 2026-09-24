@@ -1,7 +1,7 @@
 /**
- * Code-search hook (D-3): `scripts/dev/cs-hook-lib.js` decides what a subagent is told at start (the rule + `cs map`)
- * and what it is warned about after a tool call — with the same detector as the metrics, IO injected, never blocking,
- * inert outside a repo with scripts/dev/cs.js and for the main session.
+ * Code-search hook (D-3, ADR-0031): `scripts/dev/cs-hook-lib.js` decides what a subagent is told at start (the rule +
+ * `cs map`), which of its calls are denied before they run and what it is warned about after one ran — with the same
+ * detector as the metrics, IO injected, inert outside a repo with scripts/dev/cs.js and for the main session.
  */
 import { describe, expect, it } from "vitest";
 
@@ -12,10 +12,13 @@ const WIN_ROOT = String.raw`D:\project\SRA`;
 
 type Io = Parameters<typeof hookResponse>[2];
 
+const winPath = (p: string) => p.replace(/\\/g, "/").replace(/^\/([a-z])\//i, (_, d: string) => `${d.toUpperCase()}:/`);
+
 function io(over: Partial<Record<string, unknown>> = {}): Io {
   return {
     env: { CLAUDE_PROJECT_DIR: ROOT },
-    findRoot: (dir: string) => (dir.replace(/\\/g, "/").toLowerCase().startsWith(ROOT.toLowerCase()) ? WIN_ROOT : null),
+    // like cs-hook.js on Windows: Git Bash `/d/x` is `D:/x`
+    findRoot: (dir: string) => (winPath(dir).toLowerCase().startsWith(ROOT.toLowerCase()) ? WIN_ROOT : null),
     exists: (p: string) => p === `${ROOT}/scripts/dev/cs.js`,
     csMap: () => "repo map — 3 files\n## packages/cli/\n",
     fileLines: () => null,
@@ -33,6 +36,13 @@ const post = (tool_name: string, tool_input: Record<string, unknown>, extra: Rec
   tool_response: {},
   ...extra,
 });
+
+const pre = (tool_name: string, tool_input: Record<string, unknown>, extra: Record<string, unknown> = {}) => {
+  const { tool_response: _, ...input } = post(tool_name, tool_input, extra);
+  return { ...input, hook_event_name: "PreToolUse" };
+};
+const denial = (res: unknown) =>
+  (res as { hookSpecificOutput: { hookEventName: string; permissionDecision: string; permissionDecisionReason: string } } | null)?.hookSpecificOutput;
 
 const context = (res: unknown) => (res as { hookSpecificOutput: { additionalContext: string } } | null)?.hookSpecificOutput.additionalContext;
 
@@ -143,5 +153,74 @@ describe("cs-hook: post-tool", () => {
     expect(adviceFor("whole read check/lock.ts")).toContain("rule 2 — whole code file read (check/lock.ts)");
     expect(adviceFor("shell whole read of code")).toContain("rule 2");
     expect(adviceFor("something new")).toBe("code-search: something new → see .claude/skills/code-search/SKILL.md");
+  });
+});
+
+describe("cs-hook: pre-tool — deny a subagent's call that deviates from the skill (ADR-0031)", () => {
+  const src = `${ROOT}/packages/cli/src/core/lock.ts`;
+  const lines = (n: number) => io({ fileLines: () => n });
+
+  it("denies with the advice as the reason (H-2, H-4)", () => {
+    expect(hookResponse("pre-tool", pre("Grep", { pattern: "acquireLock", path: "packages/cli/src" }), io())).toEqual({
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason: 'code-search: rule 1 — Grep tool over code → `node scripts/dev/cs.js grep "<name>"` (place unknown: `cs ask "<where X>" --source`)',
+      },
+    });
+    expect(denial(hookResponse("pre-tool", pre("Bash", { command: "grep -rn foo packages" }), io()))?.permissionDecision).toBe("deny");
+    expect(denial(hookResponse("pre-tool", pre("PowerShell", { command: String.raw`Select-String -Path packages\cli\src\*.ts -Pattern foo` }), io()))?.permissionDecision).toBe("deny");
+    expect(denial(hookResponse("pre-tool", pre("Bash", { command: "node scripts/dev/cs.js grep foo | head -5" }), io()))?.permissionDecisionReason).toContain("rule 5");
+    expect(denial(hookResponse("pre-tool", pre("Bash", { command: "graft callers foo" }), io()))?.permissionDecisionReason).toContain("graft called directly");
+  });
+
+  it("denies a whole read of a code file by its length on disk: no range, a covering range, cat / sed", () => {
+    expect(denial(hookResponse("pre-tool", pre("Read", { file_path: src }), lines(300)))?.permissionDecisionReason).toBe(
+      "code-search: rule 2 — whole code file read (core/lock.ts) → `cs skeleton <file>` then Read offset/limit of the lines you need",
+    );
+    expect(denial(hookResponse("pre-tool", pre("Read", { file_path: src, offset: 1, limit: 400 }), lines(300)))?.permissionDecision).toBe("deny");
+    expect(denial(hookResponse("pre-tool", pre("Bash", { command: "cat packages/cli/src/core/lock.ts" }), lines(300)))?.permissionDecision).toBe("deny");
+    expect(denial(hookResponse("pre-tool", pre("Bash", { command: "sed -n 1,400p packages/cli/src/core/lock.ts" }), lines(300)))?.permissionDecision).toBe("deny");
+  });
+
+  it("allows a real range, a file of ≤ 40 lines, docs, listing, cs and edits (H-2, H-5)", () => {
+    expect(hookResponse("pre-tool", pre("Read", { file_path: src, offset: 1, limit: 50 }), lines(300))).toBeNull();
+    expect(hookResponse("pre-tool", pre("Read", { file_path: src, offset: 120, limit: 40 }), lines(300))).toBeNull();
+    expect(hookResponse("pre-tool", pre("Read", { file_path: src }), lines(40))).toBeNull();
+    expect(hookResponse("pre-tool", pre("Bash", { command: "cat packages/cli/src/core/lock.ts" }), lines(12))).toBeNull();
+    for (const [tool, input] of [
+      ["Bash", { command: "node scripts/dev/cs.js skeleton packages/cli/src/a.ts" }],
+      ["Bash", { command: "sed -n 10,40p packages/cli/src/a.ts" }],
+      ["Bash", { command: "npm test 2>&1 | tail -20" }],
+      ["Glob", { pattern: "packages/**/*.ts" }],
+      ["Grep", { pattern: "x", path: "docs" }],
+      ["Read", { file_path: `${ROOT}/docs/adr/README.md` }],
+      ["Edit", { file_path: src, old_string: "a", new_string: "b" }],
+    ] as const) {
+      expect(hookResponse("pre-tool", pre(tool, input), lines(300)), JSON.stringify(input)).toBeNull();
+    }
+  });
+
+  it("H-3: never denies the main session (no agent_id)", () => {
+    const { agent_id: _, ...main } = pre("Grep", { pattern: "x", path: "packages/cli/src" });
+    expect(hookResponse("pre-tool", main, io())).toBeNull();
+  });
+
+  it("H-1: a file outside every WARRANT work tree is not code; another worktree of the repo is", () => {
+    const scratch = "C:/Users/u/AppData/Local/Temp/claude/D--project-SRA/s1/scratchpad";
+    expect(hookResponse("pre-tool", pre("Bash", { command: `cd "${scratch}" && grep -n rep edits2.js` }), io())).toBeNull();
+    expect(hookResponse("pre-tool", pre("Read", { file_path: `${scratch}/big.ts` }), lines(500))).toBeNull();
+    const other = "D:/project/SRA-impl";
+    const two = io({
+      findRoot: (p: string) => {
+        const d = winPath(p).toLowerCase();
+        return d.startsWith(other.toLowerCase()) ? other : d.startsWith(ROOT.toLowerCase()) ? WIN_ROOT : null;
+      },
+      exists: (p: string) => p === `${ROOT}/scripts/dev/cs.js` || p === `${other}/scripts/dev/cs.js`,
+    });
+    expect(denial(hookResponse("pre-tool", pre("Grep", { pattern: "x", path: `${other}/packages/cli/src` }), two))?.permissionDecision).toBe("deny");
+    // a checkout without scripts/dev/cs.js (another repository) is not WARRANT code
+    const foreign = io({ findRoot: (p: string) => (winPath(p).startsWith("E:/") ? "E:/repo" : WIN_ROOT) });
+    expect(hookResponse("pre-tool", pre("Grep", { pattern: "x", path: "E:/repo/packages/a" }), foreign)).toBeNull();
   });
 });

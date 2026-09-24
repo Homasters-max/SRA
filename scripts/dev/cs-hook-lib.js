@@ -1,21 +1,26 @@
 /**
- * Decision logic of the code-search hook `scripts/dev/cs-hook.js` (D-3): what to tell a subagent when it starts, and
- * what to warn about after one of its tool calls. Pure — the IO (repo root, file line counts, `cs map`) is injected, so
- * unit tests need no process. The detector is `deviationsOf` of graft-metrics-lib.js — the same one the metrics use.
- * Warn only: the hook never blocks a call.
+ * Decision logic of the code-search hook `scripts/dev/cs-hook.js` (D-3): what to tell a subagent when it starts, which
+ * of its tool calls to deny before they run, and what to warn about after one ran. Pure — the IO (work-tree roots, file
+ * line counts, `cs map`) is injected, so unit tests need no process. The detector is `deviationsOf` of
+ * graft-metrics-lib.js — the same one the metrics use.
+ *
+ * ADR-0031: a subagent's call that the detector flags from its input alone is denied (`PreToolUse`,
+ * `permissionDecision: "deny"`, the reason — what to do instead); what shows only in a call's output stays a
+ * `PostToolUse` warning. The main session (no `agent_id`) is never checked.
  */
 import { deviationsOf } from "./graft-metrics-lib.js";
 
 /** Agent types that never touch the repo's code. */
 export const SKIP_AGENT_TYPES = new Set(["claude-code-guide", "statusline-setup"]);
-/** Tools the post-tool check looks at. */
+/** Tools the pre- and post-tool checks look at. */
 export const CHECKED_TOOLS = new Set(["Read", "Grep", "Glob", "Bash", "PowerShell"]);
-/** Upper bound of the post-tool warning. */
+/** Upper bound of a warning or a deny reason. */
 export const MAX_WARNING_CHARS = 600;
 
 export const START_TEXT = [
   "Code of this repo (packages/**, scripts/** .ts/.js) is searched only via the code-search skill (.claude/skills/code-search/SKILL.md): read it before touching code.",
   "Before changing a signature/export: `node scripts/dev/cs.js impact <symbol>`.",
+  "A call that breaks the skill (Grep/grep over code, a whole code file read, cs output cut) is denied by a hook: do what the denial says instead.",
 ].join("\n");
 
 /** Deviation (graft-metrics-lib wording) → rule, what happened, what to do instead. */
@@ -51,8 +56,10 @@ function responseText(toolName, response) {
 }
 
 /**
- * Hook response for `event` (`subagent-start` | `post-tool`) and the hook input JSON, or null (print nothing).
- * `io`: `env` — process env (CLAUDE_PROJECT_DIR); `findRoot(dir)` — work-tree root containing `dir` or null;
+ * Hook response for `event` (`subagent-start` | `pre-tool` | `post-tool`) and the hook input JSON, or null (print
+ * nothing). `pre-tool` — deny with the advice as the reason; `post-tool` — the advice as a warning, for what only the
+ * output shows (a read that stopped short of its range). Both only for a subagent (`agent_id`).
+ * `io`: `env` — process env (CLAUDE_PROJECT_DIR); `findRoot(path)` — work-tree root containing `path` or null;
  * `exists(path)`; `csMap(root)` — output of `cs map` or null; `fileLines(absPath)` — line count or null.
  * Inert (null) when no root with scripts/dev/cs.js is found — other repos and worktrees without cs.
  */
@@ -81,26 +88,35 @@ export function hookResponse(event, input, io) {
     return { hookSpecificOutput: { hookEventName: "SubagentStart", additionalContext: text } };
   }
 
-  if (event === "post-tool") {
-    if (!input.agent_id || !CHECKED_TOOLS.has(input.tool_name)) return null;
-    const cwd = posix(input.cwd || root);
-    const response = input.tool_response;
-    const total = input.tool_name === "Read" && typeof response?.file?.totalLines === "number" ? response.file.totalLines : null;
-    const readFile = input.tool_name === "Read" ? posix(input.tool_input?.file_path) : null;
-    const fileLines = (p) => {
-      if (total !== null && posix(p).toLowerCase() === readFile?.toLowerCase()) return total;
-      try {
-        return io.fileLines(p);
-      } catch {
-        return null;
-      }
-    };
-    const block = { type: "tool_use", name: input.tool_name, input: input.tool_input ?? {} };
-    const found = deviationsOf(block, { result: responseText(input.tool_name, response), cwd, root, fileLines });
-    if (found.length === 0) return null;
-    let text = [...new Set(found.map(adviceFor))].join("\n");
-    if (text.length > MAX_WARNING_CHARS) text = `${text.slice(0, MAX_WARNING_CHARS - 1)}…`;
-    return { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: text } };
-  }
-  return null;
+  if (event !== "pre-tool" && event !== "post-tool") return null;
+  if (!input.agent_id || !CHECKED_TOOLS.has(input.tool_name)) return null;
+  const pre = event === "pre-tool";
+  const cwd = posix(input.cwd || root);
+  const response = pre ? undefined : input.tool_response;
+  const total = input.tool_name === "Read" && typeof response?.file?.totalLines === "number" ? response.file.totalLines : null;
+  const readFile = input.tool_name === "Read" ? posix(input.tool_input?.file_path) : null;
+  const fileLines = (p) => {
+    if (total !== null && posix(p).toLowerCase() === readFile?.toLowerCase()) return total;
+    try {
+      return io.fileLines(p);
+    } catch {
+      return null;
+    }
+  };
+  // H-1: a path is code only inside a WARRANT work tree — the nearest `.git` above it, with scripts/dev/cs.js
+  const rootOf = (p) => {
+    try {
+      const r = io.findRoot(p);
+      return r && io.exists(`${posix(r)}/scripts/dev/cs.js`) ? posix(r) : null;
+    } catch {
+      return null;
+    }
+  };
+  const block = { type: "tool_use", name: input.tool_name, input: input.tool_input ?? {} };
+  const found = deviationsOf(block, { result: pre ? undefined : responseText(input.tool_name, response), cwd, root, rootOf, fileLines });
+  if (found.length === 0) return null;
+  let text = [...new Set(found.map(adviceFor))].join("\n");
+  if (text.length > MAX_WARNING_CHARS) text = `${text.slice(0, MAX_WARNING_CHARS - 1)}…`;
+  if (pre) return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: text } };
+  return { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: text } };
 }

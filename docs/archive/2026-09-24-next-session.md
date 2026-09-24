@@ -8,7 +8,12 @@ version: 0.4.2
 
 # WARRANT — что делать в следующей сессии
 
-Файл передачи контекста. Прочитать первым, затем [00-readme](00-readme.md).
+> **Заморожен 2026-09-24** ([ADR-0032](../adr/WARRANT-ADR-0032-dev-context.md) п. 2): бывший `docs/NEXT-SESSION.md`,
+> перенесён целиком (относительные ссылки сдвинуты на `../`). Не правится; служит адресом прежних решений (P-, V-, G-,
+> Q-, H-, D-, R-). Живое извлечено: долг — [backlog.md](../backlog.md), правила — [process/rules.md](../process/rules.md)
+> и `CLAUDE.md`, передача — [handoff/](../handoff/).
+
+Файл передачи контекста. Прочитать первым, затем [00-readme](../00-readme.md).
 
 ## Состояние на 2026-09-24
 
@@ -59,7 +64,7 @@ version: 0.4.2
   - Эксперимент Graft: записи групп test-levels g1–g6 помечены `blind-leak` — индекс `MEMORY.md` сессии
     называл эксперимент (зонд это поймал; индекс исправлен для следующих сессий, снимок текущей сессии — нет). Решено
     ADR-0027 п. 1: засчитываются (`cs` в `[B]` — 0); донастройка и парный бенчмарк — ADR-0027.
-- **Аудит Graft — ADR-0029** (2026-09-24, PR #19, merge `a70c4a5`; отчёт [process/graft-audit.md](process/graft-audit.md)).
+- **Аудит Graft — ADR-0029** (2026-09-24, PR #19, merge `a70c4a5`; отчёт [process/graft-audit.md](../process/graft-audit.md)).
   Граф сверен с компилятором TypeScript: рёбра вызовов точны (99,4 %), но вызовы через порты не видны (0/284), вызовы
   одноимённых символов из других файлов — 4/141; правило 3 навыка переведено с `callers` на **`cs impact`** (граф + поиск
   по имени). По архитектурному аудиту той же даты — **`cs deps`** (импорты файла, граф модулей Ca/Ce/I, циклы, `type-only`)
@@ -69,10 +74,10 @@ version: 0.4.2
   пересчёта — g1 2, g3 2, g5 50 отступлений (прежние записи — `graft-lab/runs-before-audit/`). **Хуки разработки**
   `.claude/settings.json` → `scripts/dev/cs-hook.js`: `SubagentStart` (указатель на навык и `cs map`), `PostToolUse` у
   субагентов — подсказка по детектору (без запрета); проверены живым прогоном `claude -p`. Строка про навык из промпта
-  координатора убрана — её несёт хук ([coordinator.md](process/coordinator.md) §2). SEF: W-28 в приложении F. Тесты 859/859.
+  координатора убрана — её несёт хук ([coordinator.md](../process/coordinator.md) §2). SEF: W-28 в приложении F. Тесты 859/859.
   Не проверено: мигает ли окно node.exe при хуках в Desktop-приложении.
-- **Архитектурный аудит `packages/cli/src`** (2026-09-24; отчёт [process/audits/2026-09-24.md](process/audits/2026-09-24.md),
-  снимок `2026-09-24.json`; навык [architecture-audit](../.claude/skills/architecture-audit/SKILL.md), помощник
+- **Архитектурный аудит `packages/cli/src`** (2026-09-24; отчёт [process/audits/2026-09-24.md](../process/audits/2026-09-24.md),
+  снимок `2026-09-24.json`; навык [architecture-audit](../../.claude/skills/architecture-audit/SKILL.md), помощник
   `scripts/dev/arch-snapshot.js` поверх `cs deps` / `cs dups` / `callers --json`). Циклов файлов нет, рёбер «вверх» из
   `core` нет; находки **A-1…A-10** — таблица «Архитектурный долг» ниже. Grilling по итогам (Q1–Q22, приняты maintainer'ом):
   до фазы 4 — change **`arch-boundaries`** (ADR-0030, строка 3d в 13 §2) — решения в разделе «arch-boundaries» ниже;
@@ -105,7 +110,7 @@ version: 0.4.2
     срабатывание** — g3, `grep` по `edits2.js` в scratchpad: `isCodeFile` (`graft-metrics-lib.js`) считает кодом любой
     `.ts`/`.js`, а навык — только `packages/**`, `scripts/**` репозитория; пограничные — `grep -c` по только что записанному
     файлу (g2, g5); предупреждения поведение не меняли — после первой подсказки хука ещё 9 отступлений в g4 и 8 в g5.
-- **`PreToolUse deny` у субагентов — [ADR-0031](adr/WARRANT-ADR-0031-pretooluse-deny.md)** (2026-09-24, process-PR
+- **`PreToolUse deny` у субагентов — [ADR-0031](../adr/WARRANT-ADR-0031-pretooluse-deny.md)** (2026-09-24, process-PR
   `process/pretooluse-deny`, worktree `D:\project\SRA-pretooluse-deny`; решения H-1…H-9 ниже). Хук
   `scripts/dev/cs-hook.js pre-tool` (`.claude/settings.json`, `PreToolUse` на `Read|Grep|Bash|PowerShell`): вызов
   субагента, который детектор `deviationsOf` помечает по входу, — `permissionDecision: "deny"`, причина — `adviceFor`;
@@ -161,10 +166,10 @@ version: 0.4.2
 | `analyze` | **Решено V-1**: фаза 4 | — |
 | ~~тесты под нагрузкой~~ | **закрыт** test-levels: `npm test` без флагов ~70 с, зелёный 3 раза подряд (I-138: `unit`/`app` первой группой, тяжёлые — `maxForks`), `validate` репозитория 4,5 с (3.1). Было: `warrant validate` на репозитории — ~30 с (вызовы `openspec` на каждый Change/spec); полный `npm test` с параллелизмом по умолчанию на машине maintainer'а даёт таймауты e2e `validate`/`golden` (поодиночке и с `--maxWorkers=3` — зелёные, CI — зелёный). Один `openspec` на проект невозможен (у OpenSpec 1.13.1 нет пакетного `show`); таймауты не поднимаем | **решено ADR-0025**: `test-levels` — `show` только для файлов с id и параллельно, логика в `unit`/`app` без процессов; до его закрытия `/group-done` гоняет `--maxWorkers=3` вручную |
 | I-103 | Пред-фильтр исключает запись, чей `metrics.waivers[]` ссылается на waiver с `targets[]` — пересмотреть вместе с D-10 | фаза 5 |
-| Graft | **Закрыт** ADR-0028, **аудит** ADR-0029 ([process/graft-audit.md](process/graft-audit.md)): граф не видит вызовов через порты (0/284) → правило 3 навыка — `cs impact`; `cs deps` / `cs dups` / `--json`; строгая обёртка; регрессия графа `graph-audit.js` + бенчмарк q1–q17 (`accept`); хуки разработки `.claude/settings.json` → `scripts/dev/cs-hook.js` (`SubagentStart`, `PostToolUse` — предупреждение) | ~~2–3 группы после ADR-0029 сравнить с базой `test-levels` `[A]`~~ — **сделано** на группах 1–3 `arch-boundaries` (состояние, «arch-boundaries закрыт»); ~~решение о `PreToolUse deny`~~ — **реализовано** ADR-0031 (process-PR `process/pretooluse-deny`); `cs deps --level` против модулей-файлов ADR-0030 (`core/*.ts` входят в `core`, ложный цикл I-146) — долг (H-8, строка в навыке), по failure mode; ~~помощник навыка `architecture-audit` — на `cs deps --json`~~ — **закрыт** (`scripts/dev/arch-snapshot.js` поверх `cs --json`) |
+| Graft | **Закрыт** ADR-0028, **аудит** ADR-0029 ([process/graft-audit.md](../process/graft-audit.md)): граф не видит вызовов через порты (0/284) → правило 3 навыка — `cs impact`; `cs deps` / `cs dups` / `--json`; строгая обёртка; регрессия графа `graph-audit.js` + бенчмарк q1–q17 (`accept`); хуки разработки `.claude/settings.json` → `scripts/dev/cs-hook.js` (`SubagentStart`, `PostToolUse` — предупреждение) | ~~2–3 группы после ADR-0029 сравнить с базой `test-levels` `[A]`~~ — **сделано** на группах 1–3 `arch-boundaries` (состояние, «arch-boundaries закрыт»); ~~решение о `PreToolUse deny`~~ — **реализовано** ADR-0031 (process-PR `process/pretooluse-deny`); `cs deps --level` против модулей-файлов ADR-0030 (`core/*.ts` входят в `core`, ложный цикл I-146) — долг (H-8, строка в навыке), по failure mode; ~~помощник навыка `architecture-audit` — на `cs deps --json`~~ — **закрыт** (`scripts/dev/arch-snapshot.js` поверх `cs --json`) |
 | `fmt` packs | `warrant fmt --check` без пути не проверяет `packs/**`; `packs/core-sdd/pack.json` неканоничен (порядок `rules`/`skills`), а правило `json-canonical` из черновика `rule/1` покрывает `packs/**/*.json` | вместе с первым правилом `rule/1` или отдельным fix |
 
-### Архитектурный долг — A-N (аудиты [process/audits/](process/audits/))
+### Архитектурный долг — A-N (аудиты [process/audits/](../process/audits/))
 
 Нумерация сквозная между аудитами; взятая в работу строка — ссылкой из tasks.md, закрытая — зачёркнута со ссылкой на PR.
 Не чинится сразу, а правило проверяемо — исключение с этим ID в храповике `architecture.test.ts` (после `arch-boundaries`).
@@ -260,7 +265,7 @@ typecheck, test, validate, `versions:check`, коммит, галочки tasks.
 phase-3b: `.claude/commands/{decision,group-done,next-session}.md`; критерий P-1 сохраняется — файл в `.claude/` автоматизирует
 процедуру, правил в нём нет.
 
-Skills (reasoning SRA, [07](07-skills.md)) — где они в плане: контракт вызова (`run start` / `run submit`, схемы `run/1`,
+Skills (reasoning SRA, [07](../07-skills.md)) — где они в плане: контракт вызова (`run start` / `run submit`, схемы `run/1`,
 `skill-result/1`) и первый реальный skill `adversarial-review` через `codex exec` (D-5, снимает WAV-2026-002) — **фаза 4**;
 расширение набора (bdd-tdd, arch) — фаза 5; интеграция каталога SRA — фаза 9. Расхождение 13 §2 («adversarial review» в фазе 5)
 закрыто phase-3b (1.4): producer — фаза 4 (D-5).
@@ -286,7 +291,7 @@ Change `phase-3b` предложен в worktree `D:\project\SRA-phase3b`, ве�
 
 I-93 решается без нового ADR: ADR-0010 п. 2 уже заменил правило 04 §9 «`cli:local` невалиден» — 04 §9 просто не приведён к нему (задача 1.3).
 
-- **Фаза 4** (MVP frontend, [13 §2](13-roadmap.md)): `sync` (`.codex/hooks.json`, `AGENTS.md`), `run start` / `run submit`,
+- **Фаза 4** (MVP frontend, [13 §2](../13-roadmap.md)): `sync` (`.codex/hooks.json`, `AGENTS.md`), `run start` / `run submit`,
   схемы `run/1` и `skill-result/1`, `guard` (pre/post, без Run → `deny`, D-4, `guard_prefixes`), `validate --files`, `analyze`,
   `warrant ci` (verdict impl-PR вместо ручного переноса artifact'а, верификация `--ref`), адаптер `codex` — после spike **S8**
   (hooks Codex под `codex-acp` и `codex exec`, 13 §3), finding `FRONTEND_HOOKS_INACTIVE` (D-14), producer'ы `analyze-clean` и
@@ -294,7 +299,7 @@ I-93 решается без нового ADR: ADR-0010 п. 2 уже замен�
 
 ### arch-boundaries — решения grilling 2026-09-24 (Q1–Q25, приняты maintainer'ом)
 
-Вход — аудит [process/audits/2026-09-24.md](process/audits/2026-09-24.md). Фаза 4 зовёт `warrant` бинарником (ADR-0018 п. 2,
+Вход — аудит [process/audits/2026-09-24.md](../process/audits/2026-09-24.md). Фаза 4 зовёт `warrant` бинарником (ADR-0018 п. 2,
 ADR-0020 п. 11), но добавляет входы (`guard`, `run`, `ci`, `analyze`) — без выделенного сценария каждый собрал бы конвейер A-2
 заново.
 
@@ -335,7 +340,7 @@ ADR-0020 п. 11), но добавляет входы (`guard`, `run`, `ci`, `ana
 
 ### Продолжение — готовый запрос
 
-**Сначала — process-PR ADR-0032** ([контекст разработки](adr/WARRANT-ADR-0032-dev-context.md), grilling 2026-09-24
+**Сначала — process-PR ADR-0032** ([контекст разработки](../adr/WARRANT-ADR-0032-dev-context.md), grilling 2026-09-24
 Q1–Q15): этот файл замораживается в `docs/archive/2026-09-24-next-session.md`, живое уходит в `docs/backlog.md`,
 `docs/process/rules.md`, `CLAUDE.md`, `packages/cli/CLAUDE.md` и `docs/handoff/phase-4.md` (запрос ниже), навыки — к
 стандарту п. 6, `brief.js` + хук `SessionStart`, мета-тест `dev-context.test.ts`; объём — ADR-0032 п. 12. Затем grilling
@@ -446,7 +451,7 @@ ADR-0031: `D:\project\SRA-pretooluse-deny` (`process/pretooluse-deny`) — по�
 
 ## Порядок работы — через OpenSpec (dogfooding)
 
-Репозиторий ведётся **самим OpenSpec** (spike S2 → [ADR-0015](adr/WARRANT-ADR-0015-openspec-sync-contract.md)); фазы 1–3
+Репозиторий ведётся **самим OpenSpec** (spike S2 → [ADR-0015](../adr/WARRANT-ADR-0015-openspec-sync-contract.md)); фазы 1–3
 пройдены по этой схеме. С фазы 3 change ведётся и **через `warrant`**: record, classify, evidence, transitions, archive.
 
 **Модели и схема работы.** Сессия (координатор) — Fable: читает spec/design/tasks целиком, пишет субагенту полный prompt
@@ -551,7 +556,7 @@ ADR-0031: `D:\project\SRA-pretooluse-deny` (`process/pretooluse-deny`) — по�
 |---|---|
 | `attestation_type` `sef-approval`, `sef-gate` (enum в `common.1`); gate `spec-approved` в `sef-hub`; `analyze` TASK ↔ sef item; `SEF_PROTECTED_DRIFT`; forge `sef-hub` | срез S1 SEF (ADR-0020, proposed; черновик SEF предварительный) |
 | pack `bdd-tdd`: check `mutation`, parser в mutation-testing-report-schema, фильтр по diff, lint pragma | фаза 5 (0016); инструмент — spike S7 |
-| floor по размеру diff, pack `ui`, `dismissed[]` в skill-result | later по триггерам ([13 §3](13-roadmap.md)) |
+| floor по размеру diff, pack `ui`, `dismissed[]` в skill-result | later по триггерам ([13 §3](../13-roadmap.md)) |
 
 ### Карта агента — итог плана 2026-09-22
 
@@ -562,8 +567,8 @@ ADR-0031: `D:\project\SRA-pretooluse-deny` (`process/pretooluse-deny`) — по�
 
 ### Не потерять
 
-- При ревизии черновика SEF ([integrations/2026-09-17-sef-platform-design.md](integrations/2026-09-17-sef-platform-design.md),
-  предварительный) сверить его с [11 §2](11-integrations.md) «Требования WARRANT к SEF» и ADR-0020 п. 8–14 (`proposed`):
+- При ревизии черновика SEF ([integrations/2026-09-17-sef-platform-design.md](../integrations/2026-09-17-sef-platform-design.md),
+  предварительный) сверить его с [11 §2](../11-integrations.md) «Требования WARRANT к SEF» и ADR-0020 п. 8–14 (`proposed`):
   approval без hash spec, `source_ref` TASK ↔ item, один тестовый гейт `warrant verify`, `warrant transition` в
   `sef work approve` и `landing`, archive в `landing`, `protected[]` ⊇ пути WARRANT, `AGENTS.md` и `.codex/hooks.json`
   в эталоне `.sef/engines/<profile>/`.
@@ -608,7 +613,7 @@ docs/integrations/2026-09-17-sef-platform-design.md (черновик SEF, ПР�
 Ревью проведено (отчёт — в сессии ревью: слой 1 L1-1…L1-11, слой 2 F-1…F-28, вопросы Q-1…Q-10). Ниже — принятые
 решения; ADR и docs **правлены по ним отдельными коммитами** (список ниже, с хешами). Изменённые формулировки
 сохранены рядом как «(было: …)» или в Alternatives соответствующего ADR. Согласование с черновиком SEF —
-[приложение F](integrations/2026-09-17-sef-platform-design.md) черновика (строки W-01…W-27).
+[приложение F](../integrations/2026-09-17-sef-platform-design.md) черновика (строки W-01…W-27).
 
 ### Решения
 
@@ -616,7 +621,7 @@ docs/integrations/2026-09-17-sef-platform-design.md (черновик SEF, ПР�
 |---|---|---|---|
 | D-1 | `sef-hub`: `MERGED` записывается один раз — в коммите посадки последнего item, вместе с `IMPLEMENTING`, `VERIFYING` (refs attempt / gate / landing); промежуточные посадки record не трогают (`STALE` между посадками — штатно, ADR-0011 п. 3); `warrant archive` — следующим коммитом | Q-1, F-7 | ADR-0020 п. 11–12; 11 §2; SEF W-14 |
 | D-2 | В `sef-hub` Run и evidence попытки живут вне репозитория: CLI читает `WARRANT_STATE_DIR` (`.warrant/runs/`, `.warrant/evidence/` → `var/sef/attempts/<id>/warrant/`); `.warrant/**` остаётся в `protected[]` целиком. Транспорт `github` — без изменений (в git) | Q-2, F-8 | ADR-0020 п. 13; 03 §4 (триггер «внешнее хранение» = S1 SEF); долг C (`run start`, `check`, `verify`: `WARRANT_STATE_DIR`); SEF W-09 |
-| D-3 | Gate `spec-approved` — транспортно-нейтральный, core-sdd, переход `VERIFYING→MERGED` (в `github` — CI impl-PR, в `sef-hub` — lane/integration): hash дерева `{proposal.md, design.md, specs/**}` на коммите из ref `APPROVED` ↔ на base; `tasks.md` исключён. Новых полей record нет. **Уточнено V-9** ([ADR-0024](adr/WARRANT-ADR-0024-spec-approved-contract.md)): дерево без `design.md`, gate `waivable: true` | Q-3, F-6, F-18 | ADR-0020 п. 9; 06 §4; долг D `gate` |
+| D-3 | Gate `spec-approved` — транспортно-нейтральный, core-sdd, переход `VERIFYING→MERGED` (в `github` — CI impl-PR, в `sef-hub` — lane/integration): hash дерева `{proposal.md, design.md, specs/**}` на коммите из ref `APPROVED` ↔ на base; `tasks.md` исключён. Новых полей record нет. **Уточнено V-9** ([ADR-0024](../adr/WARRANT-ADR-0024-spec-approved-contract.md)): дерево без `design.md`, gate `waivable: true` | Q-3, F-6, F-18 | ADR-0020 п. 9; 06 §4; долг D `gate` |
 | D-4 | `guard pre` без активного Run отвечает `deny` только для путей под `paths.src`, `paths.tests`, `openspec/changes/**` и policy-путей (`match.paths` профилей); остальные пути (например `docs/**`) — `allow` + hint «начни с `run start`». Dogfooding: Codex на коде этого репозитория не используется до фазы 4; Claude-сессии guard не получают (ADR-0018 п. 7) | Q-4, F-21 | ADR-0022 п. 7 |
 | D-5 | Adversarial review spec в MVP: стол выполняет `warrant run start <change> --operation review` → `codex exec --output-schema <skill-result> -o result.json` → `warrant run submit result.json`; attestation `none`, `limitations: ["produced locally, unattested"]`. Плагин Claude Code не используется (Claude — только интерактив, ADR-0020) | Q-5, F-19 | ADR-0020 п. 5; 13 Q7 |
 | D-6 | Строка `MEDIUM` для mutation убирается: `LOW`/`MEDIUM` — check не выполняется, `HIGH` — gate `mutation-score` required. Примитив «check без gate» (`evidence.recommended`) — later по failure mode | Q-6, F-13 | ADR-0016 п. 10; 05 §4 (строка 182); 10-pack-bdd-tdd §4 |

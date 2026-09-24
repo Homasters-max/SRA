@@ -14,7 +14,7 @@ amends: [WARRANT-ADR-0016]
 старт около секунды) и `git`. Один e2e-тест стоит 1–15 с, файл — 30–60 с. На Windows порождение процессов в разы дороже:
 job `test` на windows — 751 с против 346 с на ubuntu; `waive.test.ts` шёл 203 с в CI против 42 с локально, и vitest уронил job
 на `Timeout calling "onTaskUpdate"`, хотя все файлы прошли. Локально полный `npm test` с параллелизмом по умолчанию даёт
-таймауты, `/group-done` гоняет `--maxWorkers=3` вручную (долг «тесты под нагрузкой», NEXT-SESSION).
+таймауты, `/group-done` гоняет `--maxWorkers=3` вручную (долг «тесты под нагрузкой», [NEXT-SESSION](../archive/2026-09-24-next-session.md)).
 
 Факты кода (`packages/cli`, `v0.4.0`):
 

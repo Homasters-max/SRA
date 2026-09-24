@@ -25,6 +25,17 @@
         "matcher": "Read|Grep|Bash|PowerShell"
       }
     ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "node \"${CLAUDE_PROJECT_DIR}/scripts/dev/brief.js\" session-start",
+            "timeout": 10,
+            "type": "command"
+          }
+        ]
+      }
+    ],
     "SubagentStart": [
       {
         "hooks": [

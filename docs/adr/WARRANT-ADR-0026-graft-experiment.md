@@ -18,7 +18,7 @@ amended_by: [WARRANT-ADR-0027, WARRANT-ADR-0028]
 ## Context
 
 Разработку WARRANT ведёт сессия-координатор, каждую группу задач `tasks.md` выполняет субагент Opus
-([NEXT-SESSION](../NEXT-SESSION.md)). Каждый субагент заново исследует `packages/cli/src` (~23 тыс. строк TS с
+([NEXT-SESSION](../archive/2026-09-24-next-session.md)). Каждый субагент заново исследует `packages/cli/src` (~23 тыс. строк TS с
 тестами): в транскриптах phase-3b на группу 36–98 shell-вызовов `cat` / `sed -n` / `grep` при 50–120 tool calls и
 5–22 млн токенов (с кэшем). Это цена, которая платится заново в каждой группе, и риск пропустить затронутый код.
 

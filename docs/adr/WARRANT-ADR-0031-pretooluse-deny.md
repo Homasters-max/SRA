@@ -13,7 +13,7 @@ amends: [WARRANT-ADR-0029]
 подсказывает, как было бы по навыку `code-search`, и отложил запрет (`PreToolUse deny`) до 2–3 групп без ложных
 срабатываний. Замер — группы 1–3 impl-PR `arch-boundaries` против базы `test-levels` `[A]` (п. 8), затем разбор
 транскриптов g1–g5 и grilling 2026-09-24 (решения H-1…H-9, приняты maintainer'ом;
-[NEXT-SESSION](../NEXT-SESSION.md), раздел «`PreToolUse deny` — решения grilling»). Факты:
+[NEXT-SESSION](../archive/2026-09-24-next-session.md), раздел «`PreToolUse deny` — решения grilling»). Факты:
 
 - **Предупреждения поведение не меняли:** после первой подсказки хука — ещё 9 отступлений в g4 и 8 в g5 (обе
   `compliant: false`: чтения целиком, shell-поиск, `cs` через `head`/`tail`). Ошибок это не дало, но каждое такое

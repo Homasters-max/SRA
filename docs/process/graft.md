@@ -49,8 +49,8 @@ setx DO_NOT_TRACK 1
   код 3); `GRAFT_*` окружения удаляются, переменные гигиены и телеметрии ставятся; индекс строится под замком;
   таймаут 120 с; строки «tokens saved» вырезаются, подсказки `graft <sub>` переписываются в `cs <sub>`; вывод
   `callers` — до 80 строк.
-- [.claude/skills/code-search/SKILL.md](../../.claude/skills/code-search/SKILL.md) — алгоритм (правила 1–6, команды,
-  сценарии); навык вызывается моделью сам, субагенту указатель на него даёт хук `SubagentStart`.
+- [.claude/skills/code-search/SKILL.md](../../.claude/skills/code-search/SKILL.md) — алгоритм (шаги 1–6; команды и
+  сценарии — `reference.md` рядом); навык вызывается моделью сам, субагенту указатель на него даёт хук `SubagentStart`.
 - **Хуки разработки** (ADR-0029 п. 6, ADR-0031): `.claude/settings.json` — только `hooks`, команды —
   `scripts/dev/cs-hook.js`: `SubagentStart` (указатель на навык, `cs impact`, `cs map`); `PreToolUse` на
   `Read|Grep|Bash|PowerShell` у субагентов — **запрет** (`deny`) вызова, который детектор отступлений помечает по

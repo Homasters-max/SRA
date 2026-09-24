@@ -1,7 +1,8 @@
 /**
  * Session state (ADR-0032 п. 4, 9, 11): `scripts/dev/brief-lib.js` computes the state of a development session from
  * git and files through an injected `io` and prints at most 2 KB — worktrees with their handoff files, versions,
- * active Changes and open tasks, merged branches, auto-memory warnings.
+ * active Changes and open tasks, merged branches (local and on origin), auto-memory warnings; streams in the order of
+ * their `После:` lines (ADR-0033 п. 12).
  */
 import { describe, expect, it } from "vitest";
 
@@ -16,6 +17,8 @@ import {
   memoryDir,
   memorySlug,
   memoryWarnings,
+  orderStreams,
+  parseAfter,
   parseWorktrees,
   TITLE,
 } from "../../../../../scripts/dev/brief-lib.js";
@@ -34,6 +37,7 @@ interface Repo {
   tags?: string;
   hasMain?: boolean;
   merged?: string;
+  mergedOrigin?: string | null;
   files?: Record<string, string>;
   dirs?: Record<string, { name: string; dir: boolean }[]>;
 }
@@ -60,6 +64,8 @@ function fakeIo(repo: Repo = {}): Io & { calls: string[][] } {
       if (key === "tag -l v*") return repo.tags ?? "";
       if (key === "show-ref --verify --quiet refs/heads/main") return repo.hasMain === false ? null : "";
       if (key.startsWith("branch --merged main")) return repo.merged ?? "main\n";
+      if (key === "show-ref --verify --quiet refs/remotes/origin/main") return repo.mergedOrigin == null ? null : "";
+      if (key.startsWith("branch -r --merged origin/main")) return repo.mergedOrigin ?? null;
       return null;
     },
     readFile: (p: string) => files[p] ?? null,
@@ -142,6 +148,62 @@ describe("latestTag", () => {
     expect(latestTag("v1.0.0-rc.1\nv1.0.0\nv0.9.0\n")).toBe("v1.0.0");
     expect(latestTag("")).toBeNull();
     expect(compareVersions("v1.0.0-rc.1", "v1.0.0")).toBeLessThan(0);
+  });
+});
+
+describe("streams — ADR-0033 п. 12", () => {
+  it("parseAfter reads the `После:` line above the first section only", () => {
+    expect(parseAfter("# phase-4\n\nПосле: git-automation, x\n\n## Цель\n")).toEqual(["git-automation", "x"]);
+    expect(parseAfter("# a\n\n## Цель\n\nПосле: b\n")).toEqual([]);
+    expect(parseAfter(null)).toEqual([]);
+  });
+
+  it("orderStreams: predecessors first, ties by name; missing predecessors and cycles are marked", () => {
+    const order = orderStreams(
+      new Map([
+        ["phase-4", ["git-automation"]],
+        ["git-automation", []],
+        ["docs-x", ["gone"]],
+        ["a", ["b"]],
+        ["b", ["a"]],
+      ]),
+    );
+    expect(order).toEqual([
+      { name: "docs-x", waits: [], missing: ["gone"], cycle: false },
+      { name: "git-automation", waits: [], missing: [], cycle: false },
+      { name: "phase-4", waits: ["git-automation"], missing: [], cycle: false },
+      { name: "a", waits: ["b"], missing: [], cycle: true },
+      { name: "b", waits: ["a"], missing: [], cycle: true },
+    ]);
+  });
+
+  it("brief prints streams in order; a stream's own worktree copy wins over main's", () => {
+    const io = fakeIo({
+      worktrees: porcelain(
+        [`worktree ${ROOT}`, "HEAD 1111", "branch refs/heads/main"],
+        ["worktree D:/project/SRA-ga", "HEAD 2222", "branch refs/heads/process/git-automation"],
+      ),
+      dirs: {
+        [`${ROOT}/docs/handoff`]: [file("phase-4.md"), file("git-automation.md")],
+        "D:/project/SRA-ga/docs/handoff": [file("phase-4.md"), file("git-automation.md")],
+      },
+      files: {
+        [`${ROOT}/docs/handoff/phase-4.md`]: "# phase-4\n\n## Цель\n",
+        "D:/project/SRA-ga/docs/handoff/phase-4.md": "# phase-4\n\nПосле: git-automation\n\n## Цель\n",
+      },
+    });
+    expect(brief(io)).toContain("Потоки по порядку: git-automation, phase-4 (ждёт git-automation)");
+  });
+
+  it("counts merged branches on origin by the last fetch, not main, HEAD or a branch in a worktree", () => {
+    const io = fakeIo({
+      worktrees: porcelain([`worktree ${ROOT}`, "HEAD 1111", "branch refs/heads/main"], ["worktree D:/project/SRA-x", "HEAD 2", "branch refs/heads/process/x"]),
+      mergedOrigin: "origin\norigin/HEAD\norigin/main\norigin/docs/a\norigin/spec/b\norigin/process/x\n",
+    });
+    expect(collectState(io)?.mergedOrigin).toBe(2);
+    expect(brief(io)).toContain("Слитые ветки на origin (по последнему fetch): 2");
+    expect(brief(fakeIo({ mergedOrigin: "origin/main\n" }))).not.toContain("на origin");
+    expect(collectState(fakeIo())?.mergedOrigin).toBeNull();
   });
 });
 

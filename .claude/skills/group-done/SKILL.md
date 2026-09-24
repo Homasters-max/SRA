@@ -16,14 +16,7 @@ argument-hint: "<номер группы>"
 
 ## Шаги
 
-1. Ветка и worktree:
-   ```bash
-   git branch --show-current
-   git rev-parse --show-toplevel
-   git worktree list
-   ```
-   Ветка `worktree/<change>` → `<change>`; `--show-toplevel` = текущий каталог; `git worktree list` показывает этот
-   каталог именно с этой веткой.
+1. Ветка и worktree — шаг «где я» навыка `git-start`; ветка `worktree/<change>` → `<change>`.
 2. Проверки — по порядку, до первой неудачи:
    ```bash
    npm run typecheck

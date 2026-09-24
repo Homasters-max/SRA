@@ -44,13 +44,13 @@
 
 ## 5. `core/transition` (A-2)
 
-- [ ] 5.1 Шаги сценария → `core/transition/`, `core/check/`, `core/evidence/` без смены сигнатур (§7). Проверка: все тесты
+- [x] 5.1 Шаги сценария → `core/transition/`, `core/check/`, `core/evidence/` без смены сигнатур (§7). Проверка: все тесты
   зелёные без правок ожидаемых значений.
-- [ ] 5.2 `evaluate(ctx, change, opts)`; `verify`, `archive`, `gate`, `status`, `transition` переведены; `init` зовёт
+- [x] 5.2 `evaluate(ctx, change, opts)`; `verify`, `archive`, `gate`, `status`, `transition` переведены; `init` зовёт
   применение sync из `core/sync`. Проверка: исключений `sibling` нет; golden байт в байт.
-- [ ] 5.3 `app`-тест `core/transition/evaluate` через `ctx` (конфликт policy, успех, отказ gate) (§8). Проверка: тест в
+- [x] 5.3 `app`-тест `core/transition/evaluate` через `ctx` (конфликт policy, успех, отказ gate) (§8). Проверка: тест в
   `test/app/`, без процессов.
-- [ ] 5.4 Снимок `arch-snapshot.js --against docs/process/audits/2026-09-24.json`, колонка «После» §10. Проверка: циклов
+- [x] 5.4 Снимок `arch-snapshot.js --against docs/process/audits/2026-09-24.json`, колонка «После» §10. Проверка: циклов
   runtime 0, рёбер `commands → commands` нет.
 
 ## 6. Выход

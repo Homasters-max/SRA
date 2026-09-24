@@ -38,9 +38,11 @@ import { rulesSummary } from "../core/validate/rules.js";
 import { computeStale, type StaleEntry } from "../core/status/stale.js";
 import { resolveForProject, type Classification } from "../core/resolve/index.js";
 import type { LoadResult } from "../core/packs/types.js";
+import { projectFacts, type ProjectFacts } from "../core/transition/facts.js";
+import { decisionFields, evaluateTransition, evaluationFindings } from "../core/transition/gates.js";
+import { conflictDecision } from "../core/transition/policy.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath } from "./context.js";
-import { conflictDecision, decisionFields, evaluateTransition, evaluationFindings, projectFacts, type ProjectFacts } from "./gate.js";
 
 /** One Change as `data` (single form) or as one entry of `data.changes[]`. */
 export interface ChangeStatus {

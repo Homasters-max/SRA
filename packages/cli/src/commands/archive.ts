@@ -6,8 +6,8 @@
  *    once `ARCHIVED` / `ABANDONED`).
  * 2. `openspec validate <change> --strict --json` runs as check
  *    `openspec-validate` together with the other checks of `MERGED->ARCHIVED`
- *    (the code of `verify`), so its result is the `spec-report` record gate
- *    `spec-valid` judges.
+ *    (`evaluate` of `core/transition`, as `verify`), so its result is the
+ *    `spec-report` record gate `spec-valid` judges.
  * 3. The gates of `MERGED->ARCHIVED` are evaluated on HEAD with base
  *    `merge-base(HEAD, main)`, **before** anything moves: the diff is what the
  *    archive branch already committed (records, evidence), the change directory
@@ -19,33 +19,33 @@
  *    (`by: "cli:local"`, `gates{}`, `evidence[]`). On `GATES_NOT_PASSED`
  *    OpenSpec is not called, nothing moves and the record is unchanged.
  */
+import { checksForTransition } from "../core/check/execute.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type ExitCode } from "../core/errors.js";
-import { readGitFacts } from "../core/git/facts.js";
 import { findChangeDir } from "../core/init/scaffold.js";
-import { loadPacks } from "../core/packs/loader.js";
-import type { PackObject } from "../core/packs/types.js";
+import type { LoadResult, PackObject } from "../core/packs/types.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { appendTransition, assertNotFrozen, recordPath, stateOfRecord } from "../core/record/write.js";
+import type { EffectivePolicy } from "../core/resolve/index.js";
+import { evaluate } from "../core/transition/evaluate.js";
+import { decisionFields, evaluationFindings } from "../core/transition/gates.js";
+import { forwardEntry, gatesNotPassed, gatesNotPassedRefusal } from "../core/transition/outcome.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { checksForTransition, executeChecks } from "./check.js";
 import { requireConfigPath } from "./context.js";
-import {
-  artifactStatuses,
-  conflictDecision,
-  decisionFields,
-  evaluateTransition,
-  evaluationFindings,
-  projectFacts,
-  recordVerdicts,
-  resolveRecord
-} from "./gate.js";
-import { forwardEntry, gatesNotPassed, gatesNotPassedResult } from "./transition.js";
 
 export const ARCHIVE_TRANSITION = "MERGED->ARCHIVED";
 
 /** The check whose command is `openspec validate <change> --strict --json` (core-sdd). */
 export const OPENSPEC_VALIDATE_CHECK = "openspec-validate";
+
+/** Checks of the transition, and always the strict OpenSpec validation (REQ-VER-008). */
+function archiveChecks(loaded: LoadResult, policy: EffectivePolicy, transition: string): PackObject[] {
+  const selected: PackObject[] = checksForTransition(loaded, policy, transition);
+  const validateCheck = loaded.objects.find((o) => o.kind === "check" && o.id === OPENSPEC_VALIDATE_CHECK);
+  if (validateCheck !== undefined && !selected.some((o) => o.id === OPENSPEC_VALIDATE_CHECK)) selected.push(validateCheck);
+  selected.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return selected;
+}
 
 export async function runArchive(ctx: Ctx, change: string, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
   const { root, warn } = ctx;
@@ -62,39 +62,14 @@ export async function runArchive(ctx: Ctx, change: string, env: NodeJS.ProcessEn
     });
   }
 
-  const loaded = loadPacks(root);
-  if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
-  const transition = ARCHIVE_TRANSITION;
-  const resolved = resolveRecord(loaded, change, record);
-  if (!resolved.ok) {
-    if (!resolved.conflict) return failures(resolved.errors, EXIT.CONFIG, {}, change);
-    const decision = conflictDecision(loaded, record);
-    return failures([resolved.error], EXIT.WAIT, { transition, checks: [], gates: {}, findings: [], ...decisionFields(decision) }, change);
+  const evaluated = await evaluate(ctx, change, { transition: ARCHIVE_TRANSITION, checks: archiveChecks, base: undefined, env, record });
+  if (!evaluated.ok) {
+    if (!evaluated.conflict) return failures(evaluated.errors, EXIT.CONFIG, {}, change);
+    const { error, transition, decision } = evaluated;
+    return failures([error], EXIT.WAIT, { transition, checks: [], gates: {}, findings: [], ...decisionFields(decision) }, change);
   }
-  const policy = resolved.policy;
-
-  // Checks of the transition, and always the strict OpenSpec validation (REQ-VER-008).
-  const selected: PackObject[] = checksForTransition(loaded, policy, transition);
-  const validateCheck = loaded.objects.find((o) => o.kind === "check" && o.id === OPENSPEC_VALIDATE_CHECK);
-  if (validateCheck !== undefined && !selected.some((o) => o.id === OPENSPEC_VALIDATE_CHECK)) selected.push(validateCheck);
-  selected.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-
-  const git = await readGitFacts(ctx, undefined);
-  const run = await executeChecks({ ctx, change, loaded, policy, selected, facts: git, paths: undefined, env });
-
-  const evaluation = await evaluateTransition({
-    ctx,
-    change,
-    record,
-    loaded,
-    policy,
-    transition,
-    facts: await projectFacts(ctx, git),
-    artifacts: await artifactStatuses(ctx, change),
-    env,
-    checkFailures: run.failures
-  });
-  recordVerdicts(root, change, env, evaluation.engine.gates);
+  const { policy, run, evaluation } = evaluated;
+  const transition = evaluation.transition;
 
   const data: Record<string, unknown> = {
     transition,
@@ -107,9 +82,9 @@ export async function runArchive(ctx: Ctx, change: string, env: NodeJS.ProcessEn
 
   const failed = gatesNotPassed(evaluation.engine.gates);
   if (failed.length > 0) {
-    const refused = gatesNotPassedResult(change, data, evaluation, failed);
+    const refused = gatesNotPassedRefusal(evaluation, failed);
     const code = Math.max(refused.exitCode, run.exitCode) as ExitCode;
-    return failures([...run.errors, ...refused.errors], code, data, change);
+    return failures([...run.errors, refused.error], code, data, change);
   }
   for (const error of run.errors) warn(`archive: ${error.code}: ${error.message}\n`);
 

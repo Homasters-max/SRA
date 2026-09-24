@@ -30,8 +30,8 @@ import {
   rulesDocument,
   schemaFromConfigYaml
 } from "../core/init/scaffold.js";
+import { applySync } from "../core/sync/apply.js";
 import { KERNEL_VERSION } from "../version.js";
-import { runSync } from "./sync.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { CONFIG_FILE, WARRANT_DIR, requireConfigPath } from "./context.js";
 
@@ -106,7 +106,8 @@ export async function runInit(ctx: Ctx, opts: InitOptions = {}): Promise<Command
   }
 
   // Schema copies, the OpenSpec files and the lock are `sync`'s files.
-  const synced = await runSync(ctx, {});
+  requireConfigPath(root);
+  const synced = await applySync(ctx, false);
   const data: Record<string, unknown> = {
     created: [...created, ...((synced.data["changed"] as string[] | undefined) ?? [])],
     sync: synced.data

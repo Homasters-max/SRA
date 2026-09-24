@@ -59,6 +59,18 @@ version: 0.4.1
   - Эксперимент Graft: записи групп test-levels g1–g6 помечены `blind-leak` — индекс `MEMORY.md` сессии
     называл эксперимент (зонд это поймал; индекс исправлен для следующих сессий, снимок текущей сессии — нет). Решено
     ADR-0027 п. 1: засчитываются (`cs` в `[B]` — 0); донастройка и парный бенчмарк — ADR-0027.
+- **Аудит Graft — ADR-0029** (2026-09-24, PR #19, merge `a70c4a5`; отчёт [process/graft-audit.md](process/graft-audit.md)).
+  Граф сверен с компилятором TypeScript: рёбра вызовов точны (99,4 %), но вызовы через порты не видны (0/284), вызовы
+  одноимённых символов из других файлов — 4/141; правило 3 навыка переведено с `callers` на **`cs impact`** (граф + поиск
+  по имени). По архитектурному аудиту той же даты — **`cs deps`** (импорты файла, граф модулей Ca/Ce/I, циклы, `type-only`)
+  и **`cs dups`** из индекса, `--json` у всех команд. Обёртка `cs.js` строгая (`cs-lib.js`, unit-тесты; `npm ci` для `cs` не
+  нужен), регрессия графа `scripts/dev/graph-audit.js` + база `graph-baseline.json`, бенчмарк q1–q17 — `accept` (медиана
+  0,55, recall 1,0 у обеих меток). Детектор отступлений видит чтение целиком диапазоном: база `test-levels` `[A]` после
+  пересчёта — g1 2, g3 2, g5 50 отступлений (прежние записи — `graft-lab/runs-before-audit/`). **Хуки разработки**
+  `.claude/settings.json` → `scripts/dev/cs-hook.js`: `SubagentStart` (указатель на навык и `cs map`), `PostToolUse` у
+  субагентов — подсказка по детектору (без запрета); проверены живым прогоном `claude -p`. Строка про навык из промпта
+  координатора убрана — её несёт хук ([coordinator.md](process/coordinator.md) §2). SEF: W-28 в приложении F. Тесты 859/859.
+  Не проверено: мигает ли окно node.exe при хуках в Desktop-приложении.
 - **Итог фазы 3:**
   - capability `verification` (REQ-VER-001…008): `warrant check` (runner без shell, замок `exclusive` в `git-common-dir`,
     `timeout_s` с kill дерева, parsers `junit`/`openspec-validate`, evidence + manifest, attestation `ci` под GitHub Actions),
@@ -215,8 +227,11 @@ I-93 решается без нового ADR: ADR-0010 п. 2 уже замен�
 
 ```text
 Grilling по нарезке фазы 4 (MVP frontend Codex). Прочитай docs/NEXT-SESSION.md (состояние, «Фаза 4», долг B/C/D, «Чего не
-делать»), docs/13-roadmap.md (§2 строка 4, §3 S8), ADR-0017…0020, ADR-0022, ADR-0025 (новые команды — сразу с тестами app через
-Ctx; новый внешний вызов — метод порта + адаптер + фейк + сценарий контракта). Вопросы раунда 1:
+делать»), docs/13-roadmap.md (§2 строка 4, §3 S8), ADR-0017…0020, ADR-0022, ADR-0025 (новые команды — сразу с тестами
+app через Ctx; новый внешний вызов — метод порта + адаптер + фейк + сценарий контракта), ADR-0029 (поиск по коду
+субагентов — `cs impact` / `cs deps`; навык подключают хуки разработки). Факты о хуках Claude Code, проверенные зондом
+(субагенты, `additionalContext`, `SubagentStart`), — docs/process/graft-audit.md §4: вход к решению об адаптере claude
+(ADR-0023 п. 4). Вопросы раунда 1:
 (1) spike S8 (hooks Codex под codex-acp и codex exec) — отдельной сессией до spec фазы 4? codex на машине maintainer'а не
 установлен; (2) нарезка: 4a без Codex (run/1, skill-result/1, run start/submit, guard pre/post, guard_prefixes, validate --files,
 analyze, warrant ci) и 4b после S8 (адаптер codex, .codex/hooks.json, AGENTS.md, FRONTEND_HOOKS_INACTIVE, codex --version,
@@ -259,7 +274,10 @@ ADR-0013); (5) producers analyze-clean / adversarial-review — до истеч�
 **Правило: одна ветка — один worktree** (`git worktree add`); несколько сессий делят `D:\project\SRA`, поэтому перед
 коммитом проверять ветку. Появилось после фазы 2: коммит `d2d8fd3` ушёл не в ту ветку, когда сессии переключали ветку
 в общем каталоге. В фазе 3: `D:\project\SRA-phase3` — `spec/phase-3-verification`, `D:\project\SRA-phase3-impl` —
-`worktree/phase-3-verification`; после archive-PR оба удалить. В phase-3b: D:\project\SRA-phase3b — spec/phase-3b (PR #10 смержен, можно удалить), D:\project\SRA-phase3b-impl — worktree/phase-3b (impl-PR #11). В test-levels: `spec/test-levels` — spec-PR #14 (смержен, ветку можно удалить); impl — `D:\project\SRA-test-levels-impl` (`worktree/test-levels`, PR #15 смержен), archive — `D:\project\SRA-test-levels-archive` (`archive/test-levels`); после merge archive-PR оба удалить.
+`worktree/phase-3-verification`; после archive-PR оба удалить. В phase-3b: D:\project\SRA-phase3b — spec/phase-3b (PR #10 смержен, можно удалить), D:\project\SRA-phase3b-impl — worktree/phase-3b (impl-PR #11). В test-levels: `spec/test-levels` — spec-PR #14 (смержен, ветку можно удалить); impl — `D:\project\SRA-test-levels-impl` (`worktree/test-levels`, PR #15 смержен), archive — `D:\project\SRA-test-levels-archive` (`archive/test-levels`); после merge archive-PR оба удалить. Аудит Graft: `D:\project\SRA-graft-audit` (`process/graft-audit`, PR #19 смержен;
+затем `docs/next-session-graft-audit`) — после merge удалить. В `D:\project\SRA` лежат незакоммиченные
+`.claude/skills/architecture-audit/` и `docs/process/architecture-audit-2026-09-24.md` (сессия архитектурного аудита) —
+закоммитить отдельной веткой или убрать до `git pull`.
 
 ## Backlog из ревью фазы 1
 

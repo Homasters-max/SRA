@@ -32,6 +32,7 @@ import path from "node:path";
 
 import { canonicalHash } from "../core/canon/hash.js";
 import { exitCodeOf } from "../core/controller/evaluate.js";
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type ExitCode } from "../core/errors.js";
 import { evidenceDir, readRecords } from "../core/evidence/store.js";
 import {
@@ -47,7 +48,6 @@ import type { Verdict } from "../core/gates/types.js";
 import { freshest } from "../core/gates/verdict.js";
 import { allocateUlid } from "../core/ids/allocate.js";
 import { findChangeDir } from "../core/init/scaffold.js";
-import { openspecAvailable } from "../core/openspec/cli.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
@@ -64,7 +64,7 @@ import type { EffectivePolicy } from "../core/resolve/index.js";
 import { readWaivers, roleMembers } from "../core/validate/waivers.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { manifestVersions, storeRecord } from "./check.js";
-import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
+import { requireConfigPath } from "./context.js";
 import {
   artifactStatuses,
   conflictDecision,
@@ -75,7 +75,6 @@ import {
   projectFacts,
   recordVerdicts,
   resolveRecord,
-  utcToday,
   type Evaluation
 } from "./gate.js";
 
@@ -154,8 +153,8 @@ function gateFields(evaluation: Evaluation): Record<string, unknown> {
 }
 
 /** `COMMIT_NOT_MERGED` unless `sha` is the head of a merged impl-PR (review of phase 3, R-1). */
-function assertMergedHead(root: string, sha: string, source: string): void {
-  const reason = notMergedHeadReason(root, sha);
+async function assertMergedHead(ctx: Ctx, sha: string, source: string): Promise<void> {
+  const reason = await notMergedHeadReason(ctx, sha);
   if (reason !== null) throw new WarrantError("COMMIT_NOT_MERGED", `${source}: ${reason}`);
 }
 
@@ -164,36 +163,36 @@ function assertMergedHead(root: string, sha: string, source: string): void {
  * freshest record of the Change; it must be an ancestor of HEAD and the head
  * of the impl-PR that brought it in (R-1).
  */
-function mergedCommit(root: string, change: string, env: NodeJS.ProcessEnv, requested: string | undefined): string {
+async function mergedCommit(ctx: Ctx, change: string, env: NodeJS.ProcessEnv, requested: string | undefined): Promise<string> {
   if (requested !== undefined) {
-    const sha = resolveCommit(root, requested);
+    const sha = await resolveCommit(ctx, requested);
     if (sha === null) throw new WarrantError("USAGE", `--commit ${JSON.stringify(requested)} does not name a commit of this repository`);
-    if (!isAncestor(root, sha, "HEAD")) {
+    if (!(await isAncestor(ctx, sha, "HEAD"))) {
       throw new WarrantError("COMMIT_NOT_MERGED", `commit ${sha} is not an ancestor of HEAD: merge the impl-PR first`);
     }
-    assertMergedHead(root, sha, "--commit");
+    await assertMergedHead(ctx, sha, "--commit");
     return sha;
   }
-  const records = readRecords(evidenceDir(root, change, env)).map((r) => ({ id: r.id, json: r.json }));
+  const records = readRecords(evidenceDir(ctx.root, change, env)).map((r) => ({ id: r.id, json: r.json }));
   const latest = freshest(records);
   const subject = isPlainObject(latest?.json["subject"]) ? latest.json["subject"] : undefined;
   const commit = typeof subject?.["commit"] === "string" ? subject["commit"] : undefined;
   if (latest === undefined || commit === undefined) {
     throw new WarrantError("USAGE", `no evidence of "${change}" names a commit; pass --commit <sha>`);
   }
-  const sha = resolveCommit(root, commit);
-  if (sha === null || !isAncestor(root, sha, "HEAD")) {
+  const sha = await resolveCommit(ctx, commit);
+  if (sha === null || !(await isAncestor(ctx, sha, "HEAD"))) {
     throw new WarrantError(
       "COMMIT_NOT_MERGED",
       `commit ${commit} of the freshest record ${latest.id} is not an ancestor of HEAD: merge the impl-PR first or pass --commit`
     );
   }
-  assertMergedHead(root, sha, `freshest record ${latest.id}`);
+  await assertMergedHead(ctx, sha, `freshest record ${latest.id}`);
   return sha;
 }
 
 interface ApprovalParams {
-  root: string;
+  ctx: Ctx;
   change: string;
   env: NodeJS.ProcessEnv;
   loaded: LoadResult;
@@ -202,7 +201,6 @@ interface ApprovalParams {
   git: GitFacts;
   login: string;
   ref: string;
-  warn: (text: string) => void;
 }
 
 /**
@@ -210,12 +208,13 @@ interface ApprovalParams {
  * §10): an existing one the pre-filter still admits — same commit and base,
  * same login and ref — is reused; otherwise a new one is written.
  */
-function ensureApproval(params: ApprovalParams): { evidence: string; reused: boolean } {
-  const { root, change, env, git, login, ref } = params;
-  const ctx = {
+async function ensureApproval(params: ApprovalParams): Promise<{ evidence: string; reused: boolean }> {
+  const { ctx, change, env, git, login, ref } = params;
+  const { root } = ctx;
+  const admit = {
     commit: git.commit,
     base: git.baseCommit,
-    activeWaivers: activeWaiverIds(readWaivers(root), utcToday())
+    activeWaivers: activeWaiverIds(readWaivers(root), ctx.clock.today())
   };
   for (const record of readRecords(evidenceDir(root, change, env))) {
     const json = record.json;
@@ -228,7 +227,7 @@ function ensureApproval(params: ApprovalParams): { evidence: string; reused: boo
       producedBy["id"] === login &&
       attestation["type"] === "human-review" &&
       attestation["ref"] === ref &&
-      staleReason(json, ctx) === null
+      staleReason(json, admit) === null
     ) {
       return { evidence: record.id, reused: true };
     }
@@ -272,7 +271,7 @@ function ensureApproval(params: ApprovalParams): { evidence: string; reused: boo
     env,
     record,
     commit: git.commit,
-    versions: manifestVersions(root, params.policy.hash, params.warn),
+    versions: await manifestVersions(ctx, params.policy.hash),
     what: `${HUMAN_APPROVAL} by ${login}`
   });
   return { evidence: id, reused: false };
@@ -330,14 +329,14 @@ export function gatesNotPassedResult(change: string, data: Record<string, unknow
   return failures([{ code: "GATES_NOT_PASSED", message }], code, data, change);
 }
 
-export function runTransition(
+export async function runTransition(
+  ctx: Ctx,
   change: string,
   target: string,
   opts: TransitionOptions = {},
-  root: string = defaultRoot(),
-  env: NodeJS.ProcessEnv = process.env,
-  warn: (text: string) => void = (text) => process.stderr.write(text)
-): CommandResult {
+  env: NodeJS.ProcessEnv = process.env
+): Promise<CommandResult> {
+  const { root, warn } = ctx;
   requireConfigPath(root);
   if (!isChangeState(target)) throw new WarrantError("USAGE", `${JSON.stringify(target)} is not a change_state`);
   const record = readChangeRecord(root, change);
@@ -376,11 +375,11 @@ export function runTransition(
     return success(data, change);
   }
 
-  return forward({ root, change, record, from, target, transition, opts, env, warn });
+  return forward({ ctx, change, record, from, target, transition, opts, env });
 }
 
 interface ForwardParams {
-  root: string;
+  ctx: Ctx;
   change: string;
   record: ChangeRecord;
   from: string;
@@ -388,11 +387,11 @@ interface ForwardParams {
   transition: string;
   opts: TransitionOptions;
   env: NodeJS.ProcessEnv;
-  warn: (text: string) => void;
 }
 
-function forward(params: ForwardParams): CommandResult {
-  const { root, change, record, target, transition, opts, env, warn } = params;
+async function forward(params: ForwardParams): Promise<CommandResult> {
+  const { ctx, change, record, target, transition, opts, env } = params;
+  const { root, warn } = ctx;
   const loaded = loadPacks(root);
   if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
   const resolved = resolveRecord(loaded, change, record);
@@ -407,12 +406,12 @@ function forward(params: ForwardParams): CommandResult {
   let git: GitFacts;
   const data: Record<string, unknown> = { transition };
   if (target === "MERGED") {
-    const commit = mergedCommit(root, change, env, opts.commit);
-    git = mergedCommitFacts(root, commit);
+    const commit = await mergedCommit(ctx, change, env, opts.commit);
+    git = await mergedCommitFacts(ctx, commit);
     data["commit"] = commit;
     data["base"] = git.baseCommit ?? null;
   } else {
-    git = readGitFacts(root, undefined);
+    git = await readGitFacts(ctx, undefined);
   }
 
   // The human act comes first and stays, whatever the gates say (design §10).
@@ -431,20 +430,20 @@ function forward(params: ForwardParams): CommandResult {
         { path: ".warrant/warrant.json" }
       );
     }
-    data["approval"] = ensureApproval({ root, change, env, loaded, policy, transition, git, login: opts.by, ref: opts.ref, warn });
+    data["approval"] = await ensureApproval({ ctx, change, env, loaded, policy, transition, git, login: opts.by, ref: opts.ref });
   } else if (opts.by !== undefined) {
     warn(`transition: --by is ignored: ${transition} has no gate ${HUMAN_APPROVAL} in the effective policy\n`);
   }
 
-  const evaluation = evaluateTransition({
-    root,
+  const evaluation = await evaluateTransition({
+    ctx,
     change,
     record,
     loaded,
     policy,
     transition,
-    facts: projectFacts(root, git),
-    artifacts: artifactStatuses(root, change, openspecAvailable()),
+    facts: await projectFacts(ctx, git),
+    artifacts: await artifactStatuses(ctx, change),
     env
   });
   recordVerdicts(root, change, env, evaluation.engine.gates);

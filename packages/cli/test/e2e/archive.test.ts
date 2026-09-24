@@ -1,53 +1,40 @@
+// e2e: argv
 /**
- * `warrant archive` with the REAL `openspec` (REQ-VER-008): the archive of a
- * `MERGED` Change — SCN-VER-036 —, the refusal outside `MERGED` —
- * SCN-VER-037 — and the refusal when `spec-valid` fails — SCN-VER-038.
+ * `warrant archive` through the binary with the REAL `openspec`: `<change>` of
+ * argv reaches the command, the exit code is 0 on the archive and 3 once the
+ * record is frozen, and the real `openspec archive` merges the delta into the
+ * main spec (SCN-VER-036). The archive itself (REQ-VER-008; SCN-VER-036, 037,
+ * 038) is tested in the test process: `test/app/commands/archive.test.ts`
+ * (ADR-0025, task 5.4).
  *
- * Each case copies the synced core-sdd project, writes a complete `feature`
- * Change `add-search` that `openspec validate --strict` accepts (or, for
- * SCN-VER-038, rejects), commits it on `main` and archives on
- * `archive/add-search`. `analyze-clean` has no producer in phase 3 and is
- * waived, as in the repository (P-16).
+ * The project copies the synced core-sdd project, writes a complete `feature`
+ * Change `add-search` that `openspec validate --strict` accepts, commits it on
+ * `main` and archives on `archive/add-search`. `analyze-clean` has no producer
+ * in phase 3 and is waived, as in the repository (P-16).
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { openspecAvailable } from "../../src/core/openspec/cli.js";
-import { removeDir, runCli, type CliRun } from "../helpers/cli.js";
-import { PACKS, record, useSyncedProject, validate, write } from "../helpers/synced.js";
+import { runCli, type CliRun } from "../helpers/cli.js";
+import { PACKS, record, useSyncedProject, write } from "../helpers/synced.js";
 
-const hasOpenspec = openspecAvailable();
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
 const RECORD = ".warrant/changes/add-search.json";
 const ACTIVE = "openspec/changes/add-search";
 
-const tempDirs: string[] = [];
-afterAll(() => {
-  for (const dir of tempDirs) removeDir(dir);
-});
-
-function env(): NodeJS.ProcessEnv {
-  return { WARRANT_PACKS_DIR: PACKS, GITHUB_ACTIONS: "" };
-}
-
 function cli(root: string, args: string[]): Promise<CliRun> {
-  return runCli(args, root, env());
+  return runCli(args, root, { WARRANT_PACKS_DIR: PACKS, GITHUB_ACTIONS: "" });
 }
 
-function git(cwd: string, ...args: string[]): string {
+function git(cwd: string, ...args: string[]): void {
   const run = spawnSync("git", args, { cwd, encoding: "utf8" });
   if (run.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${run.stderr}`);
-  return run.stdout.trim();
 }
 
-function readJson(file: string): any {
-  return JSON.parse(readFileSync(file, "utf8"));
-}
-
-const SPEC_VALID = `# Spec Delta
+const SPEC = `# Spec Delta
 
 ## Purpose
 
@@ -64,21 +51,10 @@ The system SHALL return every item whose title contains the query.
 - **THEN** every item with "lamp" in its title is returned
 `;
 
-/** A requirement without a scenario: \`openspec validate --strict\` rejects it. */
-const SPEC_INVALID = `# Spec Delta
-
-## Purpose
-
-Lets users find items by a text query, so that they do not browse every page.
-
-## ADDED Requirements
-
-### Requirement: Search by text
-
-The system SHALL return every item whose title contains the query.
-`;
-
-function change(root: string, spec: string): void {
+/** Record MERGED, the Change committed on `main`, HEAD on `archive/add-search`. */
+function repo(): string {
+  const root = project();
+  write(root, RECORD, record("add-search", "MERGED", { classification: { profiles: ["feature"] } }));
   write(
     root,
     `${ACTIVE}/proposal.md`,
@@ -86,7 +62,7 @@ function change(root: string, spec: string): void {
   );
   write(root, `${ACTIVE}/design.md`, "# Design\n\n## Context\n\nA linear scan is enough for the catalogue size.\n");
   write(root, `${ACTIVE}/tasks.md`, "# Tasks\n\n## 1. Search\n\n- [x] 1.1 Implement search and verify the unit test passes\n");
-  write(root, `${ACTIVE}/specs/search/spec.md`, spec);
+  write(root, `${ACTIVE}/specs/search/spec.md`, SPEC);
   write(root, ".warrant/waivers/WAV-2026-001.json", {
     $schema: "warrant://waiver/1",
     id: "WAV-2026-001",
@@ -98,13 +74,6 @@ function change(root: string, spec: string): void {
     expires_at: "2099-12-31",
     waiver_state: "ACTIVE"
   });
-}
-
-/** Record in `state`, the Change committed on `main`, HEAD on `archive/add-search`. */
-function repo(state: string, spec = SPEC_VALID): string {
-  const root = project();
-  write(root, RECORD, record("add-search", state, { classification: { profiles: ["feature"] } }));
-  change(root, spec);
   git(root, "-c", "init.defaultBranch=main", "init", "--quiet");
   git(root, "config", "user.name", "warrant-test");
   git(root, "config", "user.email", "test@example.invalid");
@@ -115,69 +84,21 @@ function repo(state: string, spec = SPEC_VALID): string {
   return root;
 }
 
-describe.skipIf(!hasOpenspec || !hasGit)("warrant archive", () => {
-  it("validates, gates, archives through OpenSpec and records ARCHIVED (SCN-VER-036)", async () => {
-    const root = repo("MERGED");
+describe.skipIf(!hasGit)("warrant archive (argv)", () => {
+  it("archives <change> with exit 0 through the real openspec, then exit 3 on the frozen record (SCN-VER-036)", async () => {
+    const root = repo();
     const run = await cli(root, ["archive", "add-search"]);
     expect(run.json?.errors).toEqual([]);
     expect(run.status).toBe(0);
-
-    const data = run.json.data;
-    expect(data.transition).toBe("MERGED->ARCHIVED");
-    expect(data.checks).toEqual([expect.objectContaining({ id: "openspec-validate", kind: "spec-report", evidence_status: "PROVEN" })]);
-    expect(data.gates).toEqual({
-      "analyze-clean": "WAIVED",
-      "ids-valid": "PASS",
-      "required-artifacts-present": "PASS",
-      "spec-valid": "PASS"
-    });
-    expect(data.archive).toMatch(/^openspec\/changes\/archive\/\d{4}-\d{2}-\d{2}-add-search$/);
-    expect(existsSync(path.join(root, data.archive, "proposal.md"))).toBe(true);
+    expect(run.json?.change).toBe("add-search");
+    expect(run.json?.data.archive).toMatch(/^openspec\/changes\/archive\/\d{4}-\d{2}-\d{2}-add-search$/);
     expect(existsSync(path.join(root, ACTIVE))).toBe(false);
+    // The real openspec merged the delta into the main spec.
     expect(existsSync(path.join(root, "openspec/specs/search/spec.md"))).toBe(true);
+    expect(JSON.parse(readFileSync(path.join(root, RECORD), "utf8")).change_state).toBe("ARCHIVED");
 
-    const stored = readJson(path.join(root, RECORD));
-    expect(stored.change_state).toBe("ARCHIVED");
-    expect(stored.transitions.at(-1)).toEqual({
-      to: "ARCHIVED",
-      at: expect.any(String),
-      by: "cli:local",
-      effective_policy_hash: expect.stringMatching(/^sha256:/),
-      gates: data.gates,
-      evidence: [data.checks[0].evidence]
-    });
-
-    const status = await cli(root, ["status", "add-search"]);
-    expect(status.json.data.stale).toEqual([]);
-    expect((await validate(root)).json?.errors).toEqual([]);
-
-    // The record is frozen from now on.
     const again = await cli(root, ["archive", "add-search"]);
-    expect(again.json.errors[0].code).toBe("RECORD_FROZEN");
+    expect(again.json?.errors[0].code).toBe("RECORD_FROZEN");
     expect(again.status).toBe(3);
-  }, 180_000);
-
-  it("refuses a Change that is not MERGED with STATE_INVALID and moves nothing (SCN-VER-037)", async () => {
-    const root = repo("VERIFYING");
-    const before = readFileSync(path.join(root, RECORD), "utf8");
-    const run = await cli(root, ["archive", "add-search"]);
-    expect(run.json.errors[0].code).toBe("STATE_INVALID");
-    expect(run.status).toBe(3);
-    expect(existsSync(path.join(root, ACTIVE))).toBe(true);
-    expect(readFileSync(path.join(root, RECORD), "utf8")).toBe(before);
-  }, 60_000);
-
-  it("does not call openspec archive when spec-valid fails (SCN-VER-038)", async () => {
-    const root = repo("MERGED", SPEC_INVALID);
-    const before = readFileSync(path.join(root, RECORD), "utf8");
-    const run = await cli(root, ["archive", "add-search"]);
-    expect(run.json.ok).toBe(false);
-    expect(run.json.errors.map((e: { code: string }) => e.code)).toEqual(["GATES_NOT_PASSED"]);
-    expect(run.json.data.gates["spec-valid"]).toBe("FAIL");
-    expect(run.status).toBe(2);
-    expect(existsSync(path.join(root, ACTIVE, "proposal.md"))).toBe(true);
-    // Nothing under openspec/ moved or appeared: OpenSpec archive was not run.
-    expect(git(root, "status", "--porcelain", "--", "openspec")).toBe("");
-    expect(readFileSync(path.join(root, RECORD), "utf8")).toBe(before);
   }, 180_000);
 });

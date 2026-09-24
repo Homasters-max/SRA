@@ -10,8 +10,8 @@
  * controller's: CONTINUE 0, STOP 1, WAIT and ESCALATE 2.
  *
  * The gathering helpers here are shared with `verify` and `status`: git and
- * OpenSpec are only ever called from `commands/*` and `core/gates/diff.ts`,
- * the engine and the controller stay pure.
+ * OpenSpec are only ever reached through `ctx` from `commands/*` and
+ * `core/gates/diff.ts`, the engine and the controller stay pure.
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -19,6 +19,7 @@ import path from "node:path";
 import { writeJsonFile } from "../core/canon/format-json.js";
 import { conflictInputs, controllerInputs } from "../core/controller/inputs.js";
 import { controllerRules, evaluateController, exitCodeOf, type ControllerDecision } from "../core/controller/evaluate.js";
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { NO_GIT_COMMIT } from "../core/evidence/record.js";
 import { evidenceDir, MANIFEST_FILE, readManifest, readRecords } from "../core/evidence/store.js";
@@ -45,8 +46,8 @@ import type {
 import { evaluateGates } from "../core/gates/verdict.js";
 import { checkAreas, checkDuplicates, loadAreas, scanIds } from "../core/ids/scan.js";
 import { findChangeDir } from "../core/init/scaffold.js";
-import { openspecAvailable } from "../core/openspec/cli.js";
-import { openspecStatus, type ArtifactStatuses } from "../core/openspec/status.js";
+import type { ArtifactStatuses } from "../core/openspec/status.js";
+import { openspecAvailable } from "../core/openspec/version.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
@@ -54,7 +55,7 @@ import { resolveForProject, type Classification, type EffectivePolicy } from "..
 import { readWaivers, roleMembers } from "../core/validate/waivers.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { nextForwardTransition } from "./check.js";
-import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
+import { requireConfigPath } from "./context.js";
 
 export interface GateOptions {
   /** `--transition <FROM->TO>`; default — the next forward transition from `change_state`. */
@@ -79,11 +80,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
-}
-
-/** UTC calendar date `YYYY-MM-DD` (I-75). */
-export function utcToday(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 /** `--transition`, else the next forward transition; USAGE when there is none. */
@@ -129,13 +125,13 @@ export function idFindings(root: string): Availability<CliError[]> {
 }
 
 /** Artifact statuses of an active change directory; the reason otherwise. */
-export function artifactStatuses(root: string, change: string, hasOpenspec: boolean): Availability<ArtifactStatuses> {
-  const location = findChangeDir(root, change);
+export async function artifactStatuses(ctx: Ctx, change: string): Promise<Availability<ArtifactStatuses>> {
+  const location = findChangeDir(ctx.root, change);
   if (location?.where !== "active") {
     return { ok: false, reason: `openspec/changes/${change}/ is not an active change directory` };
   }
-  if (!hasOpenspec) return { ok: false, reason: "`openspec` is not on PATH" };
-  const run = openspecStatus(change, root);
+  if (!(await openspecAvailable(ctx.openspec))) return { ok: false, reason: "`openspec` is not on PATH" };
+  const run = await ctx.openspec.status(change);
   if (run.warning !== undefined) return { ok: false, reason: run.warning };
   return { ok: true, value: run.artifacts };
 }
@@ -150,14 +146,14 @@ export interface ProjectFacts {
   today: string;
 }
 
-export function projectFacts(root: string, git: GitFacts): ProjectFacts {
+export async function projectFacts(ctx: Ctx, git: GitFacts): Promise<ProjectFacts> {
   return {
     git,
-    diff: changedPaths(root, git),
-    branch: currentBranch(root, git),
-    ids: idFindings(root),
-    waivers: readWaivers(root),
-    today: utcToday()
+    diff: await changedPaths(ctx, git),
+    branch: await currentBranch(ctx, git),
+    ids: idFindings(ctx.root),
+    waivers: readWaivers(ctx.root),
+    today: ctx.clock.today()
   };
 }
 
@@ -165,21 +161,21 @@ export function projectFacts(root: string, git: GitFacts): ProjectFacts {
  * The contract trees `spec-approved` compares (design §6): the approval commit
  * from the record and its evidence, the evaluated commit from the git facts.
  */
-export function contractTrees(
-  root: string,
+export async function contractTrees(
+  ctx: Ctx,
   change: string,
   record: ChangeRecord,
   records: readonly EvidenceInput[],
   git: GitFacts
-): Availability<ContractTrees> {
+): Promise<Availability<ContractTrees>> {
   if (git.commonDir === null || git.commit === NO_GIT_COMMIT) {
     return { ok: false, reason: "the project is not a git repository with a commit" };
   }
   const approval = approvalOf(record, records);
   if (!approval.ok) return approval;
-  const approved = contractTree(root, approval.value.commit, change);
+  const approved = await contractTree(ctx, approval.value.commit, change);
   if (!approved.ok) return { ok: false, reason: `approval commit of ${approval.value.evidence}: ${approved.reason}` };
-  const evaluated = contractTree(root, git.commit, change);
+  const evaluated = await contractTree(ctx, git.commit, change);
   if (!evaluated.ok) return { ok: false, reason: `evaluated commit: ${evaluated.reason}` };
   return {
     ok: true,
@@ -198,7 +194,7 @@ export interface Evaluation {
 }
 
 export interface EvaluateParams {
-  root: string;
+  ctx: Ctx;
   change: string;
   record: ChangeRecord;
   loaded: LoadResult;
@@ -212,7 +208,7 @@ export interface EvaluateParams {
 }
 
 /** Gate engine and controller for one Change and transition. Reads, never writes. */
-export function evaluateTransition(params: EvaluateParams): Evaluation {
+export async function evaluateTransition(params: EvaluateParams): Promise<Evaluation> {
   const { record, loaded, policy, facts } = params;
   const classification = isPlainObject(record["classification"]) ? record["classification"] : {};
   const unknowns = Array.isArray(record["unknowns"]) ? record["unknowns"] : [];
@@ -231,10 +227,10 @@ export function evaluateTransition(params: EvaluateParams): Evaluation {
   if (facts.git.baseCommit !== undefined) signals.base = facts.git.baseCommit;
   if (params.checkFailures !== undefined) signals.checkFailures = params.checkFailures;
 
-  const records = readRecords(evidenceDir(params.root, params.change, params.env)).map((r) => ({ id: r.id, json: r.json }));
+  const records = readRecords(evidenceDir(params.ctx.root, params.change, params.env)).map((r) => ({ id: r.id, json: r.json }));
   const evaluated = policy.gates[params.transition] ?? [];
   if (evaluated.includes(SPEC_APPROVED) && (params.only === undefined || params.only.includes(SPEC_APPROVED))) {
-    signals.contract = contractTrees(params.root, params.change, record, records, facts.git);
+    signals.contract = await contractTrees(params.ctx, params.change, record, records, facts.git);
   }
 
   const definitions = gateDefinitions(loaded);
@@ -320,13 +316,14 @@ function checkedIds(ids: string[], loaded: LoadResult, policy: EffectivePolicy, 
   return [...new Set(ids)];
 }
 
-export function runGate(
+export async function runGate(
+  ctx: Ctx,
   change: string,
   ids: string[],
   opts: GateOptions = {},
-  root: string = defaultRoot(),
   env: NodeJS.ProcessEnv = process.env
-): CommandResult {
+): Promise<CommandResult> {
+  const { root } = ctx;
   requireConfigPath(root);
   const loaded = loadPacks(root);
   if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
@@ -341,16 +338,16 @@ export function runGate(
   }
   const only = checkedIds(ids, loaded, resolved.policy, transition);
 
-  const facts = projectFacts(root, readGitFacts(root, opts.base));
-  const evaluation = evaluateTransition({
-    root,
+  const facts = await projectFacts(ctx, await readGitFacts(ctx, opts.base));
+  const evaluation = await evaluateTransition({
+    ctx,
     change,
     record,
     loaded,
     policy: resolved.policy,
     transition,
     facts,
-    artifacts: artifactStatuses(root, change, openspecAvailable()),
+    artifacts: await artifactStatuses(ctx, change),
     env,
     only
   });

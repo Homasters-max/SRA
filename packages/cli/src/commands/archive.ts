@@ -19,17 +19,17 @@
  *    (`by: "cli:local"`, `gates{}`, `evidence[]`). On `GATES_NOT_PASSED`
  *    OpenSpec is not called, nothing moves and the record is unchanged.
  */
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type ExitCode } from "../core/errors.js";
 import { readGitFacts } from "../core/gates/diff.js";
 import { findChangeDir } from "../core/init/scaffold.js";
-import { openspecAvailable, runOpenspec } from "../core/openspec/cli.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { PackObject } from "../core/packs/types.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { appendTransition, assertNotFrozen, recordPath, stateOfRecord } from "../core/record/write.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { checksForTransition, executeChecks } from "./check.js";
-import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
+import { requireConfigPath } from "./context.js";
 import {
   artifactStatuses,
   conflictDecision,
@@ -47,12 +47,8 @@ export const ARCHIVE_TRANSITION = "MERGED->ARCHIVED";
 /** The check whose command is `openspec validate <change> --strict --json` (core-sdd). */
 export const OPENSPEC_VALIDATE_CHECK = "openspec-validate";
 
-export async function runArchive(
-  change: string,
-  root: string = defaultRoot(),
-  env: NodeJS.ProcessEnv = process.env,
-  warn: (text: string) => void = (text) => process.stderr.write(text)
-): Promise<CommandResult> {
+export async function runArchive(ctx: Ctx, change: string, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
+  const { root, warn } = ctx;
   requireConfigPath(root);
   const record = readChangeRecord(root, change);
   assertNotFrozen(record, change);
@@ -83,18 +79,18 @@ export async function runArchive(
   if (validateCheck !== undefined && !selected.some((o) => o.id === OPENSPEC_VALIDATE_CHECK)) selected.push(validateCheck);
   selected.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
-  const git = readGitFacts(root, undefined);
-  const run = await executeChecks({ root, change, loaded, policy, selected, facts: git, paths: undefined, env, warn });
+  const git = await readGitFacts(ctx, undefined);
+  const run = await executeChecks({ ctx, change, loaded, policy, selected, facts: git, paths: undefined, env });
 
-  const evaluation = evaluateTransition({
-    root,
+  const evaluation = await evaluateTransition({
+    ctx,
     change,
     record,
     loaded,
     policy,
     transition,
-    facts: projectFacts(root, git),
-    artifacts: artifactStatuses(root, change, openspecAvailable()),
+    facts: await projectFacts(ctx, git),
+    artifacts: await artifactStatuses(ctx, change),
     env,
     checkFailures: run.failures
   });
@@ -117,11 +113,11 @@ export async function runArchive(
   }
   for (const error of run.errors) warn(`archive: ${error.code}: ${error.message}\n`);
 
-  const archived = runOpenspec(["archive", change, "--yes", "--json"], root);
+  const archived = await ctx.openspec.archive(change);
   const location = findChangeDir(root, change);
   // The move is the act: once the directory is in archive/, the transition is written.
   if (location?.where !== "archive") {
-    const detail = (archived.stderr || archived.stdout).trim().split("\n")[0] ?? "";
+    const detail = archived.output.trim().split("\n")[0] ?? "";
     return failures(
       [
         {

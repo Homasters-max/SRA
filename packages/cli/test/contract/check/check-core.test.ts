@@ -9,7 +9,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { acquireLock, lockPath } from "../../../src/core/check/lock.js";
 import { expandArgv, splitPaths } from "../../../src/core/check/placeholders.js";
-import { runCommand } from "../../../src/core/check/runner.js";
+import { runCommand } from "../../../src/adapters/check-runner.js";
 import { WarrantError } from "../../../src/core/errors.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 

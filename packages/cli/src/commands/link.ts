@@ -11,12 +11,13 @@
  * `link` wrote always passes that check. `--remove` does not judge the target:
  * taking out a link that has become invalid must stay possible.
  */
+import type { Ctx } from "../core/ctx.js";
 import { WarrantError } from "../core/errors.js";
 import { readAllRecords, readChangeRecord } from "../core/record/read.js";
 import { assertNotFrozen, recordPath, stateOfRecord, writeRecord } from "../core/record/write.js";
 import { linkTargetProblem, type LinkField } from "../core/validate/links.js";
 import { success, type CommandResult } from "../io/output.js";
-import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
+import { requireConfigPath } from "./context.js";
 
 export interface LinkOptions {
   amends?: string | undefined;
@@ -31,7 +32,8 @@ function stringsOf(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
 
-export function runLink(change: string, opts: LinkOptions = {}, root: string = defaultRoot()): CommandResult {
+export function runLink(ctx: Ctx, change: string, opts: LinkOptions = {}): CommandResult {
+  const { root } = ctx;
   requireConfigPath(root);
 
   const given = (["amends", "supersedes"] as const).filter((f) => opts[f] !== undefined);

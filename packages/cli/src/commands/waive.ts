@@ -21,6 +21,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { writeJsonFile } from "../core/canon/format-json.js";
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { allocateWaiver } from "../core/ids/allocate.js";
 import { loadPacks } from "../core/packs/loader.js";
@@ -30,8 +31,7 @@ import type { Json } from "../core/schemas/loader.js";
 import { validateFile } from "../core/schemas/semantic.js";
 import { roleMembers, WAIVERS_DIR } from "../core/validate/waivers.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
-import { utcToday } from "./gate.js";
+import { requireConfigPath } from "./context.js";
 
 export interface WaiveOptions {
   reason?: string | undefined;
@@ -83,12 +83,13 @@ function writeWaiver(root: string, waiver: Record<string, unknown>): void {
   writeJsonFile(path.join(root, WAIVERS_DIR, `${String(waiver["id"])}.json`), waiver as Json);
 }
 
-export function runWaive(args: string[], opts: WaiveOptions = {}, root: string = defaultRoot()): CommandResult {
+export function runWaive(ctx: Ctx, args: string[], opts: WaiveOptions = {}): CommandResult {
+  const { root } = ctx;
   requireConfigPath(root);
   const modes = (["activate", "revoke"] as const).filter((m) => opts[m] !== undefined);
   if (modes.length > 1) throw new WarrantError("USAGE", "--activate and --revoke exclude each other");
   const mode = modes[0];
-  if (mode === undefined) return create(args, opts, root);
+  if (mode === undefined) return create(ctx, args, opts);
 
   const createFlags = CREATE_FLAGS.filter((f) => (f === "control" ? (opts.control ?? []).length > 0 : opts[f] !== undefined));
   if (args.length > 0 || createFlags.length > 0) {
@@ -98,7 +99,8 @@ export function runWaive(args: string[], opts: WaiveOptions = {}, root: string =
   return changeState(mode, opts[mode] as string, opts.by, root);
 }
 
-function create(args: string[], opts: WaiveOptions, root: string): CommandResult {
+function create(ctx: Ctx, args: string[], opts: WaiveOptions): CommandResult {
+  const { root } = ctx;
   if (opts.by !== undefined) throw new WarrantError("USAGE", "--by applies to --activate and --revoke; a waiver is proposed without it");
   if (args.length !== 2) {
     throw new WarrantError(
@@ -119,7 +121,7 @@ function create(args: string[], opts: WaiveOptions, root: string): CommandResult
   if (opts.owner === undefined || !OWNER_RE.test(opts.owner)) {
     throw new WarrantError("USAGE", "--owner must be human:<login>, the person accountable for the accepted risk");
   }
-  const today = utcToday();
+  const today = ctx.clock.today();
   if (opts.expires === undefined || !isCalendarDate(opts.expires)) {
     throw new WarrantError("USAGE", "--expires must be a date YYYY-MM-DD");
   }

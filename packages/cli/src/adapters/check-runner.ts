@@ -1,7 +1,8 @@
 /**
- * Running one check command (design §2, §4, REQ-VER-002).
+ * `CheckRunnerPort`: running one check command (design §2, §4, REQ-VER-002,
+ * ADR-0025 п. 3).
  *
- * The argv goes to `cross-spawn` without a shell (as `runOpenspec`; on
+ * The argv goes to `cross-spawn` without a shell (as `exec.ts`; on
  * Windows it also resolves `.cmd` shims). The working directory is the
  * project root and the environment is inherited unchanged (P-14).
  *
@@ -17,28 +18,14 @@ import type { ChildProcess } from "node:child_process";
 
 import spawnCjs from "cross-spawn";
 
-import { onInterrupt } from "./interrupt.js";
+import { onInterrupt } from "../core/check/interrupt.js";
+import type { CheckRunnerPort, RunOutcome, RunSpec } from "../core/ports/checks.js";
 
 // `cross-spawn` is CommonJS with `export =`.
 const spawn = spawnCjs as unknown as typeof import("cross-spawn");
 
 /** How long to wait for the killed tree to close its pipes before giving up on it. */
 const KILL_GRACE_MS = 5_000;
-
-export interface RunSpec {
-  argv: readonly string[];
-  cwd: string;
-  timeoutMs: number;
-  /** Keep stdout in memory (the parser reads it); otherwise it is passed to `forward`. */
-  captureStdout: boolean;
-  /** Where uncaptured stdout goes; default stderr of the CLI, so the envelope stays alone on stdout. */
-  forward?: (chunk: Buffer) => void;
-}
-
-export type RunOutcome =
-  | { kind: "exited"; code: number | null; signal: NodeJS.Signals | null; stdout: string }
-  | { kind: "timeout" }
-  | { kind: "spawn-error"; message: string };
 
 /** Kills `pid` and every process below it. Never throws. */
 export function killTree(pid: number | undefined): void {
@@ -120,4 +107,10 @@ export function runCommand(spec: RunSpec): Promise<RunOutcome> {
       else finish({ kind: "exited", code, signal, stdout: Buffer.concat(chunks).toString("utf8") });
     });
   });
+}
+
+export class CheckRunner implements CheckRunnerPort {
+  run(spec: RunSpec): Promise<RunOutcome> {
+    return runCommand(spec);
+  }
 }

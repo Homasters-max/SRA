@@ -1,28 +1,30 @@
+// e2e: argv
+/**
+ * `warrant classify` through the binary in a temporary git repository:
+ * `<change>`, `--base`, `--paths`, `--propose`, repeatable `--set`, `--by` and
+ * `--ref` of argv reach the command, the changed paths come from the diff of
+ * the real `git` (SCN-KRN-073), and the exit code is 0 on success and 3 on a
+ * refusal. The classification itself (REQ-KRN-027, REQ-KRN-028; SCN-KRN-073..077,
+ * 105..107, 116, 117) is tested in the test process:
+ * `test/app/commands/classify.test.ts` (ADR-0025, task 5.4).
+ */
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
-import { validateFile } from "../../src/core/schemas/semantic.js";
 import { CORE_SDD_RANGE, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 
 const tempDirs: string[] = [];
-
 afterAll(() => {
   for (const dir of tempDirs) removeDir(dir);
 });
 
-/** True when `git` runs: without it the diff source of `classify` cannot be exercised. */
-function gitAvailable(): boolean {
-  const proc = spawnSync("git", ["--version"], { encoding: "utf8" });
-  return proc.error == null && proc.status === 0;
-}
+const hasGit = spawnSync("git", ["--version"]).status === 0;
 
-const hasGit = gitAvailable();
-
-function git(args: string[], cwd: string): void {
-  const proc = spawnSync("git", args, { cwd, encoding: "utf8" });
+function git(root: string, ...args: string[]): void {
+  const proc = spawnSync("git", args, { cwd: root, encoding: "utf8" });
   if (proc.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${proc.stderr}`);
 }
 
@@ -32,274 +34,80 @@ function write(root: string, rel: string, content: string | object): void {
   writeFileSync(absolute, typeof content === "string" ? content : canonicalText(content).text, "utf8");
 }
 
-/** A project on the bundled pack `core-sdd` with one PROPOSED change record. */
-function project(change = "demo", roles?: Record<string, string[]>): string {
-  const root = makeTempDir("warrant-classify-");
-  tempDirs.push(root);
-  write(root, ".warrant/warrant.json", {
-    $schema: "warrant://config/1",
-    kernel: "0.1",
-    openspec: "1.13.x",
-    packs: { "core-sdd": { version: CORE_SDD_RANGE } },
-    ...(roles === undefined ? {} : { roles })
-  });
-  write(root, `.warrant/changes/${change}.json`, {
-    $schema: "warrant://change-record/1",
-    change,
-    change_state: "PROPOSED",
-    transitions: [{ to: "PROPOSED", at: "2026-09-22T00:00:00.000Z", by: "cli:test" }]
-  });
-  return root;
-}
-
-/** Initialises a repository with `main` holding the current tree. */
-function initGit(root: string): void {
-  git(["init"], root);
-  git(["symbolic-ref", "HEAD", "refs/heads/main"], root);
-  git(["config", "user.email", "test@example.invalid"], root);
-  git(["config", "user.name", "test"], root);
-  git(["config", "commit.gpgsign", "false"], root);
-  git(["add", "-A"], root);
-  git(["commit", "-m", "base"], root);
-}
-
-function record(root: string, change = "demo"): Record<string, unknown> {
-  return JSON.parse(readFileSync(path.join(root, ".warrant", "changes", `${change}.json`), "utf8"));
-}
-
-describe("warrant classify", () => {
-  it.skipIf(!hasGit)("raises blast_radius to the floor of .warrant/** (SCN-KRN-073)", async () => {
-    const root = project();
-    initGit(root);
-    git(["checkout", "-b", "work"], root);
+describe.skipIf(!hasGit)("warrant classify (argv)", () => {
+  it("maps <change>, --base, --paths, --propose, repeatable --set, --by and --ref; exit 0, and 3 on a refusal (SCN-KRN-073, SCN-KRN-105)", async () => {
+    const root = makeTempDir("warrant-classify-");
+    tempDirs.push(root);
+    write(root, ".warrant/warrant.json", {
+      $schema: "warrant://config/1",
+      kernel: "0.1",
+      openspec: "1.13.x",
+      packs: { "core-sdd": { version: CORE_SDD_RANGE } },
+      roles: { maintainer: ["kat"] }
+    });
+    write(root, ".warrant/changes/add-search.json", {
+      $schema: "warrant://change-record/1",
+      change: "add-search",
+      change_state: "PROPOSED",
+      transitions: [{ to: "PROPOSED", at: "2026-09-22T00:00:00.000Z", by: "cli:test" }]
+    });
+    git(root, "init");
+    git(root, "symbolic-ref", "HEAD", "refs/heads/main");
+    git(root, "config", "user.email", "test@example.invalid");
+    git(root, "config", "user.name", "test");
+    git(root, "config", "commit.gpgsign", "false");
+    git(root, "add", "-A");
+    git(root, "commit", "-m", "base");
+    git(root, "checkout", "-b", "work");
     write(root, ".warrant/local/areas.json", { $schema: "warrant://areas/1", KRN: { capability: "kernel" } });
-    git(["add", "-A"], root);
-    git(["commit", "-m", "areas"], root);
+    git(root, "add", "-A");
+    git(root, "commit", "-m", "areas");
 
-    const run = await runCli(["classify", "demo", "--base", "main"], root);
-    expect(run.json?.errors).toEqual([]);
-    expect(run.status).toBe(0);
-    expect(run.json?.data.changed).toContain(".warrant/local/areas.json");
+    // --base: the diff of the real git against main.
+    const fromGit = await runCli(["classify", "add-search", "--base", "main"], root);
+    expect(fromGit.json?.errors).toEqual([]);
+    expect(fromGit.status).toBe(0);
+    expect(fromGit.json?.change).toBe("add-search");
+    expect(fromGit.json?.data.changed).toEqual([".warrant/local/areas.json"]);
+    expect(fromGit.json?.data.classification.risk.blast_radius).toEqual({ value: "SYSTEM", from: "floor:core-sdd:2" });
 
-    const classification = run.json?.data.classification;
-    expect(classification.risk.blast_radius).toEqual({ value: "SYSTEM", from: "floor:core-sdd:2" });
-    expect(classification.profiles).toContain("factory-change");
-    expect(classification.risk_level).toBeUndefined();
-
-    // The record is the one writer of classification, and transitions are untouched.
-    const stored = record(root) as { classification?: unknown; transitions?: unknown[] };
-    expect(stored.classification).toEqual(classification);
-    expect(stored.transitions).toHaveLength(1);
-    expect(run.json?.data.effective_policy.risk_level).toBe("HIGH");
-  });
-
-  it("reports USAGE and touches nothing without git and without --paths (SCN-KRN-076)", async () => {
-    const root = project();
-    const before = readFileSync(path.join(root, ".warrant", "changes", "demo.json"), "utf8");
-
-    const run = await runCli(["classify", "demo"], root);
-    expect(run.status).toBe(3);
-    expect(run.json?.ok).toBe(false);
-    expect(run.json?.errors[0].code).toBe("USAGE");
-    expect(readFileSync(path.join(root, ".warrant", "changes", "demo.json"), "utf8")).toBe(before);
-  });
-
-  it.skipIf(!hasGit)("writes an empty classification for an empty diff (SCN-KRN-077)", async () => {
-    const root = project();
-    initGit(root);
-    git(["checkout", "-b", "work"], root);
-
-    const run = await runCli(["classify", "demo", "--base", "main"], root);
-    expect(run.json?.errors).toEqual([]);
-    expect(run.json?.data.changed).toEqual([]);
-    expect(run.json?.data.classification).toEqual({});
-    expect(run.json?.data.effective_policy.risk_level).toBe("MEDIUM");
-    expect((record(root) as { classification?: unknown }).classification).toEqual({});
-  });
-
-  it("takes the changed paths from --paths without git at all", async () => {
-    const root = project();
-    write(root, "changed.txt", ".warrant/local/areas.json\ndocs/04-lifecycle.md\n\n");
-
-    const run = await runCli(["classify", "demo", "--paths", "changed.txt"], root);
-    expect(run.json?.errors).toEqual([]);
-    expect(run.json?.data.changed).toEqual([".warrant/local/areas.json", "docs/04-lifecycle.md"]);
-    const profiles = (run.json?.data.profiles as { id: string }[]).map((p) => p.id);
-    expect(profiles).toContain("chore");
-    expect(profiles).toContain("factory-change");
-  });
-
-  it("keeps the floor and lists the lowered proposal in data.ignored (SCN-KRN-074)", async () => {
-    const root = project();
-    write(root, "changed.txt", ".warrant/local/areas.json\n");
-
-    const run = await runCli(
-      ["classify", "demo", "--paths", "changed.txt", "--propose", '{"risk":{"blast_radius":"LOCAL"}}'],
+    // --paths, --propose, --set twice, --by.
+    write(root, "changed.txt", "src/search.ts\n");
+    const human = await runCli(
+      [
+        "classify",
+        "add-search",
+        "--paths",
+        "changed.txt",
+        "--propose",
+        '{"risk":{"data_loss":"LOW"}}',
+        "--set",
+        "security_impact=HIGH",
+        "--set",
+        "profile=feature",
+        "--by",
+        "kat"
+      ],
       root
     );
-    expect(run.json?.data.classification.risk.blast_radius.value).toBe("SYSTEM");
-    expect(run.json?.data.ignored).toEqual([
-      { dimension: "blast_radius", proposed: "LOCAL", kept: "SYSTEM", reason: "below-floor" }
+    expect(human.json?.errors).toEqual([]);
+    expect(human.status).toBe(0);
+    expect(human.json?.data.changed).toEqual(["src/search.ts"]);
+    // factory-change of the first run stays, from "record" (monotonic, SCN-KRN-075).
+    expect(human.json?.data.profiles).toEqual([
+      { id: "factory-change", from: "record" },
+      { id: "feature", from: "human:kat" }
     ]);
-  });
+    const stored = JSON.parse(readFileSync(path.join(root, ".warrant", "changes", "add-search.json"), "utf8"));
+    expect(stored.classification.risk.security_impact).toEqual({ value: "HIGH", from: "human:kat" });
+    expect(stored.classification.risk.data_loss).toEqual({ value: "LOW", from: "proposer" });
 
-  it("is monotonic across runs (SCN-KRN-075)", async () => {
-    const root = project();
-    write(root, "changed.txt", "README.md\n");
-
-    const first = await runCli(
-      ["classify", "demo", "--paths", "changed.txt", "--propose", '{"risk":{"security_impact":"MEDIUM"}}'],
+    // --ref that is not a URL: a refusal, exit 3.
+    const notUrl = await runCli(
+      ["classify", "add-search", "--paths", "changed.txt", "--set", "blast_radius=LOCAL", "--by", "kat", "--ref", "PR 7"],
       root
     );
-    expect(first.json?.data.classification.risk.security_impact).toEqual({
-      value: "MEDIUM",
-      from: "proposer"
-    });
-
-    const second = await runCli(["classify", "demo", "--paths", "changed.txt"], root);
-    expect(second.json?.data.classification.risk.security_impact).toEqual({
-      value: "MEDIUM",
-      from: "record"
-    });
-  });
-
-  it("reports USAGE for a --propose payload that is not a classification", async () => {
-    const root = project();
-    write(root, "changed.txt", "README.md\n");
-    const run = await runCli(["classify", "demo", "--paths", "changed.txt", "--propose", '{"risk":{"nope":"HIGH"}}'], root);
-    expect(run.status).toBe(3);
-    expect(run.json?.errors[0].code).toBe("USAGE");
-  });
-
-  it("records values and profiles set by a human with from human:<login> (SCN-KRN-105)", async () => {
-    const root = project("add-search", { maintainer: ["kat"] });
-    write(root, "changed.txt", "src/search.ts\n");
-    const run = await runCli(
-      ["classify", "add-search", "--paths", "changed.txt", "--set", "security_impact=HIGH", "--set", "profile=feature", "--by", "kat"],
-      root
-    );
-    expect(run.json?.errors).toEqual([]);
-    expect(run.status).toBe(0);
-    expect(run.json?.data.profiles).toEqual([{ id: "feature", from: "human:kat" }]);
-    const stored = record(root, "add-search") as { classification: { profiles: string[]; risk: Record<string, unknown> } };
-    expect(stored.classification.risk["security_impact"]).toEqual({ value: "HIGH", from: "human:kat" });
-    expect(stored.classification.profiles).toEqual(["feature"]);
-    expect(run.json?.data.effective_policy.risk_level).toBe("HIGH");
-  });
-
-  it("refuses a human value below the floor with BELOW_FLOOR and writes nothing (SCN-KRN-106)", async () => {
-    const root = project("add-search", { maintainer: ["kat"] });
-    write(root, "changed.txt", ".warrant/local/areas.json\n");
-    const before = readFileSync(path.join(root, ".warrant", "changes", "add-search.json"), "utf8");
-    const run = await runCli(
-      ["classify", "add-search", "--paths", "changed.txt", "--set", "blast_radius=LOCAL", "--by", "kat"],
-      root
-    );
-    expect(run.json?.errors[0].code).toBe("BELOW_FLOOR");
-    expect(run.status).toBe(3);
-    expect(readFileSync(path.join(root, ".warrant", "changes", "add-search.json"), "utf8")).toBe(before);
-  });
-
-  it("refuses --set without --by (USAGE) and with a login outside roles (ROLE_REQUIRED) (SCN-KRN-107)", async () => {
-    const root = project("add-search", { maintainer: ["kat"] });
-    write(root, "changed.txt", "src/search.ts\n");
-    const file = path.join(root, ".warrant", "changes", "add-search.json");
-    const before = readFileSync(file, "utf8");
-
-    const noBy = await runCli(["classify", "add-search", "--paths", "changed.txt", "--set", "data_loss=LOW"], root);
-    expect(noBy.json?.errors[0].code).toBe("USAGE");
-    expect(noBy.status).toBe(3);
-
-    const bob = await runCli(["classify", "add-search", "--paths", "changed.txt", "--set", "data_loss=LOW", "--by", "bob"], root);
-    expect(bob.json?.errors[0].code).toBe("ROLE_REQUIRED");
-    expect(bob.status).toBe(3);
-
-    const badValue = await runCli(["classify", "add-search", "--paths", "changed.txt", "--set", "data_loss=HUGE", "--by", "kat"], root);
-    expect(badValue.json?.errors[0].code).toBe("USAGE");
-    expect(readFileSync(file, "utf8")).toBe(before);
-  });
-
-  it("reports CHANGE_NOT_FOUND for a change without a record", async () => {
-    const root = project();
-    write(root, "changed.txt", "README.md\n");
-    const run = await runCli(["classify", "missing", "--paths", "changed.txt"], root);
-    expect(run.status).toBe(3);
-    expect(run.json?.errors[0].code).toBe("CHANGE_NOT_FOUND");
-  });
-});
-
-describe("warrant classify: below the floor with approval (REQ-KRN-028)", () => {
-  const REF = "https://github.com/o/r/pull/7#issuecomment-1";
-  const ROLES = { maintainer: ["kat"], reviewer: ["bob"] };
-
-  function inState(state: string): string {
-    const root = project("add-search", ROLES);
-    const file = path.join(root, ".warrant", "changes", "add-search.json");
-    const stored = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
-    write(root, ".warrant/changes/add-search.json", { ...stored, change_state: state });
-    write(root, "changed.txt", ".warrant/local/areas.json\n");
-    return root;
-  }
-
-  it("writes the lowered value with ref and keeps it on the next run, floor ignored as approved-below-floor (SCN-KRN-116)", async () => {
-    const root = inState("SPECIFIED");
-    const first = await runCli(["classify", "add-search", "--paths", "changed.txt"], root);
-    expect(first.json?.data.classification.risk.blast_radius).toEqual({ value: "SYSTEM", from: "floor:core-sdd:2" });
-
-    const run = await runCli(
-      ["classify", "add-search", "--paths", "changed.txt", "--set", "blast_radius=LOCAL", "--by", "kat", "--ref", REF],
-      root
-    );
-    expect(run.json?.errors).toEqual([]);
-    expect(run.status).toBe(0);
-    const lowered = { value: "LOCAL", from: "human:kat", ref: REF };
-    expect((record(root, "add-search") as { classification: { risk: Record<string, unknown> } }).classification.risk["blast_radius"]).toEqual(
-      lowered
-    );
-
-    const again = await runCli(["classify", "add-search", "--paths", "changed.txt"], root);
-    expect(again.json?.errors).toEqual([]);
-    expect(again.json?.data.classification.risk.blast_radius).toEqual(lowered);
-    // The record stays valid (REQ-KRN-011: ref only with from human:*) and canonical.
-    expect(validateFile(record(root, "add-search") as never).ok).toBe(true);
-    const text = readFileSync(path.join(root, ".warrant", "changes", "add-search.json"), "utf8");
-    expect(text).toBe(canonicalText(JSON.parse(text) as never).text);
-    expect(again.json?.data.ignored).toContainEqual(
-      expect.objectContaining({ dimension: "blast_radius", reason: "approved-below-floor", proposed: "SYSTEM", kept: "LOCAL" })
-    );
-    expect((record(root, "add-search") as { classification: { risk: Record<string, unknown> } }).classification.risk["blast_radius"]).toEqual(
-      lowered
-    );
-  });
-
-  it("refuses the approval after APPROVED with STATE_INVALID and writes nothing (SCN-KRN-117)", async () => {
-    const root = inState("APPROVED");
-    const file = path.join(root, ".warrant", "changes", "add-search.json");
-    const before = readFileSync(file, "utf8");
-    const run = await runCli(
-      ["classify", "add-search", "--paths", "changed.txt", "--set", "blast_radius=LOCAL", "--by", "kat", "--ref", REF],
-      root
-    );
-    expect(run.json?.errors[0].code).toBe("STATE_INVALID");
-    expect(run.status).toBe(3);
-    expect(readFileSync(file, "utf8")).toBe(before);
-  });
-
-  it("wants an approver of SPECIFIED->APPROVED (ROLE_REQUIRED), an http(s) --ref and a risk --set (USAGE)", async () => {
-    const root = inState("PROPOSED");
-    const file = path.join(root, ".warrant", "changes", "add-search.json");
-    const before = readFileSync(file, "utf8");
-    const base = ["classify", "add-search", "--paths", "changed.txt"];
-
-    const bob = await runCli([...base, "--set", "blast_radius=LOCAL", "--by", "bob", "--ref", REF], root);
-    expect(bob.json?.errors[0].code).toBe("ROLE_REQUIRED");
-    expect(bob.status).toBe(3);
-    const notUrl = await runCli([...base, "--set", "blast_radius=LOCAL", "--by", "kat", "--ref", "PR 7"], root);
     expect(notUrl.json?.errors[0].code).toBe("USAGE");
-    const noSet = await runCli([...base, "--ref", REF], root);
-    expect(noSet.json?.errors[0].code).toBe("USAGE");
-    const profileOnly = await runCli([...base, "--set", "profile=feature", "--by", "kat", "--ref", REF], root);
-    expect(profileOnly.json?.errors[0].code).toBe("USAGE");
-    expect(readFileSync(file, "utf8")).toBe(before);
-  });
+    expect(notUrl.status).toBe(3);
+  }, 60_000);
 });

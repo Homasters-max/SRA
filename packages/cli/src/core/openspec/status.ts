@@ -19,7 +19,6 @@
  * `artifacts` array, so it fails the shape check below.
  */
 import { WarrantError } from "../errors.js";
-import { runOpenspec } from "./cli.js";
 
 /** The four states an OpenSpec artifact can be in. */
 export const ARTIFACT_STATUSES = ["done", "ready", "blocked", "skipped"] as const;
@@ -65,22 +64,4 @@ export interface OpenspecStatusResult {
   artifacts: ArtifactStatuses;
   /** Set when the artifacts could not be read; the caller turns it into a stderr line. */
   warning?: string;
-}
-
-/**
- * Runs `openspec status` for one Change. Never throws: `warrant status` reports
- * the record even when OpenSpec cannot answer (the change directory may be gone,
- * which `stale[]` already explains).
- */
-export function openspecStatus(change: string, cwd: string): OpenspecStatusResult {
-  const run = runOpenspec(["status", "--change", change, "--json"], cwd);
-  if (!run.ok) {
-    const detail = (run.stderr || run.stdout).trim().split("\n")[0] ?? "";
-    return { artifacts: {}, warning: `openspec status --change ${change} failed${detail === "" ? "" : `: ${detail}`}` };
-  }
-  try {
-    return { artifacts: parseOpenspecStatus(run.json) };
-  } catch (thrown) {
-    return { artifacts: {}, warning: `${change}: ${(thrown as Error).message}` };
-  }
 }

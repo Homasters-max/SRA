@@ -1,6 +1,6 @@
 {
   "name": "warrant",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "WARRANT — specification governance CLI over OpenSpec",
   "license": "UNLICENSED",
@@ -24,6 +24,11 @@
     "prepare": "npm run build",
     "build": "node scripts/build.js",
     "test": "npm run build && vitest run --config packages/cli/vitest.config.ts",
+    "test:unit": "vitest run --config packages/cli/vitest.config.ts --project unit",
+    "test:app": "vitest run --config packages/cli/vitest.config.ts --project app",
+    "test:contract": "npm run build && vitest run --config packages/cli/vitest.config.ts --project contract",
+    "test:e2e": "npm run build && vitest run --config packages/cli/vitest.config.ts --project e2e",
+    "test:fast": "vitest run --config packages/cli/vitest.config.ts --project unit --project app",
     "golden:update": "npm run build && node scripts/golden-update.js",
     "versions:check": "node scripts/versions-check.js",
     "typecheck": "node scripts/build.js --noEmit"

@@ -26,8 +26,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
-import spawnCjs from "cross-spawn";
-
+import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
 import { findChangeDir } from "../init/scaffold.js";
 import { stateOf, type RecordFile } from "../record/read.js";
@@ -144,8 +143,6 @@ function removedByNewArchives(root: string, headArchiveDirs: ReadonlySet<string>
   return out;
 }
 
-const spawn = spawnCjs as unknown as typeof import("cross-spawn");
-
 /** Record states from which the ids of a change are frozen (02 section 2, 04 section 2). */
 export const IDS_FROZEN_FROM: ReadonlySet<string> = new Set([
   "APPROVED",
@@ -155,64 +152,30 @@ export const IDS_FROZEN_FROM: ReadonlySet<string> = new Set([
   "ARCHIVED"
 ]);
 
-interface GitRun {
-  ok: boolean;
-  stdout: Buffer;
-}
-
-function git(args: string[], cwd: string, input?: string): GitRun {
-  const proc = spawn.sync("git", args, input === undefined ? { cwd } : { cwd, input });
-  return { ok: proc.error == null && proc.status === 0, stdout: proc.stdout ?? Buffer.alloc(0) };
-}
-
-/**
- * Contents of `HEAD:<path>` for many paths in one `git cat-file --batch` call.
- * Output per object: `<oid> blob <size>\n<bytes>\n`, or `<name> missing\n`.
- */
-function headContents(root: string, gitPaths: string[]): Map<string, string> {
-  const out = new Map<string, string>();
-  if (gitPaths.length === 0) return out;
-  const run = git(["cat-file", "--batch"], root, gitPaths.map((p) => `HEAD:${p}`).join("\n") + "\n");
-  if (!run.ok) return out;
-  const buf = run.stdout;
-  let offset = 0;
-  for (const p of gitPaths) {
-    const eol = buf.indexOf(0x0a, offset);
-    if (eol === -1) break;
-    const header = buf.subarray(offset, eol).toString("utf8");
-    offset = eol + 1;
-    const m = /^\S+ (\S+) (\d+)$/.exec(header);
-    if (m === null) continue; // `missing`
-    const size = Number.parseInt(m[2] as string, 10);
-    if (m[1] === "blob") out.set(p, buf.subarray(offset, offset + size).toString("utf8"));
-    offset += size + 1;
-  }
-  return out;
-}
-
 export interface ImmutableCheck {
   errors: CliError[];
   /** Why the check could not run (no git, no commit); undefined when it ran. */
   skipped: string | undefined;
 }
 
-export function checkImmutableIds(root: string, records: ReadonlyMap<string, RecordFile>): ImmutableCheck {
-  const prefixRun = git(["rev-parse", "--show-prefix"], root);
-  if (!prefixRun.ok) return { errors: [], skipped: "not a git work tree" };
-  if (!git(["rev-parse", "--verify", "--quiet", "HEAD"], root).ok) {
+export async function checkImmutableIds(ctx: Ctx, records: ReadonlyMap<string, RecordFile>): Promise<ImmutableCheck> {
+  const { root } = ctx;
+  const project = await ctx.git.prefix();
+  if (project === null) return { errors: [], skipped: "not a git work tree" };
+  if ((await ctx.git.head()) === null) {
     return { errors: [], skipped: "the repository has no HEAD commit" };
   }
-  const prefix = prefixRun.stdout.toString("utf8").trim();
+  const prefix = project === "" ? "" : `${project}/`;
 
-  const listing = git(["ls-tree", "-r", "-z", "--name-only", "--full-name", "HEAD", "--", "openspec/specs", "openspec/changes"], root);
-  if (!listing.ok) return { errors: [], skipped: "`git ls-tree HEAD` failed" };
+  const listing = await ctx.git.files("HEAD", ["openspec/specs", "openspec/changes"]);
+  if (listing === null) return { errors: [], skipped: "`git ls-tree HEAD` failed" };
 
   /** Project-relative path in HEAD → project-relative path of its working-tree counterpart. */
   const counterpart = new Map<string, string>();
   /** Names of the archive directories committed in `HEAD` (I-77). */
   const headArchiveDirs = new Set<string>();
-  for (const full of listing.stdout.toString("utf8").split("\0")) {
-    if (full === "" || !full.startsWith(prefix)) continue;
+  for (const full of listing) {
+    if (!full.startsWith(prefix)) continue;
     const archived = /^openspec\/changes\/archive\/([^/]+)\//.exec(full.slice(prefix.length));
     if (archived !== null) headArchiveDirs.add(archived[1] as string);
     if (!full.toLowerCase().endsWith(".md")) continue;
@@ -233,7 +196,7 @@ export function checkImmutableIds(root: string, records: ReadonlyMap<string, Rec
     counterpart.set(rel, target);
   }
 
-  const heads = headContents(root, [...counterpart.keys()].map((rel) => `${prefix}${rel}`));
+  const heads = await ctx.git.contents("HEAD", [...counterpart.keys()].map((rel) => `${prefix}${rel}`));
   const removed = removedByNewArchives(root, headArchiveDirs);
   const errors: CliError[] = [];
   for (const [rel, target] of counterpart) {

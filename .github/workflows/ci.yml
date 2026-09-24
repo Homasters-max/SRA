@@ -1,8 +1,11 @@
 # CI of the WARRANT repository (phase 3, task 1.1; P-9, design D-17).
 #
 # Job `test`, one per OS: the kernel has only ever run on Windows, and every
-# path, spawn and lock decision of phase 3 must hold on Linux too. OpenSpec is
-# installed before the tests so that no `openspec`-dependent test is skipped.
+# path, spawn and lock decision of phase 3 must hold on Linux too. `npm test`
+# runs all four test levels (ADR-0025 п. 8: unit, app, contract, e2e) on every
+# PR; OpenSpec 1.13.1 is installed first because `contract` and `e2e` fail
+# without it (globalSetup), they are not skipped. `timeout-minutes` stops a hung
+# run instead of GitHub's 6 h default (test-levels, task 6.1, I-139).
 # Job `evidence` (impl-PRs from worktree/*, task 6.2): see below.
 name: ci
 
@@ -26,6 +29,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash

@@ -17,12 +17,13 @@
  * reason in `stale[]`; a gate whose input is missing (no git, no `openspec`)
  * is `BLOCKED` with a finding, not an error of the command.
  */
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, type CliError } from "../core/errors.js";
 import { readGitFacts, type Availability } from "../core/gates/diff.js";
 import type { Finding, Verdict } from "../core/gates/types.js";
 import { findChangeDir } from "../core/init/scaffold.js";
-import { openspecAvailable } from "../core/openspec/cli.js";
-import { openspecStatus, type ArtifactStatuses } from "../core/openspec/status.js";
+import type { ArtifactStatuses } from "../core/openspec/status.js";
+import { openspecAvailable } from "../core/openspec/version.js";
 import { loadPacks } from "../core/packs/loader.js";
 import {
   listChangeNames,
@@ -38,7 +39,7 @@ import { resolveForProject, type Classification } from "../core/resolve/index.js
 import type { LoadResult } from "../core/packs/types.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { nextForwardTransition } from "./check.js";
-import { projectRoot, requireConfigPath } from "./context.js";
+import { requireConfigPath } from "./context.js";
 import { conflictDecision, decisionFields, evaluateTransition, evaluationFindings, projectFacts, type ProjectFacts } from "./gate.js";
 
 /** One Change as `data` (single form) or as one entry of `data.changes[]`. */
@@ -69,17 +70,17 @@ export interface Verification {
   rule: string | null;
 }
 
-function statusOf(
-  root: string,
+async function statusOf(
+  ctx: Ctx,
   change: string,
   record: ChangeRecord,
   loaded: LoadResult,
-  warn: (text: string) => void,
   hasOpenspec: boolean,
   records: ReadonlyMap<string, RecordFile>,
-  facts: () => ProjectFacts,
+  facts: () => Promise<ProjectFacts>,
   env: NodeJS.ProcessEnv
-): { status: ChangeStatus; errors: CliError[] } {
+): Promise<{ status: ChangeStatus; errors: CliError[] }> {
+  const { root, warn } = ctx;
   const changeState = String(record["change_state"]);
   const location = findChangeDir(root, change);
   const stale = computeStale(change, location, changeState);
@@ -96,7 +97,7 @@ function statusOf(
       warn("status: artifacts skipped: `openspec` is not on PATH\n");
       known = { ok: false, reason: "`openspec` is not on PATH" };
     } else {
-      const run = openspecStatus(change, root);
+      const run = await ctx.openspec.status(change);
       artifacts = run.artifacts;
       if (run.warning !== undefined) {
         warn(`status: ${run.warning}\n`);
@@ -129,14 +130,14 @@ function statusOf(
     const policy = resolved.result.policy;
     effectivePolicy = { hash: policy.hash, sources: policy.sources, risk_level: policy.risk_level };
     if (transition !== null) {
-      const evaluation = evaluateTransition({
-        root,
+      const evaluation = await evaluateTransition({
+        ctx,
         change,
         record,
         loaded,
         policy,
         transition,
-        facts: facts(),
+        facts: await facts(),
         artifacts: known,
         env
       });
@@ -164,18 +165,14 @@ function statusOf(
   };
 }
 
-export function runStatus(
-  change: string | undefined,
-  root: string = projectRoot(),
-  warn: (text: string) => void = (text) => process.stderr.write(text),
-  env: NodeJS.ProcessEnv = process.env
-): CommandResult {
+export async function runStatus(ctx: Ctx, change: string | undefined, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
+  const { root } = ctx;
   requireConfigPath(root);
 
   const loaded = loadPacks(root);
   if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
 
-  const hasOpenspec = openspecAvailable();
+  const hasOpenspec = await openspecAvailable(ctx.openspec);
   const names = change === undefined || change === "" ? listChangeNames(root) : [change];
   // `readChangeRecord` throws CHANGE_NOT_FOUND (exit 3) for the single form;
   // in the list form every name came from a file, so it cannot throw that.
@@ -186,13 +183,13 @@ export function runStatus(
 
   // Git facts, ids and waivers are the same for every Change: read once, and
   // only when some Change has a transition to judge.
-  let facts: ProjectFacts | undefined;
-  const sharedFacts = (): ProjectFacts => (facts ??= projectFacts(root, readGitFacts(root, undefined)));
+  let facts: Promise<ProjectFacts> | undefined;
+  const sharedFacts = (): Promise<ProjectFacts> => (facts ??= readGitFacts(ctx, undefined).then((git) => projectFacts(ctx, git)));
 
   const statuses: ChangeStatus[] = [];
   const errors: CliError[] = [];
   for (const { name, record } of records) {
-    const one = statusOf(root, name, record, loaded, warn, hasOpenspec, all, sharedFacts, env);
+    const one = await statusOf(ctx, name, record, loaded, hasOpenspec, all, sharedFacts, env);
     statuses.push(one.status);
     errors.push(...one.errors);
   }

@@ -26,7 +26,7 @@ import { writeJsonFile } from "../core/canon/format-json.js";
 import { canonicalHash } from "../core/canon/hash.js";
 import { acquireLock, lockPath } from "../core/check/lock.js";
 import { expandArgv, splitPaths } from "../core/check/placeholders.js";
-import { runCommand } from "../core/check/runner.js";
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError, type ExitCode } from "../core/errors.js";
 import { attestationFromEnv } from "../core/evidence/attestation.js";
 import { buildManifest, type ManifestVersions } from "../core/evidence/manifest.js";
@@ -35,7 +35,6 @@ import { buildCheckRecord, collectArtifacts, type EvidenceStatus } from "../core
 import { evidenceDir, listRecordIds, MANIFEST_FILE, projectUri, rawDir, readManifest } from "../core/evidence/store.js";
 import { readGitFacts, type GitFacts } from "../core/gates/diff.js";
 import { allocateUlid } from "../core/ids/allocate.js";
-import { openspecVersion } from "../core/openspec/version.js";
 import { LOCK_REL } from "../core/packs/hash.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult, PackObject } from "../core/packs/types.js";
@@ -44,7 +43,7 @@ import { resolveForProject, type Classification, type EffectivePolicy } from "..
 import { validateFile } from "../core/schemas/semantic.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { CLI_VERSION } from "../version.js";
-import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
+import { requireConfigPath } from "./context.js";
 
 export interface CheckOptions {
   /** `--paths a,b`: run `run.scoped_command` over these paths. */
@@ -111,6 +110,7 @@ export function checksForTransition(loaded: LoadResult, policy: EffectivePolicy,
 /** Everything the per-check step shares. */
 interface Context {
   root: string;
+  checks: Ctx["checks"];
   change: string;
   loaded: LoadResult;
   policyHash: string;
@@ -119,7 +119,7 @@ interface Context {
   env: NodeJS.ProcessEnv;
   warn: (text: string) => void;
   /** Lazily computed `manifest.versions`. */
-  versions: () => ManifestVersions;
+  versions: () => Promise<ManifestVersions>;
 }
 
 type CheckOutcome =
@@ -222,7 +222,7 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
     // `{out}` starts empty: nothing of an earlier run may pass for this one's output.
     rmSync(outDir, { recursive: true, force: true });
     mkdirSync(outDir, { recursive: true });
-    outcome = await runCommand({ argv, cwd: ctx.root, timeoutMs: timeoutS * 1000, captureStdout: parser.readsStdout });
+    outcome = await ctx.checks.run({ argv, cwd: ctx.root, timeoutMs: timeoutS * 1000, captureStdout: parser.readsStdout });
   } finally {
     release?.();
   }
@@ -280,7 +280,7 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
     env: ctx.env,
     record,
     commit: ctx.git.commit,
-    versions: ctx.versions(),
+    versions: await ctx.versions(),
     what: `check ${object.id}`
   });
 
@@ -341,22 +341,22 @@ export function storeRecord(params: StoreParams): string {
  * `manifest.versions` of this CLI run: the CLI, OpenSpec (PATH, then lock,
  * else `0.0.0`), the lock hash and the effective policy hash.
  */
-export function manifestVersions(root: string, policyHash: string, warn: (text: string) => void): ManifestVersions {
-  const lock = readLock(root);
+export async function manifestVersions(ctx: Ctx, policyHash: string): Promise<ManifestVersions> {
+  const lock = readLock(ctx.root);
   return {
     warrant: CLI_VERSION,
-    openspec: manifestOpenspecVersion(root, lock, warn),
+    openspec: await manifestOpenspecVersion(ctx, lock),
     ...(lock === undefined ? {} : { lock_hash: canonicalHash(lock) }),
     effective_policy_hash: policyHash
   };
 }
 
 /** Version of OpenSpec for the manifest: the binary on PATH, else the lock's; `0.0.0` when neither is known. */
-function manifestOpenspecVersion(root: string, lock: Record<string, unknown> | undefined, warn: (text: string) => void): string {
-  const onPath = openspecVersion(root);
+async function manifestOpenspecVersion(ctx: Ctx, lock: Record<string, unknown> | undefined): Promise<string> {
+  const onPath = await ctx.openspec.version();
   if (onPath !== null) return onPath;
   if (typeof lock?.["openspec"] === "string") return lock["openspec"];
-  warn("check: OpenSpec version unknown (no `openspec` on PATH, no lock); manifest.versions.openspec is 0.0.0\n");
+  ctx.warn("check: OpenSpec version unknown (no `openspec` on PATH, no lock); manifest.versions.openspec is 0.0.0\n");
   return "0.0.0";
 }
 
@@ -384,7 +384,7 @@ export interface ChecksRun {
 }
 
 export interface ChecksParams {
-  root: string;
+  ctx: Ctx;
   change: string;
   loaded: LoadResult;
   policy: EffectivePolicy;
@@ -392,7 +392,6 @@ export interface ChecksParams {
   facts: GitFacts;
   paths: string[] | undefined;
   env: NodeJS.ProcessEnv;
-  warn: (text: string) => void;
 }
 
 /**
@@ -400,21 +399,19 @@ export interface ChecksParams {
  * by `check` and `verify`. A failed check does not stop the others.
  */
 export async function executeChecks(params: ChecksParams): Promise<ChecksRun> {
-  const { root, loaded, policy } = params;
-  let versions: ManifestVersions | undefined;
+  const { loaded, policy } = params;
+  let versions: Promise<ManifestVersions> | undefined;
   const ctx: Context = {
-    root,
+    root: params.ctx.root,
+    checks: params.ctx.checks,
     change: params.change,
     loaded,
     policyHash: policy.hash,
     git: params.facts,
     paths: params.paths,
     env: params.env,
-    warn: params.warn,
-    versions: () => {
-      versions ??= manifestVersions(root, policy.hash, params.warn);
-      return versions;
-    }
+    warn: params.ctx.warn,
+    versions: () => (versions ??= manifestVersions(params.ctx, policy.hash))
   };
 
   const run: ChecksRun = { entries: [], errors: [], failures: [], exitCode: EXIT.OK };
@@ -431,13 +428,13 @@ export async function executeChecks(params: ChecksParams): Promise<ChecksRun> {
 }
 
 export async function runCheck(
+  ctx: Ctx,
   change: string,
   ids: string[],
   opts: CheckOptions = {},
-  root: string = defaultRoot(),
-  env: NodeJS.ProcessEnv = process.env,
-  warn: (text: string) => void = (text) => process.stderr.write(text)
+  env: NodeJS.ProcessEnv = process.env
 ): Promise<CommandResult> {
+  const { root } = ctx;
   requireConfigPath(root);
   const loaded = loadPacks(root);
   if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
@@ -476,7 +473,7 @@ export async function runCheck(
   const paths = opts.paths === undefined ? undefined : splitPaths(opts.paths);
   if (paths !== undefined && paths.length === 0) throw new WarrantError("USAGE", "--paths lists no path");
 
-  const run = await executeChecks({ root, change, loaded, policy, selected, facts: readGitFacts(root, opts.base), paths, env, warn });
+  const run = await executeChecks({ ctx, change, loaded, policy, selected, facts: await readGitFacts(ctx, opts.base), paths, env });
   const { entries, errors, exitCode, holder } = run;
   const data: Record<string, unknown> = { transition, checks: entries };
   if (holder !== undefined) data["holder"] = holder;

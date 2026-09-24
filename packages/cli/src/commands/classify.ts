@@ -27,8 +27,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import spawnCjs from "cross-spawn";
-
 import { writeJsonFile } from "../core/canon/format-json.js";
 import {
   classify,
@@ -38,6 +36,7 @@ import {
   type ProfileMatch,
   type Proposal
 } from "../core/classify/index.js";
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
@@ -46,12 +45,8 @@ import { assertNotFrozen } from "../core/record/write.js";
 import { resolveForProject, RISK_DIMENSIONS, type Classification, type RiskDimension } from "../core/resolve/index.js";
 import { roleMembers } from "../core/validate/waivers.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
+import { requireConfigPath } from "./context.js";
 import { approvalRoles, checkRef, FALLBACK_ROLE } from "./transition.js";
-
-// `cross-spawn` — CommonJS с `export =`; на Windows это ещё и единственный
-// способ запустить `git` одинаково с `runOpenspec`.
-const spawn = spawnCjs as unknown as typeof import("cross-spawn");
 
 export interface ClassifyOptions {
   /** Ref, с которым сравнивается HEAD; по умолчанию `main`. */
@@ -138,15 +133,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function git(args: string[], cwd: string): { ok: boolean; stdout: string; stderr: string } {
-  const proc = spawn.sync("git", args, { cwd, encoding: "utf8" });
-  return {
-    ok: proc.error == null && proc.status === 0,
-    stdout: proc.stdout ?? "",
-    stderr: proc.stderr ?? ""
-  };
-}
-
 /**
  * Изменённые пути из `git diff --name-only <base>...HEAD`.
  *
@@ -154,26 +140,24 @@ function git(args: string[], cwd: string): { ok: boolean; stdout: string; stderr
  * проекте, поэтому пути переносятся в систему координат проекта; всё, что вне
  * проекта, отбрасывается — policy проекта о нём ничего сказать не может.
  */
-function changedFromGit(root: string, base: string): string[] {
-  const top = git(["rev-parse", "--show-toplevel"], root);
-  if (!top.ok) {
+async function changedFromGit(ctx: Ctx, base: string): Promise<string[]> {
+  // The prefix as git sees it: a path spelled differently (symlink, 8.3 name) must not drop every line (I-100).
+  const prefix = await ctx.git.prefix();
+  if (prefix === null) {
     throw new WarrantError(
       "USAGE",
-      `${root} is not a git repository; pass --paths <file> with one changed path per line`
+      `${ctx.root} is not a git repository; pass --paths <file> with one changed path per line`
     );
   }
-  const diff = git(["diff", "--name-only", `${base}...HEAD`], root);
+  const diff = await ctx.git.diffNames(base);
   if (!diff.ok) {
     throw new WarrantError(
       "USAGE",
-      `git could not diff "${base}...HEAD": ${(diff.stderr || diff.stdout).trim().split("\n")[0] ?? ""}; pass an existing ref with --base or use --paths`
+      `git could not diff "${base}...HEAD": ${diff.detail}; pass an existing ref with --base or use --paths`
     );
   }
 
-  // The prefix as git sees it: a path spelled differently (symlink, 8.3 name) must not drop every line (I-100).
-  const shown = git(["rev-parse", "--show-prefix"], root);
-  const prefix = shown.stdout.trim().replace(/\/+$/, "");
-  const lines = diff.stdout.split("\n").map((line) => line.trim()).filter((line) => line !== "");
+  const lines = diff.value;
   if (prefix === "") return lines;
   return lines
     .filter((line) => line.startsWith(`${prefix}/`))
@@ -269,11 +253,8 @@ function collectProfileMatches(objects: { kind: string; pack: string; id: string
   return out;
 }
 
-export function runClassify(
-  change: string,
-  opts: ClassifyOptions = {},
-  root: string = defaultRoot()
-): CommandResult {
+export async function runClassify(ctx: Ctx, change: string, opts: ClassifyOptions = {}): Promise<CommandResult> {
+  const { root } = ctx;
   requireConfigPath(root);
 
   const record = readChangeRecord(root, change);
@@ -306,7 +287,7 @@ export function runClassify(
   const changed =
     opts.paths !== undefined && opts.paths !== ""
       ? changedFromFile(root, opts.paths)
-      : changedFromGit(root, opts.base !== undefined && opts.base !== "" ? opts.base : "main");
+      : await changedFromGit(ctx, opts.base !== undefined && opts.base !== "" ? opts.base : "main");
 
   const loaded = loadPacks(root);
   if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);

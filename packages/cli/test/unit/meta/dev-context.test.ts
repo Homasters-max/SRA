@@ -110,10 +110,19 @@ describe(".claude/skills — standard of ADR-0032 п. 6", () => {
   });
 
   it("the skills of ADR-0033 are present; the git-land step files exist", () => {
-    for (const name of ["git-start", "git-land", "change-spec-pr", "change-impl-pr", "change-archive-pr", "change-coordinate", "repo-hygiene"]) {
+    for (const name of ["git-start", "git-land", "change-spec-pr", "change-impl-pr", "change-archive-pr", "change-coordinate", "repo-hygiene", "review-impl", "cli-contract"]) {
       expect(projectSkills, name).toContain(name);
     }
     for (const file of ["recovery.md", "ci.md"]) expect(existsSync(path.join(SKILLS, "git-land", file)), file).toBe(true);
+  });
+
+  it("agent reviewer reads only: no Write, Edit or NotebookEdit among its tools (ADR-0033 п. 6)", () => {
+    const lines = linesOf(read(".claude", "agents", "reviewer.md"));
+    const fm = frontmatter(lines);
+    expect(fm?.keys.name).toBe("reviewer");
+    const tools = (fm?.keys.tools ?? "").split(",").map((t) => t.trim());
+    expect(tools.length).toBeGreaterThan(0);
+    expect(tools.filter((t) => ["Write", "Edit", "NotebookEdit", "MultiEdit"].includes(t))).toEqual([]);
   });
 
   it("change-archive-pr archives with warrant archive, never openspec archive (ADR-0033 п. 4, A8)", () => {

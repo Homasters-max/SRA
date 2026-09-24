@@ -43,10 +43,12 @@ Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SE
 | Три PR Change: утверждение, реализация, закрытие | `change-spec-pr` → `change-impl-pr` → `change-archive-pr` |
 | Раздать группы tasks.md субагентам (перед первой раздачей) | `change-coordinate` |
 | Закрыть группу задач tasks.md (проверки, галочки, коммит) | `group-done` |
+| Ревью реализации на соответствие spec до merge impl-PR | `review-impl` (агент `reviewer`) |
 | Статистика группы по транскрипту субагента (координатор) | `group-stats` |
 | Конец сессии → файл передачи потока | `handoff` |
 | Stress-test плана раундами вопросов | `grilling` |
-| Архитектурная линза: границы, trade-offs, ADR | `software-architect` |
+| Архитектурная линза: границы, trade-offs, ADR; процессы с агентами | `software-architect` (+ `orchestration.md`) |
+| Контракт команды CLI: ошибки, exit-коды, JSON, `--dry-run` | `cli-contract` |
 | Предложить, исследовать, реализовать, обновить Change | `openspec-propose`, `-explore`, `-apply-change`, `-update-change` |
 | Состояние Change, gates, evidence | `warrant status`, `warrant verify <change>` |
 

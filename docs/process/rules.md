@@ -44,6 +44,8 @@
 | Порядок потоков — строка `После:` в файле передачи; черновики — `docs/drafts/<дата>-<тема>/NN-*.md` | ADR-0033 п. 12 | `dev-context.test.ts` (поток из «После» есть, циклов нет; форма черновиков); `brief.js` — «Потоки по порядку» |
 | Force push — только maintainer вручную | ADR-0033 п. 9 | `git-hook.js` — `deny` (`--force`, `-f`, `--force-with-lease`, `+refspec`) |
 | Закрыть Change — `warrant archive`, не `openspec archive` | ADR-0011 п. 4, ADR-0033 п. 9 | `git-hook.js` — `deny` на `openspec archive` (в том числе совет навыка `openspec-apply-change`, BL-22); навык `change-archive-pr` — `dev-context.test.ts` (A8) |
+| Ревью реализации на соответствие spec — до merge impl-PR, агентом без записи | ADR-0033 п. 6 | шаг 5 навыка `change-impl-pr` → `review-impl`; агент `reviewer` без `Write`/`Edit` — `dev-context.test.ts`; покрытие SCN — `scripts/dev/scn-coverage.js` (`test/unit/dev/scn-coverage.test.ts`) |
+| Linux-сбой CI воспроизводится локально | ADR-0033 п. 6 | `npm run test:linux` (Docker, `test/unit/dev/test-linux.test.ts`); ловушки — `packages/cli/CLAUDE.md` «Платформенные ловушки» |
 | Отклонение от spec — строкой `I-N` в design.md, вопросом maintainer'у | pack `rules.design` | правило о решении; нумерацию ведёт навык `decision` |
 | Изменение нормативного документа во время реализации — только через новый ADR | ADR-0021, 12 §7 | правило о решении |
 

@@ -34,6 +34,18 @@
 - Новая команда — сразу тест `app`; SCN-тег сценария spec — в имени теста.
 - Golden (`packs/*/golden/**/expected/**`) генерируется, руками не правится.
 
+## Платформенные ловушки
+
+Дефекты, которые проявились только на одной ОС CI; новый — строкой сюда (ADR-0033 п. 6), разбор — `git-land/ci.md`.
+
+- Путь внутри репозитория — из `git rev-parse --show-prefix`, не `path.relative(--show-toplevel, …)`: 8.3-имена
+  (`RUNNER~1`) и symlink дают `../…` (I-100).
+- Shell-обёртки в тестах — без внешних утилит: `${0%/*}`, не `$(dirname "$0")`; PATH теста может содержать только
+  каталог fake (I-101). Fake-бинарь на Windows — `.cmd` + абсолютный `process.execPath` (I-42).
+- Долгие процессы в тестах — асинхронный `spawn`: `spawnSync` блокирует воркер vitest (I-64).
+- Настоящий git в тестах — `-c core.autocrlf=false`: CRLF Windows меняет diff и хэши (I-132).
+- `npm i -g <git-url>#<tag>` на Windows npm 10 не работает — ставить из чекаута или tgz (I-11).
+
 ## Проверки перед коммитом
 
 Навык `group-done`: `npm run typecheck`, `npm test`, `warrant validate`, `fmt --check`, `sync --check`,

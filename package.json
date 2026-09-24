@@ -31,7 +31,8 @@
     "test:fast": "vitest run --config packages/cli/vitest.config.ts --project unit --project app",
     "golden:update": "npm run build && node scripts/golden-update.js",
     "versions:check": "node scripts/versions-check.js",
-    "typecheck": "node scripts/build.js --noEmit"
+    "typecheck": "node scripts/build.js --noEmit",
+    "test:linux": "node scripts/dev/test-linux.js"
   },
   "dependencies": {
     "ajv": "^8.17.1",

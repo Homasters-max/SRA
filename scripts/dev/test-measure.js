@@ -2,7 +2,7 @@
  * Test-suite measurement for test-levels §10 (I-118): time and child processes
  * per test file.
  *
- *   node scripts/dev/test-measure.js [vitest args…]      e.g. --maxWorkers=3, --project e2e
+ *   node scripts/dev/test-measure.js [vitest args…]      e.g. --project e2e
  *
  * Runs `vitest run` over the built CLI (run `npm run build` first) with the
  * preload `spawn-count.cjs` in NODE_OPTIONS and WARRANT_SPAWN_LOG set, so every

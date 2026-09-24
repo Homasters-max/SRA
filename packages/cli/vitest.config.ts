@@ -22,12 +22,23 @@ const FORBID_SPAWN = "test/helpers/forbid-spawn.ts";
 
 const REQUIRE_OPENSPEC = "test/helpers/require-openspec.ts";
 
+/**
+ * Light levels run first, heavy levels after them (`sequence.groupOrder`,
+ * I-138): while `contract`/`e2e` spawn `warrant`, `openspec` and `git`, every
+ * core is busy with process start-up and the filesystem of the temporary
+ * projects: `app` files ran 4–5 times slower than alone, and their first test
+ * (cold schemas and packs) crossed the 5 s limit. The 5 s limit stays.
+ */
+const LIGHT_GROUP = 0;
+const HEAVY_GROUP = 1;
+
 const light = (name: "unit" | "app") => ({
   extends: true as const,
   test: {
     name,
     include: [`test/${name}/**/*.test.ts`],
     pool: "threads" as const,
+    sequence: { groupOrder: LIGHT_GROUP },
     setupFiles: [FORBID_SPAWN],
     testTimeout: 5_000,
     hookTimeout: 5_000
@@ -40,6 +51,7 @@ const heavy = (name: "contract" | "e2e") => ({
     name,
     include: [`test/${name}/**/*.test.ts`],
     pool: "forks" as const,
+    sequence: { groupOrder: HEAVY_GROUP },
     globalSetup: [REQUIRE_OPENSPEC],
     testTimeout: 60_000,
     hookTimeout: 60_000

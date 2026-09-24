@@ -1,7 +1,7 @@
 /**
  * Form of the test levels (ADR-0025 п. 1, 7): every test file lies in one of
  * the four level directories, each directory is exactly one vitest project,
- * every e2e file names its reason on the first line (п. 7b), only `src/adapters/**` of the CLI names a process module (п. 3, design §8),
+ * `unit`/`app` run before `contract`/`e2e` (I-138), every e2e file names its reason on the first line (п. 7b), only `src/adapters/**` of the CLI names a process module (п. 3, design §8),
  * the `unit` level cannot start a process (п. 7a; the same guard for `app`
  * is `test/app/meta/spawn-guard.test.ts`), and `contract`/`e2e` fail rather
  * than skip without openspec 1.13.1 (п. 5).
@@ -39,6 +39,14 @@ describe("test levels: layout (ADR-0025 п. 1, 7c)", () => {
   it("each level is one vitest project over its own directory", () => {
     const projects = (config.test?.projects ?? []) as { test: { name: string; include: string[] } }[];
     expect(projects.map((p) => [p.test.name, p.test.include])).toEqual(LEVELS.map((level) => [level, [`test/${level}/**/*.test.ts`]]));
+  });
+
+  it("unit and app run before contract and e2e, not under their processes (I-138)", () => {
+    const projects = (config.test?.projects ?? []) as { test: { name: string; sequence?: { groupOrder?: number } } }[];
+    const order = new Map(projects.map((p) => [p.test.name, p.test.sequence?.groupOrder ?? 0]));
+    const light = Math.max(order.get("unit") ?? 0, order.get("app") ?? 0);
+    const heavy = Math.min(order.get("contract") ?? 0, order.get("e2e") ?? 0);
+    expect(heavy, "a heavy level in the group of unit/app runs its processes next to tests with a 5 s limit").toBeGreaterThan(light);
   });
 });
 

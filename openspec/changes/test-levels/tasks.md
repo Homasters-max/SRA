@@ -40,7 +40,7 @@ maintainer'у, принятые — строкой I-N (с I-117) в design.md. 
 
 ## 6. CI, процедуры, выход
 
-- [ ] 6.1 `.github/workflows/ci.yml`: `timeout-minutes` у job `test`, `npm test` — все projects. Проверка: CI зелёный на ubuntu и windows; время шага записано в §10.
-- [ ] 6.2 `.claude/commands/group-done.md` без `--maxWorkers=3`; NEXT-SESSION — строка «Уровни тестов» в «Процессные правила → чем держатся», долг «тесты под нагрузкой» и I-64 закрыты; конвенции кода (`skipIf`, `runCli`) приведены к ADR-0025. Проверка: `git grep maxWorkers` — только конфиг vitest.
-- [ ] 6.3 Критерии выхода (13 §2, строка 3c): `unit`/`app` без процессов (1.4); у каждого e2e-файла причина (5.5); `warrant validate` репозитория ≤ ~5 с (3.2); локальный `npm test` с параллелизмом по умолчанию зелёный 3 раза подряд. Проверка: колонка «После» §10 заполнена.
+- [x] 6.1 `.github/workflows/ci.yml`: `timeout-minutes` у job `test`, `npm test` — все projects. Проверка: CI зелёный на ubuntu и windows; время шага записано в §10.
+- [x] 6.2 `.claude/commands/group-done.md` без `--maxWorkers=3`; NEXT-SESSION — строка «Уровни тестов» в «Процессные правила → чем держатся», долг «тесты под нагрузкой» и I-64 закрыты; конвенции кода (`skipIf`, `runCli`) приведены к ADR-0025. Проверка: `git grep maxWorkers` — только конфиг vitest.
+- [x] 6.3 Критерии выхода (13 §2, строка 3c): `unit`/`app` без процессов (1.4); у каждого e2e-файла причина (5.5); `warrant validate` репозитория ≤ ~5 с (3.2); локальный `npm test` с параллелизмом по умолчанию зелёный 3 раза подряд. Проверка: колонка «После» §10 заполнена.
 - [ ] 6.4 archive-PR и tag `v0.4.1` по P-2. Проверка: `warrant status` — `test-levels` `ARCHIVED`.

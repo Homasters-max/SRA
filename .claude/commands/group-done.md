@@ -30,8 +30,9 @@ argument-hint: "<номер группы>"
    node packages/cli/dist/bin/warrant.js sync --check
    npm run versions:check
    ```
-   `npm test` собирает `dist`, поэтому идёт до команд `warrant`. Для JSON-вывода успех — `"ok": true` (у `sync --check`
-   дополнительно `changed: []`) и код 0.
+   `npm test` собирает `dist`, поэтому идёт до команд `warrant`. `npm test` — без флагов раннера: все
+   четыре уровня, их таймауты, параллельность и порядок заданы в `packages/cli/vitest.config.ts` (ADR-0025 п. 8).
+   Для JSON-вывода успех — `"ok": true` (у `sync --check` дополнительно `changed: []`) и код 0.
 
 3. **Галочки.** В `openspec/changes/<change>/tasks.md` под `## N.` каждую строку `- [ ] N.<k>` заменить на
    `- [x] N.<k>`; другие группы не трогать. Показать строки, которые остались `- [ ]` в группе N (если есть, спросить,

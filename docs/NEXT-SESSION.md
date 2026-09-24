@@ -1,9 +1,9 @@
 ---
 id: WARRANT-NEXT
-title: WARRANT — следующий шаг: change test-levels, затем фаза 4 (frontend Codex)
+title: WARRANT — следующий шаг: merge impl-PR #15 и archive-PR test-levels (tag v0.4.1), затем grilling фазы 4
 status: informative
 maturity: MVP
-version: 0.4.0
+version: 0.4.1
 ---
 
 # WARRANT — что делать в следующей сессии
@@ -41,8 +41,22 @@ version: 0.4.0
   процессов и `Ctx`, фейки с контрактом соответствия, проверки уровней, `validate` без N вызовов `openspec` подряд. Change
   `test-levels` (`skip_specs: true`, CLI `0.4.1`) идёт **до фазы 4** (13 §2, строка 3c). spec-PR #14 смержен (merge `5fdde73`;
   `classify` — `chore` + `factory-change`, risk HIGH; waivers `WAV-2026-005` `analyze-clean`, `WAV-2026-006` `adversarial-review`).
-  Impl: worktree `D:\project\SRA-test-levels-impl`, ветка `worktree/test-levels` — первым коммитом `APPROVED --ref #14 --by
-  Homasters-max` + `IMPLEMENTING` (сделано); **следующее — группа 1 tasks.md**, impl-PR ещё не открыт.
+  Impl: worktree `D:\project\SRA-test-levels-impl`, ветка `worktree/test-levels`, **impl-PR #15** — первым коммитом `APPROVED
+  --ref #14 --by Homasters-max` + `IMPLEMENTING`, группы 1–6 по коммиту (CI зелёный на ubuntu и windows на каждой), последним —
+  `VERIFYING`. Решения **I-117…I-139** — таблица design.md `openspec/changes/test-levels/`. **Следующее — merge #15
+  maintainer'ом (merge commit), затем archive-PR и tag `v0.4.1`** (6.4, по образцу phase-3b). Итог (design §10):
+  - уровни `unit`/`app`/`contract`/`e2e` — projects vitest; `unit`/`app` идут первой группой (`sequence.groupOrder`, I-138),
+    `contract`/`e2e` — пул forks с `maxForks` (I-119); `SPAWN_FORBIDDEN_AT_LEVEL`, мета-тесты раскладки, причины e2e и
+    «процессы только в `src/adapters/**`»;
+  - порты `OpenSpecPort`/`GitPort`/`CheckRunnerPort`/`ClockPort`, `Ctx` у всех команд, асинхронные адаптеры; фейки, `ProjectBuilder`,
+    контракт соответствия; `globalSetup` `contract`/`e2e` требует openspec 1.13.1;
+  - e2e: 216 тестов / 22 файла → 48 / 20 (причины `argv`/`output`/`platform-spawn`/`golden`/`package`/`lifecycle`), сквозной
+    lifecycle `init → … → archive` в `e2e/exit-criterion`; `fake-openspec.ts` удалён; SCN-теги не потеряны;
+  - `npm test` локально без флагов — 178 с → ~70 с, зелёный 3 раза подряд (788 тестов); CI шаг тестов ubuntu / windows —
+    346 / 751 с → 137 / 263 с; `warrant validate` репозитория — 11–12 с → 4,5 с (кэш `show` не нужен, I-128).
+  - Эксперимент Graft: записи групп test-levels g1–g5 (g6 — после записи) помечены `blind-leak` — индекс `MEMORY.md` сессии
+    называл эксперимент (зонд это поймал; индекс исправлен для следующих сессий, снимок текущей сессии — нет). Засчитывать ли
+    их — решение maintainer'а при `/stats-report`.
 - **Итог фазы 3:**
   - capability `verification` (REQ-VER-001…008): `warrant check` (runner без shell, замок `exclusive` в `git-common-dir`,
     `timeout_s` с kill дерева, parsers `junit`/`openspec-validate`, evidence + manifest, attestation `ci` под GitHub Actions),
@@ -83,9 +97,9 @@ version: 0.4.0
 | 13 §2 | Строка фазы 3 всё ещё перечисляет `analyze` и `warrant link`, а по P-4 это `phase-3b`; поправить 13 §2 (и строку 4-й фазы, если `analyze` уйдёт туда) | **закрыт** phase-3b (1.4) |
 | P-2 | Порядок P-2 нарушен в фазе 3: spec-PR #6 смержен до появления `transition`, поэтому `SPECIFIED`/`APPROVED`/`IMPLEMENTING`/`VERIFYING` пишутся в impl-PR. Со следующего change — строго по ADR-0011 (`SPECIFIED` в spec-PR) | процесс |
 | I-59 | `packContentHash` исключает `golden/` pack'а — пересмотреть, если golden начнёт влиять на policy | later |
-| I-64 | `runCli` и `golden-lib.js` асинхронные; короткие `spawnSync` остались для `git` и `openspecAvailable()` | `test-levels` (2.1, 2.2): асинхронные адаптеры портов (ADR-0025) |
+| ~~I-64~~ | ~~`runCli` и `golden-lib.js` асинхронные; короткие `spawnSync` остались для `git` и `openspecAvailable()`~~ | **закрыт** test-levels (2.1, 2.2): асинхронные адаптеры портов, в `src` синхронных вызовов процессов нет (I-122, I-124) |
 | `analyze` | **Решено V-1**: фаза 4 | — |
-| тесты под нагрузкой | `warrant validate` на репозитории — ~30 с (вызовы `openspec` на каждый Change/spec); полный `npm test` с параллелизмом по умолчанию на машине maintainer'а даёт таймауты e2e `validate`/`golden` (поодиночке и с `--maxWorkers=3` — зелёные, CI — зелёный). Один `openspec` на проект невозможен (у OpenSpec 1.13.1 нет пакетного `show`); таймауты не поднимаем | **решено ADR-0025**: `test-levels` — `show` только для файлов с id и параллельно, логика в `unit`/`app` без процессов; до его закрытия `/group-done` гоняет `--maxWorkers=3` вручную |
+| ~~тесты под нагрузкой~~ | **закрыт** test-levels: `npm test` без флагов ~70 с, зелёный 3 раза подряд (I-138: `unit`/`app` первой группой, тяжёлые — `maxForks`), `validate` репозитория 4,5 с (3.1). Было: `warrant validate` на репозитории — ~30 с (вызовы `openspec` на каждый Change/spec); полный `npm test` с параллелизмом по умолчанию на машине maintainer'а даёт таймауты e2e `validate`/`golden` (поодиночке и с `--maxWorkers=3` — зелёные, CI — зелёный). Один `openspec` на проект невозможен (у OpenSpec 1.13.1 нет пакетного `show`); таймауты не поднимаем | **решено ADR-0025**: `test-levels` — `show` только для файлов с id и параллельно, логика в `unit`/`app` без процессов; до его закрытия `/group-done` гоняет `--maxWorkers=3` вручную |
 | I-103 | Пред-фильтр исключает запись, чей `metrics.waivers[]` ссылается на waiver с `targets[]` — пересмотреть вместе с D-10 | фаза 5 |
 | Graft | Слепой эксперимент ADR-0026 активен ([process/graft.md](process/graft.md), `status: active`): группы раздаются по [process/coordinator.md](process/coordinator.md) — зонд, метки `[A]` (нечётные, навык `code-search`) / `[B]` (чётные), одинаковые шаблоны; после группы — `/group-stats`; фон phase-3b g1–g5 записан. Субагентам об эксперименте не сообщать | `/stats-report` после ≥ 2 засчитанных групп в каждой метке |
 | `fmt` packs | `warrant fmt --check` без пути не проверяет `packs/**`; `packs/core-sdd/pack.json` неканоничен (порядок `rules`/`skills`), а правило `json-canonical` из черновика `rule/1` покрывает `packs/**/*.json` | вместе с первым правилом `rule/1` или отдельным fix |
@@ -145,7 +159,7 @@ verify → transition`, gate engine, runner) — нет. Нерешённые в
 | Main specs только через archive-PR | ADR-0011, D-15 | `scope-valid` в Change + **R-16** шаг CI вне Change |
 | impl-PR — только merge commit | I-97 | **R-1** `transition MERGED` (`COMMIT_NOT_MERGED`) |
 | CI на ubuntu + windows | P-9 | `ci.yml` matrix |
-| Уровни тестов: процессы только в `contract`/`e2e`, у e2e-файла причина, тест только в каталоге уровня | ADR-0025 п. 7 | `SPAWN_FORBIDDEN_AT_LEVEL` (setup `unit`/`app`), мета-тест раскладки и причины e2e, процессы в `src` только из `src/adapters/**` — вводятся `test-levels` (1.4, 2.4, 5.5); выбор уровня теста — правило о решении |
+| Уровни тестов: процессы только в `contract`/`e2e`, у e2e-файла причина, тест только в каталоге уровня | ADR-0025 п. 7 | `SPAWN_FORBIDDEN_AT_LEVEL` (setup `unit`/`app`), мета-тесты `test/unit/meta/levels.test.ts` (раскладка, причина e2e, процессы в `src` только из `src/adapters/**`, порядок групп, нет `skipIf` по openspec), `globalSetup` `contract`/`e2e` (openspec 1.13.1) — test-levels (1.4, 2.4, 4.3, 5.5, 6.3); выбор уровня теста — правило о решении |
 | Порядок P-2 (что в каком PR) | ADR-0011, P-2 | частично: `transition` (последовательность), `scope-valid`; размещение по PR — `warrant ci`, фаза 4 |
 | Одна ветка — один worktree, ветку проверять перед коммитом | «Организационное», memory | проза: машина не знает, какой ветке принадлежит работа; шаг процедуры `/group-done` (ниже) |
 | Отклонение от spec — строкой I-N в design.md, вопросом maintainer'у | pack `rules.design` (1.4) | правило о решении (ADR-0022 допускает без `enforced_by`); нумерацию I-N ведёт `/decision` (ниже) |
@@ -198,15 +212,14 @@ I-93 решается без нового ADR: ADR-0010 п. 2 уже замен�
 ### Продолжение — готовый запрос
 
 ```text
-Реализуй change test-levels в worktree D:\project\SRA-test-levels-impl (ветка worktree/test-levels; record уже IMPLEMENTING —
-APPROVED --ref PR #14 и IMPLEMENTING первым коммитом сделаны). Прочитай docs/NEXT-SESSION.md (состояние, «Процессные правила»,
-«Порядок работы»), docs/adr/WARRANT-ADR-0025-test-levels.md и openspec/changes/test-levels/{proposal,design,tasks}.md целиком.
-Иди по группам tasks.md 1–6: одна группа — один коммит (/group-done), решения по ходу — I-N с I-117 (/decision). Поведение CLI не
-меняется: вывод validate/status/resolve репозитория и golden сверять до/после каждой группы. Первая задача — bump CLI 0.4.1 (R-14),
-вторая — замер «до» в таблицу design §10. После группы 1 открой impl-PR worktree/test-levels → main (CI на каждой группе);
-последним коммитом — transition VERIFYING; затем archive-PR и tag v0.4.1 по образцу phase-3b. Merge PR делает maintainer —
-выводи ему команду `gh pr merge <N> --merge`. После test-levels — grilling по нарезке фазы 4 (новые команды сразу с тестами app
-через Ctx).
+Закрой change test-levels: impl-PR #15 (worktree/test-levels, record VERIFYING, группы 1–6 закрыты, кроме 6.4) смержен
+maintainer'ом merge-коммитом — проверь (`gh pr view 15`). Прочитай docs/NEXT-SESSION.md (состояние, «Как прошёл 6.5») и
+openspec/changes/test-levels/tasks.md (6.4). Archive-PR по образцу phase-3b: ветка archive/test-levels от main (свой worktree),
+`gh run download <run impl-head> -n evidence-test-levels` → .warrant/evidence/test-levels/, `warrant transition test-levels MERGED
+--ref <run-url> --commit <impl-head> --by Homasters-max`, `warrant archive test-levels`, галочка 6.4, PR → maintainer делает merge
+(`gh pr merge <N> --merge`) → tag v0.4.1 на merge-коммите. Проверка: `warrant status` — test-levels ARCHIVED, stale[] только у
+phase-2-core-sdd. Затем удалить worktree test-levels и grilling по нарезке фазы 4 (13 §2 строка 4, NEXT-SESSION «Фаза 4»; новые
+команды сразу с тестами app через Ctx, новый внешний вызов — метод порта + фейк + контракт; S8 до адаптера codex).
 ```
 
 ### Решения grilling 2026-09-22 по фазе 3 (P-1…P-20) — приняты maintainer'ом
@@ -286,8 +299,11 @@ APPROVED --ref PR #14 и IMPLEMENTING первым коммитом сделан
 
 Конвенции кода: TypeScript ESM NodeNext (`.js` в импортах), strict + `exactOptionalPropertyTypes`;
 `WarrantError(code, message, {path, exitCode})` из `core/errors.ts`; `success/failure/failures` из `io/output.ts`;
-команды регистрируются в `src/bin/warrant.ts` через `register`; e2e через `test/helpers/cli.ts` (`runCli`, `makeTempDir`);
-тесты, которым нужен `openspec`, — `it.skipIf(!openspecAvailable())` из `core/openspec/cli.ts`; JSON писать только через
+команды регистрируются в `src/bin/warrant.ts` через `register`, получают `Ctx` (`runX(ctx, …)`); процессы — только в
+`src/adapters/**` через порты. Тесты (ADR-0025): команда — `test/app/commands/<cmd>.test.ts`, `invoke(() => runX(p.ctx, …))` с
+`useProjectBuilder` и фейками; e2e — один-два теста на команду через `runCli` (`test/helpers/cli.ts`), первая строка файла
+`// e2e: <reason>`; `skipIf` по openspec запрещён (`globalSetup` падает без openspec 1.13.1); `npm test` без флагов,
+`npm run test:fast` — внутренний цикл; новый внешний вызов — метод порта + адаптер + фейк + сценарий контракта. JSON писать только через
 `writeJsonFile` (`core/canon/format-json.ts`) или `warrant fmt`; код должен работать на Linux (CI ubuntu).
 
 ### Решения grilling фазы 2 (G-1…G-21) — реализованы

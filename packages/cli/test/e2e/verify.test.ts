@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { openspecAvailable } from "../../src/core/openspec/cli.js";
+import { openspecAvailable } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 import { PATH_KEY, pathWithFake, writeFakeOpenspec } from "../helpers/fake-openspec.js";
 import { PACKS, record, useSyncedProject, validate, write } from "../helpers/synced.js";

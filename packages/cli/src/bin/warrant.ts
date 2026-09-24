@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 import { Command, CommanderError } from "commander";
+import { CheckRunner } from "../adapters/check-runner.js";
+import { GitCli } from "../adapters/git-cli.js";
+import { OpenSpecCli } from "../adapters/openspec-cli.js";
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError } from "../core/errors.js";
+import { systemClock } from "../core/ports/clock.js";
 import { emitToProcess, failure, resultFromThrown, writeStdout, type CommandResult } from "../io/output.js";
 import { CLI_VERSION } from "../version.js";
-import { requireConfigPath } from "../commands/context.js";
+import { projectRoot, requireConfigPath } from "../commands/context.js";
 import { runInitCommand } from "../commands/init.js";
 import { runValidate } from "../commands/validate.js";
 import { runFmt } from "../commands/fmt.js";
@@ -20,7 +25,20 @@ import { runArchive } from "../commands/archive.js";
 import { runLink } from "../commands/link.js";
 import { runWaive } from "../commands/waive.js";
 
-export type Runner = (args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
+export type Runner = (ctx: Ctx, args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
+
+/** The production `ctx` (ADR-0025 п. 2): the adapters over `openspec`, `git` and the check runner, rooted at the cwd. */
+function productionCtx(): Ctx {
+  const root = projectRoot();
+  return {
+    root,
+    openspec: new OpenSpecCli(root),
+    git: new GitCli(root),
+    checks: new CheckRunner(),
+    clock: systemClock,
+    warn: (text) => void process.stderr.write(text)
+  };
+}
 
 const program = new Command("warrant")
   .description("WARRANT specification governance CLI")
@@ -36,7 +54,7 @@ const program = new Command("warrant")
 async function run(name: string, runner: Runner, args: string[], opts: Record<string, unknown>): Promise<void> {
   let result: CommandResult;
   try {
-    result = await runner(args, opts);
+    result = await runner(productionCtx(), args, opts);
   } catch (thrown) {
     result = resultFromThrown(thrown);
   }
@@ -64,41 +82,41 @@ register(
   "initialise .warrant/ or a new change",
   // `init` is the one command that must run without an existing config;
   // `init change` checks for one itself.
-  (args, opts) => runInitCommand(args, { force: opts["force"] as boolean | undefined }),
+  (ctx, args, opts) => runInitCommand(ctx, args, { force: opts["force"] as boolean | undefined }),
   (c) => c.argument("[what]").argument("[name]").option("--force")
 );
 register(
   "validate",
   "validate configuration, packs, schemas, ids and generated files",
-  () => {
+  (ctx) => {
     // CONFIG_MISSING first, exactly as for the other config-bound commands (SCN-KRN-007).
-    requireConfigPath();
-    return runValidate();
+    requireConfigPath(ctx.root);
+    return runValidate(ctx);
   }
 );
 register(
   "fmt",
   "canonicalise JSON files",
-  (args, opts) => runFmt(args, { check: opts["check"] as boolean | undefined }),
+  (ctx, args, opts) => runFmt(ctx, args, { check: opts["check"] as boolean | undefined }),
   (c) => c.argument("[paths...]").option("--check")
 );
 register(
   "id",
   "allocate stable ids",
-  (args, opts) => runId(args, { ...(typeof opts["change"] === "string" ? { change: opts["change"] as string } : {}) }),
+  (ctx, args, opts) => runId(ctx, args, { ...(typeof opts["change"] === "string" ? { change: opts["change"] as string } : {}) }),
   (c) => c.argument("[args...]").option("--change <name>")
 );
 register(
   "sync",
   "generate OpenSpec files and lock",
-  (_args, opts) => runSync({ check: opts["check"] as boolean | undefined }),
+  (ctx, _args, opts) => runSync(ctx, { check: opts["check"] as boolean | undefined }),
   (c) => c.option("--check")
 );
 register(
   "resolve",
   "compute effective policy",
-  (args, opts) =>
-    runResolve(args[0] as string, {
+  (ctx, args, opts) =>
+    runResolve(ctx, args[0] as string, {
       ...(opts["explain"] === true ? { explain: true } : {}),
       ...(typeof opts["classification"] === "string" ? { classification: opts["classification"] } : {})
     }),
@@ -107,8 +125,8 @@ register(
 register(
   "classify",
   "compute and record the classification of a change",
-  (args, opts) =>
-    runClassify(args[0] as string, {
+  (ctx, args, opts) =>
+    runClassify(ctx, args[0] as string, {
       ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {}),
       ...(typeof opts["paths"] === "string" ? { paths: opts["paths"] } : {}),
       ...(typeof opts["propose"] === "string" ? { propose: opts["propose"] } : {}),
@@ -132,8 +150,8 @@ register(
 register(
   "link",
   "add or remove an amends/supersedes link of a change (PROPOSED or SPECIFIED only)",
-  (args, opts) =>
-    runLink(args[0] as string, {
+  (ctx, args, opts) =>
+    runLink(ctx, args[0] as string, {
       ...(typeof opts["amends"] === "string" ? { amends: opts["amends"] } : {}),
       ...(typeof opts["supersedes"] === "string" ? { supersedes: opts["supersedes"] } : {}),
       ...(opts["remove"] === true ? { remove: true } : {})
@@ -148,8 +166,8 @@ register(
 register(
   "waive",
   "propose a waiver (<change> <gate> ...), or --activate / --revoke one as a maintainer",
-  (args, opts) =>
-    runWaive(args, {
+  (ctx, args, opts) =>
+    runWaive(ctx, args, {
       ...(typeof opts["reason"] === "string" ? { reason: opts["reason"] } : {}),
       ...(typeof opts["risk"] === "string" ? { risk: opts["risk"] } : {}),
       ...(Array.isArray(opts["control"]) && opts["control"].length > 0 ? { control: opts["control"] as string[] } : {}),
@@ -175,14 +193,14 @@ register(
 register(
   "status",
   "show change status",
-  (args) => runStatus(args[0] as string | undefined),
+  (ctx, args) => runStatus(ctx, args[0] as string | undefined),
   (c) => c.argument("[change]")
 );
 register(
   "check",
   "run checks of a change and record evidence",
-  (args, opts) =>
-    runCheck(args[0] as string, args.slice(1), {
+  (ctx, args, opts) =>
+    runCheck(ctx, args[0] as string, args.slice(1), {
       ...(typeof opts["paths"] === "string" ? { paths: opts["paths"] } : {}),
       ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {})
     }),
@@ -197,8 +215,8 @@ register(
 register(
   "gate",
   "evaluate the gates of a transition and the controller",
-  (args, opts) =>
-    runGate(args[0] as string, args.slice(1), {
+  (ctx, args, opts) =>
+    runGate(ctx, args[0] as string, args.slice(1), {
       ...(typeof opts["transition"] === "string" ? { transition: opts["transition"] } : {}),
       ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {})
     }),
@@ -212,8 +230,8 @@ register(
 register(
   "verify",
   "run the checks of a transition, then its gates and the controller",
-  (args, opts) =>
-    runVerify(args[0] as string, {
+  (ctx, args, opts) =>
+    runVerify(ctx, args[0] as string, {
       ...(typeof opts["transition"] === "string" ? { transition: opts["transition"] } : {}),
       ...(typeof opts["base"] === "string" ? { base: opts["base"] } : {}),
       ...(typeof opts["paths"] === "string" ? { paths: opts["paths"] } : {})
@@ -229,8 +247,8 @@ register(
 register(
   "transition",
   "record a transition of a change, if 04 section 2 and its gates allow it",
-  (args, opts) =>
-    runTransition(args[0] as string, args[1] as string, {
+  (ctx, args, opts) =>
+    runTransition(ctx, args[0] as string, args[1] as string, {
       ...(typeof opts["ref"] === "string" ? { ref: opts["ref"] } : {}),
       ...(typeof opts["by"] === "string" ? { by: opts["by"] } : {}),
       ...(typeof opts["commit"] === "string" ? { commit: opts["commit"] } : {})
@@ -246,7 +264,7 @@ register(
 register(
   "archive",
   "validate, gate and archive a MERGED change, then record ARCHIVED",
-  (args) => runArchive(args[0] as string),
+  (ctx, args) => runArchive(ctx, args[0] as string),
   (c) => c.argument("<change>")
 );
 

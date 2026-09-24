@@ -14,10 +14,10 @@ maintainer'у, принятые — строкой I-N (с I-117) в design.md. 
 
 ## 2. Порты, адаптеры, Ctx
 
-- [ ] 2.1 `core/ports/*`, `Ctx`, `adapters/openspec-cli` (§2): все вызовы openspec через порт, `version.ts` и `cli.ts` уходят в адаптер. Проверка: `grep` вызовов `runOpenspec` вне адаптера — пусто; все тесты зелёные.
-- [ ] 2.2 `adapters/git-cli` (§2): `ids/immutable.ts`, `gates/diff.ts`, `commands/classify.ts`; асинхронно (I-64). Проверка: все тесты зелёные, в том числе I-100 (prefix при 8.3/symlink).
-- [ ] 2.3 `adapters/check-runner` (§2): `check/runner.ts` за `CheckRunnerPort`; `today`/`warn` → `ctx` (§3). Проверка: `contract/check/interrupt`, `check-core` зелёные на обеих ОС.
-- [ ] 2.4 Команды получают `Ctx`; production-`ctx` в `src/bin/warrant.ts`; мета-тест «процессы только в `src/adapters/**`» (§8). Проверка: мета-тест зелёный; `warrant validate`, `status`, `resolve --explain` репозитория — вывод байт в байт как до группы.
+- [x] 2.1 `core/ports/*`, `Ctx`, `adapters/openspec-cli` (§2): все вызовы openspec через порт, `version.ts` и `cli.ts` уходят в адаптер. Проверка: `grep` вызовов `runOpenspec` вне адаптера — пусто; все тесты зелёные.
+- [x] 2.2 `adapters/git-cli` (§2): `ids/immutable.ts`, `gates/diff.ts`, `commands/classify.ts`; асинхронно (I-64). Проверка: все тесты зелёные, в том числе I-100 (prefix при 8.3/symlink).
+- [x] 2.3 `adapters/check-runner` (§2): `check/runner.ts` за `CheckRunnerPort`; `today`/`warn` → `ctx` (§3). Проверка: `contract/check/interrupt`, `check-core` зелёные на обеих ОС.
+- [x] 2.4 Команды получают `Ctx`; production-`ctx` в `src/bin/warrant.ts`; мета-тест «процессы только в `src/adapters/**`» (§8). Проверка: мета-тест зелёный; `warrant validate`, `status`, `resolve --explain` репозитория — вывод байт в байт как до группы.
 
 ## 3. validate
 

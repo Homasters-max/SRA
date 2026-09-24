@@ -9,6 +9,7 @@ import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { GitCli } from "../../../src/adapters/git-cli.js";
 import { changedPaths, projectPrefix, readGitFacts } from "../../../src/core/gates/diff.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 
@@ -31,7 +32,7 @@ function write(root: string, rel: string, text: string): void {
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 
 describe.skipIf(!hasGit)("project prefix and diff through a differently spelled path (I-100)", () => {
-  it("keeps the changed paths of a project reached through a link", () => {
+  it("keeps the changed paths of a project reached through a link", async () => {
     const repo = makeTempDir("warrant-prefix-");
     temp.push(repo);
     write(repo, "proj/a.txt", "a\n");
@@ -51,8 +52,9 @@ describe.skipIf(!hasGit)("project prefix and diff through a differently spelled 
     // A junction needs no privilege on Windows; elsewhere the type is ignored.
     symlinkSync(path.join(repo, "proj"), link, "junction");
 
-    expect(projectPrefix(link)).toBe("proj");
-    const diff = changedPaths(link, readGitFacts(link, undefined));
+    const ctx = { git: new GitCli(link) };
+    expect(await projectPrefix(ctx)).toBe("proj");
+    const diff = await changedPaths(ctx, await readGitFacts(ctx, undefined));
     expect(diff).toEqual({ ok: true, value: [{ status: "A", path: "src/b.ts" }] });
   });
 });

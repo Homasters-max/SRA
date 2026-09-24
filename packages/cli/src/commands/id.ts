@@ -1,15 +1,17 @@
 /**
  * `warrant id` (REQ-KRN-024): allocation and renumbering of stable ids.
  */
+import type { Ctx } from "../core/ctx.js";
 import { WarrantError } from "../core/errors.js";
 import { allocateSpecLevel, allocateUlid, allocateWaiver, isSpecLevelPrefix, isUlidPrefix } from "../core/ids/allocate.js";
 import { renumber } from "../core/ids/renumber.js";
 import { success, type CommandResult } from "../io/output.js";
-import { projectRoot, requireConfigPath } from "./context.js";
+import { requireConfigPath } from "./context.js";
 
 const USAGE = "usage: warrant id <REQ|SCN|TASK|UNK|ASM> <AREA> | warrant id <EVID|RUN|WAV> | warrant id renumber <old> <new> --change <name>";
 
-export function runId(args: string[], opts: { change?: string } = {}, root: string = projectRoot()): CommandResult {
+export function runId(ctx: Ctx, args: string[], opts: { change?: string } = {}): CommandResult {
+  const { root } = ctx;
   // Every `id` form needs the project config (SCN-KRN-007).
   requireConfigPath(root);
 

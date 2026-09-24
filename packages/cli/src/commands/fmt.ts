@@ -14,10 +14,10 @@ import { existsSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { checkFile, canonicalTargets, WARRANT_DIR } from "../core/canon/files.js";
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { reportPath, walkFiles } from "../core/packs/loader.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { projectRoot as defaultRoot } from "./context.js";
 
 export interface FmtOptions {
   /** `--check`: report differences without writing. */
@@ -52,12 +52,8 @@ function targets(paths: string[], root: string, errors: CliError[]): string[] {
   return [...new Set(out)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
-export function runFmt(
-  paths: string[],
-  opts: FmtOptions = {},
-  root: string = defaultRoot(),
-  warn: (text: string) => void = (text) => process.stderr.write(text)
-): CommandResult {
+export function runFmt(ctx: Ctx, paths: string[], opts: FmtOptions = {}): CommandResult {
+  const { root, warn } = ctx;
   const errors: CliError[] = [];
   const files = targets(paths, root, errors);
   const changed: string[] = [];

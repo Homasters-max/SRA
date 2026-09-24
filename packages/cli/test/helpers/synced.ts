@@ -9,7 +9,7 @@ import { afterAll, beforeAll } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
 import { packContentHash } from "../../src/core/packs/hash.js";
-import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
+import { openspecAvailable, openspecSync } from "./openspec.js";
 import { CLI_VERSION } from "../../src/version.js";
 import { CORE_SDD_RANGE, CORE_SDD_VERSION, REPO_ROOT, makeTempDir, removeDir, runCli, type CliRun } from "./cli.js";
 
@@ -74,7 +74,7 @@ export function useSyncedProject(): () => string {
       openspec: "1.13.1",
       packs: { "core-sdd": { version: CORE_SDD_VERSION, source: "bundled", hash: packContentHash(path.join(PACKS, "core-sdd")) } }
     });
-    if (!runOpenspec(["init", "--tools", "none"], base).ok) throw new Error("openspec init failed");
+    if (!openspecSync(["init", "--tools", "none"], base).ok) throw new Error("openspec init failed");
     const sync = await runCli(["sync"], base, { WARRANT_PACKS_DIR: PACKS });
     if (sync.status !== 0) throw new Error(`warrant sync failed: ${sync.stdout}${sync.stderr}`);
   }, 120_000);

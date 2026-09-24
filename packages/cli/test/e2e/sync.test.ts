@@ -6,7 +6,7 @@ import { parse, parseDocument } from "yaml";
 import { canonicalText } from "../../src/core/canon/format-json.js";
 import { bytesHash } from "../../src/core/canon/hash.js";
 import { GENERATED_MARKER } from "../../src/core/openspec/yaml-emit.js";
-import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
+import { openspecAvailable, openspecSync } from "../helpers/openspec.js";
 import { CLI_ROOT, CORE_SDD_RANGE, REPO_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 import { installFakeOpenspec } from "../helpers/fake-openspec.js";
 
@@ -34,7 +34,7 @@ function project(packs: Record<string, string> = { "core-sdd": CORE_SDD_RANGE },
     openspec: "1.13.x",
     packs: Object.fromEntries(Object.entries(packs).map(([id, version]) => [id, { version }]))
   });
-  if (init) expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
+  if (init) expect(openspecSync(["init", "--tools", "none"], root).ok).toBe(true);
   return root;
 }
 
@@ -68,7 +68,7 @@ describe("warrant sync", () => {
       expect(existsSync(path.join(root, ".warrant", "warrant.lock.json"))).toBe(true);
       expect(existsSync(path.join(root, ".warrant", "schemas", "lock.1.schema.json"))).toBe(true);
 
-      const validated = runOpenspec(["schema", "validate", "warrant-sdd", "--json"], root);
+      const validated = openspecSync(["schema", "validate", "warrant-sdd", "--json"], root);
       expect((validated.json as { valid?: boolean }).valid).toBe(true);
     },
     60_000
@@ -218,7 +218,7 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
       openspec: "1.13.x",
       packs: { "core-sdd": { version: CORE_SDD_RANGE } }
     });
-    expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
+    expect(openspecSync(["init", "--tools", "none"], root).ok).toBe(true);
     return root;
   }
 
@@ -368,7 +368,7 @@ describe("warrant sync: YAML scalars that are not strings (B5)", () => {
         rules: { null: ["no"] },
         operations: { apply: { guidance: ["yes"] } }
       });
-      expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
+      expect(openspecSync(["init", "--tools", "none"], root).ok).toBe(true);
 
       const run = await runCli(["sync"], root, { WARRANT_PACKS_DIR: path.join(root, "packs") });
       expect(run.json?.errors).toEqual([]);

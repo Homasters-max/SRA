@@ -8,7 +8,7 @@ import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { openspecAvailable } from "../../src/core/openspec/cli.js";
+import { openspecAvailable } from "../helpers/openspec.js";
 import { codes, findError, record, useSyncedProject, validate, write } from "../helpers/synced.js";
 
 const hasOpenspec = openspecAvailable();

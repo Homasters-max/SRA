@@ -8,8 +8,9 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
+import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
-import { openspecAvailable, runOpenspec } from "../openspec/cli.js";
+import { openspecAvailable } from "../openspec/version.js";
 
 /** Prefixes that use the `PREFIX-AREA-NNN` form (ADR-0012 point 1). */
 export const SPEC_LEVEL_PREFIXES = ["REQ", "SCN", "TASK", "UNK", "ASM"] as const;
@@ -318,18 +319,12 @@ function firstLineId(text: unknown): string | null {
   return m[1] as string;
 }
 
-function collectPlaced(node: unknown, into: Set<string>): void {
-  if (Array.isArray(node)) {
-    for (const item of node) collectPlaced(item, into);
-    return;
-  }
-  if (typeof node !== "object" || node === null) return;
-  const obj = node as Record<string, unknown>;
-  for (const key of ["text", "rawText"] as const) {
-    const id = firstLineId(obj[key]);
+/** Ids placed as the first line of the requirement and scenario texts `show` returned. */
+function collectPlaced(texts: readonly string[], into: Set<string>): void {
+  for (const text of texts) {
+    const id = firstLineId(text);
     if (id !== null) into.add(id);
   }
-  for (const value of Object.values(obj)) collectPlaced(value, into);
 }
 
 /**
@@ -337,35 +332,14 @@ function collectPlaced(node: unknown, into: Set<string>): void {
  * spec must come back from `openspec show --json` as the first line of its
  * requirement or scenario, with a non-empty body after it (SCN-KRN-046).
  */
-export function checkPlacement(projectRoot: string, ids: FoundId[]): { errors: CliError[]; skipped: boolean } {
+export async function checkPlacement(ctx: Ctx, ids: FoundId[]): Promise<{ errors: CliError[]; skipped: boolean }> {
   const relevant = ids.filter((f) => isPlacementChecked(f.file) && (f.prefix === "REQ" || f.prefix === "SCN"));
   if (relevant.length === 0) return { errors: [], skipped: false };
-  if (!openspecAvailable()) return { errors: [], skipped: true };
+  if (!(await openspecAvailable(ctx.openspec))) return { errors: [], skipped: true };
 
   const placed = new Set<string>();
-
-  const changes = runOpenspec(["list", "--json"], projectRoot).json;
-  if (typeof changes === "object" && changes !== null && Array.isArray((changes as Record<string, unknown>)["changes"])) {
-    for (const entry of (changes as { changes: unknown[] }).changes) {
-      const name = typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>)["name"] : undefined;
-      if (typeof name !== "string") continue;
-      collectPlaced(runOpenspec(["show", name, "--json"], projectRoot).json, placed);
-    }
-  }
-
-  const specs = runOpenspec(["list", "--specs", "--json"], projectRoot).json;
-  if (typeof specs === "object" && specs !== null && Array.isArray((specs as Record<string, unknown>)["specs"])) {
-    for (const entry of (specs as { specs: unknown[] }).specs) {
-      const id =
-        typeof entry === "string"
-          ? entry
-          : typeof entry === "object" && entry !== null
-            ? ((entry as Record<string, unknown>)["id"] ?? (entry as Record<string, unknown>)["name"])
-            : undefined;
-      if (typeof id !== "string") continue;
-      collectPlaced(runOpenspec(["show", id, "--type", "spec", "--json"], projectRoot).json, placed);
-    }
-  }
+  for (const name of await ctx.openspec.listChanges()) collectPlaced(await ctx.openspec.showChange(name), placed);
+  for (const id of await ctx.openspec.listSpecs()) collectPlaced(await ctx.openspec.showSpec(id), placed);
 
   const errors: CliError[] = [];
   for (const found of relevant) {
@@ -383,20 +357,20 @@ export function checkPlacement(projectRoot: string, ids: FoundId[]): { errors: C
  * Check (5) as a whole. `skipped` is true when `openspec` is not on PATH.
  * `ids` are the declarations scanned, reused by check (13) (`ID_DANGLING`).
  */
-export function checkIds(projectRoot: string): {
+export async function checkIds(ctx: Ctx): Promise<{
   errors: CliError[];
   files: string[];
   ids: FoundId[];
   placementSkipped: boolean;
-} {
-  const scan = scanIds(projectRoot);
-  const areas = loadAreas(projectRoot);
+}> {
+  const scan = scanIds(ctx.root);
+  const areas = loadAreas(ctx.root);
   const errors: CliError[] = [
     ...scan.malformed,
     ...checkAreas(scan.ids, areas),
     ...checkDuplicates(scan.ids)
   ];
-  const placement = checkPlacement(projectRoot, scan.ids);
+  const placement = await checkPlacement(ctx, scan.ids);
   errors.push(...placement.errors);
   return { errors, files: scan.files, ids: scan.ids, placementSkipped: placement.skipped };
 }

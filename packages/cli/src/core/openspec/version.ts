@@ -4,34 +4,17 @@
  * The version on PATH is checked against `warrant.json.openspec` BEFORE any
  * other `openspec` invocation: a mismatched CLI can silently produce a
  * different `config.yaml` shape, and a wrong guess written into the lock is
- * worse than a refusal.
+ * worse than a refusal. The version itself comes from the port, which asks
+ * the binary once per CLI call.
  */
 import semver from "semver";
 
 import { WarrantError } from "../errors.js";
-import { runOpenspec } from "./cli.js";
+import type { OpenSpecPort } from "../ports/openspec.js";
 
-let cached: string | null | undefined;
-
-/**
- * Version printed by `openspec --version`, or null when the binary is absent
- * or prints nothing recognisable. Cached for the lifetime of the process.
- */
-export function openspecVersion(cwd: string = process.cwd()): string | null {
-  if (cached !== undefined) return cached;
-  const run = runOpenspec(["--version"], cwd);
-  if (!run.ok) {
-    cached = null;
-    return cached;
-  }
-  const match = /\d+\.\d+\.\d+(?:-[0-9A-Za-z-.]+)?/.exec(run.stdout);
-  cached = match === null ? null : match[0];
-  return cached;
-}
-
-/** Only for tests: forget the cached version. */
-export function resetOpenspecVersionCache(): void {
-  cached = undefined;
+/** True when `openspec --version` answers with a version. */
+export async function openspecAvailable(openspec: OpenSpecPort): Promise<boolean> {
+  return (await openspec.version()) !== null;
 }
 
 function configuredRange(config: Record<string, unknown>): string {
@@ -43,8 +26,8 @@ function configuredRange(config: Record<string, unknown>): string {
  * Throws when `openspec` is missing or its version does not satisfy the range
  * in `warrant.json`; returns the exact version otherwise.
  */
-export function requireOpenspec(config: Record<string, unknown>, cwd: string = process.cwd()): string {
-  const version = openspecVersion(cwd);
+export async function requireOpenspec(openspec: OpenSpecPort, config: Record<string, unknown>): Promise<string> {
+  const version = await openspec.version();
   if (version === null) {
     throw new WarrantError(
       "OPENSPEC_FAILED",

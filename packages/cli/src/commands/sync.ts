@@ -10,13 +10,14 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { writeJsonFile } from "../core/canon/format-json.js";
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, type CliError } from "../core/errors.js";
 import { requireOpenspec } from "../core/openspec/version.js";
 import { loadConfig, loadPacks } from "../core/packs/loader.js";
 import { LOCK_REL } from "../core/packs/hash.js";
 import { planSync, type SyncPlan } from "../core/sync/plan.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
+import { requireConfigPath } from "./context.js";
 
 export interface SyncOptions {
   /** `--check`: report differences without touching the working tree. */
@@ -38,13 +39,14 @@ function payload(plan: SyncPlan, changed: string[]): Record<string, unknown> {
   };
 }
 
-export function runSync(opts: SyncOptions = {}, root: string = defaultRoot()): CommandResult {
+export async function runSync(ctx: Ctx, opts: SyncOptions = {}): Promise<CommandResult> {
+  const { root } = ctx;
   requireConfigPath(root);
 
   // The version gate runs before any other `openspec` call and before the
   // packs are loaded, so a wrong OpenSpec can never reach the generator.
   const config = loadConfig(root);
-  const openspecVersion = requireOpenspec(config, root);
+  const openspecVersion = await requireOpenspec(ctx.openspec, config);
 
   const loaded = loadPacks(root);
   if (loaded.errors.length > 0) {

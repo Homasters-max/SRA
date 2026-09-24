@@ -12,7 +12,7 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
-import { openspecAvailable } from "../../src/core/openspec/cli.js";
+import { openspecAvailable } from "../helpers/openspec.js";
 import { CORE_SDD_VERSION, runCli } from "../helpers/cli.js";
 
 interface GoldenRun {

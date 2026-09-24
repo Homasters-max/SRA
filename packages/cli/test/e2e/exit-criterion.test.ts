@@ -15,7 +15,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
+import { openspecAvailable, openspecSync } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 
 // `openspec` is slow to start, especially on Windows; the other e2e files use 120s.
@@ -35,7 +35,7 @@ describe.skipIf(!openspecAvailable())("phase-1 exit criterion", () => {
   it(
     "openspec init --tools none",
     async () => {
-      expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
+      expect(openspecSync(["init", "--tools", "none"], root).ok).toBe(true);
     },
     TIMEOUT
   );

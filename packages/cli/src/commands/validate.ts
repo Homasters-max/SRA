@@ -17,11 +17,11 @@
  */
 import path from "node:path";
 
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { walkFiles, loadPacks, reportPath } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
-import { openspecAvailable, runOpenspec } from "../core/openspec/cli.js";
-import { requireOpenspec } from "../core/openspec/version.js";
+import { openspecAvailable, requireOpenspec } from "../core/openspec/version.js";
 import { planSync } from "../core/sync/plan.js";
 import { checkLock, LOCK_REL } from "../core/packs/hash.js";
 import { checkIds } from "../core/ids/scan.js";
@@ -36,7 +36,7 @@ import { scanSecrets } from "../core/secrets.js";
 import { validateFile } from "../core/schemas/semantic.js";
 import { checkCanonical, isRawEvidencePath, SCHEMA_COPIES_PREFIX } from "../core/canon/files.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { projectRoot as defaultRoot, WARRANT_DIR } from "./context.js";
+import { WARRANT_DIR } from "./context.js";
 import { readFileSync } from "node:fs";
 
 function sortErrors(errors: CliError[]): CliError[] {
@@ -58,19 +58,15 @@ function sortErrors(errors: CliError[]): CliError[] {
  * they always run; only the version gate and `openspec schema validate` are
  * skipped when the binary is absent.
  */
-function checkGenerated(
-  root: string,
-  loaded: LoadResult,
-  skipped: string[],
-  warn: (text: string) => void
-): CliError[] {
+async function checkGenerated(ctx: Ctx, loaded: LoadResult, skipped: string[]): Promise<CliError[]> {
+  const { root, warn } = ctx;
   const errors: CliError[] = [];
-  const available = openspecAvailable();
+  const available = await openspecAvailable(ctx.openspec);
 
   let version: string | null = null;
   if (available) {
     try {
-      version = requireOpenspec(loaded.config, root);
+      version = await requireOpenspec(ctx.openspec, loaded.config);
     } catch (thrown) {
       errors.push(
         thrown instanceof WarrantError
@@ -105,12 +101,11 @@ function checkGenerated(
   }
 
   if (version !== null && plan.schema !== "") {
-    const run = runOpenspec(["schema", "validate", plan.schema, "--json"], root);
-    const valid = typeof run.json === "object" && run.json !== null ? (run.json as { valid?: unknown }).valid : undefined;
-    if (!run.ok || valid === false) {
+    const run = await ctx.openspec.schemaValidate(plan.schema);
+    if (!run.ok) {
       errors.push({
         code: "OPENSPEC_SCHEMA_INVALID",
-        message: `openspec rejected schema ${plan.schema}: ${(run.stderr || run.stdout).trim().split("\n")[0] ?? ""}`,
+        message: `openspec rejected schema ${plan.schema}: ${run.output.trim().split("\n")[0] ?? ""}`,
         path: `openspec/schemas/${plan.schema}/schema.yaml`
       });
     }
@@ -122,16 +117,8 @@ function checkGenerated(
   return errors;
 }
 
-/** Today as the UTC calendar date `YYYY-MM-DD`, the unit of `waiver.expires_at`. */
-function utcToday(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-export function runValidate(
-  root: string = defaultRoot(),
-  warn: (text: string) => void = (text) => process.stderr.write(text),
-  today: string = utcToday()
-): CommandResult {
+export async function runValidate(ctx: Ctx): Promise<CommandResult> {
+  const { root, warn } = ctx;
   const errors: CliError[] = [];
   const skipped: string[] = [];
 
@@ -168,11 +155,11 @@ export function runValidate(
   // A failed load already told the whole story; planning on top of it would
   // only repeat it, so the check is skipped without a second word.
   if (loaded.errors.length === 0) {
-    errors.push(...checkGenerated(root, loaded, skipped, warn));
+    errors.push(...(await checkGenerated(ctx, loaded, skipped)));
   }
 
   // Check (5): stable ids.
-  const ids = checkIds(root);
+  const ids = await checkIds(ctx);
   errors.push(...ids.errors);
   for (const file of ids.files) checkedFiles.add(file);
   if (ids.placementSkipped) {
@@ -197,7 +184,7 @@ export function runValidate(
 
   // Check (9): stable ids against HEAD (D-18).
   const records = readAllRecords(root);
-  const immutable = checkImmutableIds(root, records);
+  const immutable = await checkImmutableIds(ctx, records);
   errors.push(...immutable.errors);
   if (immutable.skipped !== undefined) {
     warn(`validate: check (9) stable ids against HEAD skipped: ${immutable.skipped}
@@ -208,7 +195,7 @@ export function runValidate(
   errors.push(...checkLinkTargets(records));
 
   // Check (11): waiver semantics; an expired ACTIVE waiver is a warning only.
-  const waivers = checkWaivers(root, loaded, records, today);
+  const waivers = checkWaivers(root, loaded, records, ctx.clock.today());
   errors.push(...waivers.errors);
   for (const line of waivers.warnings) warn(line);
 

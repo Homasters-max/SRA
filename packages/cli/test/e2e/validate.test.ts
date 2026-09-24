@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
 import { packContentHash } from "../../src/core/packs/hash.js";
-import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
+import { openspecAvailable, openspecSync } from "../helpers/openspec.js";
 import { CLI_VERSION } from "../../src/version.js";
 import { CLI_ROOT, CORE_SDD_RANGE, REPO_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 
@@ -59,7 +59,7 @@ async function project(packs: Record<string, string>, packsDir: string, synced =
     )
   });
   if (synced) {
-    if (!runOpenspec(["init", "--tools", "none"], root).ok) throw new Error("openspec init failed");
+    if (!openspecSync(["init", "--tools", "none"], root).ok) throw new Error("openspec init failed");
     const sync = await runCli(["sync"], root, { WARRANT_PACKS_DIR: packsDir });
     if (sync.status !== 0) throw new Error(`warrant sync failed: ${sync.stdout}${sync.stderr}`);
   }
@@ -242,7 +242,7 @@ describe("warrant validate: check (4) generated files", () => {
         openspec: "1.13.x",
         packs: { "core-sdd": { version: CORE_SDD_RANGE } }
       });
-      expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
+      expect(openspecSync(["init", "--tools", "none"], root).ok).toBe(true);
       expect((await runCli(["sync"], root)).status).toBe(0);
 
       const clean = await runCli(["validate"], root);
@@ -271,7 +271,7 @@ describe("warrant validate: check (4) generated files", () => {
         openspec: "1.13.x",
         packs: { "core-sdd": { version: CORE_SDD_RANGE } }
       });
-      expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
+      expect(openspecSync(["init", "--tools", "none"], root).ok).toBe(true);
       write(root, ".warrant/local/openspec/rules.json", {
         $schema: "warrant://openspec-rules/1",
         rules: { "no-such-artifact": ["nope"] }
@@ -292,8 +292,8 @@ describe("warrant validate: id placement", () => {
     "reports ID_PLACEMENT for a comment above its heading (SCN-KRN-046)",
     async () => {
       const root = await project({ base: "^1.0" }, FIXTURE_PACKS);
-      expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
-      expect(runOpenspec(["new", "change", "demo", "--schema", "spec-driven", "--json"], root).ok).toBe(true);
+      expect(openspecSync(["init", "--tools", "none"], root).ok).toBe(true);
+      expect(openspecSync(["new", "change", "demo", "--schema", "spec-driven", "--json"], root).ok).toBe(true);
 
       // `openspec show <change> --json` refuses a change without a proposal.
       write(

@@ -10,14 +10,14 @@
  */
 import { splitPaths } from "../core/check/placeholders.js";
 import { exitCodeOf } from "../core/controller/evaluate.js";
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type ExitCode } from "../core/errors.js";
 import { readGitFacts } from "../core/gates/diff.js";
-import { openspecAvailable } from "../core/openspec/cli.js";
 import { loadPacks } from "../core/packs/loader.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { checksForTransition, executeChecks } from "./check.js";
-import { projectRoot as defaultRoot, requireConfigPath } from "./context.js";
+import { requireConfigPath } from "./context.js";
 import {
   artifactStatuses,
   conflictDecision,
@@ -37,13 +37,8 @@ export interface VerifyOptions {
   paths?: string | undefined;
 }
 
-export async function runVerify(
-  change: string,
-  opts: VerifyOptions = {},
-  root: string = defaultRoot(),
-  env: NodeJS.ProcessEnv = process.env,
-  warn: (text: string) => void = (text) => process.stderr.write(text)
-): Promise<CommandResult> {
+export async function runVerify(ctx: Ctx, change: string, opts: VerifyOptions = {}, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
+  const { root } = ctx;
   requireConfigPath(root);
   const loaded = loadPacks(root);
   if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
@@ -67,28 +62,27 @@ export async function runVerify(
   if (paths !== undefined && paths.length === 0) throw new WarrantError("USAGE", "--paths lists no path");
 
   // One set of git facts for the checks and the gates: both speak of the same commit and base.
-  const git = readGitFacts(root, opts.base);
+  const git = await readGitFacts(ctx, opts.base);
   const run = await executeChecks({
-    root,
+    ctx,
     change,
     loaded,
     policy,
     selected: checksForTransition(loaded, policy, transition),
     facts: git,
     paths,
-    env,
-    warn
+    env
   });
 
-  const evaluation = evaluateTransition({
-    root,
+  const evaluation = await evaluateTransition({
+    ctx,
     change,
     record,
     loaded,
     policy,
     transition,
-    facts: projectFacts(root, git),
-    artifacts: artifactStatuses(root, change, openspecAvailable()),
+    facts: await projectFacts(ctx, git),
+    artifacts: await artifactStatuses(ctx, change),
     env,
     checkFailures: run.failures
   });

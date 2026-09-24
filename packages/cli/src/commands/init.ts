@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { writeJsonFile } from "../core/canon/format-json.js";
+import type { Ctx } from "../core/ctx.js";
 import { WarrantError } from "../core/errors.js";
 import {
   DEFAULT_PACK,
@@ -29,12 +30,10 @@ import {
   rulesDocument,
   schemaFromConfigYaml
 } from "../core/init/scaffold.js";
-import { runOpenspec } from "../core/openspec/cli.js";
-import { openspecVersion } from "../core/openspec/version.js";
 import { KERNEL_VERSION } from "../version.js";
 import { runSync } from "./sync.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { CONFIG_FILE, WARRANT_DIR, projectRoot as defaultRoot, requireConfigPath } from "./context.js";
+import { CONFIG_FILE, WARRANT_DIR, requireConfigPath } from "./context.js";
 
 export interface InitOptions {
   /** `--force`: rewrite the files `init` owns instead of keeping what is there. */
@@ -64,7 +63,8 @@ function makeWriter(root: string, force: boolean, created: string[]) {
 }
 
 /** `warrant init` — create the project skeleton, then sync. */
-export function runInit(opts: InitOptions = {}, root: string = defaultRoot()): CommandResult {
+export async function runInit(ctx: Ctx, opts: InitOptions = {}): Promise<CommandResult> {
+  const { root } = ctx;
   const force = opts.force === true;
   const configAbs = path.join(root, WARRANT_DIR, CONFIG_FILE);
 
@@ -78,7 +78,7 @@ export function runInit(opts: InitOptions = {}, root: string = defaultRoot()): C
 
   // The config records the OpenSpec version, so a missing binary is refused
   // before anything is written (decision I-16).
-  const version = openspecVersion(root);
+  const version = await ctx.openspec.version();
   if (version === null) {
     throw new WarrantError(
       "OPENSPEC_FAILED",
@@ -106,7 +106,7 @@ export function runInit(opts: InitOptions = {}, root: string = defaultRoot()): C
   }
 
   // Schema copies, the OpenSpec files and the lock are `sync`'s files.
-  const synced = runSync({}, root);
+  const synced = await runSync(ctx, {});
   const data: Record<string, unknown> = {
     created: [...created, ...((synced.data["changed"] as string[] | undefined) ?? [])],
     sync: synced.data
@@ -116,7 +116,8 @@ export function runInit(opts: InitOptions = {}, root: string = defaultRoot()): C
 }
 
 /** `warrant init change <name>` — reserve the name, then create the Change. */
-export function runInitChange(name: string | undefined, root: string = defaultRoot()): CommandResult {
+export async function runInitChange(ctx: Ctx, name: string | undefined): Promise<CommandResult> {
+  const { root } = ctx;
   requireConfigPath(root);
   if (name === undefined || !isChangeName(name)) {
     throw new WarrantError("USAGE", "usage: warrant init change <name>, where <name> is kebab-case");
@@ -142,9 +143,9 @@ export function runInitChange(name: string | undefined, root: string = defaultRo
     });
   }
 
-  const run = runOpenspec(["new", "change", name, "--schema", schema, "--json"], root);
+  const run = await ctx.openspec.newChange(name, schema);
   if (!run.ok) {
-    throw new WarrantError("OPENSPEC_FAILED", `openspec new change failed: ${(run.stderr || run.stdout).trim()}`, {
+    throw new WarrantError("OPENSPEC_FAILED", `openspec new change failed: ${run.output.trim()}`, {
       path: `openspec/changes/${name}`
     });
   }
@@ -158,9 +159,9 @@ export function runInitChange(name: string | undefined, root: string = defaultRo
 }
 
 /** Dispatcher for the `init` command: `warrant init` and `warrant init change <name>`. */
-export function runInitCommand(args: string[], opts: InitOptions = {}, root: string = defaultRoot()): CommandResult {
+export async function runInitCommand(ctx: Ctx, args: string[], opts: InitOptions = {}): Promise<CommandResult> {
   const what = args[0];
-  if (what === undefined) return runInit(opts, root);
-  if (what === "change") return runInitChange(args[1], root);
+  if (what === undefined) return runInit(ctx, opts);
+  if (what === "change") return runInitChange(ctx, args[1]);
   throw new WarrantError("USAGE", `unknown argument "${what}"; usage: warrant init [change <name>] [--force]`);
 }

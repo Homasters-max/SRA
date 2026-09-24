@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { openspecAvailable, runOpenspec } from "../../src/core/openspec/cli.js";
+import { openspecAvailable, openspecSync } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 import { installFakeOpenspec } from "../helpers/fake-openspec.js";
 
@@ -17,7 +17,7 @@ afterAll(() => {
 function project(init = true): string {
   const root = makeTempDir("warrant-init-");
   tempDirs.push(root);
-  if (init) expect(runOpenspec(["init", "--tools", "none"], root).ok).toBe(true);
+  if (init) expect(openspecSync(["init", "--tools", "none"], root).ok).toBe(true);
   return root;
 }
 

@@ -8,13 +8,14 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 
+import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { loadPacks } from "../core/packs/loader.js";
 import { readChangeRecord, readJsonFile } from "../core/record/read.js";
 import { resolveForProject, type Classification } from "../core/resolve/index.js";
 import { validateFile } from "../core/schemas/semantic.js";
 import { success, failures, type CommandResult } from "../io/output.js";
-import { projectRoot, requireConfigPath } from "./context.js";
+import { requireConfigPath } from "./context.js";
 
 export interface ResolveOptions {
   explain?: boolean;
@@ -56,11 +57,8 @@ function readClassificationFile(root: string, change: string, file: string): Cla
   return json as Classification;
 }
 
-export function runResolve(
-  change: string,
-  opts: ResolveOptions = {},
-  root: string = projectRoot()
-): CommandResult {
+export function runResolve(ctx: Ctx, change: string, opts: ResolveOptions = {}): CommandResult {
+  const { root } = ctx;
   requireConfigPath(root);
 
   const record = readChangeRecord(root, change);

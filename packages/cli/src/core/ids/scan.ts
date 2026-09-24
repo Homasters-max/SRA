@@ -10,6 +10,7 @@ import path from "node:path";
 
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
+import { posix } from "../fs.js";
 import { openspecAvailable } from "../openspec/version.js";
 
 /** Prefixes that use the `PREFIX-AREA-NNN` form (ADR-0012 point 1). */
@@ -47,10 +48,6 @@ export interface FoundId {
    * the same archive directory are still duplicates of each other.
    */
   archiveDir: string | null;
-}
-
-function posix(p: string): string {
-  return p.split(path.sep).join("/");
 }
 
 const ARCHIVE_RE = /^openspec\/changes\/archive\/([^/]+)\//;

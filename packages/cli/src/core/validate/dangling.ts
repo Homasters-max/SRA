@@ -16,8 +16,8 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 import type { CliError } from "../errors.js";
+import { reportPath, walkFiles } from "../fs.js";
 import type { FoundId } from "../ids/scan.js";
-import { reportPath, walkFiles } from "../packs/loader.js";
 
 /** Largest test file read by check (13). */
 export const MAX_TEXT_BYTES = 1024 * 1024;

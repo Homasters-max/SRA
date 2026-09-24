@@ -48,6 +48,7 @@ import type { Verdict } from "../core/gates/types.js";
 import { freshest } from "../core/gates/verdict.js";
 import { allocateUlid } from "../core/ids/allocate.js";
 import { findChangeDir } from "../core/init/scaffold.js";
+import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
@@ -107,10 +108,6 @@ export const REF_NOT_VERIFIED = "ref not verified (phase 4: warrant ci)";
 
 /** Verdicts a forward transition passes with (REQ-VER-007). */
 const PASSING: ReadonlySet<Verdict> = new Set<Verdict>(["PASS", "WAIVED", "NOT_APPLICABLE"]);
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /** Gates of an evaluation whose verdict does not let the transition through, sorted. */
 export function gatesNotPassed(gates: Record<string, Verdict>): string[] {

@@ -6,6 +6,7 @@
  * of the directory (old records are never removed, P-19), and `runs` and
  * `gates` are carried over untouched — `gates` belongs to `gate`/`verify`.
  */
+import { isPlainObject } from "../json.js";
 
 export interface ManifestVersions {
   warrant: string;
@@ -20,10 +21,6 @@ export interface ManifestInput {
   versions: ManifestVersions;
   /** Ids of every record in the directory. */
   evidence: string[];
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function buildManifest(previous: Record<string, unknown> | undefined, input: ManifestInput): Record<string, unknown> {

@@ -24,6 +24,7 @@ import { writeJsonFile } from "../core/canon/format-json.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { allocateWaiver } from "../core/ids/allocate.js";
+import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { assertNotFrozen } from "../core/record/write.js";
@@ -54,10 +55,6 @@ const WAIVER_ID_RE = /^WAV-[0-9]{4}-[0-9]{3}$/;
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 const CREATE_FLAGS = ["reason", "risk", "control", "owner", "expires"] as const;
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function waiverRel(id: string): string {
   return `.warrant/waivers/${id}.json`;

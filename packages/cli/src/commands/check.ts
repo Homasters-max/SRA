@@ -35,6 +35,7 @@ import { buildCheckRecord, collectArtifacts, type EvidenceStatus } from "../core
 import { evidenceDir, listRecordIds, MANIFEST_FILE, projectUri, rawDir, readManifest } from "../core/evidence/store.js";
 import { readGitFacts, type GitFacts } from "../core/gates/diff.js";
 import { allocateUlid } from "../core/ids/allocate.js";
+import { isPlainObject, strings } from "../core/json.js";
 import { LOCK_REL } from "../core/packs/hash.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult, PackObject } from "../core/packs/types.js";
@@ -57,14 +58,6 @@ export const DEFAULT_TIMEOUT_S = 1800;
 
 /** The forward chain of 04 §2; `ABANDONED` has no successor. */
 const FORWARD = ["PROPOSED", "SPECIFIED", "APPROVED", "IMPLEMENTING", "VERIFYING", "MERGED", "ARCHIVED"] as const;
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function strings(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
-}
 
 /** `<STATE>-><NEXT>` of the next forward transition, or null at the end of the chain. */
 export function nextForwardTransition(state: string): string | null {

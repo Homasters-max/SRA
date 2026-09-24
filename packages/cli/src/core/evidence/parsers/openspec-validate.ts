@@ -17,11 +17,8 @@
  * `metrics.issues` counts every issue of every item, warnings included; any
  * invalid item or any `ERROR` issue → NOT_PROVEN. No item at all → INCONCLUSIVE.
  */
+import { isPlainObject } from "../../json.js";
 import type { ParseResult } from "./types.js";
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /** The JSON body of the output; OpenSpec may print warnings before it. */
 function jsonBody(stdout: string): unknown {

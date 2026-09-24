@@ -9,14 +9,11 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { WarrantError, type CliError } from "../errors.js";
+import { posix } from "../fs.js";
 import { validateFile } from "../schemas/semantic.js";
 
 /** A change record, as stored. Key order is the file's own. */
 export type ChangeRecord = Record<string, unknown>;
-
-function posix(p: string): string {
-  return p.split(path.sep).join("/");
-}
 
 /** Reads and parses a JSON file, reporting both failures as `CONFIG_INVALID`. */
 export function readJsonFile(absolute: string, reported: string): unknown {

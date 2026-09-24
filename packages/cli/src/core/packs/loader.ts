@@ -11,16 +11,19 @@
  * Only a missing or unusable `warrant.json` throws, because nothing else can
  * proceed without it.
  */
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import semver from "semver";
 
 import { WarrantError, type CliError } from "../errors.js";
+import { readJson, reportPath, walkFiles } from "../fs.js";
+import { isPlainObject, strings } from "../json.js";
 import { validateFile } from "../schemas/semantic.js";
 import { parseSchemaUri } from "../schemas/registry.js";
 import { KERNEL_VERSION } from "../../version.js";
+import { weakenings } from "./overrides.js";
 import {
   PROVIDES_LISTS,
   PROVIDES_SINGLES,
@@ -52,36 +55,8 @@ export function bundledPacksDir(): string {
   return path.join(here, "..", "..", "..", "..", "..", "packs");
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** Path as it appears in `errors[].path`: relative to the project root, POSIX separators. */
-export function reportPath(absolute: string, projectRoot: string): string {
-  const rel = path.relative(projectRoot, absolute);
-  const chosen = rel.startsWith("..") || path.isAbsolute(rel) ? absolute : rel;
-  return chosen.split(path.sep).join("/");
-}
-
 function err(code: CliError["code"], message: string, p?: string): CliError {
   return p === undefined ? { code, message } : { code, message, path: p };
-}
-
-/** Reads and parses a JSON file, pushing a CONFIG_INVALID on unreadable or malformed content. */
-function readJson(absolute: string, reported: string, errors: CliError[]): unknown | undefined {
-  let text: string;
-  try {
-    text = readFileSync(absolute, "utf8");
-  } catch (cause) {
-    errors.push(err("CONFIG_INVALID", `cannot read file: ${(cause as Error).message}`, reported));
-    return undefined;
-  }
-  try {
-    return JSON.parse(text);
-  } catch (cause) {
-    errors.push(err("CONFIG_INVALID", `invalid JSON: ${(cause as Error).message}`, reported));
-    return undefined;
-  }
 }
 
 /** Validates one loaded document and records every violation. */
@@ -105,37 +80,6 @@ function satisfies(version: string, range: string): boolean {
   } catch {
     return false;
   }
-}
-
-/** Every file under `dir`, recursively, as absolute paths sorted by POSIX relative path. */
-export function walkFiles(dir: string, skip: (abs: string) => boolean = () => false): string[] {
-  const out: string[] = [];
-  const visit = (current: string): void => {
-    let entries: string[];
-    try {
-      entries = readdirSync(current);
-    } catch {
-      return;
-    }
-    for (const name of entries.sort()) {
-      const abs = path.join(current, name);
-      if (skip(abs)) continue;
-      let stat;
-      try {
-        stat = statSync(abs);
-      } catch {
-        continue;
-      }
-      if (stat.isDirectory()) {
-        if (name === "node_modules" || name === ".git") continue;
-        visit(abs);
-      } else if (stat.isFile()) {
-        out.push(abs);
-      }
-    }
-  };
-  visit(dir);
-  return out.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 /** Reads `.warrant/warrant.json`, throwing when it is missing or unusable (SCN-KRN-007). */
@@ -228,112 +172,6 @@ function objectId(json: unknown, filePath: string): string {
   return path.basename(filePath).replace(/\.json$/i, "");
 }
 
-const POLICY_KINDS: ReadonlySet<ObjectKind> = new Set<ObjectKind>(["profile", "overlay"]);
-
-function asStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
-}
-
-function missing(original: string[], override: string[]): string[] {
-  const have = new Set(override);
-  return original.filter((v) => !have.has(v));
-}
-
-/**
- * Strengthen-only composition (05 section 5, 08 section 4): an override may add,
- * never remove. Returns the names of everything the override dropped.
- */
-export function weakenings(kind: ObjectKind, original: unknown, override: unknown): string[] {
-  if (!isPlainObject(original) || !isPlainObject(override)) return [];
-  const lost: string[] = [];
-
-  if (POLICY_KINDS.has(kind)) {
-    const origArtifacts = isPlainObject(original["artifacts"]) ? original["artifacts"] : {};
-    const overArtifacts = isPlainObject(override["artifacts"]) ? override["artifacts"] : {};
-    for (const field of ["required", "forbidden"] as const) {
-      for (const item of missing(asStringArray(origArtifacts[field]), asStringArray(overArtifacts[field]))) {
-        lost.push(`artifacts.${field}: ${item}`);
-      }
-    }
-
-    const origGates = isPlainObject(original["gates"]) ? original["gates"] : {};
-    const overGates = isPlainObject(override["gates"]) ? override["gates"] : {};
-    for (const transition of Object.keys(origGates).sort()) {
-      if (transition === "$comment") continue;
-      const gone = missing(asStringArray(origGates[transition]), asStringArray(overGates[transition]));
-      for (const item of gone) lost.push(`gates.${transition}: ${item}`);
-    }
-
-    const origCaps = isPlainObject(original["capabilities"]) ? original["capabilities"] : {};
-    const overCaps = isPlainObject(override["capabilities"]) ? override["capabilities"] : {};
-    for (const item of missing(asStringArray(origCaps["forbidden"]), asStringArray(overCaps["forbidden"]))) {
-      lost.push(`capabilities.forbidden: ${item}`);
-    }
-
-    const origEvidence = isPlainObject(original["evidence"]) ? original["evidence"] : {};
-    const overEvidence = isPlainObject(override["evidence"]) ? override["evidence"] : {};
-    for (const item of missing(asStringArray(origEvidence["required"]), asStringArray(overEvidence["required"]))) {
-      lost.push(`evidence.required: ${item}`);
-    }
-
-    const key = (a: unknown): string =>
-      isPlainObject(a) ? `${String(a["role"])}@${String(a["at"])}` : JSON.stringify(a);
-    const origApprovals = Array.isArray(original["approvals"]) ? original["approvals"].map(key) : [];
-    const overApprovals = Array.isArray(override["approvals"]) ? override["approvals"].map(key) : [];
-    for (const item of missing(origApprovals, overApprovals)) lost.push(`approvals: ${item}`);
-  }
-
-  if (kind === "overlay") {
-    // `match` сужает область действия overlay: каждый его ключ — дополнительное
-    // условие, каждое значение внутри ключа — разрешённый вариант. Поэтому
-    // override не слабее только тогда, когда он не добавил ни одного ключа и
-    // не убрал ни одного значения у общего ключа (design Decision 7).
-    const origMatch = isPlainObject(original["match"]) ? original["match"] : {};
-    const overMatch = isPlainObject(override["match"]) ? override["match"] : {};
-    for (const key of Object.keys(overMatch).sort()) {
-      if (key === "$comment") continue;
-      const values = asStringArray(overMatch[key]);
-      if (!(key in origMatch)) {
-        for (const value of values) lost.push(`match.${key}: narrowed to ${value}`);
-        continue;
-      }
-      for (const value of missing(asStringArray(origMatch[key]), values)) {
-        lost.push(`match.${key}: ${value}`);
-      }
-    }
-  }
-
-  if (kind === "profile") {
-    // `extends` только добавляет слои, поэтому override должен быть надмножеством.
-    for (const item of missing(asStringArray(original["extends"]), asStringArray(override["extends"]))) {
-      lost.push(`extends: ${item}`);
-    }
-  }
-
-  if (kind === "gate") {
-    const evidenceKey = (e: unknown): string =>
-      isPlainObject(e) ? `${String(e["kind"])}/${String(e["status"])}` : JSON.stringify(e);
-    const orig = Array.isArray(original["requires_evidence"]) ? original["requires_evidence"].map(evidenceKey) : [];
-    const over = Array.isArray(override["requires_evidence"]) ? override["requires_evidence"].map(evidenceKey) : [];
-    for (const item of missing(orig, over)) lost.push(`requires_evidence: ${item}`);
-
-    if (original["waivable"] === false && override["waivable"] === true) {
-      lost.push("waivable: false -> true");
-    }
-
-    // `accepts_attestation` narrows what is accepted, so the override's list must
-    // be a subset of the original's; anything new widens it and weakens the gate.
-    if (Array.isArray(original["accepts_attestation"]) && Array.isArray(override["accepts_attestation"])) {
-      const allowed = new Set(asStringArray(original["accepts_attestation"]));
-      for (const item of asStringArray(override["accepts_attestation"])) {
-        if (!allowed.has(item)) lost.push(`accepts_attestation: ${item}`);
-      }
-    }
-  }
-
-  return lost;
-}
-
 interface Collected {
   objects: Map<string, PackObject>;
   rules: Map<string, LoadedRule>;
@@ -367,7 +205,7 @@ function addRule(json: unknown, pack: string, reported: string, collected: Colle
     id,
     pack,
     path: reported,
-    paths: asStringArray(json["paths"]),
+    paths: strings(json["paths"]),
     enforcedBy: typeof json["enforced_by"] === "string" ? json["enforced_by"] : undefined
   });
 }
@@ -427,7 +265,7 @@ function loadProvides(pack: LoadedPack, projectRoot: string, collected: Collecte
   if (!isPlainObject(provides)) return;
 
   for (const [key, kind] of Object.entries(PROVIDES_LISTS)) {
-    for (const rel of asStringArray(provides[key])) {
+    for (const rel of strings(provides[key])) {
       const absolute = path.join(pack.dir, rel);
       const reported = reportPath(absolute, projectRoot);
       files.push(reported);
@@ -456,7 +294,7 @@ function loadProvides(pack: LoadedPack, projectRoot: string, collected: Collecte
   }
 
   // Path rules (ADR-0022): validated like objects, but not overridable policy.
-  for (const rel of asStringArray(provides["rules"])) {
+  for (const rel of strings(provides["rules"])) {
     const absolute = path.join(pack.dir, rel);
     const reported = reportPath(absolute, projectRoot);
     files.push(reported);
@@ -498,7 +336,7 @@ function loadProvides(pack: LoadedPack, projectRoot: string, collected: Collecte
 
   // Templates and recipes have no kernel schema; only their presence is checked.
   for (const key of ["templates", "recipes"] as const) {
-    for (const rel of asStringArray(provides[key])) {
+    for (const rel of strings(provides[key])) {
       const absolute = path.join(pack.dir, rel);
       const reported = reportPath(absolute, projectRoot);
       if (!existsSync(absolute)) {

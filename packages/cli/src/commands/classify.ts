@@ -38,6 +38,7 @@ import {
 } from "../core/classify/index.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
+import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { readChangeRecord } from "../core/record/read.js";
@@ -127,10 +128,6 @@ function humanValues(loaded: LoadResult, sets: ReturnType<typeof parseSets>, log
   if (Object.keys(sets.risk).length > 0) human.risk = sets.risk;
   if (ref !== undefined) human.ref = ref;
   return human;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**

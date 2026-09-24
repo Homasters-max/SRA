@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import type { CliError } from "../errors.js";
-import { reportPath, walkFiles } from "../packs/loader.js";
+import { reportPath, walkFiles } from "../fs.js";
 import { canonicalText } from "./format-json.js";
 
 export const WARRANT_DIR = ".warrant";

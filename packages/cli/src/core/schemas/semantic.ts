@@ -6,14 +6,11 @@
 import { basename } from "node:path";
 
 import type { CliError } from "../errors.js";
+import { isPlainObject } from "../json.js";
 import { dedupeErrors, validateDocument, type Json, type ValidationResult } from "./loader.js";
 
 interface JsonObject {
   [key: string]: unknown;
-}
-
-function isPlainObject(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function withPath(code: CliError["code"], message: string, path: string): CliError {

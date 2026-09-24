@@ -13,6 +13,7 @@
  * must be able to format a file even when its schema says something we do not
  * model.
  */
+import { isPlainObject } from "../json.js";
 import { readSchemaFile, type Json } from "../schemas/loader.js";
 import { KERNEL_MAJOR, parseSchemaUri } from "../schemas/registry.js";
 
@@ -23,10 +24,6 @@ const LEADING_KEYS = ["$schema", "$comment"] as const;
 
 /** Guard against `$ref` cycles and pathologically deep documents. */
 const MAX_DEPTH = 64;
-
-function isPlainObject(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 let commonCache: JsonObject | null | undefined;
 

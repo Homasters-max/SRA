@@ -2,7 +2,8 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { loadPacks, weakenings } from "../../../src/core/packs/loader.js";
+import { loadPacks } from "../../../src/core/packs/loader.js";
+import { weakenings } from "../../../src/core/packs/overrides.js";
 import { CLI_ROOT, CORE_SDD_RANGE, makeTempDir, removeDir } from "../../helpers/cli.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");

@@ -46,6 +46,7 @@ import type {
 import { evaluateGates } from "../core/gates/verdict.js";
 import { checkAreas, checkDuplicates, loadAreas, scanIds } from "../core/ids/scan.js";
 import { findChangeDir } from "../core/init/scaffold.js";
+import { isPlainObject, strings } from "../core/json.js";
 import type { ArtifactStatuses } from "../core/openspec/status.js";
 import { openspecAvailable } from "../core/openspec/version.js";
 import { loadPacks } from "../core/packs/loader.js";
@@ -73,14 +74,6 @@ export const FORWARD_TRANSITIONS = [
   "VERIFYING->MERGED",
   "MERGED->ARCHIVED"
 ] as const;
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function strings(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
-}
 
 /** `--transition`, else the next forward transition; USAGE when there is none. */
 export function transitionOf(record: ChangeRecord, requested: string | undefined): string {

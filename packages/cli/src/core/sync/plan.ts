@@ -15,9 +15,10 @@ import semver from "semver";
 import { bytesHash } from "../canon/hash.js";
 import { canonicalText } from "../canon/format-json.js";
 import type { CliError } from "../errors.js";
+import { reportPath } from "../fs.js";
+import { isPlainObject } from "../json.js";
 import { emitYaml, type YamlObject, type YamlValue } from "../openspec/yaml-emit.js";
 import { bundleRoot, packContentHash, LOCK_REL } from "../packs/hash.js";
-import { reportPath } from "../packs/loader.js";
 import type { LoadResult, LoadedPack } from "../packs/types.js";
 import { ALL_SCHEMAS, KERNEL_MAJOR, schemaFileName } from "../schemas/registry.js";
 import { SCHEMAS_DIR } from "../schemas/loader.js";
@@ -73,16 +74,17 @@ export interface PlanInput {
   openspecVersion: string | null;
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function err(code: CliError["code"], message: string, p: string): CliError {
   return { code, message, path: p };
 }
 
-/** Reads a JSON file, returning undefined and recording the failure. */
-function readJson(absolute: string, reported: string, errors: CliError[]): unknown {
+/**
+ * Reads a JSON file, returning undefined and recording the failure as one
+ * `cannot read <path>: …` for both an unreadable and a malformed file. It
+ * differs from `readJson` of `core/fs.ts` (`cannot read file: …` /
+ * `invalid JSON: …`) on purpose: the `sync` messages stay unchanged (I-144).
+ */
+function readJsonCombinedError(absolute: string, reported: string, errors: CliError[]): unknown {
   try {
     return JSON.parse(readFileSync(absolute, "utf8"));
   } catch (cause) {
@@ -333,7 +335,7 @@ export function planSync(input: PlanInput): SyncPlan {
   const owner = providers[0] as LoadedPack;
   const schemaAbs = path.join(owner.dir, provided(owner, "openspec_schema") as string);
   const schemaRel = reportPath(schemaAbs, root);
-  const schemaJson = readJson(schemaAbs, schemaRel, errors);
+  const schemaJson = readJsonCombinedError(schemaAbs, schemaRel, errors);
   if (!isPlainObject(schemaJson)) {
     if (errors.length === 0) {
       errors.push(err("CONFIG_INVALID", "openspec schema source is not an object", schemaRel));
@@ -354,14 +356,14 @@ export function planSync(input: PlanInput): SyncPlan {
     if (rel === undefined) continue;
     const absolute = path.join(pack.dir, rel);
     const reported = reportPath(absolute, root);
-    const json = readJson(absolute, reported, errors);
+    const json = readJsonCombinedError(absolute, reported, errors);
     if (!isPlainObject(json)) continue;
     layers.push(json as OpenspecRules);
     layerPaths.push(reported);
   }
   const localRules = path.join(root, LOCAL_RULES_REL);
   if (existsSync(localRules)) {
-    const json = readJson(localRules, LOCAL_RULES_REL, errors);
+    const json = readJsonCombinedError(localRules, LOCAL_RULES_REL, errors);
     if (isPlainObject(json)) {
       layers.push(json as OpenspecRules);
       layerPaths.push(LOCAL_RULES_REL);

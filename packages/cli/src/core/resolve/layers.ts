@@ -10,6 +10,7 @@
  */
 import { canonicalHash } from "../canon/hash.js";
 import type { CliError } from "../errors.js";
+import { isPlainObject } from "../json.js";
 import type { LoadResult, PackObject } from "../packs/types.js";
 import { CLI_VERSION } from "../../version.js";
 import {
@@ -25,10 +26,6 @@ import {
 
 /** Pack id standing for the implicit project layer `.warrant/local/` (I-8). */
 const LOCAL_PACK = "local";
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function err(code: CliError["code"], message: string, path?: string): CliError {
   return path === undefined ? { code, message } : { code, message, path };

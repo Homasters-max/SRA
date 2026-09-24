@@ -10,7 +10,8 @@ import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { WarrantError } from "../errors.js";
-import { loadConfig, walkFiles } from "../packs/loader.js";
+import { posix, walkFiles } from "../fs.js";
+import { loadConfig } from "../packs/loader.js";
 import { scanIds } from "./scan.js";
 
 /** States after which a stable id may no longer move (ADR-0012 point 1). */
@@ -23,10 +24,6 @@ export interface RenumberResult {
   new: string;
   /** Project-relative POSIX paths of the files actually changed. */
   rewritten: string[];
-}
-
-function posix(p: string): string {
-  return p.split(path.sep).join("/");
 }
 
 /**

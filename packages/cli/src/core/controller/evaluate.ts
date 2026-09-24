@@ -18,6 +18,7 @@
  */
 import { EXIT, type ExitCode } from "../errors.js";
 import type { Finding } from "../gates/types.js";
+import { isPlainObject } from "../json.js";
 import type { LoadResult } from "../packs/types.js";
 import type { ControllerInputs } from "./inputs.js";
 
@@ -36,10 +37,6 @@ export interface ControllerDecision {
   rule: string | null;
   /** `CONTROLLER_RULE_IGNORED` for every rule skipped on the way (R-13); absent when none was. */
   findings?: Finding[];
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** Rules of every `controller-rules` object, packs in load order, the project layer last. */

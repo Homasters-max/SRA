@@ -29,6 +29,7 @@
  */
 import picomatch from "picomatch";
 
+import { isPlainObject, strings } from "../json.js";
 import { CALCULATORS, type L0Result } from "./l0/index.js";
 import { prefilter } from "./prefilter.js";
 import {
@@ -41,14 +42,6 @@ import {
   type Verdict
 } from "./types.js";
 import { waiverStatus, type WaiverContext, type WaiverIgnoredReason } from "./waivers.js";
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function strings(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
-}
 
 /** The worse of two verdicts in the order `FAIL` > `BLOCKED` > `WAIVED` > `NOT_APPLICABLE` > `PASS`. */
 export function worse(a: Verdict, b: Verdict): Verdict {

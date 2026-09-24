@@ -20,10 +20,10 @@
 
 ## 2. `core/fs`, `core/json` (A-3, A-4, A-5 — guard)
 
-- [ ] 2.1 `core/fs.ts` (`reportPath`, `walkFiles`, `readJson`, `posix`), `core/json.ts` (`isPlainObject`, `strings`); строки
+- [x] 2.1 `core/fs.ts` (`reportPath`, `walkFiles`, `readJson`, `posix`), `core/json.ts` (`isPlainObject`, `strings`); строки
   модулей в `architecture.json` (§4). Проверка: `cs impact` каждого символа — все места переведены; исключения `helper`
   A-5 и A-3 сняты.
-- [ ] 2.2 `weakenings` → `core/packs/overrides.ts`. Проверка: `cs deps packages/cli/src --level 2 --cycles --runtime` —
+- [x] 2.2 `weakenings` → `core/packs/overrides.ts`. Проверка: `cs deps packages/cli/src --level 2 --cycles --runtime` —
   цикла `core/canon ↔ core/packs` нет; исключение A-4 снято.
 
 ## 3. Владелец lifecycle и перечислений (A-1, A-13)

@@ -16,7 +16,7 @@ import path from "node:path";
 import { checkFile, canonicalTargets, WARRANT_DIR } from "../core/canon/files.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
-import { reportPath, walkFiles } from "../core/packs/loader.js";
+import { reportPath, walkFiles } from "../core/fs.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 
 export interface FmtOptions {

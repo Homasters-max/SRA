@@ -10,17 +10,14 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import type { CliError } from "../errors.js";
+import { reportPath, walkFiles } from "../fs.js";
 import { approverLogin } from "../gates/prefilter.js";
-import { reportPath, walkFiles } from "../packs/loader.js";
 import type { LoadResult } from "../packs/types.js";
 import type { RecordFile } from "../record/read.js";
 import { validateDocument } from "../schemas/loader.js";
+import { isPlainObject } from "../json.js";
 
 export const WAIVERS_DIR = path.join(".warrant", "waivers");
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /**
  * Logins named in `roles` of `warrant.json`: of the given roles only, or of

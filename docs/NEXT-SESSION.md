@@ -1,6 +1,6 @@
 ---
 id: WARRANT-NEXT
-title: WARRANT — следующий шаг: архитектурный аудит и grilling нарезки фазы 4 (MVP frontend Codex)
+title: WARRANT — следующий шаг: реализация ADR-0032 (контекст разработки), затем аудит и grilling нарезки фазы 4
 status: informative
 maturity: MVP
 version: 0.4.2
@@ -334,6 +334,20 @@ ADR-0020 п. 11), но добавляет входы (`guard`, `run`, `ci`, `ana
 | H-9 | ADR-0031 «`PreToolUse deny` у субагентов», `amends: [ADR-0029]` (п. 6); ветка `process/pretooluse-deny`, worktree `D:\project\SRA-pretooluse-deny`. Файлы: ADR-0031, ADR-0029 (`amended_by` + заметка у п. 6), `docs/adr/README.md`; `scripts/dev/graft-metrics-lib.js` (область кода, `blocked`), `cs-hook-lib.js` + `cs-hook.js` (`pre-tool`), `cs-lib.js` (`impact`), `bench/code-search.json` (q18); `.claude/settings.json` (`PreToolUse`), `test/unit/meta/dev-hooks.test.ts`, unit-тесты `test/unit/dev/`; навык `code-search`, `docs/process/coordinator.md`, `graft.md` §5; NEXT-SESSION (строки Graft в долге и хуков в «Процессных правилах»). Проверки: `npm test`, typecheck, `validate`/`fmt`/`sync --check`, `versions:check`; живой зонд `claude -p` с субагентом — deny срабатывает (как в ADR-0029) |
 
 ### Продолжение — готовый запрос
+
+**Сначала — process-PR ADR-0032** ([контекст разработки](adr/WARRANT-ADR-0032-dev-context.md), grilling 2026-09-24
+Q1–Q15): этот файл замораживается в `docs/archive/2026-09-24-next-session.md`, живое уходит в `docs/backlog.md`,
+`docs/process/rules.md`, `CLAUDE.md`, `packages/cli/CLAUDE.md` и `docs/handoff/phase-4.md` (запрос ниже), навыки — к
+стандарту п. 6, `brief.js` + хук `SessionStart`, мета-тест `dev-context.test.ts`; объём — ADR-0032 п. 12. Затем grilling
+`git-flow` и `archive-change`, затем — фаза 4 по запросу ниже.
+
+```text
+Реализуй ADR-0032 (docs/adr/WARRANT-ADR-0032-dev-context.md) одним process-PR от актуального main, ветка
+process/dev-context в отдельном worktree. Порядок — п. 12. Прежде чем удалять NEXT-SESSION, сверь извлечение: каждая
+открытая строка долга — в backlog.md, каждое правило таблицы «Процессные правила» — в rules.md, запрос фазы 4 — в
+docs/handoff/phase-4.md. Проверки — как в /group-done (typecheck, npm test, validate, fmt --check, sync --check).
+Глобальные ~/.claude/skills и профиль OpenSpec (глобальный конфиг) — менять только после подтверждения maintainer'а.
+```
 
 Process-PR ADR-0031 (`process/pretooluse-deny`) — смержить, если ещё не смержен; worktree `D:\project\SRA-pretooluse-deny`
 после merge удалить. Следующий шаг — фаза 4. Её grilling начинается с архитектурного аудита: снимок

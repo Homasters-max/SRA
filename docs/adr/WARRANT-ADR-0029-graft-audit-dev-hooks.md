@@ -5,12 +5,16 @@ adr_state: ACCEPTED
 date: 2026-09-24
 supersedes: []
 amends: [WARRANT-ADR-0028]
-amended_by: [WARRANT-ADR-0031]
+amended_by: [WARRANT-ADR-0031, WARRANT-ADR-0032]
 ---
 
 > Уточнено [ADR-0031](WARRANT-ADR-0031-pretooluse-deny.md): п. 6 — отступление, видимое по входу вызова субагента,
 > запрещается хуком `PreToolUse` (`deny`); `PostToolUse` остаётся предупреждением для видимого только по выводу; код для
 > детектора — `.ts`/`.js` под `packages/`, `scripts/` рабочего дерева WARRANT.
+>
+> Уточнено [ADR-0032](WARRANT-ADR-0032-dev-context.md) п. 11: команды хуков — белый список `dev-hooks.test.ts`
+> (`cs-hook.js`, `brief.js`); `SessionStart` ставится для состояния основной сессии (`brief.js`), для навыка
+> `code-search` — по-прежнему нет.
 
 ## Context
 

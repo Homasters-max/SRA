@@ -2,10 +2,14 @@
 
 ## Проблема
 
-- ADR-0032 п. 8 убирает `openspec-archive-change` и `openspec-sync-specs`: они архивируют мимо `warrant archive` и gates
-  `MERGED → ARCHIVED` (ADR-0011 п. 4). Им нужна замена — процедура `archive-change`.
+- `openspec-archive-change` и `openspec-sync-specs` удалены (ADR-0032 п. 8, PR #29): они архивировали мимо
+  `warrant archive` и gates `MERGED → ARCHIVED` (ADR-0011 п. 4). Замены-процедуры нет; сейчас держит только строка
+  `CLAUDE.md` «Закрыть Change — `warrant archive`, не `openspec archive`».
+- **BL-22:** перегенерированный `openspec-apply-change` (профиль custom, PR #30) в конце советует
+  `openspec archive "<name>"` (строка 157 навыка). Файл принадлежит OpenSpec (ADR-0015 п. 6), руками не правится.
 - Каждый Change проходит три PR (ADR-0011), и последовательность команд повторяется каждый раз. Сейчас она записана
-  прозой: «Как прошёл 6.5» (снимок NEXT-SESSION), память «Decision workflow» (шаги spec-PR), тексты коммитов прошлых
+  прозой: [архив NEXT-SESSION](../../archive/2026-09-24-next-session.md) — «Как прошёл 6.5», «Организационное», P-2, P-15,
+P-17, I-97; память «Decision workflow» (шаги spec-PR), тексты коммитов прошлых
   Changes. Пять Changes прошли её вручную: `phase-3-verification`, `phase-3b`, `test-levels`, `arch-boundaries`,
   частично `phase-2`.
 - Последовательность на практике (`arch-boundaries`, 2026-09-24):
@@ -58,6 +62,21 @@ maintainer'а из `roles`), активация waiver (`--activate --by`). Ос
 последний PR — archive-PR.
 
 ➡️ Шаг `change-archive-pr`: удалить файл потока или заменить его файлом следующего.
+
+❓ **A7 — Как нейтрализовать `openspec archive` (BL-22).** Навык OpenSpec советует обход, а строка `CLAUDE.md` — проза.
+Варианты:
+- (a) хук `PreToolUse` — `deny` на `openspec archive` в Bash и PowerShell, у основной сессии и субагентов, причина —
+  «`warrant archive <change>`, навык `change-archive-pr`» (сквозной X3);
+- (b) issue в OpenSpec: настраиваемая команда архивации;
+- (c) оставить строку `CLAUDE.md`.
+
+➡️ (a) сейчас (механизм вместо прозы, INV-04), (b) — параллельно, без ожидания. `warrant archive` вызывает
+`openspec archive` сам, из своего процесса, и хук его не видит.
+
+❓ **A8 — Проверка формы навыков PR.** В `dev-context.test.ts`: навык `change-archive-pr` содержит `warrant archive` и
+не содержит `openspec archive`; навыки `change-*` вызывают `warrant transition`, а не пишут record руками.
+
+➡️ Принять первую часть. Вторую (record руками) уже держит `validate` (ADR-0009).
 
 ## Вне объёма
 

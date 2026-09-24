@@ -2,8 +2,9 @@
  * Form of the test levels (ADR-0025 п. 1, 7): every test file lies in one of
  * the four level directories, each directory is exactly one vitest project,
  * only `src/adapters/**` of the CLI names a process module (п. 3, design §8),
- * and the `unit` level cannot start a process (п. 7a; the same guard for `app`
- * is `test/app/meta/spawn-guard.test.ts`).
+ * the `unit` level cannot start a process (п. 7a; the same guard for `app`
+ * is `test/app/meta/spawn-guard.test.ts`), and `contract`/`e2e` fail rather
+ * than skip without openspec 1.13.1 (п. 5).
  */
 import { spawn, spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
@@ -13,6 +14,8 @@ import { describe, expect, it } from "vitest";
 
 import config, { LEVELS } from "../../../vitest.config.js";
 import { CLI_ROOT, makeTempDir, removeDir, runCli } from "../../helpers/cli.js";
+import { OPENSPEC_VERSION } from "../../helpers/openspec.js";
+import { openspecVersionProblem } from "../../helpers/require-openspec.js";
 
 const TEST_ROOT = path.join(CLI_ROOT, "test");
 
@@ -36,6 +39,31 @@ describe("test levels: layout (ADR-0025 п. 1, 7c)", () => {
   it("each level is one vitest project over its own directory", () => {
     const projects = (config.test?.projects ?? []) as { test: { name: string; include: string[] } }[];
     expect(projects.map((p) => [p.test.name, p.test.include])).toEqual(LEVELS.map((level) => [level, [`test/${level}/**/*.test.ts`]]));
+  });
+});
+
+describe("contract and e2e need openspec 1.13.1, they are not skipped without it (ADR-0025 п. 5)", () => {
+  it("contract and e2e, and only they, check the version in globalSetup", () => {
+    const projects = (config.test?.projects ?? []) as { test: { name: string; globalSetup?: string[] } }[];
+    expect(projects.map((p) => [p.test.name, p.test.globalSetup ?? []])).toEqual([
+      ["unit", []],
+      ["app", []],
+      ["contract", ["test/helpers/require-openspec.ts"]],
+      ["e2e", ["test/helpers/require-openspec.ts"]]
+    ]);
+  });
+
+  it("no test is skipped for want of openspec", () => {
+    const skipping = testFiles().filter((file) =>
+      /skipIf\([^)]*openspec/i.test(readFileSync(path.join(TEST_ROOT, ...file.split("/")), "utf8"))
+    );
+    expect(skipping, "a missing or wrong openspec fails the run in globalSetup; skipIf would hide the contract").toEqual([]);
+  });
+
+  it("the version check names what it found and what to install", () => {
+    expect(openspecVersionProblem(`${OPENSPEC_VERSION}\n`)).toBeNull();
+    expect(openspecVersionProblem(null)).toMatch(new RegExp(`need openspec ${OPENSPEC_VERSION}.*no \`openspec\` on PATH`));
+    expect(openspecVersionProblem("1.14.0\n")).toMatch(/found openspec 1\.14\.0 on PATH; install it with `npm i -g @fission-ai\/openspec@1\.13\.1`/);
   });
 });
 

@@ -9,7 +9,7 @@ import { afterAll, beforeAll } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
 import { packContentHash } from "../../src/core/packs/hash.js";
-import { openspecAvailable, openspecSync } from "./openspec.js";
+import { openspecSync } from "./openspec.js";
 import { CLI_VERSION } from "../../src/version.js";
 import { CORE_SDD_RANGE, CORE_SDD_VERSION, REPO_ROOT, makeTempDir, removeDir, runCli, type CliRun } from "./cli.js";
 
@@ -46,14 +46,13 @@ export function findError(run: CliRun, code: string): { code: string; message: s
 
 /**
  * Registers the hooks and returns `project()`, which copies the synced base.
- * Nothing is built when `openspec` is not on PATH; callers skip their suites.
+ * `openspec` 1.13.1 on PATH is guaranteed by the `globalSetup` of `e2e` (ADR-0025 п. 5).
  */
 export function useSyncedProject(): () => string {
   const tempDirs: string[] = [];
   let base = "";
 
   beforeAll(async () => {
-    if (!openspecAvailable()) return;
     base = makeTempDir("warrant-e2e-synced-base-");
     tempDirs.push(base);
     write(base, ".warrant/warrant.json", {

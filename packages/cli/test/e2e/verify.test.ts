@@ -8,12 +8,10 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { openspecAvailable } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 import { PATH_KEY, pathWithFake, writeFakeOpenspec } from "../helpers/fake-openspec.js";
 import { PACKS, record, useSyncedProject, validate, write } from "../helpers/synced.js";
 
-const hasOpenspec = openspecAvailable();
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
 
@@ -58,7 +56,7 @@ function repo(state = "PROPOSED"): string {
   return root;
 }
 
-describe.skipIf(!hasOpenspec || !hasGit)("warrant verify", () => {
+describe.skipIf(!hasGit)("warrant verify", () => {
   it("runs openspec-validate, then the gates and the controller: all PASS, CONTINUE, exit 0 (SCN-VER-027)", async () => {
     const root = repo();
     const log = path.join(temp("warrant-verify-log-"), "argv.jsonl");
@@ -120,7 +118,7 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant verify", () => {
   }, 120_000);
 });
 
-describe.skipIf(!hasOpenspec || !hasGit)("warrant status: verification", () => {
+describe.skipIf(!hasGit)("warrant status: verification", () => {
   it("judges the next transition by recorded evidence and runs no check (SCN-KRN-101)", async () => {
     const root = repo();
     const before = await runCli(["status", "add-search"], root, env());

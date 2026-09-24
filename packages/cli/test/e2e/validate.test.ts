@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
 import { packContentHash } from "../../src/core/packs/hash.js";
-import { openspecAvailable, openspecSync } from "../helpers/openspec.js";
+import { openspecSync } from "../helpers/openspec.js";
 import { CLI_VERSION } from "../../src/version.js";
 import { CLI_ROOT, CORE_SDD_RANGE, REPO_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 
@@ -67,7 +67,7 @@ async function project(packs: Record<string, string>, packsDir: string, synced =
 }
 
 describe("warrant validate", () => {
-  it.skipIf(!openspecAvailable())(
+  it(
     "accepts a synced project using the bundled pack core-sdd (SCN-KRN-043)",
     async () => {
       const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"), true);
@@ -84,7 +84,7 @@ describe("warrant validate", () => {
     60_000
   );
 
-  it.skipIf(!openspecAvailable())(
+  it(
     "validates every file of packs/core-sdd against its own schema",
     async () => {
       const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"), true);
@@ -231,7 +231,7 @@ describe("warrant validate", () => {
 });
 
 describe("warrant validate: check (4) generated files", () => {
-  it.skipIf(!openspecAvailable())(
+  it(
     "passes on a synced project and reports GENERATED_DRIFT once config.yaml is edited (SCN-KRN-045)",
     async () => {
       const root = makeTempDir("warrant-e2e-gen-");
@@ -260,7 +260,7 @@ describe("warrant validate: check (4) generated files", () => {
     60_000
   );
 
-  it.skipIf(!openspecAvailable())(
+  it(
     "reports RULES_ARTIFACT_UNKNOWN for a rules key that is not an artifact of the schema",
     async () => {
       const root = makeTempDir("warrant-e2e-rules-");
@@ -288,7 +288,7 @@ describe("warrant validate: check (4) generated files", () => {
 });
 
 describe("warrant validate: id placement", () => {
-  it.skipIf(!openspecAvailable())(
+  it(
     "reports ID_PLACEMENT for a comment above its heading (SCN-KRN-046)",
     async () => {
       const root = await project({ base: "^1.0" }, FIXTURE_PACKS);
@@ -486,7 +486,7 @@ describe("warrant validate: a pack directory is never a project layer (B2)", () 
     expect(JSON.stringify(resolved.json)).not.toContain("loud-artifact");
   });
 
-  it.skipIf(!openspecAvailable())(
+  it(
     "still reads a local directory that carries no pack.json",
     async () => {
       const root = await project({ "core-sdd": CORE_SDD_RANGE }, path.join(REPO_ROOT, "packs"), true);

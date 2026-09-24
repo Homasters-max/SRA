@@ -21,8 +21,8 @@ export interface OpenSpecPort {
   listSpecs(): Promise<string[]>;
   /**
    * `openspec show <change> --json`: the text of every requirement and
-   * scenario OpenSpec parsed (`text`, `rawText`), in the order it printed them;
-   * empty when the call fails.
+   * scenario OpenSpec parsed (`text`, `rawText`), in the order it printed them,
+   * each distinct text once; empty when the call fails.
    */
   showChange(name: string): Promise<string[]>;
   /** `openspec show <spec> --type spec --json`, as {@link showChange}. */

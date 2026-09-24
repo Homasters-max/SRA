@@ -2,12 +2,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { openspecAvailable, openspecSync } from "../helpers/openspec.js";
+import { openspecSync } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 import { installFakeOpenspec } from "../helpers/fake-openspec.js";
 
 const tempDirs: string[] = [];
-const hasOpenspec = openspecAvailable();
 
 afterAll(() => {
   for (const dir of tempDirs) removeDir(dir);
@@ -38,7 +37,7 @@ function fakeOpenspec(marker: string): string {
 }
 
 describe("warrant init", () => {
-  it.skipIf(!hasOpenspec)(
+  it(
     "creates the project skeleton and leaves it valid (SCN-KRN-042, SCN-KRN-052)",
     async () => {
       const root = project();
@@ -101,7 +100,7 @@ describe("warrant init", () => {
     expect(existsSync(marker)).toBe(false);
   });
 
-  it.skipIf(!hasOpenspec)(
+  it(
     "rewrites the files it owns with --force (SCN-KRN-053)",
     async () => {
       const root = project();
@@ -139,7 +138,7 @@ describe("warrant init", () => {
 });
 
 describe("warrant init change", () => {
-  it.skipIf(!hasOpenspec)(
+  it(
     "creates the OpenSpec change and a PROPOSED record (SCN-KRN-054)",
     async () => {
       const root = project();

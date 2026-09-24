@@ -6,13 +6,12 @@ import { parse, parseDocument } from "yaml";
 import { canonicalText } from "../../src/core/canon/format-json.js";
 import { bytesHash } from "../../src/core/canon/hash.js";
 import { GENERATED_MARKER } from "../../src/core/openspec/yaml-emit.js";
-import { openspecAvailable, openspecSync } from "../helpers/openspec.js";
+import { openspecSync } from "../helpers/openspec.js";
 import { CLI_ROOT, CORE_SDD_RANGE, REPO_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 import { installFakeOpenspec } from "../helpers/fake-openspec.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const tempDirs: string[] = [];
-const hasOpenspec = openspecAvailable();
 
 afterAll(() => {
   for (const dir of tempDirs) removeDir(dir);
@@ -47,7 +46,7 @@ function hashes(root: string, paths: string[]): Record<string, string> {
 const PATH_KEY = Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
 
 describe("warrant sync", () => {
-  it.skipIf(!hasOpenspec)(
+  it(
     "generates config.yaml, schema.yaml and templates that openspec accepts (SCN-KRN-063)",
     async () => {
       const root = project();
@@ -74,7 +73,7 @@ describe("warrant sync", () => {
     60_000
   );
 
-  it.skipIf(!hasOpenspec)(
+  it(
     "changes no byte on a second run (SCN-KRN-061)",
     async () => {
       const root = project();
@@ -95,7 +94,7 @@ describe("warrant sync", () => {
     60_000
   );
 
-  it.skipIf(!hasOpenspec)(
+  it(
     "--check reports GENERATED_DRIFT with exit code 1 after config.yaml is edited",
     async () => {
       const root = project();
@@ -116,7 +115,7 @@ describe("warrant sync", () => {
     60_000
   );
 
-  it.skipIf(!hasOpenspec)(
+  it(
     "merges the project rules layer into config.yaml (SCN-KRN-062)",
     async () => {
       const root = project();
@@ -143,7 +142,7 @@ describe("warrant sync", () => {
     60_000
   );
 
-  it.skipIf(!hasOpenspec)(
+  it(
     "writes nothing when a pack is missing (SCN-KRN-064)",
     async () => {
       const root = project({ "bdd-tdd": "^0.1" });
@@ -158,7 +157,7 @@ describe("warrant sync", () => {
     60_000
   );
 
-  it.skipIf(!hasOpenspec)(
+  it(
     "reports CONFIG_INVALID when no enabled pack provides an OpenSpec schema",
     async () => {
       const root = project({ base: "^1.0" });
@@ -187,7 +186,7 @@ describe("warrant sync", () => {
     expect(existsSync(path.join(root, ".warrant", "warrant.lock.json"))).toBe(false);
   });
 
-  it.skipIf(!hasOpenspec)(
+  it(
     "leaves a synced project fully valid (SCN-KRN-042 without init)",
     async () => {
       const root = project();
@@ -224,7 +223,7 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
 
   const SKILL_REL = "sra/skills/specification/adversarial-review/SKILL.md";
 
-  it.skipIf(!hasOpenspec)(
+  it(
     "records version, path and hash of every declared skill (SCN-SDD-013)",
     async () => {
       const root = monorepo();
@@ -245,7 +244,7 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
     120_000
   );
 
-  it.skipIf(!hasOpenspec)(
+  it(
     "reports LOCK_MISMATCH with the skill path after one edited line (SCN-SDD-014)",
     async () => {
       const root = monorepo();
@@ -265,7 +264,7 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
     120_000
   );
 
-  it.skipIf(!hasOpenspec)(
+  it(
     "reports CONFIG_INVALID when the skill on disk is outside the declared range",
     async () => {
       const root = monorepo();
@@ -302,7 +301,7 @@ describe("warrant sync: a skill that ships with the CLI outside the project (I-5
     return { root: project(), bundle };
   }
 
-  it.skipIf(!hasOpenspec)(
+  it(
     "locks the skill with source bundled and a bundle-relative path, and validate checks its hash (SCN-KRN-087)",
     async () => {
       const { root, bundle } = layout();
@@ -335,7 +334,7 @@ describe("warrant sync: a skill that ships with the CLI outside the project (I-5
 });
 
 describe("warrant sync: YAML scalars that are not strings (B5)", () => {
-  it.skipIf(!hasOpenspec)(
+  it(
     "quotes keys and values a YAML reader would not keep as strings (SCN-KRN-100)",
     async () => {
       const root = makeTempDir("warrant-yaml-");

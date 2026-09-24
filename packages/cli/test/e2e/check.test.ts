@@ -15,12 +15,10 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { bytesHash } from "../../src/core/canon/hash.js";
-import { openspecAvailable } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli, type CliRun } from "../helpers/cli.js";
 import { installFakeOpenspec } from "../helpers/fake-openspec.js";
 import { PACKS, record, useSyncedProject, validate, write } from "../helpers/synced.js";
 
-const hasOpenspec = openspecAvailable();
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
 
@@ -165,7 +163,7 @@ async function waitDead(pid: number, ms = 10_000): Promise<boolean> {
   return !alive(pid);
 }
 
-describe.skipIf(!hasOpenspec || !hasGit)("warrant check", () => {
+describe.skipIf(!hasGit)("warrant check", () => {
   it("writes a local spec-report record and a manifest that pass validate (SCN-VER-001, SCN-VER-005)", async () => {
     const root = repo();
     const log = path.join(temp("warrant-check-log-"), "argv.json");
@@ -463,7 +461,7 @@ describe.skipIf(!hasOpenspec || !hasGit)("warrant check", () => {
   }, 60_000);
 });
 
-describe.skipIf(!hasOpenspec)("warrant check outside git", () => {
+describe("warrant check outside git", () => {
   it("records commit nogit with a limitation and locks .warrant/check.lock with a warning", async () => {
     const root = project();
     write(root, ".warrant/changes/add-search.json", record("add-search", "PROPOSED"));

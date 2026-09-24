@@ -1,14 +1,17 @@
 /**
  * The real `openspec` for setting up e2e projects (`openspec init`, a first
- * Change) and for the skip guard of tests that need it. Not a port: the CLI
- * reaches OpenSpec only through `adapters/openspec-cli.ts`. Synchronous, as the
- * setup it serves; `contract`/`e2e` only (processes are forbidden in
- * `unit`/`app`). The skip guard goes away with task 4.3 (ADR-0025 п. 5).
+ * Change) and for the version check of `contract`/`e2e` (`require-openspec.ts`).
+ * Not a port: the CLI reaches OpenSpec only through `adapters/openspec-cli.ts`.
+ * Synchronous, as the setup it serves; `contract`/`e2e` only (processes are
+ * forbidden in `unit`/`app`).
  */
 import spawnCjs from "cross-spawn";
 
 // `cross-spawn` is CommonJS with `export =`; on Windows `openspec` is a `.cmd` shim.
 const spawn = spawnCjs as unknown as typeof import("cross-spawn");
+
+/** The OpenSpec version `contract`/`e2e` require and the fakes answer (ADR-0015). */
+export const OPENSPEC_VERSION = "1.13.1";
 
 export interface OpenspecSyncRun {
   ok: boolean;
@@ -30,12 +33,4 @@ export function openspecSync(args: string[], cwd: string): OpenspecSyncRun {
   } catch {
     return { ok: true, stdout, stderr, json: undefined };
   }
-}
-
-let availability: boolean | undefined;
-
-/** True when `openspec --version` runs. Cached per test file. */
-export function openspecAvailable(): boolean {
-  availability ??= openspecSync(["--version"], process.cwd()).ok;
-  return availability;
 }

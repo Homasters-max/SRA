@@ -60,9 +60,9 @@ function act(result: OpenspecRun, ok: boolean = result.ok): OpenspecAct {
 }
 
 /** Every `text` / `rawText` string of a `show` body, depth first, in print order. */
-function shownTexts(node: unknown, into: string[] = []): string[] {
+function collectTexts(node: unknown, into: string[] = []): string[] {
   if (Array.isArray(node)) {
-    for (const item of node) shownTexts(item, into);
+    for (const item of node) collectTexts(item, into);
     return into;
   }
   if (!isObject(node)) return into;
@@ -70,8 +70,17 @@ function shownTexts(node: unknown, into: string[] = []): string[] {
     const value = node[key];
     if (typeof value === "string") into.push(value);
   }
-  for (const value of Object.values(node)) shownTexts(value, into);
+  for (const value of Object.values(node)) collectTexts(value, into);
   return into;
+}
+
+/**
+ * The texts of a `show` body, each once: a change prints every delta's
+ * requirement twice (`requirement` and `requirements[]`), which carries nothing
+ * a set of texts does not; the fake answers the same (I-129).
+ */
+function shownTexts(node: unknown): string[] {
+  return [...new Set(collectTexts(node))];
 }
 
 export class OpenSpecCli implements OpenSpecPort {

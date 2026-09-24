@@ -12,12 +12,10 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
-import { openspecAvailable } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli, type CliRun } from "../helpers/cli.js";
 import { PATH_KEY, pathWithFake, writeFakeOpenspec } from "../helpers/fake-openspec.js";
 import { PACKS, record, useSyncedProject, validate, write } from "../helpers/synced.js";
 
-const hasOpenspec = openspecAvailable();
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
 
@@ -117,7 +115,7 @@ const PROPOSE = [
   EXPIRES
 ];
 
-describe.skipIf(!hasOpenspec || !hasGit)("warrant waive", () => {
+describe.skipIf(!hasGit)("warrant waive", () => {
   it("proposes WAV-<year>-005 after 001 and 004: PROPOSED, no approved_by, gate still BLOCKED (SCN-KRN-121)", async () => {
     const root = repo();
     const run = await waive(root, ...PROPOSE);

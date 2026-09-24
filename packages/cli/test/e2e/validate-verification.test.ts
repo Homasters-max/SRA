@@ -8,14 +8,12 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { openspecAvailable } from "../helpers/openspec.js";
 import { runCli } from "../helpers/cli.js";
 import { codes, findError, PACKS, record, useSyncedProject, validate, write } from "../helpers/synced.js";
 
-const hasOpenspec = openspecAvailable();
 const project = useSyncedProject();
 
-describe.skipIf(!hasOpenspec)("warrant validate (8): path rules", () => {
+describe("warrant validate (8): path rules", () => {
   it("reports RULE_SCOPE for a rule confined to openspec/changes/**, and passes a rule on ** (SCN-KRN-095)", async () => {
     const root = project();
     write(root, ".warrant/local/rules/spec-style.json", {
@@ -54,7 +52,7 @@ describe.skipIf(!hasOpenspec)("warrant validate (8): path rules", () => {
   }, 60_000);
 });
 
-describe.skipIf(!hasOpenspec)("warrant validate (10): targets of amends and supersedes", () => {
+describe("warrant validate (10): targets of amends and supersedes", () => {
   it("reports LINK_TARGET_INVALID for an amends target that is not MERGED (SCN-KRN-098)", async () => {
     const root = project();
     write(root, ".warrant/changes/add-search.json", record("add-search", "SPECIFIED"));
@@ -85,7 +83,7 @@ describe.skipIf(!hasOpenspec)("warrant validate (10): targets of amends and supe
   }, 60_000);
 });
 
-describe.skipIf(!hasOpenspec)("warrant validate (11): waivers", () => {
+describe("warrant validate (11): waivers", () => {
   function waiver(extra: Record<string, unknown>): Record<string, unknown> {
     return {
       $schema: "warrant://waiver/1",
@@ -174,7 +172,7 @@ describe.skipIf(!hasOpenspec)("warrant validate (11): waivers", () => {
   }, 60_000);
 });
 
-describe.skipIf(!hasOpenspec)("warrant validate (12): evidence records and manifests", () => {
+describe("warrant validate (12): evidence records and manifests", () => {
   const ID_A = "EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1A3";
   const ID_B = "EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1B4";
   const DIR = ".warrant/evidence/add-search";
@@ -296,7 +294,7 @@ describe.skipIf(!hasOpenspec)("warrant validate (12): evidence records and manif
   }, 60_000);
 });
 
-describe.skipIf(!hasOpenspec)("warrant validate (13): dangling REQ/SCN references", () => {
+describe("warrant validate (13): dangling REQ/SCN references", () => {
   const SEARCH_DELTA = `## ADDED Requirements
 
 ### Requirement: Search

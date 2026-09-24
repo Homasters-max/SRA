@@ -8,11 +8,9 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
-import { openspecAvailable } from "../helpers/openspec.js";
 import { runCli, type CliRun } from "../helpers/cli.js";
 import { PACKS, record, useSyncedProject, validate, write } from "../helpers/synced.js";
 
-const hasOpenspec = openspecAvailable();
 const project = useSyncedProject();
 
 function link(root: string, ...args: string[]): Promise<CliRun> {
@@ -31,7 +29,7 @@ function linked(state: string, target: string, extra: Record<string, unknown> = 
   return root;
 }
 
-describe.skipIf(!hasOpenspec)("warrant link", () => {
+describe("warrant link", () => {
   it("adds an ARCHIVED target to amends[] once and status of the target shows amended_by (SCN-KRN-118)", async () => {
     const root = linked("PROPOSED", "ARCHIVED");
 

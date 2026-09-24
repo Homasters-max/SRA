@@ -8,10 +8,8 @@ import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { openspecAvailable } from "../helpers/openspec.js";
 import { codes, findError, record, useSyncedProject, validate, write } from "../helpers/synced.js";
 
-const hasOpenspec = openspecAvailable();
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
 
@@ -58,7 +56,7 @@ The system SHALL find records by name.
 - **THEN** nothing is returned
 `;
 
-describe.skipIf(!hasOpenspec || !hasGit)("warrant validate (9): stable ids against HEAD", () => {
+describe.skipIf(!hasGit)("warrant validate (9): stable ids against HEAD", () => {
   /** The synced project as a git repository with specs and one change committed. */
   function committed(state: string): string {
     const root = project();

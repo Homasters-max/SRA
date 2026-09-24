@@ -14,11 +14,9 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { openspecAvailable } from "../helpers/openspec.js";
 import { removeDir, runCli, type CliRun } from "../helpers/cli.js";
 import { PACKS, record, useSyncedProject, validate, write } from "../helpers/synced.js";
 
-const hasOpenspec = openspecAvailable();
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
 const RECORD = ".warrant/changes/add-search.json";
@@ -115,7 +113,7 @@ function repo(state: string, spec = SPEC_VALID): string {
   return root;
 }
 
-describe.skipIf(!hasOpenspec || !hasGit)("warrant archive", () => {
+describe.skipIf(!hasGit)("warrant archive", () => {
   it("validates, gates, archives through OpenSpec and records ARCHIVED (SCN-VER-036)", async () => {
     const root = repo("MERGED");
     const run = await cli(root, ["archive", "add-search"]);

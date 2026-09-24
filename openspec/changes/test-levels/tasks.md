@@ -26,9 +26,9 @@ maintainer'у, принятые — строкой I-N (с I-117) в design.md. 
 
 ## 4. Фейки, ProjectBuilder, контракт соответствия
 
-- [ ] 4.1 `FakeOpenSpec`, `FakeGit`, `FakeCheckRunner`, `FakeClock` (§5). Проверка: unit-тесты фейков (модель, журнал, внедрение отказов).
-- [ ] 4.2 `ProjectBuilder` (§6) с методами, нужными первым переносимым файлам (`waive`, `transition`, `gate`). Проверка: `synced()` даёт те же сгенерированные файлы, что `warrant sync` в e2e (сравнение с `useSyncedProject`).
-- [ ] 4.3 Контракт соответствия (§7): `openspec`, `git`, `checks` — `describe.each([real, fake])`; `globalSetup` `contract`/`e2e` требует openspec 1.13.1; `skipIf(!openspecAvailable())` удалён. Проверка: намеренно испорченный ответ фейка роняет контракт; без openspec на PATH `contract` падает с сообщением о версии.
+- [x] 4.1 `FakeOpenSpec`, `FakeGit`, `FakeCheckRunner`, `FakeClock` (§5). Проверка: unit-тесты фейков (модель, журнал, внедрение отказов).
+- [x] 4.2 `ProjectBuilder` (§6) с методами, нужными первым переносимым файлам (`waive`, `transition`, `gate`). Проверка: `synced()` даёт те же сгенерированные файлы, что `warrant sync` в e2e (сравнение с `useSyncedProject`).
+- [x] 4.3 Контракт соответствия (§7): `openspec`, `git`, `checks` — `describe.each([real, fake])`; `globalSetup` `contract`/`e2e` требует openspec 1.13.1; `skipIf(!openspecAvailable())` удалён. Проверка: намеренно испорченный ответ фейка роняет контракт; без openspec на PATH `contract` падает с сообщением о версии.
 
 ## 5. Перенос тестов
 

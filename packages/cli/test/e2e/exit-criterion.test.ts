@@ -11,11 +11,11 @@
  *   warrant fmt --check   -> clean
  *   warrant sync --check  -> clean
  *
- * The whole suite is skipped when `openspec` is not installed.
+ * `openspec` 1.13.1 on PATH is required by the `globalSetup` of `e2e` (ADR-0025 п. 5).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { openspecAvailable, openspecSync } from "../helpers/openspec.js";
+import { openspecSync } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 
 // `openspec` is slow to start, especially on Windows; the other e2e files use 120s.
@@ -23,7 +23,7 @@ const TIMEOUT = 180_000;
 
 let root: string;
 
-describe.skipIf(!openspecAvailable())("phase-1 exit criterion", () => {
+describe("phase-1 exit criterion", () => {
   beforeAll(() => {
     root = makeTempDir("warrant-exit-");
   }, TIMEOUT);

@@ -15,12 +15,10 @@ import { readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { openspecAvailable } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli, type CliRun } from "../helpers/cli.js";
 import { PATH_KEY, pathWithFake, writeFakeOpenspec } from "../helpers/fake-openspec.js";
 import { PACKS, record, useSyncedProject, validate, write } from "../helpers/synced.js";
 
-const hasOpenspec = openspecAvailable();
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
 
@@ -138,7 +136,7 @@ async function approvedThenImplemented(
   return { root, approval, approvedOn };
 }
 
-describe.skipIf(!hasOpenspec || !hasGit)("warrant gate", () => {
+describe.skipIf(!hasGit)("warrant gate", () => {
   it("prints transition, gates and findings; a local record passes PROPOSED->SPECIFIED and is written to manifest.gates", async () => {
     const root = repo("PROPOSED", FEATURE);
     const check = await runCli(["check", "add-search", "openspec-validate"], root, env());

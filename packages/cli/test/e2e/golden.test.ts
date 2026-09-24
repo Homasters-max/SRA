@@ -12,7 +12,6 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { canonicalText } from "../../src/core/canon/format-json.js";
-import { openspecAvailable } from "../helpers/openspec.js";
 import { CORE_SDD_VERSION, runCli } from "../helpers/cli.js";
 
 interface GoldenRun {
@@ -103,7 +102,7 @@ describe("golden-фикстуры core-sdd", () => {
   // Проверка (4) `validate` вызывает `openspec schema validate`, поэтому здесь
   // нужен настоящий OpenSpec, а не fake из процедуры выше.
   for (const name of GOLDEN_NAMES as string[]) {
-    it.skipIf(!openspecAvailable())(`${name}: warrant validate внутри копии даёт ok: true (REQ-SDD-009)`, async () => {
+    it(`${name}: warrant validate внутри копии даёт ok: true (REQ-SDD-009)`, async () => {
       const { root } = prepareGolden(name, tempRoot, `${name}-validate`) as { root: string };
       const run = await runCli(["validate"], root, { WARRANT_PACKS_DIR: PACKS_DIR });
       expect(run.json?.errors).toEqual([]);

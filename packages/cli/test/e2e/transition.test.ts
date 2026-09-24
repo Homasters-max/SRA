@@ -15,12 +15,10 @@ import { cpSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { openspecAvailable } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli, type CliRun } from "../helpers/cli.js";
 import { PATH_KEY, pathWithFake, writeFakeOpenspec } from "../helpers/fake-openspec.js";
 import { PACKS, record, useSyncedProject, validate, write } from "../helpers/synced.js";
 
-const hasOpenspec = openspecAvailable();
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
 const NODE = process.execPath;
@@ -137,7 +135,7 @@ function commitAll(root: string, message: string): string {
 const FEATURE = { classification: { profiles: ["feature"] } };
 const CHORE = { classification: { profiles: ["chore"] } };
 
-describe.skipIf(!hasOpenspec || !hasGit)("warrant transition", () => {
+describe.skipIf(!hasGit)("warrant transition", () => {
   it("records a forward transition whose gates passed, with verdicts and evidence (SCN-VER-029)", async () => {
     const root = repo("PROPOSED", FEATURE);
     const check = await cli(root, ["check", "add-search", "openspec-validate"]);

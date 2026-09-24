@@ -23,6 +23,16 @@
           }
         ],
         "matcher": "Read|Grep|Bash|PowerShell"
+      },
+      {
+        "hooks": [
+          {
+            "command": "node \"${CLAUDE_PROJECT_DIR}/scripts/dev/git-hook.js\" pre-tool",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash|PowerShell"
       }
     ],
     "SessionStart": [

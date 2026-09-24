@@ -58,7 +58,8 @@ Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SE
 - Код ищется через `cs`, читается диапазонами. Держится у субагентов: хук `PreToolUse` — `deny` (ADR-0031).
 - Хуки разработки — только из белого списка. Держится: `dev-hooks.test.ts` (ADR-0032 п. 11).
 - Навыки, `CLAUDE.md`, файлы передачи, `backlog.md` — по форме ADR-0032. Держится: `dev-context.test.ts`.
-- Одна ветка — один worktree; ветку проверять перед коммитом. Держится: шаг 1 навыка `group-done`.
+- Основной checkout — только `main`, работа — в worktree; force push и `openspec archive` запрещены. Держится: хук
+  `git-hook.js` (ADR-0033 п. 9). Одна ветка — один worktree, ветку проверять перед коммитом — шаг 1 `group-done`.
 - Отклонение от spec или design — вопросом maintainer'у, принятое — строкой `I-N` (навык `decision`); норма во время
   реализации меняется только новым ADR.
 - Не реализовывать `guard`, `ci`, `run`, `analyze` вне фазы 4; не добавлять profiles без failure mode (ADR-0013); не

@@ -1,3 +1,10 @@
+// e2e: argv
+/**
+ * The binary itself: an unknown command of argv (SCN-KRN-006), a command run
+ * outside a project (SCN-KRN-007) and `--version` — the parse of argv, the
+ * exit code and stdout of the process, which no command of the test process
+ * sees (ADR-0025, task 5.4: the file stays in e2e whole).
+ */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 

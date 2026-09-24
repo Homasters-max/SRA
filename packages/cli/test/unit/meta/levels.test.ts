@@ -1,7 +1,7 @@
 /**
  * Form of the test levels (ADR-0025 п. 1, 7): every test file lies in one of
  * the four level directories, each directory is exactly one vitest project,
- * only `src/adapters/**` of the CLI names a process module (п. 3, design §8),
+ * every e2e file names its reason on the first line (п. 7b), only `src/adapters/**` of the CLI names a process module (п. 3, design §8),
  * the `unit` level cannot start a process (п. 7a; the same guard for `app`
  * is `test/app/meta/spawn-guard.test.ts`), and `contract`/`e2e` fail rather
  * than skip without openspec 1.13.1 (п. 5).
@@ -39,6 +39,28 @@ describe("test levels: layout (ADR-0025 п. 1, 7c)", () => {
   it("each level is one vitest project over its own directory", () => {
     const projects = (config.test?.projects ?? []) as { test: { name: string; include: string[] } }[];
     expect(projects.map((p) => [p.test.name, p.test.include])).toEqual(LEVELS.map((level) => [level, [`test/${level}/**/*.test.ts`]]));
+  });
+});
+
+/** The closed list of reasons a test stays in e2e (ADR-0025 п. 7b). */
+const E2E_REASONS = ["argv", "exit-codes", "output", "platform-spawn", "golden", "package", "lifecycle"] as const;
+const E2E_HEADER = new RegExp(`^// e2e: (?:${E2E_REASONS.join("|")})\\r?$`);
+
+describe("test levels: every e2e file names its reason (ADR-0025 п. 7b)", () => {
+  it("each file of test/e2e/ starts with `// e2e: <reason>` from the closed list", () => {
+    const e2e = testFiles().filter((file) => file.startsWith("e2e/"));
+    expect(e2e.length).toBeGreaterThan(0);
+    const missing = e2e.filter(
+      (file) => !E2E_HEADER.test(readFileSync(path.join(TEST_ROOT, ...file.split("/")), "utf8").split("\n", 1)[0] ?? "")
+    );
+    expect(missing, `first line // e2e: <${E2E_REASONS.join(" | ")}>`).toEqual([]);
+  });
+
+  it("the header pattern admits only a listed reason on the first line", () => {
+    for (const reason of E2E_REASONS) expect(E2E_HEADER.test(`// e2e: ${reason}`), reason).toBe(true);
+    for (const line of ["// e2e: slow", "// e2e:argv", "// e2e: argv, output", "/** e2e: argv */", " // e2e: argv"]) {
+      expect(E2E_HEADER.test(line), line).toBe(false);
+    }
   });
 });
 

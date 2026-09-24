@@ -207,6 +207,29 @@ export class ProjectBuilder {
     return this;
   }
 
+  /**
+   * The answer of `openspec validate <change> --strict --json`, the command of
+   * the check `core-sdd:openspec-validate`, through `FakeCheckRunner`: the
+   * report of OpenSpec 1.13.1 (I-78) for the Change named in argv — valid with
+   * exit 0, or invalid with one issue and exit 1. The check parses the report;
+   * what `openspec validate` itself finds in the files is the contract's and
+   * e2e's concern.
+   */
+  withOpenspecValidate(valid = true): this {
+    this.checks.on("openspec", (spec) => {
+      const [, verb, change] = spec.argv;
+      if (verb !== "validate") return { exit: 1 };
+      const issues = valid ? [] : [{ level: "ERROR", path: "proposal.md", message: "broken" }];
+      const report = {
+        items: [{ id: change, type: "change", valid, issues, durationMs: 1 }],
+        summary: { totals: { items: 1, passed: valid ? 1 : 0, failed: valid ? 0 : 1 } },
+        version: "1.0"
+      };
+      return { exit: valid ? 0 : 1, output: `${JSON.stringify(report)}\n` };
+    });
+    return this;
+  }
+
   /** `warrant sync` in the test process; `FakeOpenSpec` learns the generated schema. */
   async synced(): Promise<this> {
     const result = await runSync(this.ctx, {});

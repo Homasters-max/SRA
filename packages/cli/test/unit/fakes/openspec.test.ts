@@ -15,7 +15,7 @@ import type { ModelRequirement } from "../../app/helpers/fakes/spec-model.js";
 
 let root: string;
 beforeEach(() => {
-  root = mkdtempSync(path.join(tmpdir(), "warrant-fake-openspec-"));
+  root = mkdtempSync(path.join(tmpdir(), "warrant-fakes-openspec-"));
 });
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });

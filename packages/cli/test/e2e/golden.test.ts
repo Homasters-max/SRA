@@ -1,3 +1,4 @@
+// e2e: golden
 /**
  * Golden-фикстуры pack `core-sdd` (REQ-SDD-009, SCN-SDD-004, 005, 007, 015, 020).
  *

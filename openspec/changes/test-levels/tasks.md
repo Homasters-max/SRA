@@ -32,11 +32,11 @@ maintainer'у, принятые — строкой I-N (с I-117) в design.md. 
 
 ## 5. Перенос тестов
 
-- [ ] 5.1 `waive`, `transition`, `gate` → `app`/`unit` (§9). Проверка: SCN-теги файлов до и после совпадают; время файлов записано.
-- [ ] 5.2 `validate`, `validate-ids-head`, `validate-verification`. Проверка: как 5.1.
-- [ ] 5.3 `check`, `status`, `sync`, `verify`. Проверка: как 5.1.
-- [ ] 5.4 `archive`, `classify`, `init`, `link`, `exit-criterion`, `resolve`, `id`, `fmt`, `cli-skeleton`. Проверка: как 5.1.
-- [ ] 5.5 Остаток e2e: заголовок `// e2e: <reason>` у каждого файла, `openspec init` на тест → `useSyncedProject`, один сквозной lifecycle; `test/helpers/fake-openspec.ts` удалён; мета-тест причины e2e включён (§8). Проверка: мета-тест зелёный; `grep` `fake-openspec` — пусто.
+- [x] 5.1 `waive`, `transition`, `gate` → `app`/`unit` (§9). Проверка: SCN-теги файлов до и после совпадают; время файлов записано.
+- [x] 5.2 `validate`, `validate-ids-head`, `validate-verification`. Проверка: как 5.1.
+- [x] 5.3 `check`, `status`, `sync`, `verify`. Проверка: как 5.1.
+- [x] 5.4 `archive`, `classify`, `init`, `link`, `exit-criterion`, `resolve`, `id`, `fmt`, `cli-skeleton`. Проверка: как 5.1.
+- [x] 5.5 Остаток e2e: заголовок `// e2e: <reason>` у каждого файла, `openspec init` на тест → `useSyncedProject`, один сквозной lifecycle; `test/helpers/fake-openspec.ts` удалён; мета-тест причины e2e включён (§8). Проверка: мета-тест зелёный; `grep` `fake-openspec` — пусто.
 
 ## 6. CI, процедуры, выход
 

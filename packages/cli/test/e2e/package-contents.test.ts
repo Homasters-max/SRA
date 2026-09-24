@@ -1,3 +1,4 @@
+// e2e: package
 /**
  * What `npm i -g` installs (review of phase 3, R-15): the file list of
  * `npm pack` holds everything the installed CLI reads at run time — the bin,

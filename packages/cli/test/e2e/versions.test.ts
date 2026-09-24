@@ -1,3 +1,4 @@
+// e2e: package
 /**
  * Дисциплина версий (review of phase 3, R-14): `scripts/versions-lib.js`, общий
  * с `npm run versions:check`. Первый блок проверяет сам репозиторий против

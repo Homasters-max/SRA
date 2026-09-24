@@ -6,6 +6,6 @@
 
 | Файл | Заменён |
 |---|---|
-| SRA-LATTICE-CONTRACT.md | integrations/01, 03 |
-| SRA-LATTICE-CONTRACT-ADDENDUM.md | integrations/02, 01 §7, 03 |
-| SRA-LATTICE-JEV classifier.md | integrations/04, 02 §6–8 |
+| [sra-lattice-contract.md](sra-lattice-contract.md) | integrations/01, 03 |
+| [sra-lattice-contract-addendum.md](sra-lattice-contract-addendum.md) | integrations/02, 01 §7, 03 |
+| [sra-lattice-jev-classifier.md](sra-lattice-jev-classifier.md) | integrations/04, 02 §6–8 |

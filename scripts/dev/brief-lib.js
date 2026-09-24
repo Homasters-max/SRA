@@ -23,10 +23,10 @@ const HANDOFF_PER_WORKTREE = 5;
 
 export const TITLE = "WARRANT — состояние (scripts/dev/brief.js, ADR-0032 п. 4)";
 
-const posix = (p) => String(p ?? "").replace(/\\/g, "/").replace(/\/+$/, "");
-const join = (...parts) => parts.map((p, i) => (i === 0 ? posix(p) : posix(p).replace(/^\/+/, ""))).join("/");
+export const posix = (p) => String(p ?? "").replace(/\\/g, "/").replace(/\/+$/, "");
+export const join = (...parts) => parts.map((p, i) => (i === 0 ? posix(p) : posix(p).replace(/^\/+/, ""))).join("/");
 const samePath = (a, b) => posix(a).toLowerCase() === posix(b).toLowerCase();
-const lines = (text) => {
+export const lines = (text) => {
   const all = String(text ?? "").split(/\r?\n/);
   if (all.length > 0 && all[all.length - 1] === "") all.pop();
   return all;
@@ -299,6 +299,7 @@ function blocks(state) {
     b.push({ head: `Ветки, слитые в main и не удалённые (${state.merged.length}): `, items: state.merged, inline: true, empty: "нет" });
   }
   if (state.mergedOrigin) b.push({ text: `Слитые ветки на origin (по последнему fetch): ${state.mergedOrigin}` });
+  if (state.hygiene) b.push({ text: `Гигиена: ${state.hygiene} (node scripts/dev/hygiene.js, навык repo-hygiene)` });
   if (state.memory && (state.memory.warnings.length || state.memory.project.length)) {
     b.push({ text: `auto-memory (${state.memory.dir}) — только личное, ADR-0032 п. 9:` });
     for (const w of state.memory.warnings) b.push({ text: `  ! ${w}` });

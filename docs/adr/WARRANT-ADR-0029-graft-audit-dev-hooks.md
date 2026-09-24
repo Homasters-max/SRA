@@ -101,7 +101,7 @@ ADR-0026 п. 2 хуки запретил.
 ## Consequences
 
 - Навык `code-search`: правила 2–6 и таблица команд переписаны (`impact`, `deps`, `dups`, `--json`); помощник
-  навыка `architecture-audit` переходит на `cs deps --json` / `cs dups --json` вместо разбора текста `cs grep`; [coordinator.md](../process/coordinator.md) —
+  навыка `architecture-audit` переходит на `cs deps --json` / `cs dups --json` вместо разбора текста `cs grep`; [coordinator.md](../../.claude/skills/change-coordinate/SKILL.md) —
   без строки про навык в промпте (её несёт `SubagentStart`), с новым разделом отчёта и сводкой для следующей части
   группы; [graft.md](../process/graft.md) — установка (`DO_NOT_TRACK` до `npm i -g`, `graft telemetry disable`),
   регрессия п. 4, хуки п. 6.

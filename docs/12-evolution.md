@@ -138,6 +138,6 @@ Status: informative · Maturity: MVP
 
 | Норма | Фактическая практика | Решение | Где |
 |---|---|---|---|
-| ADR — через Change с ADR ([03 §7](03-architecture.md)); specification предшествует implementation (INV-01) | ADR-0016…0022 и правки восьми нормативных документов прошли вне Change | Зафиксировать и не повторять: дальнейшая работа — внутри Change | [NEXT-SESSION](NEXT-SESSION.md), «Долг» |
+| ADR — через Change с ADR ([03 §7](03-architecture.md)); specification предшествует implementation (INV-01) | ADR-0016…0022 и правки восьми нормативных документов прошли вне Change | Зафиксировать и не повторять: дальнейшая работа — внутри Change | [NEXT-SESSION](archive/2026-09-24-next-session.md), «Долг» |
 
 Строка живёт здесь, пока решение не исполнено; исполненное уходит в ADR или в практику и из таблицы удаляется.

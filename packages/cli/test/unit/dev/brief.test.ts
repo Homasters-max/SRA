@@ -207,6 +207,14 @@ describe("streams — ADR-0033 п. 12", () => {
   });
 });
 
+describe("hygiene count — ADR-0033 п. 13", () => {
+  it("one line when brief.js found hygiene items, none otherwise", () => {
+    const state = collectState(fakeIo())!;
+    expect(formatBrief({ ...state, hygiene: 3 })).toContain("Гигиена: 3 (node scripts/dev/hygiene.js, навык repo-hygiene)");
+    expect(formatBrief({ ...state, hygiene: 0 })).not.toContain("Гигиена");
+  });
+});
+
 describe("collectState / brief", () => {
   it("reports session, worktrees with handoff files, versions, Changes, merged branches", () => {
     const io = fakeIo({

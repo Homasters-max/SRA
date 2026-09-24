@@ -10,11 +10,9 @@
 ```text
 Реализация ADR-0033 (поток git-automation), продолжение. Прочитай ADR-0033 целиком, ADR-0032 п. 3, 4, 6, 10, 11,
 docs/process/rules.md. Готово: хук git-hook.js (п. 9), разовая чистка веток, навыки git-start / git-land,
-pr-form.js в CI, «После:» в brief.js и dev-context.test.ts, навыки change-*-pr и change-coordinate. Работа —
-навыком git-start (ветка process/<имя>, worktree ../SRA-<имя>), доставка — git-land; PR по порядку п. 14, каждый —
-со своими тестами:
-4) structure.test.ts, scripts/dev/hygiene.js, навык repo-hygiene, приведение docs/ (п. 13: zip → markdown, имя с
-   пробелом), «Карта» CLAUDE.md, rules.md;
+pr-form.js в CI, «После:» в brief.js и dev-context.test.ts, навыки change-*-pr и change-coordinate,
+repo-hygiene с hygiene.js и structure.test.ts. Осталось — последний PR потока (п. 14); работа — навыком git-start
+(ветка process/<имя>, worktree ../SRA-<имя>), доставка — git-land, со своими тестами:
 5) review-impl, .claude/agents/reviewer.md, scn-coverage.js, npm run test:linux, ловушки в packages/cli/CLAUDE.md
    (п. 6); линза cli-contract и software-architect/orchestration.md (п. 8).
 Навыки — по стандарту ADR-0032 п. 6 (до 80 строк), имена — п. 2. Последний PR потока удаляет этот файл и снимает
@@ -23,7 +21,7 @@ pr-form.js в CI, «После:» в brief.js и dev-context.test.ts, навык
 
 ## Открытые вопросы
 
-- Нарезку на PR (4–5 готового запроса) сессия может укрупнить или разбить — по объёму, без смены порядка.
+- Нарезку PR 5 готового запроса сессия может укрупнить или разбить — по объёму, без смены порядка.
 
 ## Не забыть
 

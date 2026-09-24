@@ -9,14 +9,19 @@ Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SE
 
 | Каталог | Что |
 |---|---|
-| `docs/` | спецификация 01–13 ([00-readme](docs/00-readme.md)), `adr/`, [backlog.md](docs/backlog.md) (долг), `handoff/` (передача), `process/` (процессы разработки) |
+| `docs/` | спецификация 01–13 ([00-readme](docs/00-readme.md)), `adr/`, [backlog.md](docs/backlog.md) (долг), `handoff/` (передача), `process/` (процессы разработки), `archive/` (история) |
+| `docs/drafts/` | черновики до решения ([README](docs/drafts/README.md)); папка удаляется PR решения (ADR-0033 п. 12) |
 | `openspec/` | specs и Changes (dogfooding); `changes/archive/` неизменяем (ADR-0021) |
 | `packages/cli/` | CLI `warrant`: `src/`, `test/` (уровни ADR-0025), `schemas/`; конвенции — [packages/cli/CLAUDE.md](packages/cli/CLAUDE.md) |
 | `packs/core-sdd/` | pack по умолчанию: profiles, gates, checks, golden |
 | `sra/skills/` | reasoning-skills SRA, поставляемые с pack |
-| `scripts/dev/` | инструменты разработки: `cs.js` (поиск по коду), `brief.js` (состояние), хуки, метрики; не поставляются |
+| `scripts/dev/` | инструменты разработки: `cs.js` (поиск по коду), `brief.js` (состояние), `hygiene.js`, хуки, метрики; не поставляются |
 | `.warrant/` | конфигурация и состояние WARRANT самого репозитория (record, evidence, waivers) |
 | `.claude/` | `settings.json` (только хуки), `skills/` (навыки проекта) |
+| `lattice/` | компонент LATTICE — не трогать |
+| `graft/` | индекс Graft, игнорируется git (ADR-0026 п. 3) |
+
+Корень и имена держит `structure.test.ts`: новый каталог верхнего уровня — правка его белого списка (ADR-0033 п. 13).
 
 ## Старт сессии
 
@@ -33,6 +38,7 @@ Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SE
 | Архитектурный аудит (обязательно перед spec-PR фазы) | `architecture-audit` |
 | Начать поток в worktree, «где я», коммит через файл | `git-start` |
 | PR, CI, merge по «merge #N», чистка после merge | `git-land` (+ `recovery.md`, `ci.md`) |
+| Лишнее в репозитории (`brief.js`: «Гигиена: N»), перед spec-PR фазы | `repo-hygiene` (`node scripts/dev/hygiene.js`) |
 | Решение по ходу реализации → строка `I-N` в design.md | `decision` |
 | Три PR Change: утверждение, реализация, закрытие | `change-spec-pr` → `change-impl-pr` → `change-archive-pr` |
 | Раздать группы tasks.md субагентам (перед первой раздачей) | `change-coordinate` |

@@ -51,11 +51,11 @@ import type { ArtifactStatuses } from "../core/openspec/status.js";
 import { openspecAvailable } from "../core/openspec/version.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
+import { FORWARD_TRANSITIONS, nextForwardTransition } from "../core/record/lifecycle.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
 import { resolveForProject, type Classification, type EffectivePolicy } from "../core/resolve/index.js";
 import { readWaivers, roleMembers } from "../core/validate/waivers.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { nextForwardTransition } from "./check.js";
 import { requireConfigPath } from "./context.js";
 
 export interface GateOptions {
@@ -65,20 +65,10 @@ export interface GateOptions {
   base?: string | undefined;
 }
 
-/** The forward transitions of 04 section 2, the only ones that have gates. */
-export const FORWARD_TRANSITIONS = [
-  "PROPOSED->SPECIFIED",
-  "SPECIFIED->APPROVED",
-  "APPROVED->IMPLEMENTING",
-  "IMPLEMENTING->VERIFYING",
-  "VERIFYING->MERGED",
-  "MERGED->ARCHIVED"
-] as const;
-
 /** `--transition`, else the next forward transition; USAGE when there is none. */
 export function transitionOf(record: ChangeRecord, requested: string | undefined): string {
   if (requested !== undefined) {
-    if (!(FORWARD_TRANSITIONS as readonly string[]).includes(requested)) {
+    if (!FORWARD_TRANSITIONS.includes(requested)) {
       throw new WarrantError("USAGE", `--transition ${JSON.stringify(requested)} is not one of: ${FORWARD_TRANSITIONS.join(", ")}`);
     }
     return requested;

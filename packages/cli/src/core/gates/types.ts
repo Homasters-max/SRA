@@ -19,6 +19,12 @@ export type Verdict = "PASS" | "FAIL" | "WAIVED" | "NOT_APPLICABLE" | "BLOCKED";
 /** Worst first: the order `gate_verdict` of the controller takes the maximum in (REQ-VER-005). */
 export const VERDICT_ORDER: readonly Verdict[] = ["FAIL", "BLOCKED", "WAIVED", "NOT_APPLICABLE", "PASS"];
 
+/** Verdicts a forward transition passes with (REQ-VER-007). */
+export const PASSING_VERDICTS: ReadonlySet<Verdict> = new Set<Verdict>(["PASS", "WAIVED", "NOT_APPLICABLE"]);
+
+/** Worst verdicts no controller rule may answer with `CONTINUE` (R-13). */
+export const NOT_CONTINUABLE_VERDICTS: ReadonlySet<unknown> = new Set(["FAIL", "BLOCKED"]);
+
 /** The transition that asks for attested evidence by default (06a section 3, INV-10). */
 export const MERGE_TRANSITION = "VERIFYING->MERGED";
 

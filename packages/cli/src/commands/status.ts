@@ -25,6 +25,7 @@ import { findChangeDir } from "../core/init/scaffold.js";
 import type { ArtifactStatuses } from "../core/openspec/status.js";
 import { openspecAvailable } from "../core/openspec/version.js";
 import { loadPacks } from "../core/packs/loader.js";
+import { nextForwardTransition } from "../core/record/lifecycle.js";
 import {
   listChangeNames,
   readAllRecords,
@@ -38,7 +39,6 @@ import { computeStale, type StaleEntry } from "../core/status/stale.js";
 import { resolveForProject, type Classification } from "../core/resolve/index.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { nextForwardTransition } from "./check.js";
 import { requireConfigPath } from "./context.js";
 import { conflictDecision, decisionFields, evaluateTransition, evaluationFindings, projectFacts, type ProjectFacts } from "./gate.js";
 

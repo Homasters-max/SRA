@@ -60,27 +60,11 @@
     { "id": "A-2", "rule": "sibling", "from": "commands/archive.ts", "to": "commands/gate.ts" },
     { "id": "A-2", "rule": "sibling", "from": "commands/archive.ts", "to": "commands/transition.ts" },
     { "id": "A-7", "rule": "sibling", "from": "commands/classify.ts", "to": "commands/transition.ts" },
-    { "id": "A-1", "rule": "sibling", "from": "commands/gate.ts", "to": "commands/check.ts" },
     { "id": "A-2", "rule": "sibling", "from": "commands/init.ts", "to": "commands/sync.ts" },
-    { "id": "A-1", "rule": "sibling", "from": "commands/status.ts", "to": "commands/check.ts" },
     { "id": "A-2", "rule": "sibling", "from": "commands/status.ts", "to": "commands/gate.ts" },
     { "id": "A-2", "rule": "sibling", "from": "commands/transition.ts", "to": "commands/check.ts" },
     { "id": "A-2", "rule": "sibling", "from": "commands/transition.ts", "to": "commands/gate.ts" },
     { "id": "A-2", "rule": "sibling", "from": "commands/verify.ts", "to": "commands/check.ts" },
-    { "id": "A-2", "rule": "sibling", "from": "commands/verify.ts", "to": "commands/gate.ts" },
-    { "id": "A-1", "rule": "enum", "from": "commands/check.ts", "enum": "change-state" },
-    { "id": "A-1", "rule": "enum", "from": "commands/classify.ts", "enum": "change-state" },
-    { "id": "A-1", "rule": "enum", "from": "commands/link.ts", "enum": "change-state" },
-    { "id": "A-1", "rule": "enum", "from": "commands/transition.ts", "enum": "change-state" },
-    { "id": "A-1", "rule": "enum", "from": "core/ids/renumber.ts", "enum": "change-state" },
-    { "id": "A-1", "rule": "enum", "from": "core/validate/links.ts", "enum": "change-state" },
-    { "id": "A-1", "rule": "enum", "from": "commands/gate.ts", "enum": "transition" },
-    { "id": "A-13", "rule": "enum", "from": "commands/transition.ts", "enum": "verdict" },
-    { "id": "A-13", "rule": "enum", "from": "commands/waive.ts", "enum": "risk-level" },
-    { "id": "A-13", "rule": "enum", "from": "core/controller/evaluate.ts", "enum": "verdict" },
-    { "id": "A-13", "rule": "enum", "from": "core/ids/allocate.ts", "enum": "id-prefix" },
-    { "id": "A-1", "rule": "enum", "from": "core/ids/immutable.ts", "enum": "change-state" },
-    { "id": "A-1", "rule": "enum", "from": "core/record/write.ts", "enum": "change-state" },
-    { "id": "A-1", "rule": "enum", "from": "core/record/write.ts", "enum": "transition" }
+    { "id": "A-2", "rule": "sibling", "from": "commands/verify.ts", "to": "commands/gate.ts" }
   ]
 }

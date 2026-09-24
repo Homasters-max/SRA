@@ -13,6 +13,9 @@ export type RiskDimension = (typeof RISK_DIMENSIONS)[number];
 
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH";
 
+/** The risk levels, lowest first (05, "Risk overlays"). */
+export const RISK_LEVELS: readonly RiskLevel[] = ["LOW", "MEDIUM", "HIGH"];
+
 /** One dimension of `classification.risk`: a value and where it came from. */
 export interface RiskEntry {
   value: string;

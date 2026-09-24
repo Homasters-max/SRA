@@ -28,9 +28,9 @@
 
 ## 3. Владелец lifecycle и перечислений (A-1, A-13)
 
-- [ ] 3.1 `core/record/lifecycle.ts` (§5); копии в `commands/check.ts`, `commands/gate.ts`, `core/ids/immutable.ts` удалены.
+- [x] 3.1 `core/record/lifecycle.ts` (§5); копии в `commands/check.ts`, `commands/gate.ts`, `core/ids/immutable.ts` удалены.
   Проверка: исключения `enum` A-1 сняты; `cs grep '"IMPLEMENTING"' --fixed` — массивы только у владельца.
-- [ ] 3.2 A-13: `RISK_LEVELS`, `PASSING_VERDICTS` и прочие подмножества по реестру — у владельцев (§5). Проверка:
+- [x] 3.2 A-13: `RISK_LEVELS`, `PASSING_VERDICTS` и прочие подмножества по реестру — у владельцев (§5). Проверка:
   исключения `enum` A-13 сняты.
 
 ## 4. `core/git`, `core/waivers`, `core/roles`, разбор в адаптерах (A-6, A-7, A-10, A-11)

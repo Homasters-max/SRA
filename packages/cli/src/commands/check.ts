@@ -39,6 +39,7 @@ import { isPlainObject, strings } from "../core/json.js";
 import { LOCK_REL } from "../core/packs/hash.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult, PackObject } from "../core/packs/types.js";
+import { nextForwardTransition } from "../core/record/lifecycle.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { resolveForProject, type Classification, type EffectivePolicy } from "../core/resolve/index.js";
 import { validateFile } from "../core/schemas/semantic.js";
@@ -55,16 +56,6 @@ export interface CheckOptions {
 
 /** Default of `execution.timeout_s` when neither the check nor `warrant.json` sets one (D-17). */
 export const DEFAULT_TIMEOUT_S = 1800;
-
-/** The forward chain of 04 §2; `ABANDONED` has no successor. */
-const FORWARD = ["PROPOSED", "SPECIFIED", "APPROVED", "IMPLEMENTING", "VERIFYING", "MERGED", "ARCHIVED"] as const;
-
-/** `<STATE>-><NEXT>` of the next forward transition, or null at the end of the chain. */
-export function nextForwardTransition(state: string): string | null {
-  const index = (FORWARD as readonly string[]).indexOf(state);
-  if (index < 0 || index === FORWARD.length - 1) return null;
-  return `${state}->${FORWARD[index + 1] as string}`;
-}
 
 /**
  * The check document in force: a project-local override replaces the pack

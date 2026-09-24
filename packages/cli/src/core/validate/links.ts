@@ -3,11 +3,12 @@
  * `validate` and the back-links of `status` (REQ-KRN-021, REQ-KRN-027).
  */
 import type { CliError } from "../errors.js";
+import { AMENDS_TARGET_STATES } from "../record/lifecycle.js";
 import { stateOf, type RecordFile } from "../record/read.js";
 
 /** States a link target must be in, per field (ADR-0021 point 5). */
 const TARGET_STATES = {
-  amends: ["MERGED", "ARCHIVED"],
+  amends: AMENDS_TARGET_STATES,
   supersedes: ["ABANDONED"]
 } as const;
 

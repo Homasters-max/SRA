@@ -44,7 +44,7 @@ import {
   type GitFacts
 } from "../core/gates/diff.js";
 import { activeWaiverIds, staleReason } from "../core/gates/prefilter.js";
-import type { Verdict } from "../core/gates/types.js";
+import { PASSING_VERDICTS, type Verdict } from "../core/gates/types.js";
 import { freshest } from "../core/gates/verdict.js";
 import { allocateUlid } from "../core/ids/allocate.js";
 import { findChangeDir } from "../core/init/scaffold.js";
@@ -52,15 +52,8 @@ import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
-import {
-  appendTransition,
-  assertNotFrozen,
-  isChangeState,
-  recordPath,
-  stateOfRecord,
-  transitionKind,
-  type TransitionEntry
-} from "../core/record/write.js";
+import { isChangeState, REF_REQUIRED_STATES, transitionKind } from "../core/record/lifecycle.js";
+import { appendTransition, assertNotFrozen, recordPath, stateOfRecord, type TransitionEntry } from "../core/record/write.js";
 import type { EffectivePolicy } from "../core/resolve/index.js";
 import { readWaivers, roleMembers } from "../core/validate/waivers.js";
 import { failures, success, type CommandResult } from "../io/output.js";
@@ -96,9 +89,6 @@ export const HUMAN_APPROVAL = "human-approval";
 /** Role asked for when the policy names none at the transition (design §10). */
 export const FALLBACK_ROLE = "maintainer";
 
-/** States whose transition needs `--ref` (P-6). */
-const REF_REQUIRED = ["APPROVED", "MERGED"];
-
 /**
  * Limitation of every `human-approval` record: `--ref` is only checked to be
  * an http(s) URL and `--by` is a claim; `warrant ci` of phase 4 verifies them
@@ -106,13 +96,10 @@ const REF_REQUIRED = ["APPROVED", "MERGED"];
  */
 export const REF_NOT_VERIFIED = "ref not verified (phase 4: warrant ci)";
 
-/** Verdicts a forward transition passes with (REQ-VER-007). */
-const PASSING: ReadonlySet<Verdict> = new Set<Verdict>(["PASS", "WAIVED", "NOT_APPLICABLE"]);
-
 /** Gates of an evaluation whose verdict does not let the transition through, sorted. */
 export function gatesNotPassed(gates: Record<string, Verdict>): string[] {
   return Object.keys(gates)
-    .filter((id) => !PASSING.has(gates[id] as Verdict))
+    .filter((id) => !PASSING_VERDICTS.has(gates[id] as Verdict))
     .sort();
 }
 
@@ -351,7 +338,7 @@ export async function runTransition(
   }
   if (target === "ARCHIVED") throw new WarrantError("USAGE", `ARCHIVED is entered through \`warrant archive ${change}\``);
   if (opts.commit !== undefined && target !== "MERGED") throw new WarrantError("USAGE", "--commit applies to MERGED only");
-  if (opts.ref === undefined && REF_REQUIRED.includes(target)) {
+  if (opts.ref === undefined && (REF_REQUIRED_STATES as readonly string[]).includes(target)) {
     throw new WarrantError("USAGE", `${target} needs --ref <url> of the act (review or CI run)`);
   }
   if (opts.ref !== undefined) checkRef(opts.ref);

@@ -17,7 +17,7 @@
  * `analyze_findings` of 04 section 4) never matches.
  */
 import { EXIT, type ExitCode } from "../errors.js";
-import type { Finding } from "../gates/types.js";
+import { NOT_CONTINUABLE_VERDICTS, type Finding } from "../gates/types.js";
 import { isPlainObject } from "../json.js";
 import type { LoadResult } from "../packs/types.js";
 import type { ControllerInputs } from "./inputs.js";
@@ -88,16 +88,13 @@ export function ruleMatches(rule: ControllerRule, inputs: ControllerInputs): boo
   return true;
 }
 
-/** Worst verdicts no rule may answer with `CONTINUE` (R-13). */
-const NOT_CONTINUABLE: ReadonlySet<unknown> = new Set(["FAIL", "BLOCKED"]);
-
 export function evaluateController(rules: readonly ControllerRule[], inputs: ControllerInputs): ControllerDecision {
   const findings: Finding[] = [];
   const withFindings = (decision: ControllerDecision): ControllerDecision =>
     findings.length === 0 ? decision : { ...decision, findings };
   for (const rule of rules) {
     if (!ruleMatches(rule, inputs)) continue;
-    if (rule.action === "CONTINUE" && NOT_CONTINUABLE.has(inputs.gate_verdict)) {
+    if (rule.action === "CONTINUE" && NOT_CONTINUABLE_VERDICTS.has(inputs.gate_verdict)) {
       findings.push({
         code: "CONTROLLER_RULE_IGNORED",
         rule: rule.id,

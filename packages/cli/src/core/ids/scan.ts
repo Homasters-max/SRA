@@ -16,6 +16,9 @@ import { openspecAvailable } from "../openspec/version.js";
 /** Prefixes that use the `PREFIX-AREA-NNN` form (ADR-0012 point 1). */
 export const SPEC_LEVEL_PREFIXES = ["REQ", "SCN", "TASK", "UNK", "ASM"] as const;
 
+/** Prefixes carrying a ULID instead of a counter (ADR-0012 point 2). */
+export const ULID_PREFIXES = ["EVID", "RUN"] as const;
+
 /** Well-formed id comment (design D-5). */
 export const ID_COMMENT_RE = /<!--\s*id:\s*(REQ|SCN|TASK|UNK|ASM)-([A-Z]{2,5})-(\d{3})\s*-->/g;
 

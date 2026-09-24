@@ -29,6 +29,7 @@ import path from "node:path";
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
 import { findChangeDir } from "../init/scaffold.js";
+import { IDS_FROZEN_FROM } from "../record/lifecycle.js";
 import { stateOf, type RecordFile } from "../record/read.js";
 import { scanMarkdown } from "./scan.js";
 
@@ -142,15 +143,6 @@ function removedByNewArchives(root: string, headArchiveDirs: ReadonlySet<string>
   }
   return out;
 }
-
-/** Record states from which the ids of a change are frozen (02 section 2, 04 section 2). */
-export const IDS_FROZEN_FROM: ReadonlySet<string> = new Set([
-  "APPROVED",
-  "IMPLEMENTING",
-  "VERIFYING",
-  "MERGED",
-  "ARCHIVED"
-]);
 
 export interface ImmutableCheck {
   errors: CliError[];

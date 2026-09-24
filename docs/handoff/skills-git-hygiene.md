@@ -19,11 +19,10 @@ Grilling по черновикам docs/drafts/2026-09-24-skills-git-hygiene/ (�
 
 ## Открытые вопросы
 
-- Вести ли grilling до реализации ADR-0032 или после. Черновики опираются на его стандарт навыков и `backlog.md`.
+- BL-22 (`openspec-apply-change` советует `openspec archive`) решается здесь — 02, A7.
 - Настройки GitHub (squash и rebase, 01 G4) меняет только maintainer.
 
 ## Не забыть
 
-- Реализация ADR-0032 идёт параллельно (ветка `process/dev-context`): имена `backlog.md`, `handoff/`, `brief.js` в
-  черновиках — по тексту ADR. Перед grilling сверить с тем, что получилось.
+- Поток `git-flow` (ADR-0032 п. 12) влит сюда, его файл передачи удалён — второй поток о git не открывать (01, G9).
 - В ADR-0011 (Consequences) предполагается branch protection, а у приватного репозитория на бесплатном плане её нет.

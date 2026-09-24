@@ -35,11 +35,11 @@
 
 ## 4. `core/git`, `core/waivers`, `core/roles`, разбор в адаптерах (A-6, A-7, A-10, A-11)
 
-- [ ] 4.1 `core/git/facts.ts` (§6); `parseNameStatus` → `adapters/git-cli.ts`. Проверка: исключения A-6 сняты;
+- [x] 4.1 `core/git/facts.ts` (§6); `parseNameStatus` → `adapters/git-cli.ts`. Проверка: исключения A-6 сняты;
   `contract/gates/diff-prefix` зелёный на ubuntu и windows (I-100).
-- [ ] 4.2 Типы статусов артефактов → `core/ports/openspec.ts`, `parseOpenspecStatus` → `adapters/openspec-cli.ts`.
+- [x] 4.2 Типы статусов артефактов → `core/ports/openspec.ts`, `parseOpenspecStatus` → `adapters/openspec-cli.ts`.
   Проверка: исключения A-10, A-11 сняты; цикл `core ↔ core/ports ↔ core/openspec` исчез.
-- [ ] 4.3 `core/waivers/`, `core/roles.ts` (§6); `classify` не импортирует `transition`. Проверка: исключения A-7 сняты;
+- [x] 4.3 `core/waivers/`, `core/roles.ts` (§6); `classify` не импортирует `transition`. Проверка: исключения A-7 сняты;
   срезы `runTransition` / `runStatus` (`arch-snapshot.js`) без `core/validate` ради waivers.
 
 ## 5. `core/transition` (A-2)

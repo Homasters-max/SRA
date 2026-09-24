@@ -3,7 +3,7 @@
  * effective policy is `done` by `openspec status --json`; `skipped` counts for
  * `specs` only, which is what `skip_specs` of a `chore` produces (REQ-VER-004).
  */
-import type { ArtifactStatuses } from "../../openspec/status.js";
+import type { ArtifactStatuses } from "../../ports/openspec.js";
 import { noInput, pass, type Calculator } from "./types.js";
 
 /** Required artifacts that are not present, in policy order. */

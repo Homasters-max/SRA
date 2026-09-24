@@ -21,7 +21,7 @@
  */
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type ExitCode } from "../core/errors.js";
-import { readGitFacts } from "../core/gates/diff.js";
+import { readGitFacts } from "../core/git/facts.js";
 import { findChangeDir } from "../core/init/scaffold.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { PackObject } from "../core/packs/types.js";

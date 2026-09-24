@@ -15,7 +15,7 @@
 import { mkdirSync, renameSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 
-import type { OpenspecStatusResult, ArtifactStatuses } from "../../../../src/core/openspec/status.js";
+import type { OpenspecStatusResult, ArtifactStatuses } from "../../../../src/core/ports/openspec.js";
 import type { OpenspecAct, OpenSpecPort } from "../../../../src/core/ports/openspec.js";
 import type { ClockPort } from "../../../../src/core/ports/clock.js";
 import { OPENSPEC_VERSION } from "../../../helpers/openspec.js";

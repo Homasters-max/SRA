@@ -41,7 +41,7 @@ import {
   type GateEngineResult,
   type Verdict
 } from "./types.js";
-import { waiverStatus, type WaiverContext, type WaiverIgnoredReason } from "./waivers.js";
+import { waiverStatus, type WaiverContext, type WaiverIgnoredReason } from "../waivers/status.js";
 
 /** The worse of two verdicts in the order `FAIL` > `BLOCKED` > `WAIVED` > `NOT_APPLICABLE` > `PASS`. */
 export function worse(a: Verdict, b: Verdict): Verdict {

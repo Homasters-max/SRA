@@ -31,7 +31,8 @@ import { assertNotFrozen } from "../core/record/write.js";
 import { RISK_LEVELS } from "../core/resolve/types.js";
 import type { Json } from "../core/schemas/loader.js";
 import { validateFile } from "../core/schemas/semantic.js";
-import { roleMembers, WAIVERS_DIR } from "../core/validate/waivers.js";
+import { roleMembers, WAIVER_ROLE } from "../core/roles.js";
+import { WAIVERS_DIR } from "../core/waivers/read.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath } from "./context.js";
 
@@ -45,9 +46,6 @@ export interface WaiveOptions {
   revoke?: string | undefined;
   by?: string | undefined;
 }
-
-/** Role whose members activate and revoke waivers (05 section 7). */
-export const WAIVER_ROLE = "maintainer";
 
 const LOGIN_RE = /^[A-Za-z0-9._-]+$/;
 const OWNER_RE = /^human:[A-Za-z0-9._-]+$/;

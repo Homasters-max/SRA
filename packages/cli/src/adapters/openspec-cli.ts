@@ -23,8 +23,15 @@
  * In both `show` shapes a stable-ID comment that is placed correctly is the
  * FIRST line of `requirement.text` / `scenario.rawText` (ADR-0015, spike S1).
  */
-import { parseOpenspecStatus, type OpenspecStatusResult } from "../core/openspec/status.js";
-import type { OpenspecAct, OpenSpecPort } from "../core/ports/openspec.js";
+import { WarrantError } from "../core/errors.js";
+import {
+  ARTIFACT_STATUSES,
+  type ArtifactStatus,
+  type ArtifactStatuses,
+  type OpenspecAct,
+  type OpenSpecPort,
+  type OpenspecStatusResult
+} from "../core/ports/openspec.js";
 import { exec } from "./exec.js";
 
 interface OpenspecRun {
@@ -81,6 +88,55 @@ function collectTexts(node: unknown, into: string[] = []): string[] {
  */
 function shownTexts(node: unknown): string[] {
   return [...new Set(collectTexts(node))];
+}
+
+function isArtifactStatus(value: unknown): value is ArtifactStatus {
+  return typeof value === "string" && (ARTIFACT_STATUSES as readonly string[]).includes(value);
+}
+
+/**
+ * Artifact status of one Change, read from `openspec status --change <c> --json`
+ * (REQ-KRN-027): a pure projection of the body onto `{ id: status }`. Parsing
+ * is the adapter's (ADR-0030 п. 1, A-11); the port owns the types.
+ *
+ * Shape observed on OpenSpec 1.13.1 (fixtures `test/fixtures/openspec/status-*.json`):
+ *
+ *   { "changeName", "schemaName", "changeRoot", "artifactPaths": {...},
+ *     "isPlanningComplete", "isComplete", "applyRequires": [...], "nextSteps": [...],
+ *     "actionContext": {...},
+ *     "artifacts": [ { "id", "outputPath", "status", "requires": [...], "missingDeps"? } ],
+ *     "root": { "path", "source" } }
+ *
+ * Only `artifacts[].id` and `artifacts[].status` are part of the WARRANT
+ * contract; everything else is OpenSpec's own bookkeeping and is dropped here so
+ * a later OpenSpec release can add fields without changing `warrant status`.
+ *
+ * An unknown change makes the command exit 1 and print
+ * `{ "status": [ { "severity": "error", ... } ] }` instead — that body has no
+ * `artifacts` array, so it fails the shape check. Throws `OPENSPEC_FAILED`
+ * when the body is not the expected shape, so a change of contract in OpenSpec
+ * surfaces as an error instead of an empty result that looks like "no
+ * artifacts".
+ */
+export function parseOpenspecStatus(json: unknown): ArtifactStatuses {
+  if (typeof json !== "object" || json === null || Array.isArray(json)) {
+    throw new WarrantError("OPENSPEC_FAILED", "openspec status returned no JSON object");
+  }
+  const artifacts = (json as { artifacts?: unknown }).artifacts;
+  if (!Array.isArray(artifacts)) {
+    throw new WarrantError("OPENSPEC_FAILED", "openspec status JSON has no `artifacts` array");
+  }
+  const out: ArtifactStatuses = {};
+  for (const entry of artifacts) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const { id, status } = entry as { id?: unknown; status?: unknown };
+    if (typeof id !== "string" || id === "") continue;
+    if (!isArtifactStatus(status)) {
+      throw new WarrantError("OPENSPEC_FAILED", `openspec status reported an unknown status "${String(status)}" for artifact ${id}`);
+    }
+    out[id] = status;
+  }
+  return out;
 }
 
 export class OpenSpecCli implements OpenSpecPort {

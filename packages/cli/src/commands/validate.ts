@@ -30,7 +30,7 @@ import { checkImmutableIds } from "../core/ids/immutable.js";
 import { readAllRecords } from "../core/record/read.js";
 import { checkRuleScope } from "../core/validate/rules.js";
 import { checkLinkTargets } from "../core/validate/links.js";
-import { checkWaivers } from "../core/validate/waivers.js";
+import { checkWaivers } from "../core/waivers/check.js";
 import { checkEvidence } from "../core/validate/evidence.js";
 import { checkDangling } from "../core/validate/dangling.js";
 import { scanSecrets } from "../core/secrets.js";

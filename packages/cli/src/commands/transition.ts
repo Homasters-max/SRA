@@ -42,7 +42,7 @@ import {
   readGitFacts,
   resolveCommit,
   type GitFacts
-} from "../core/gates/diff.js";
+} from "../core/git/facts.js";
 import { activeWaiverIds, staleReason } from "../core/gates/prefilter.js";
 import { PASSING_VERDICTS, type Verdict } from "../core/gates/types.js";
 import { freshest } from "../core/gates/verdict.js";
@@ -55,7 +55,8 @@ import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
 import { isChangeState, REF_REQUIRED_STATES, transitionKind } from "../core/record/lifecycle.js";
 import { appendTransition, assertNotFrozen, recordPath, stateOfRecord, type TransitionEntry } from "../core/record/write.js";
 import type { EffectivePolicy } from "../core/resolve/index.js";
-import { readWaivers, roleMembers } from "../core/validate/waivers.js";
+import { approvalRoles, checkRef, roleMembers } from "../core/roles.js";
+import { readWaivers } from "../core/waivers/read.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { manifestVersions, storeRecord } from "./check.js";
 import { requireConfigPath } from "./context.js";
@@ -86,9 +87,6 @@ export const RECORDED_BY = "cli:local";
 
 export const HUMAN_APPROVAL = "human-approval";
 
-/** Role asked for when the policy names none at the transition (design §10). */
-export const FALLBACK_ROLE = "maintainer";
-
 /**
  * Limitation of every `human-approval` record: `--ref` is only checked to be
  * an http(s) URL and `--by` is a claim; `warrant ci` of phase 4 verifies them
@@ -106,25 +104,6 @@ export function gatesNotPassed(gates: Record<string, Verdict>): string[] {
 /** Ids of the records the verdicts rest on, sorted and unique. */
 export function evidenceOf(evaluation: Evaluation): string[] {
   return [...new Set(Object.values(evaluation.engine.evidence).flat())].sort();
-}
-
-/** Roles of `approvals[]` at the transition; `maintainer` when there is none. */
-export function approvalRoles(policy: EffectivePolicy, transition: string): string[] {
-  const roles = [...new Set(policy.approvals.filter((a) => a.at === transition).map((a) => a.role))].sort();
-  return roles.length > 0 ? roles : [FALLBACK_ROLE];
-}
-
-/** `USAGE` unless `ref` is an http(s) URL (the forge act); also `classify --ref`. */
-export function checkRef(ref: string): void {
-  let url: URL;
-  try {
-    url = new URL(ref);
-  } catch {
-    throw new WarrantError("USAGE", `--ref ${JSON.stringify(ref)} is not a URL`);
-  }
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new WarrantError("USAGE", `--ref ${JSON.stringify(ref)} is not an http(s) URL of the forge`);
-  }
 }
 
 /** `data` of a failed forward transition and of a passed one, before the record entry. */

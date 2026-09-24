@@ -12,7 +12,7 @@ import { splitPaths } from "../core/check/placeholders.js";
 import { exitCodeOf } from "../core/controller/evaluate.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type ExitCode } from "../core/errors.js";
-import { readGitFacts } from "../core/gates/diff.js";
+import { readGitFacts } from "../core/git/facts.js";
 import { loadPacks } from "../core/packs/loader.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { failures, success, type CommandResult } from "../io/output.js";

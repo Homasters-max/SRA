@@ -4,7 +4,19 @@
  * runs the binary, parses its `--json` output and turns failures into values;
  * a fake answers from its own model and parses nothing.
  */
-import type { OpenspecStatusResult } from "../openspec/status.js";
+/** The four states an OpenSpec artifact can be in (`openspec status --json`, REQ-KRN-027). */
+export const ARTIFACT_STATUSES = ["done", "ready", "blocked", "skipped"] as const;
+
+export type ArtifactStatus = (typeof ARTIFACT_STATUSES)[number];
+
+/** `{ proposal: "done", specs: "ready", ... }`, keyed by artifact id. */
+export type ArtifactStatuses = Record<string, ArtifactStatus>;
+
+export interface OpenspecStatusResult {
+  artifacts: ArtifactStatuses;
+  /** Set when the artifacts could not be read; the caller turns it into a stderr line. */
+  warning?: string;
+}
 
 /** Outcome of an `openspec` call that acts or judges: `output` is its stderr, else its stdout. */
 export interface OpenspecAct {

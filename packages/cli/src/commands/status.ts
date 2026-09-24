@@ -19,10 +19,10 @@
  */
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, type CliError } from "../core/errors.js";
-import { readGitFacts, type Availability } from "../core/gates/diff.js";
+import { readGitFacts, type Availability } from "../core/git/facts.js";
 import type { Finding, Verdict } from "../core/gates/types.js";
 import { findChangeDir } from "../core/init/scaffold.js";
-import type { ArtifactStatuses } from "../core/openspec/status.js";
+import type { ArtifactStatuses } from "../core/ports/openspec.js";
 import { openspecAvailable } from "../core/openspec/version.js";
 import { loadPacks } from "../core/packs/loader.js";
 import { nextForwardTransition } from "../core/record/lifecycle.js";

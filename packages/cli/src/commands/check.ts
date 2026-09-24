@@ -33,7 +33,7 @@ import { buildManifest, type ManifestVersions } from "../core/evidence/manifest.
 import { findParser, parserNames } from "../core/evidence/parsers/index.js";
 import { buildCheckRecord, collectArtifacts, type EvidenceStatus } from "../core/evidence/record.js";
 import { evidenceDir, listRecordIds, MANIFEST_FILE, projectUri, rawDir, readManifest } from "../core/evidence/store.js";
-import { readGitFacts, type GitFacts } from "../core/gates/diff.js";
+import { readGitFacts, type GitFacts } from "../core/git/facts.js";
 import { allocateUlid } from "../core/ids/allocate.js";
 import { isPlainObject, strings } from "../core/json.js";
 import { LOCK_REL } from "../core/packs/hash.js";

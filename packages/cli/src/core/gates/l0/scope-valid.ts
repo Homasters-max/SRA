@@ -18,7 +18,7 @@
  */
 import picomatch from "picomatch";
 
-import type { DiffEntry } from "../diff.js";
+import type { DiffEntry } from "../../git/facts.js";
 import { noInput, pass, type Calculator } from "./types.js";
 
 export const FACTORY_PROFILE = "factory-change";

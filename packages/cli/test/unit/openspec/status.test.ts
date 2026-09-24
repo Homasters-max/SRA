@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { WarrantError } from "../../../src/core/errors.js";
-import { parseOpenspecStatus } from "../../../src/core/openspec/status.js";
+import { parseOpenspecStatus } from "../../../src/adapters/openspec-cli.js";
 import { CLI_ROOT } from "../../helpers/cli.js";
 
 const FIXTURES = path.join(CLI_ROOT, "test", "fixtures", "openspec");

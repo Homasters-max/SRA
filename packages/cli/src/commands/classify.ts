@@ -45,10 +45,9 @@ import { BELOW_FLOOR_APPROVABLE_STATES } from "../core/record/lifecycle.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { assertNotFrozen } from "../core/record/write.js";
 import { resolveForProject, RISK_DIMENSIONS, type Classification, type RiskDimension } from "../core/resolve/index.js";
-import { roleMembers } from "../core/validate/waivers.js";
+import { approvalRoles, checkRef, FALLBACK_ROLE, roleMembers } from "../core/roles.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath } from "./context.js";
-import { approvalRoles, checkRef, FALLBACK_ROLE } from "./transition.js";
 
 export interface ClassifyOptions {
   /** Ref, с которым сравнивается HEAD; по умолчанию `main`. */

@@ -7,11 +7,11 @@
  * besides `diff.ts` reads the disk or starts a process.
  */
 import type { CliError } from "../errors.js";
-import type { ArtifactStatuses } from "../openspec/status.js";
+import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { EffectivePolicy } from "../resolve/types.js";
-import type { Availability, BlobTree, DiffEntry } from "./diff.js";
+import type { Availability, BlobTree, DiffEntry } from "../git/facts.js";
 
-export type { Availability, BlobTree, DiffEntry } from "./diff.js";
+export type { Availability, BlobTree, DiffEntry } from "../git/facts.js";
 
 /** Verdict axis of a gate (02 section 2); there is no INCONCLUSIVE verdict. */
 export type Verdict = "PASS" | "FAIL" | "WAIVED" | "NOT_APPLICABLE" | "BLOCKED";

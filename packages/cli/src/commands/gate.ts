@@ -11,7 +11,7 @@
  *
  * The gathering helpers here are shared with `verify` and `status`: git and
  * OpenSpec are only ever reached through `ctx` from `commands/*` and
- * `core/gates/diff.ts`, the engine and the controller stay pure.
+ * `core/git/facts.ts`, the engine and the controller stay pure.
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -31,7 +31,7 @@ import {
   type Availability,
   type DiffEntry,
   type GitFacts
-} from "../core/gates/diff.js";
+} from "../core/git/facts.js";
 import { FACTORY_PROFILE } from "../core/gates/l0/scope-valid.js";
 import { approvalOf, SPEC_APPROVED } from "../core/gates/l0/spec-approved.js";
 import type {
@@ -47,14 +47,15 @@ import { evaluateGates } from "../core/gates/verdict.js";
 import { checkAreas, checkDuplicates, loadAreas, scanIds } from "../core/ids/scan.js";
 import { findChangeDir } from "../core/init/scaffold.js";
 import { isPlainObject, strings } from "../core/json.js";
-import type { ArtifactStatuses } from "../core/openspec/status.js";
+import type { ArtifactStatuses } from "../core/ports/openspec.js";
 import { openspecAvailable } from "../core/openspec/version.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { FORWARD_TRANSITIONS, nextForwardTransition } from "../core/record/lifecycle.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
 import { resolveForProject, type Classification, type EffectivePolicy } from "../core/resolve/index.js";
-import { readWaivers, roleMembers } from "../core/validate/waivers.js";
+import { roleMembers } from "../core/roles.js";
+import { readWaivers } from "../core/waivers/read.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath } from "./context.js";
 

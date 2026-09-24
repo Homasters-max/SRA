@@ -1,9 +1,11 @@
 /**
  * Git facts of a gate evaluation (design §9, REQ-VER-003, REQ-VER-004):
  * the evaluated commit, the base, the changed paths `base...commit` and the
- * current branch. This module and `commands/*` are the only places the gate
- * engine reaches git, through `ctx.git` (ADR-0025 п. 2); everything under
- * `core/gates/` besides it is pure.
+ * current branch (ADR-0030 п. 1: `core/git`, R2 — moved from `core/gates/diff.ts`,
+ * A-6). This module and `commands/*` are the only places the gate engine
+ * reaches git, through `ctx.git` (ADR-0025 п. 2); everything under
+ * `core/gates/` is pure. Parsing git's output is the adapter's
+ * (`adapters/git-cli.ts`).
  *
  * Nothing here throws for a missing input: outside git the facts say "unknown" and the gates that need
  * them are `BLOCKED` with `NO_INPUT` (P-7). Only an explicit `--base` that
@@ -59,35 +61,6 @@ export async function readGitFacts(ctx: GitCtx, baseRef: string | undefined): Pr
     else facts.limitations.push(`no base: merge-base(HEAD, ${BASE_BRANCH}) unknown`);
   }
   return facts;
-}
-
-/**
- * Parses `git diff --name-status -z` output. With `-z` every field ends in NUL
- * and paths are never quoted; a rename or copy (`R100`, `C75`) carries two
- * paths, source first.
- */
-export function parseNameStatus(output: string): DiffEntry[] {
-  const fields = output.split("\0");
-  const out: DiffEntry[] = [];
-  let i = 0;
-  while (i < fields.length) {
-    const code = fields[i] ?? "";
-    if (code === "") {
-      i += 1;
-      continue;
-    }
-    const status = code[0] as DiffStatus;
-    if (status === "R" || status === "C") {
-      const from = fields[i + 1] ?? "";
-      const to = fields[i + 2] ?? "";
-      out.push({ status, path: to, from });
-      i += 3;
-    } else {
-      out.push({ status, path: fields[i + 1] ?? "" });
-      i += 2;
-    }
-  }
-  return out;
 }
 
 /**

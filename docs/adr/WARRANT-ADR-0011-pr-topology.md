@@ -4,11 +4,15 @@ title: Топология PR — два PR на Change, archive отдельно
 adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
-amended_by: [WARRANT-ADR-0020]
+amended_by: [WARRANT-ADR-0020, WARRANT-ADR-0033]
 ---
 
 > Уточнено [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md): этот ADR — транспорт `github` абстрактной топологии Change;
 > второй транспорт — `sef-hub` (proposed). MVP — `github` без изменений.
+>
+> Уточнено [ADR-0033](WARRANT-ADR-0033-git-process.md) для разработки самого WARRANT: branch protection на приватном
+> репозитории бесплатного плана нет — review принуждает процесс, merge решает человек, а выполняет агент по слову
+> «merge #N» в чате (п. 3, Consequences); squash и rebase выключены в настройках репозитория.
 
 ## Context
 

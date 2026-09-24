@@ -67,7 +67,7 @@ OpenSpec + warrant-sdd schema + profile feature
 
 | Идея | Где записана | Триггер |
 |---|---|---|
-| Graft в продукте: blast radius как сигнал `classify`, граф кода в Context Pack исполнителей SEF (фаза 9) | [ADR-0026](adr/WARRANT-ADR-0026-graft-experiment.md) п. 1 | Эксперимент ADR-0026 — `accept` и Graft ≥ 1.0 |
+| Graft в продукте: blast radius как сигнал `classify`, граф кода в Context Pack исполнителей SEF (фаза 9) | [ADR-0026](adr/WARRANT-ADR-0026-graft-experiment.md) п. 1 | Эксперимент ADR-0026 — `accept` (**выполнено**, [ADR-0028](adr/WARRANT-ADR-0028-graft-adoption.md)) и Graft ≥ 1.0 |
 
 ## 4. Не входит в MVP
 

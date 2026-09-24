@@ -29,7 +29,8 @@
 | [0023](WARRANT-ADR-0023-warrant-dev-frontend.md) | Frontend разработки самого WARRANT: сессии Claude Code без guard, защита — топология PR, review, CI, `validate`; адаптер `claude` — кандидат фазы 4 по S8 | ACCEPTED |
 | [0024](WARRANT-ADR-0024-spec-approved-contract.md) | `spec-approved`: контракт `{proposal.md, specs/**}` без `design.md`, gate waivable — правка контракта после approval снимается waiver'ом maintainer'а | ACCEPTED |
 | [0025](WARRANT-ADR-0025-test-levels.md) | Уровни тестов WARRANT: `unit`, `app`, `contract`, `e2e`; порты процессов и `Ctx`, фейки с контрактом соответствия, проверки уровней, `validate` без N вызовов `openspec` подряд | ACCEPTED |
-| [0026](WARRANT-ADR-0026-graft-experiment.md) | Graft в разработке WARRANT: слепой эксперимент `[A]` / `[B]` по группам задач, только CLI через `scripts/dev/cs.js`, навык `code-search`, без записи в конфиги агента; порог −20 % токенов или tool calls | ACCEPTED (эксперимент, итог — отдельным ADR; уточнён 0027) |
-| [0027](WARRANT-ADR-0027-graft-tuning.md) | Graft: донастройка после `test-levels` — парный бенчмарк 8 вопросов, метрика прочитанных байт, детектор отступлений без ложных срабатываний, слепота без памяти и навыка, одна группа — один агент | ACCEPTED |
+| [0026](WARRANT-ADR-0026-graft-experiment.md) | Graft в разработке WARRANT: слепой эксперимент `[A]` / `[B]` по группам задач, только CLI через `scripts/dev/cs.js`, навык `code-search`, без записи в конфиги агента; порог −20 % токенов или tool calls | ACCEPTED (эксперимент закрыт; уточнён 0027, 0028) |
+| [0027](WARRANT-ADR-0027-graft-tuning.md) | Graft: донастройка после `test-levels` — парный бенчмарк 8 вопросов, метрика прочитанных байт, детектор отступлений без ложных срабатываний, слепота без памяти и навыка, одна группа — один агент | ACCEPTED (уточнён 0028) |
+| [0028](WARRANT-ADR-0028-graft-adoption.md) | Graft: итог эксперимента — `accept` (прочитанное −46 %, токены −22 %, recall 1,0); поиск через `cs.js` и навык `code-search` — стандарт субагентов; обновление Graft — только через регрессию бенчмарка | ACCEPTED |
 
 Новый ADR: следующий номер, frontmatter как в существующих, строка в этой таблице.

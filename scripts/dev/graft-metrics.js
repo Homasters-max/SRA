@@ -2,13 +2,13 @@
  * Graft experiment (ADR-0026, ADR-0027, docs/process/graft.md): record one task group, aggregate all records.
  *
  *   node scripts/dev/graft-metrics.js run --change <c> --group <n> [--part <k>] [--find <text>] [--agent <jsonl>]
- *        [--mode baseline] [--red-runs <n>] [--helped yes|partly|no] [--misled none|<text>] [--notes <text>]
+ *        [--mode on|baseline] [--red-runs <n>] [--helped yes|partly|no] [--misled none|<text>] [--notes <text>]
  *   node scripts/dev/graft-metrics.js rescore
  *   node scripts/dev/graft-metrics.js report
  *
  * `run` finds the subagent transcript by `--agent`, or by `--find` (substring of the Agent description; default
  * `<change> group <n>`) under every `~/.claude/projects/D--project-SRA*` directory; the arm comes from the blind label
- * at the end of the description (`[A]` — graft, `[B]` — control), `--mode baseline` only for an unlabelled historical
+ * at the end of the description (`[A]` — graft, `[B]` — control), `--mode on` for an unlabelled run after adoption (ADR-0028: every group searches with cs), `--mode baseline` for an unlabelled historical
  * run. One group = one agent; a group that had to be split is recorded per subagent with `--part k` and summed by
  * `report`. The transcript is copied to `<git-common-dir>/graft-lab/transcripts/`, the record goes to
  * `<git-common-dir>/graft-lab/runs/<change>-g<n>[-p<k>].json` — shared by every worktree, never tracked.
@@ -89,8 +89,8 @@ function run(o) {
 
   const tagged = modeOf(meta.description);
   if (tagged && o.mode) fail(`--mode is only for unlabelled runs; the description is labelled (${tagged})`);
-  const mode = tagged ?? (o.mode === "baseline" ? "baseline" : null);
-  if (!mode) fail("arm unknown: the Agent description must end with [A] or [B] (or pass --mode baseline for a historical run)");
+  const mode = tagged ?? (o.mode === "baseline" || o.mode === "on" ? o.mode : null);
+  if (!mode) fail("arm unknown: the Agent description must end with [A] or [B], or pass --mode on (after ADR-0028) or --mode baseline (historical run)");
 
   const name = `${o.change}-g${group}${part === null ? "" : `-p${part}`}`;
   const copies = path.join(labDir(), "transcripts");

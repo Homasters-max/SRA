@@ -5,8 +5,11 @@ adr_state: ACCEPTED
 date: 2026-09-24
 supersedes: []
 amends: []
-amended_by: [WARRANT-ADR-0027]
+amended_by: [WARRANT-ADR-0027, WARRANT-ADR-0028]
 ---
+
+> Итог — [ADR-0028](WARRANT-ADR-0028-graft-adoption.md): эксперимент закрыт с вердиктом `accept`; поиск через `cs.js` и
+> навык `code-search` — стандарт субагентов; метки, зонд и слепота больше не применяются; ограничения п. 2–3 в силе.
 
 > Уточнено [ADR-0027](WARRANT-ADR-0027-graft-tuning.md): алгоритм поиска — не навык в `.claude/skills`, а текст
 > [docs/process/code-search.md](../process/code-search.md) в промпте `[A]`; зонд проверяет и индекс памяти; основной замер —

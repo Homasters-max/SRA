@@ -5,7 +5,12 @@ adr_state: ACCEPTED
 date: 2026-09-24
 supersedes: []
 amends: [WARRANT-ADR-0026]
+amended_by: [WARRANT-ADR-0028]
 ---
+
+> Итог — [ADR-0028](WARRANT-ADR-0028-graft-adoption.md): бенчмарк п. 4 дал `accept`; алгоритм вернулся в навык
+> `.claude/skills/code-search` (вызываемый моделью) — п. 2 про слепоту больше не применяется; бенчмарк остаётся для
+> регрессии при обновлении Graft.
 
 ## Context
 

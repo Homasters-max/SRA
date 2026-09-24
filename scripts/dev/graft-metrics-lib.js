@@ -8,7 +8,7 @@
  * `message.id` — usage is counted once per id, tool calls once per `tool_use` id.
  *
  * Arms are blind labels at the end of the description: `[A]` — code search via `scripts/dev/cs.js`
- * (docs/process/code-search.md, pasted into the prompt), `[B]` — control, usual tools. Graft's own "tokens saved"
+ * (the code-search skill, .claude/skills/code-search/SKILL.md; ADR-0028 — every group since adoption), `[B]` — control, usual tools. Graft's own "tokens saved"
  * lines are not used (and `cs.js` strips them).
  *
  * Primary metric (ADR-0027): bytes of tool results the agent pulled into its context while exploring
@@ -94,7 +94,7 @@ export function rawGraftCalls(command) {
 }
 
 /**
- * Deviations from docs/process/code-search.md in one tool call: search over code content instead of `cs grep` /
+ * Deviations from the code-search skill in one tool call: search over code content instead of `cs grep` /
  * `cs ask`, a whole code file read instead of `cs skeleton` + a range, graft called around `cs.js`. Not deviations:
  * writes (heredoc, `sed -i`), JSON / configs / locks / docs, `node_modules` and other packages, file listing
  * (`find`, `ls`, Glob), filtering piped output.

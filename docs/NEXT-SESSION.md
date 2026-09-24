@@ -57,8 +57,8 @@ version: 0.4.1
   - `npm test` локально без флагов — 178 с → ~70 с, зелёный 3 раза подряд (788 тестов); CI шаг тестов ubuntu / windows —
     346 / 751 с → 137 / 263 с; `warrant validate` репозитория — 11–12 с → 4,5 с (кэш `show` не нужен, I-128).
   - Эксперимент Graft: записи групп test-levels g1–g6 помечены `blind-leak` — индекс `MEMORY.md` сессии
-    называл эксперимент (зонд это поймал; индекс исправлен для следующих сессий, снимок текущей сессии — нет). Засчитывать ли
-    их — решение maintainer'а при `/stats-report`.
+    называл эксперимент (зонд это поймал; индекс исправлен для следующих сессий, снимок текущей сессии — нет). Решено
+    ADR-0027 п. 1: засчитываются (`cs` в `[B]` — 0); донастройка и парный бенчмарк — ADR-0027.
 - **Итог фазы 3:**
   - capability `verification` (REQ-VER-001…008): `warrant check` (runner без shell, замок `exclusive` в `git-common-dir`,
     `timeout_s` с kill дерева, parsers `junit`/`openspec-validate`, evidence + manifest, attestation `ci` под GitHub Actions),
@@ -103,7 +103,7 @@ version: 0.4.1
 | `analyze` | **Решено V-1**: фаза 4 | — |
 | ~~тесты под нагрузкой~~ | **закрыт** test-levels: `npm test` без флагов ~70 с, зелёный 3 раза подряд (I-138: `unit`/`app` первой группой, тяжёлые — `maxForks`), `validate` репозитория 4,5 с (3.1). Было: `warrant validate` на репозитории — ~30 с (вызовы `openspec` на каждый Change/spec); полный `npm test` с параллелизмом по умолчанию на машине maintainer'а даёт таймауты e2e `validate`/`golden` (поодиночке и с `--maxWorkers=3` — зелёные, CI — зелёный). Один `openspec` на проект невозможен (у OpenSpec 1.13.1 нет пакетного `show`); таймауты не поднимаем | **решено ADR-0025**: `test-levels` — `show` только для файлов с id и параллельно, логика в `unit`/`app` без процессов; до его закрытия `/group-done` гоняет `--maxWorkers=3` вручную |
 | I-103 | Пред-фильтр исключает запись, чей `metrics.waivers[]` ссылается на waiver с `targets[]` — пересмотреть вместе с D-10 | фаза 5 |
-| Graft | Слепой эксперимент ADR-0026 активен ([process/graft.md](process/graft.md), `status: active`): группы раздаются по [process/coordinator.md](process/coordinator.md) — зонд, метки `[A]` (нечётные, навык `code-search`) / `[B]` (чётные), одинаковые шаблоны; после группы — `/group-stats`; фон phase-3b g1–g5 записан. Субагентам об эксперименте не сообщать | `/stats-report` после ≥ 2 засчитанных групп в каждой метке |
+| Graft | Слепой эксперимент ADR-0026/0027 активен ([process/graft.md](process/graft.md), `status: active`): основной замер — парный бенчмарк (`scripts/dev/bench-score.js`), поле — группы по [process/coordinator.md](process/coordinator.md): зонд (включая память), метки `[A]` (нечётные, текст [process/code-search.md](process/code-search.md) в промпте) / `[B]` (чётные), одна группа — один агент; после группы — `/group-stats`. Субагентам об эксперименте не сообщать; в памяти проекта о нём ничего | `/stats-report` — отчёт и итоговый ADR |
 | `fmt` packs | `warrant fmt --check` без пути не проверяет `packs/**`; `packs/core-sdd/pack.json` неканоничен (порядок `rules`/`skills`), а правило `json-canonical` из черновика `rule/1` покрывает `packs/**/*.json` | вместе с первым правилом `rule/1` или отдельным fix |
 
 ### Ревью фазы 3 (2026-09-23) — R-1…R-16
@@ -167,10 +167,11 @@ verify → transition`, gate engine, runner) — нет. Нерешённые в
 | Отклонение от spec — строкой I-N в design.md, вопросом maintainer'у | pack `rules.design` (1.4) | правило о решении (ADR-0022 допускает без `enforced_by`); нумерацию I-N ведёт `/decision` (ниже) |
 | NEXT-SESSION обновляется в конце сессии | этот файл | процедура `/next-session` (ниже) |
 | Graft только через `cs.js`, разрешённые подкоманды и версия | ADR-0026 п. 2 | `scripts/dev/cs.js` (код 2 / 3); `graft` в группе `[B]` — код 1 `graft-metrics run` |
-| Алгоритм поиска `code-search` в группах `[A]` | ADR-0026 п. 4 | `graft-metrics run`: `deviations`, > 3 → `compliant: false` (вне вердикта) |
+| Алгоритм поиска в группах `[A]` | ADR-0027 п. 3, 6 | `graft-metrics run`: `deviations` (детектор с unit-тестами на ложные срабатывания), > 3 → `compliant: false` (вне вердикта) |
 | Graft не пачкает дерево | ADR-0026 п. 3 | `cs.js` ставит переменные и проверяет `.git/info/exclude`; `git status --short` в `/group-done` |
 | Каждая группа записана и помечена `[A]`/`[B]` | ADR-0026 п. 5 | `graft-metrics run` без метки не пишет; `report` — `missing` (группа закрыта без записи), код 1 |
-| Слепота эксперимента | ADR-0026 п. 5 | зонд перед первой группой ([coordinator.md](process/coordinator.md) §1); шаблоны промпта — правило о решении |
+| Слепота эксперимента | ADR-0026 п. 5, ADR-0027 п. 2 | зонд перед первой группой с механической проверкой ответа, включая индекс памяти ([coordinator.md](process/coordinator.md) §1); алгоритма нет в `.claude/`; шаблоны промпта — правило о решении |
+| Одна группа — один агент, транскрипт сохранён | ADR-0027 п. 5 | `graft-metrics run --part k` (иначе отказ при нескольких транскриптах), копия в `graft-lab/transcripts/` |
 | `scripts/dev/` не поставляется | ADR-0026 | `package-contents.test.ts` |
 
 Процедуры `.claude/commands/` — `/decision` (следующий I-N строкой в таблицу design.md), `/group-done <N>` (ветка и worktree,

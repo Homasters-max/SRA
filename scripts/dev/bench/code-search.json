@@ -1,0 +1,145 @@
+{
+  "$comment": "Code-search benchmark (ADR-0027): questions from the task groups of change test-levels, asked on the parent commit of the group. truth — built from the TypeScript AST at that commit (enclosing named function of each call; \"(file)\" for file-level questions), not with graft.",
+  "format": "code-search-bench/1",
+  "questions": [
+    {
+      "id": "q1",
+      "base": "8f590dc",
+      "group": "test-levels#2",
+      "question": "Which functions in packages/cli/src start a child process directly — call spawn / spawn.sync from cross-spawn or spawnSync / spawn / execFile from node:child_process?",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/commands/classify.ts", "symbol": "git" },
+        { "file": "packages/cli/src/core/check/runner.ts", "symbol": "killTree" },
+        { "file": "packages/cli/src/core/check/runner.ts", "symbol": "runCommand" },
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "git" },
+        { "file": "packages/cli/src/core/ids/immutable.ts", "symbol": "git" },
+        { "file": "packages/cli/src/core/openspec/cli.ts", "symbol": "openspecAvailable" },
+        { "file": "packages/cli/src/core/openspec/cli.ts", "symbol": "runOpenspec" }
+      ]
+    },
+    {
+      "id": "q2",
+      "base": "8f590dc",
+      "group": "test-levels#2",
+      "question": "Which functions in packages/cli/src call runOpenspec or openspecAvailable (packages/cli/src/core/openspec/cli.ts) directly?",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/commands/archive.ts", "symbol": "runArchive" },
+        { "file": "packages/cli/src/commands/gate.ts", "symbol": "runGate" },
+        { "file": "packages/cli/src/commands/init.ts", "symbol": "runInitChange" },
+        { "file": "packages/cli/src/commands/status.ts", "symbol": "runStatus" },
+        { "file": "packages/cli/src/commands/transition.ts", "symbol": "forward" },
+        { "file": "packages/cli/src/commands/validate.ts", "symbol": "checkGenerated" },
+        { "file": "packages/cli/src/commands/verify.ts", "symbol": "runVerify" },
+        { "file": "packages/cli/src/core/ids/scan.ts", "symbol": "checkPlacement" },
+        { "file": "packages/cli/src/core/openspec/status.ts", "symbol": "openspecStatus" },
+        { "file": "packages/cli/src/core/openspec/version.ts", "symbol": "openspecVersion" }
+      ]
+    },
+    {
+      "id": "q3",
+      "base": "8f590dc",
+      "group": "test-levels#2",
+      "question": "Which functions in packages/cli/src read the current date or time (new Date() without arguments, Date.now())?",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/commands/check.ts", "symbol": "runOne" },
+        { "file": "packages/cli/src/commands/gate.ts", "symbol": "utcToday" },
+        { "file": "packages/cli/src/commands/id.ts", "symbol": "runId" },
+        { "file": "packages/cli/src/commands/transition.ts", "symbol": "ensureApproval" },
+        { "file": "packages/cli/src/commands/transition.ts", "symbol": "forwardEntry" },
+        { "file": "packages/cli/src/commands/transition.ts", "symbol": "runTransition" },
+        { "file": "packages/cli/src/commands/validate.ts", "symbol": "utcToday" },
+        { "file": "packages/cli/src/core/ids/allocate.ts", "symbol": "allocateWaiver" },
+        { "file": "packages/cli/src/core/init/scaffold.ts", "symbol": "changeRecord" }
+      ]
+    },
+    {
+      "id": "q4",
+      "base": "63380f5",
+      "group": "test-levels#3",
+      "question": "Which functions in packages/cli/src call checkPlacement (packages/cli/src/core/ids/scan.ts), directly or through other functions, up to the command handler? Do not list packages/cli/src/bin.",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/core/ids/scan.ts", "symbol": "checkIds" },
+        { "file": "packages/cli/src/commands/validate.ts", "symbol": "runValidate" }
+      ]
+    },
+    {
+      "id": "q5",
+      "base": "ade2911",
+      "group": "test-levels#4",
+      "question": "Which functions in packages/cli/src, outside packages/cli/src/adapters, call methods of the git port (ctx.git.*)?",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/commands/classify.ts", "symbol": "changedFromGit" },
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "changedPaths" },
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "contractTree" },
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "currentBranch" },
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "forkPointOf" },
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "isAncestor" },
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "mergeCommitOf" },
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "mergedCommitFacts" },
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "parentsOf" },
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "projectPrefix" },
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "readGitFacts" },
+        { "file": "packages/cli/src/core/gates/diff.ts", "symbol": "resolveCommit" },
+        { "file": "packages/cli/src/core/ids/immutable.ts", "symbol": "checkImmutableIds" }
+      ]
+    },
+    {
+      "id": "q6",
+      "base": "375ccc4",
+      "group": "test-levels#5",
+      "question": "Which test files under packages/cli/test import packages/cli/test/helpers/fake-openspec.ts?",
+      "level": "file",
+      "truth": [
+        { "file": "packages/cli/test/e2e/check.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/gate.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/init.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/status.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/sync.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/transition.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/verify.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/waive.test.ts", "symbol": "(file)" }
+      ]
+    },
+    {
+      "id": "q7",
+      "base": "375ccc4",
+      "group": "test-levels#5",
+      "question": "Which test files under packages/cli/test call useSyncedProject?",
+      "level": "file",
+      "truth": [
+        { "file": "packages/cli/test/contract/project-builder.contract.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/archive.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/check.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/gate.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/link.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/transition.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/validate-ids-head.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/validate-verification.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/verify.test.ts", "symbol": "(file)" },
+        { "file": "packages/cli/test/e2e/waive.test.ts", "symbol": "(file)" }
+      ]
+    },
+    {
+      "id": "q8",
+      "base": "8f590dc",
+      "group": "test-levels#2",
+      "question": "Which functions in packages/cli/src call evaluateGates (packages/cli/src/core/gates/verdict.ts), directly or through other functions, up to the command handlers? Do not list packages/cli/src/bin.",
+      "level": "symbol",
+      "truth": [
+        { "file": "packages/cli/src/commands/gate.ts", "symbol": "evaluateTransition" },
+        { "file": "packages/cli/src/commands/archive.ts", "symbol": "runArchive" },
+        { "file": "packages/cli/src/commands/gate.ts", "symbol": "runGate" },
+        { "file": "packages/cli/src/commands/status.ts", "symbol": "statusOf" },
+        { "file": "packages/cli/src/commands/status.ts", "symbol": "runStatus" },
+        { "file": "packages/cli/src/commands/transition.ts", "symbol": "forward" },
+        { "file": "packages/cli/src/commands/transition.ts", "symbol": "runTransition" },
+        { "file": "packages/cli/src/commands/verify.ts", "symbol": "runVerify" }
+      ]
+    }
+  ]
+}

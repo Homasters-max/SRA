@@ -1,27 +1,26 @@
 /**
- * Graft experiment (ADR-0026, docs/process/graft.md): record one task group,
- * aggregate all records.
+ * Graft experiment (ADR-0026, ADR-0027, docs/process/graft.md): record one task group, aggregate all records.
  *
- *   node scripts/dev/graft-metrics.js run --change <c> --group <n> [--find <text>] [--agent <jsonl>]
+ *   node scripts/dev/graft-metrics.js run --change <c> --group <n> [--part <k>] [--find <text>] [--agent <jsonl>]
  *        [--mode baseline] [--red-runs <n>] [--helped yes|partly|no] [--misled none|<text>] [--notes <text>]
+ *   node scripts/dev/graft-metrics.js rescore
  *   node scripts/dev/graft-metrics.js report
  *
- * `run` finds the subagent transcript by `--agent`, or by `--find` (substring of
- * the Agent description; default `<change> group <n>`) under every
- * `~/.claude/projects/D--project-SRA*` directory; the arm comes from the blind
- * label at the end of the description (`[A]` — graft, `[B]` — control),
- * `--mode baseline` only for an unlabelled historical run. Records go to
- * `<git-common-dir>/graft-lab/runs/<change>-g<n>.json` — shared by every
- * worktree, never tracked. `report` prints the aggregate JSON and lists groups
- * closed in tasks.md without a record (`missing`).
+ * `run` finds the subagent transcript by `--agent`, or by `--find` (substring of the Agent description; default
+ * `<change> group <n>`) under every `~/.claude/projects/D--project-SRA*` directory; the arm comes from the blind label
+ * at the end of the description (`[A]` — graft, `[B]` — control), `--mode baseline` only for an unlabelled historical
+ * run. One group = one agent; a group that had to be split is recorded per subagent with `--part k` and summed by
+ * `report`. The transcript is copied to `<git-common-dir>/graft-lab/transcripts/`, the record goes to
+ * `<git-common-dir>/graft-lab/runs/<change>-g<n>[-p<k>].json` — shared by every worktree, never tracked.
+ * `rescore` recomputes every record from its transcript copy with the current metrics (card kept).
+ * `report` prints the aggregate JSON and lists groups closed in tasks.md without a record (`missing`).
  * Exit: 0 ok; 1 — run: violations, report: verdict reject or missing groups; 2 usage / not found.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import os from "node:os";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { buildReport, buildRun, closedGroups, modeOf, parseTranscript } from "./graft-metrics-lib.js";
+import { buildReport, buildRun, closedGroups, findTranscripts, modeOf, parseTranscript } from "./graft-metrics-lib.js";
 
 function fail(msg, code = 2) {
   process.stderr.write(`graft-metrics: ${msg}\n`);
@@ -60,37 +59,28 @@ function tasksOf(change) {
   return hit && existsSync(path.join(archive, hit, "tasks.md")) ? readFileSync(path.join(archive, hit, "tasks.md"), "utf8") : null;
 }
 
-function findTranscripts(text) {
-  const root = path.join(os.homedir(), ".claude", "projects");
-  const hits = [];
-  if (!existsSync(root)) return hits;
-  const needle = text.toLowerCase();
-  for (const project of readdirSync(root)) {
-    if (!project.startsWith("D--project-SRA")) continue;
-    for (const session of readdirSync(path.join(root, project))) {
-      const dir = path.join(root, project, session, "subagents");
-      if (!existsSync(dir)) continue;
-      for (const f of readdirSync(dir)) {
-        if (!f.endsWith(".meta.json")) continue;
-        const meta = JSON.parse(readFileSync(path.join(dir, f), "utf8"));
-        if (!String(meta.description ?? "").toLowerCase().includes(needle)) continue;
-        hits.push({ jsonl: path.join(dir, f.replace(/\.meta\.json$/, ".jsonl")), meta });
-      }
-    }
-  }
-  return hits;
+function readRecords() {
+  const dir = path.join(labDir(), "runs");
+  return existsSync(dir)
+    ? readdirSync(dir)
+        .filter((f) => f.endsWith(".json"))
+        .map((f) => ({ file: path.join(dir, f), record: JSON.parse(readFileSync(path.join(dir, f), "utf8")) }))
+    : [];
 }
 
 function run(o) {
   if (!o.change || !o.group) fail("run needs --change and --group");
   const group = Number(o.group);
   if (!Number.isInteger(group) || group < 1) fail("--group must be a positive integer");
+  const part = o.part === undefined ? null : Number(o.part);
+  if (part !== null && (!Number.isInteger(part) || part < 1)) fail("--part must be a positive integer");
   let jsonl = o.agent;
   let meta = {};
   if (!jsonl) {
-    const hits = findTranscripts(o.find ?? `${o.change} group ${group}`);
-    if (hits.length === 0) fail(`no subagent transcript matches "${o.find ?? `${o.change} group ${group}`}"`);
-    if (hits.length > 1) fail(`several transcripts match — pass --agent:\n${hits.map((h) => `  ${h.jsonl}  (${h.meta.description})`).join("\n")}`);
+    const needle = o.find ?? `${o.change} group ${group}`;
+    const hits = findTranscripts(needle);
+    if (hits.length === 0) fail(`no subagent transcript matches "${needle}"`);
+    if (hits.length > 1) fail(`several transcripts match — pass --agent (or --part per subagent):\n${hits.map((h) => `  ${h.jsonl}  (${h.meta.description})`).join("\n")}`);
     ({ jsonl, meta } = hits[0]);
   } else if (existsSync(jsonl.replace(/\.jsonl$/, ".meta.json"))) {
     meta = JSON.parse(readFileSync(jsonl.replace(/\.jsonl$/, ".meta.json"), "utf8"));
@@ -102,13 +92,19 @@ function run(o) {
   const mode = tagged ?? (o.mode === "baseline" ? "baseline" : null);
   if (!mode) fail("arm unknown: the Agent description must end with [A] or [B] (or pass --mode baseline for a historical run)");
 
-  const metrics = parseTranscript(readFileSync(jsonl, "utf8"));
+  const name = `${o.change}-g${group}${part === null ? "" : `-p${part}`}`;
+  const copies = path.join(labDir(), "transcripts");
+  mkdirSync(copies, { recursive: true });
+  const copy = path.join(copies, `${name}.jsonl`);
+  if (path.resolve(jsonl) !== path.resolve(copy)) copyFileSync(jsonl, copy);
+
   const record = buildRun({
     change: o.change,
     group,
+    part,
     mode,
-    agent: { id: path.basename(jsonl, ".jsonl"), description: meta.description ?? null, model: meta.model ?? null, transcript: jsonl },
-    metrics,
+    agent: { id: path.basename(jsonl, ".jsonl"), description: meta.description ?? null, model: meta.model ?? null, source: jsonl, transcript: copy },
+    metrics: parseTranscript(readFileSync(copy, "utf8")),
     card: {
       red_runs: o["red-runs"] === undefined ? undefined : Number(o["red-runs"]),
       helped: o.helped,
@@ -118,19 +114,44 @@ function run(o) {
   });
   const dir = path.join(labDir(), "runs");
   mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `${o.change}-g${group}.json`);
+  const file = path.join(dir, `${name}.json`);
   writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify({ file, ...record }, null, 2)}\n`);
   process.exit(record.violations.length > 0 ? 1 : 0);
 }
 
+function rescore() {
+  const copies = path.join(labDir(), "transcripts");
+  mkdirSync(copies, { recursive: true });
+  const out = [];
+  for (const { file, record } of readRecords()) {
+    const name = path.basename(file, ".json");
+    const copy = path.join(copies, `${name}.jsonl`);
+    const source = [record.agent.transcript, record.agent.source].find((p) => p && existsSync(p));
+    if (!existsSync(copy)) {
+      if (!source) {
+        out.push({ record: name, error: "transcript lost" });
+        continue;
+      }
+      copyFileSync(source, copy);
+    }
+    const next = buildRun({
+      change: record.change,
+      group: record.group,
+      part: record.part ?? null,
+      mode: record.mode,
+      agent: { ...record.agent, source: record.agent.source ?? record.agent.transcript, transcript: copy },
+      metrics: parseTranscript(readFileSync(copy, "utf8")),
+      card: record.card,
+    });
+    writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`);
+    out.push({ record: name, mode: next.mode, deviations: next.deviations.length, compliant: next.compliant, explore_bytes: next.ingest.explore_bytes });
+  }
+  process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
+}
+
 function report() {
-  const dir = path.join(labDir(), "runs");
-  const runs = existsSync(dir)
-    ? readdirSync(dir)
-        .filter((f) => f.endsWith(".json"))
-        .map((f) => JSON.parse(readFileSync(path.join(dir, f), "utf8")))
-    : [];
+  const runs = readRecords().map((r) => r.record);
   const missing = [];
   for (const change of new Set(runs.filter((r) => r.mode !== "baseline").map((r) => r.change))) {
     const tasks = tasksOf(change);
@@ -145,5 +166,6 @@ function report() {
 
 const o = args(process.argv.slice(2));
 if (o._[0] === "run") run(o);
+else if (o._[0] === "rescore") rescore();
 else if (o._[0] === "report") report();
-else fail("usage: graft-metrics.js run --change <c> --group <n> [...] | report");
+else fail("usage: graft-metrics.js run --change <c> --group <n> [...] | rescore | report");

@@ -5,7 +5,12 @@ adr_state: ACCEPTED
 date: 2026-09-24
 supersedes: []
 amends: []
+amended_by: [WARRANT-ADR-0027]
 ---
+
+> Уточнено [ADR-0027](WARRANT-ADR-0027-graft-tuning.md): алгоритм поиска — не навык в `.claude/skills`, а текст
+> [docs/process/code-search.md](../process/code-search.md) в промпте `[A]`; зонд проверяет и индекс памяти; основной замер —
+> парный бенчмарк, метрика — прочитанные при исследовании байты, порог — отношение `[A]/[B]` ≤ 0,8 при recall не ниже.
 
 ## Context
 

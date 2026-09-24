@@ -19,7 +19,7 @@ amends: [WARRANT-ADR-0020]
 «новой ревизии approval» для этого нет: возврат `IMPLEMENTING → SPECIFIED` допустим ([04 §2](../04-lifecycle.md)), но
 повторный переход `SPECIFIED->APPROVED` на diff с кодом не пропускает `scope-valid`.
 
-Решение V-9 (нарезка phase-3b, [NEXT-SESSION](../NEXT-SESSION.md)) уточняет D-3; этот ADR фиксирует его нормативно.
+Решение V-9 (нарезка phase-3b, [NEXT-SESSION](../archive/2026-09-24-next-session.md)) уточняет D-3; этот ADR фиксирует его нормативно.
 
 ## Decision
 

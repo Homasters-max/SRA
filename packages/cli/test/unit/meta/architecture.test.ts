@@ -6,7 +6,7 @@
  * command but `commands/context.ts`, a registered helper is declared only by
  * its owner, and two or more values of a registered enum stand in an array
  * literal only in the owner file. Known violations are exceptions naming a
- * row A-N of «Архитектурный долг» (docs/NEXT-SESSION.md); an exception that
+ * row A-N of the debt registry (docs/backlog.md, ADR-0032 п. 5); an exception that
  * covers nothing fails too (the ratchet only tightens).
  *
  * Imports come from `ts.preProcessFile` (multi-line imports, `import type`,
@@ -334,7 +334,7 @@ function check(arch: Architecture, sources: readonly Source[]): Record<Rule, str
 
 const SOURCES = readSources(ARCH);
 const RESULT = check(ARCH, SOURCES);
-const DEBT = readFileSync(path.join(REPO_ROOT, "docs", "NEXT-SESSION.md"), "utf8");
+const DEBT = readFileSync(path.join(REPO_ROOT, "docs", "backlog.md"), "utf8");
 
 describe("architecture.json is well-formed (ADR-0030 п. 5, 6)", () => {
   it("modules: unique ids, a rank or a layer, every layer listed; references name known modules", () => {
@@ -356,7 +356,7 @@ describe("architecture.json is well-formed (ADR-0030 п. 5, 6)", () => {
     expect(problems).toEqual([]);
   });
 
-  it("exceptions: a known rule, the fields of the rule, no duplicates, an A-N row of «Архитектурный долг»", () => {
+  it("exceptions: a known rule, the fields of the rule, no duplicates, an A-N row of docs/backlog.md", () => {
     const problems: string[] = [];
     const seen = new Set<string>();
     for (const x of ARCH.exceptions) {
@@ -377,7 +377,7 @@ describe("architecture.json is well-formed (ADR-0030 п. 5, 6)", () => {
       if (seen.has(key)) problems.push(`duplicate exception ${key}`);
       seen.add(key);
       if (!/^A-\d+$/.test(x.id) || !new RegExp(`^\\| ${x.id} \\|`, "m").test(DEBT)) {
-        problems.push(`${x.id}: not a row of «Архитектурный долг» in docs/NEXT-SESSION.md`);
+        problems.push(`${x.id}: not a row of docs/backlog.md`);
       }
     }
     expect(problems).toEqual([]);

@@ -1,9 +1,78 @@
 # WARRANT — вход для сессии Claude Code
 
-Указатель, правил здесь нет: правила — в ADR (`docs/adr/`) и в документах, на которые ведут ссылки.
+WARRANT — governance-слой фабрики SEF поверх OpenSpec (specification kernel, stock): policy, gates, evidence, lifecycle
+Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SEF — LATTICE (объекты), SRA (reasoning, skills), JEV
+(classifier без authority). Этот файл — указатель: норма — в ADR, полная таблица правил —
+[docs/process/rules.md](docs/process/rules.md) ([ADR-0032](docs/adr/WARRANT-ADR-0032-dev-context.md) п. 7).
 
-- Начало сессии — [docs/NEXT-SESSION.md](docs/NEXT-SESSION.md): состояние, долг, процессные правила, готовый запрос.
-- Процедуры — `.claude/commands/`: `/decision`, `/group-done`, `/next-session`.
-- Поиск по коду (`packages/**`, `scripts/**`) — навык `code-search` ([ADR-0028](docs/adr/WARRANT-ADR-0028-graft-adoption.md)).
-- Сессия, которая раздаёт группы задач субагентам, — перед первой раздачей читает
-  [docs/process/coordinator.md](docs/process/coordinator.md).
+## Карта
+
+| Каталог | Что |
+|---|---|
+| `docs/` | спецификация 01–13 ([00-readme](docs/00-readme.md)), `adr/`, [backlog.md](docs/backlog.md) (долг), `handoff/` (передача), `process/` (процессы разработки) |
+| `openspec/` | specs и Changes (dogfooding); `changes/archive/` неизменяем (ADR-0021) |
+| `packages/cli/` | CLI `warrant`: `src/`, `test/` (уровни ADR-0025), `schemas/`; конвенции — [packages/cli/CLAUDE.md](packages/cli/CLAUDE.md) |
+| `packs/core-sdd/` | pack по умолчанию: profiles, gates, checks, golden |
+| `sra/skills/` | reasoning-skills SRA, поставляемые с pack |
+| `scripts/dev/` | инструменты разработки: `cs.js` (поиск по коду), `brief.js` (состояние), хуки, метрики; не поставляются |
+| `.warrant/` | конфигурация и состояние WARRANT самого репозитория (record, evidence, waivers) |
+| `.claude/` | `settings.json` (только хуки), `skills/` (навыки проекта) |
+
+## Старт сессии
+
+1. Состояние (ветка, worktree, теги, версии, активные Changes, файлы передачи) приходит хуком `SessionStart`; вручную —
+   `node scripts/dev/brief.js`. Вычислимое прозой не записывается.
+2. Файл передачи своего потока — `docs/handoff/<поток>.md`: цель, готовый запрос, открытые вопросы. Поток не ясен —
+   спросить пользователя.
+3. Сессия, которая раздаёт группы задач субагентам, перед первой раздачей читает
+   [docs/process/coordinator.md](docs/process/coordinator.md).
+
+## Задача → навык или инструмент
+
+| Задача | Навык / инструмент |
+|---|---|
+| Найти код, кто вызывает, что обновить при изменении символа | `code-search` (`node scripts/dev/cs.js`) — [ADR-0028](docs/adr/WARRANT-ADR-0028-graft-adoption.md) |
+| Архитектурный аудит (обязательно перед spec-PR фазы) | `architecture-audit` |
+| Решение по ходу реализации → строка `I-N` в design.md | `decision` |
+| Закрыть группу задач tasks.md (проверки, галочки, коммит) | `group-done` |
+| Статистика группы по транскрипту субагента (координатор) | `group-stats` |
+| Конец сессии → файл передачи потока | `handoff` |
+| Stress-test плана раундами вопросов | `grilling` |
+| Архитектурная линза: границы, trade-offs, ADR | `software-architect` |
+| Предложить, исследовать, реализовать, обновить Change | `openspec-propose`, `-explore`, `-apply-change`, `-update-change` |
+| Закрыть Change | `warrant archive` (ADR-0011 п. 4), не `openspec archive` |
+| Состояние Change, gates, evidence | `warrant status`, `warrant verify <change>` |
+
+## Жёсткие правила
+
+- JSON — только канонический: `writeJsonFile` или `warrant fmt`. Держится: `validate`, `fmt --check` (ADR-0006).
+- Record, evidence, waivers, ID пишет только CLI (`warrant transition`, `check`, `waive`, `id`). Держится: `validate`
+  (ADR-0009, ADR-0012).
+- Main specs меняются только archive-PR (`warrant archive`). Держится: `scope-valid`, шаг CI (ADR-0011, R-16).
+- impl-PR мержится только merge commit. Держится: `transition MERGED` → `COMMIT_NOT_MERGED` (I-97).
+- Версия CLI / pack / skill поднимается первым изменением поставляемого после релиза. Держится: `versions:check` (R-14).
+- Процессы — только в `packages/cli/src/adapters/**` через порты; тест — в каталоге своего уровня. Держится:
+  `levels.test.ts` (ADR-0025).
+- Зависимости модулей — по рангам `architecture.json`, без циклов и копий помощников. Держится: `architecture.test.ts`
+  (ADR-0030).
+- Код ищется через `cs`, читается диапазонами. Держится у субагентов: хук `PreToolUse` — `deny` (ADR-0031).
+- Хуки разработки — только из белого списка. Держится: `dev-hooks.test.ts` (ADR-0032 п. 11).
+- Навыки, `CLAUDE.md`, файлы передачи, `backlog.md` — по форме ADR-0032. Держится: `dev-context.test.ts`.
+- Одна ветка — один worktree; ветку проверять перед коммитом. Держится: шаг 1 навыка `group-done`.
+- Отклонение от spec или design — вопросом maintainer'у, принятое — строкой `I-N` (навык `decision`); норма во время
+  реализации меняется только новым ADR.
+- Не реализовывать `guard`, `ci`, `run`, `analyze` вне фазы 4; не добавлять profiles без failure mode (ADR-0013); не
+  трогать `docs/integrations/`, `lattice/`; второй формат конфигурации не изобретать (`warrant.json` — 08 §3).
+
+## Язык и документы
+
+Документы — по-русски, термины и команды — по-английски как есть; машинные файлы — JSON с `$schema`
+`warrant://<name>/<major>`. Большие переписывания документов — сначала обсудить с пользователем. Коммиты и PR — через
+файл сообщения (`git commit -F`, `gh pr create --body-file`).
+
+## ADR
+
+Индекс — [docs/adr/README.md](docs/adr/README.md). Опорные: стек и monorepo — 0013; доверие и forge — 0010; топология
+spec-PR / impl-PR / archive-PR — 0011; ID — 0012; контракт с OpenSpec — 0015; frontend разработки WARRANT — 0023;
+уровни тестов — 0025; границы модулей — 0030; поиск по коду и хуки — 0028, 0029, 0031; контекст разработки — 0032.
+Прежние решения grilling (P-, V-, G-, Q-, H-, D-, R-) — [архив NEXT-SESSION](docs/archive/2026-09-24-next-session.md).

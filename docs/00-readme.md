@@ -66,7 +66,8 @@ Evidence показывает результат.
 | [../lattice/](../lattice/README.md) | Заготовка отдельного проекта LATTICE: реестр решений, объектная модель, план slice | Component | normative | later |
 | [12-evolution](12-evolution.md) | Развитие самой системы, метрики | Kernel | normative | later |
 | [13-roadmap](13-roadmap.md) | MVP, фазы, открытые вопросы | — | informative | MVP |
-| [NEXT-SESSION](NEXT-SESSION.md) | Следующий шаг: план фазы 1 Kernel, что решено, чего не делать | — | informative | MVP |
+| [backlog](backlog.md) | Реестр долга: открытые пункты и куда они уходят ([ADR-0032](adr/WARRANT-ADR-0032-dev-context.md)) | — | informative | MVP |
+| [handoff/](handoff/) | Передача между сессиями разработки — файл на поток; правила процесса — [process/rules.md](process/rules.md) | — | informative | MVP |
 
 Решения, принятые при проектировании — [adr/](adr/). Исходные черновики — `archive/2026-09-22.zip`.
 

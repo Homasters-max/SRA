@@ -110,7 +110,7 @@ describe(".claude/skills — standard of ADR-0032 п. 6", () => {
   });
 
   it("the skills of ADR-0033 are present; the git-land step files exist", () => {
-    for (const name of ["git-start", "git-land", "change-spec-pr", "change-impl-pr", "change-archive-pr", "change-coordinate"]) {
+    for (const name of ["git-start", "git-land", "change-spec-pr", "change-impl-pr", "change-archive-pr", "change-coordinate", "repo-hygiene"]) {
       expect(projectSkills, name).toContain(name);
     }
     for (const file of ["recovery.md", "ci.md"]) expect(existsSync(path.join(SKILLS, "git-land", file)), file).toBe(true);

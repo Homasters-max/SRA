@@ -27,6 +27,8 @@
 | Graft не пачкает дерево | ADR-0026 п. 3 | `cs.js` (переменные, `.git/info/exclude`); `git status --short` в навыке `group-done` |
 | Одна группа — один агент, транскрипт сохранён; роль и самопроверка объёма в промпте | ADR-0027 п. 5, ADR-0033 п. 7 | `graft-metrics run --part k`, копия в `graft-lab/transcripts/` |
 | `scripts/dev/` не поставляется | ADR-0026 | `package-contents.test.ts` |
+| Корень — белый список отслеживаемого; нет пробелов в путях; `docs/` — только `.md`/`.json`, kebab-case, `NN[a-z]?-<тема>.md`, `WARRANT-ADR-NNNN-<slug>.md`, датированные `YYYY-MM-DD-<тема>` | ADR-0033 п. 13 | `test/unit/meta/structure.test.ts` (игнорируемое — по простым шаблонам `.gitignore` и `info/exclude`) |
+| Лишнее не копится: слитые ветки и worktree, остатки, битые ссылки, устаревший снимок аудита, истекающие waivers, черновики, auto-memory | ADR-0033 п. 13 | `scripts/dev/hygiene.js` (`test/unit/dev/hygiene.test.ts`), счётчик в `brief.js`; исправляет навык `repo-hygiene`; когда запускать — правило о решении |
 | У каждого вида знания одно место; вычислимое прозой не пишется | ADR-0032 п. 1 | правило о решении; состояние — `scripts/dev/brief.js` (хук `SessionStart`) |
 | Навыки — `.claude/skills/<name>/SKILL.md` по стандарту; frontmatter — YAML (описание с ` #` или `: ` — в кавычках); `.claude/commands/` нет; `openspec-archive-change`, `openspec-sync-specs` нет | ADR-0032 п. 6, 8, ADR-0033 п. 2 | `test/unit/meta/dev-context.test.ts` (frontmatter разбирается пакетом `yaml`) |
 | `CLAUDE.md` ≤ 100 строк, `packages/cli/CLAUDE.md` ≤ 60 | ADR-0032 п. 7 | `dev-context.test.ts` |

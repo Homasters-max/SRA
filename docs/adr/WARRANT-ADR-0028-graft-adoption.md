@@ -37,7 +37,7 @@ amended_by: [WARRANT-ADR-0029]
    вне git.
 3. **Алгоритм — навык `.claude/skills/code-search/SKILL.md`, вызываемый моделью** (описание: поиск по коду
    `packages/**`, `scripts/**`). Слепота больше не нужна; навык доступен и основной сессии. В промпт субагента —
-   одна строка-ссылка ([coordinator.md](../process/coordinator.md) §2). `docs/process/code-search.md` удалён.
+   одна строка-ссылка ([coordinator.md](../../.claude/skills/change-coordinate/SKILL.md) §2). `docs/process/code-search.md` удалён.
    Правило 3 навыка дополнено: место из `callers`, которое не сходится, проверяется `cs grep` и диапазоном кода
    (ложные рёбра по имени).
 4. **Обновление Graft — только через регрессию бенчмарка:** 8 субагентов `[A]` на новой версии против записанных

@@ -11,6 +11,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { parse as parseYaml } from "yaml";
 
 import { orderStreams, parseAfter } from "../../../../../scripts/dev/brief-lib.js";
 import { CLI_ROOT } from "../../helpers/cli.js";
@@ -53,16 +54,22 @@ function sectionBody(lines: string[], name: string): string[] {
   return (end < 0 ? rest : rest.slice(0, end)).map((l) => l.line);
 }
 
-/** `key: value` pairs of the leading `---` frontmatter; undefined without one. */
+/**
+ * Keys of the leading `---` frontmatter, parsed as YAML like Claude Code does (an unquoted ` #` starts a comment and
+ * cuts the value); undefined without one or when it is not a YAML mapping.
+ */
 function frontmatter(lines: string[]): { keys: Record<string, string>; end: number } | undefined {
   if (lines[0] !== "---") return undefined;
   const end = lines.indexOf("---", 1);
   if (end < 0) return undefined;
-  const keys: Record<string, string> = {};
-  for (const line of lines.slice(1, end)) {
-    const m = /^([A-Za-z][\w-]*):\s*(.*)$/.exec(line);
-    if (m) keys[m[1]!] = m[2]!.replace(/^"(.*)"$/, "$1");
+  let parsed: unknown;
+  try {
+    parsed = parseYaml(lines.slice(1, end).join("\n"));
+  } catch {
+    return undefined;
   }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
+  const keys = Object.fromEntries(Object.entries(parsed).map(([k, v]) => [k, String(v)]));
   return { keys, end };
 }
 
@@ -100,6 +107,20 @@ describe(".claude/skills — standard of ADR-0032 п. 6", () => {
 
   it("no .claude/commands/ (skills are invoked as /<name>)", () => {
     expect(existsSync(path.join(REPO_ROOT, ".claude", "commands"))).toBe(false);
+  });
+
+  it("the skills of ADR-0033 are present; the git-land step files exist", () => {
+    for (const name of ["git-start", "git-land", "change-spec-pr", "change-impl-pr", "change-archive-pr", "change-coordinate"]) {
+      expect(projectSkills, name).toContain(name);
+    }
+    for (const file of ["recovery.md", "ci.md"]) expect(existsSync(path.join(SKILLS, "git-land", file)), file).toBe(true);
+  });
+
+  it("change-archive-pr archives with warrant archive, never openspec archive (ADR-0033 п. 4, A8)", () => {
+    const text = read(".claude", "skills", "change-archive-pr", "SKILL.md");
+    expect(text).toContain("$W archive <change>");
+    expect(text).toContain("warrant archive");
+    expect(text).not.toMatch(/openspec\s+archive/);
   });
 
   it("no OpenSpec archive / sync-specs skills: a Change closes with warrant archive (ADR-0011 п. 4)", () => {

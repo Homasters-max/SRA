@@ -158,7 +158,7 @@ amended_by: [WARRANT-ADR-0033]
 - Старт сессии: `CLAUDE.md` (≤ 100 строк) + состояние хуком (≤ 2 КБ) + файл передачи своего потока (≤ 60 строк)
   вместо 646 строк NEXT-SESSION. Субагент получает `CLAUDE.md`, указатель `SubagentStart` и промпт координатора;
   файл передачи ему не нужен.
-- Процедуры, ссылающиеся на NEXT-SESSION, переписываются: [coordinator.md](../process/coordinator.md), навыки
+- Процедуры, ссылающиеся на NEXT-SESSION, переписываются: [coordinator.md](../../.claude/skills/change-coordinate/SKILL.md), навыки
   `decision` (номер I-N по design.md — без изменений), `group-done`, `handoff`, `architecture-audit` (A-N — в
   `backlog.md`); память «Decision workflow» (долг — в `backlog.md`, не в NEXT-SESSION).
 - Глобальные `~/.claude/skills/software-architect` и `grilling` после переноса удаляются; `grill-me` и

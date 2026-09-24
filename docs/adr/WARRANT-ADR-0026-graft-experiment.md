@@ -68,8 +68,8 @@ SEF R1 (готовое вместо своего) — за; P9 / R2 (инстр�
    общий блок промпта и разделы отчёта («Поиск по коду», «Проверки») одинаковы у `[A]` и `[B]`, `[A]` отличается
    одной строкой-ссылкой на навык; `CLAUDE.md` о Graft не говорит; команды координатора — нейтральные
    `/group-stats`, `/stats-report` с `disable-model-invocation`; перед первой группой — субагент-зонд проверяет, что
-   ничего из этого ему не видно ([coordinator.md](../process/coordinator.md) §1). Порядок раздачи —
-   [docs/process/coordinator.md](../process/coordinator.md), протокол — [docs/process/graft.md](../process/graft.md).
+   ничего из этого ему не видно ([coordinator.md](../../.claude/skills/change-coordinate/SKILL.md) §1). Порядок раздачи —
+   [docs/process/coordinator.md](../../.claude/skills/change-coordinate/SKILL.md), протокол — [docs/process/graft.md](../process/graft.md).
 6. **Метрики и порог.** Из транскрипта субагента (`scripts/dev/graft-metrics.js`): токены (вход, кэш, выход, пик
    контекста), tool calls, исследующие вызовы, вызовы `cs` / `graft`, время, отступления от правил навыка; карточка
    координатора — красные прогоны `/group-done`, помог ли поиск, ввёл ли в ошибку. Записи —

@@ -24,8 +24,6 @@ Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SE
    `node scripts/dev/brief.js`. Вычислимое прозой не записывается.
 2. Файл передачи своего потока — `docs/handoff/<поток>.md`: цель, готовый запрос, открытые вопросы. Поток не ясен —
    спросить пользователя.
-3. Сессия, которая раздаёт группы задач субагентам, перед первой раздачей читает
-   [docs/process/coordinator.md](docs/process/coordinator.md).
 
 ## Задача → навык или инструмент
 
@@ -36,13 +34,14 @@ Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SE
 | Начать поток в worktree, «где я», коммит через файл | `git-start` |
 | PR, CI, merge по «merge #N», чистка после merge | `git-land` (+ `recovery.md`, `ci.md`) |
 | Решение по ходу реализации → строка `I-N` в design.md | `decision` |
+| Три PR Change: утверждение, реализация, закрытие | `change-spec-pr` → `change-impl-pr` → `change-archive-pr` |
+| Раздать группы tasks.md субагентам (перед первой раздачей) | `change-coordinate` |
 | Закрыть группу задач tasks.md (проверки, галочки, коммит) | `group-done` |
 | Статистика группы по транскрипту субагента (координатор) | `group-stats` |
 | Конец сессии → файл передачи потока | `handoff` |
 | Stress-test плана раундами вопросов | `grilling` |
 | Архитектурная линза: границы, trade-offs, ADR | `software-architect` |
 | Предложить, исследовать, реализовать, обновить Change | `openspec-propose`, `-explore`, `-apply-change`, `-update-change` |
-| Закрыть Change | `warrant archive` (ADR-0011 п. 4), не `openspec archive` |
 | Состояние Change, gates, evidence | `warrant status`, `warrant verify <change>` |
 
 ## Жёсткие правила

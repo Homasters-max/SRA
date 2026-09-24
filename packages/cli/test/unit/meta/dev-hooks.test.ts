@@ -2,25 +2,33 @@
  * Form of the WARRANT development hooks (ADR-0029 п. 6, 7, ADR-0031, ADR-0032 п. 11): the committed
  * `.claude/settings.json` holds only `$schema` and `hooks`; the only events are `SubagentStart`, `PreToolUse`,
  * `PostToolUse` and `SessionStart`; every hook command is `node "${CLAUDE_PROJECT_DIR}/scripts/dev/<script>.js" <event>`
- * from the white list — `cs-hook.js` for the first three (code-search), `brief.js` for `SessionStart` (session state,
- * all sources: no matcher). No permissions, no statusline, no graft's own hooks (ADR-0026 п. 2, ADR-0023).
+ * from the white list — `cs-hook.js` for the first three (code-search), `git-hook.js` for `PreToolUse` on Bash /
+ * PowerShell (ADR-0033 п. 9: git in the main checkout, force push, `openspec archive`; its rules are pinned here),
+ * `brief.js` for `SessionStart` (session state, all sources: no matcher). No permissions, no statusline, no graft's own
+ * hooks (ADR-0026 п. 2, ADR-0023).
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { RULES } from "../../../../../scripts/dev/git-hook-lib.js";
 import { CLI_ROOT } from "../../helpers/cli.js";
 
 const REPO_ROOT = path.resolve(CLI_ROOT, "..", "..");
 const SETTINGS = path.join(REPO_ROOT, ".claude", "settings.json");
 const COMMAND = /^node "\$\{CLAUDE_PROJECT_DIR\}\/scripts\/dev\/([a-z-]+\.js)" ([a-z-]+)$/;
-/** White list (ADR-0032 п. 11): event → script and its argument. */
-const WHITE_LIST: Record<string, { script: string; arg: string }> = {
-  SubagentStart: { script: "cs-hook.js", arg: "subagent-start" },
-  PreToolUse: { script: "cs-hook.js", arg: "pre-tool" },
-  PostToolUse: { script: "cs-hook.js", arg: "post-tool" },
-  SessionStart: { script: "brief.js", arg: "session-start" },
+/** White list (ADR-0032 п. 11, ADR-0033 п. 9): event → scripts and their argument. */
+const WHITE_LIST: Record<string, { script: string; arg: string }[]> = {
+  SubagentStart: [{ script: "cs-hook.js", arg: "subagent-start" }],
+  PreToolUse: [
+    { script: "cs-hook.js", arg: "pre-tool" },
+    { script: "git-hook.js", arg: "pre-tool" },
+  ],
+  PostToolUse: [{ script: "cs-hook.js", arg: "post-tool" }],
+  SessionStart: [{ script: "brief.js", arg: "session-start" }],
 };
+/** Commands the git hook decides on — exactly ADR-0033 п. 9; a new rule is a new decision, not a quiet addition. */
+const GIT_HOOK_RULES = ["force-push", "main-checkout", "openspec-archive"];
 
 interface HookGroup {
   matcher?: string;
@@ -45,7 +53,7 @@ describe(".claude/settings.json — development hooks only", () => {
           expect(hook.type).toBe("command");
           const m = COMMAND.exec(hook.command);
           expect(m, hook.command).not.toBeNull();
-          expect({ script: m?.[1], arg: m?.[2] }, `${event}: ${hook.command}`).toEqual(WHITE_LIST[event]);
+          expect(WHITE_LIST[event], `${event}: ${hook.command}`).toContainEqual({ script: m?.[1], arg: m?.[2] });
           expect(hook.timeout ?? 600).toBeLessThanOrEqual(30);
         }
       }
@@ -57,9 +65,16 @@ describe(".claude/settings.json — development hooks only", () => {
     expect(matchers).toEqual(["Read|Grep|Glob|Bash|PowerShell"]);
   });
 
-  it("PreToolUse (deny, ADR-0031) sees only the tools the detector can flag — not Glob, never Edit or Write", () => {
-    const matchers = settings.hooks.PreToolUse!.map((g) => g.matcher);
-    expect(matchers).toEqual(["Read|Grep|Bash|PowerShell"]);
+  it("PreToolUse (deny): cs-hook sees only the tools the detector can flag (ADR-0031), git-hook only shells (ADR-0033)", () => {
+    const groups = settings.hooks.PreToolUse!.map((g) => [g.matcher, COMMAND.exec(g.hooks[0]!.command)?.[1]]);
+    expect(groups).toEqual([
+      ["Read|Grep|Bash|PowerShell", "cs-hook.js"],
+      ["Bash|PowerShell", "git-hook.js"],
+    ]);
+  });
+
+  it("git-hook decides exactly the commands of ADR-0033 п. 9", () => {
+    expect(Object.keys(RULES).sort()).toEqual(GIT_HOOK_RULES);
   });
 
   it("SessionStart has no matcher — the state comes back on startup, resume, clear and compact (ADR-0032 п. 4)", () => {
@@ -69,7 +84,7 @@ describe(".claude/settings.json — development hooks only", () => {
   });
 
   it("the hook scripts exist", () => {
-    for (const script of ["cs-hook.js", "brief.js"]) {
+    for (const script of ["cs-hook.js", "git-hook.js", "brief.js"]) {
       expect(existsSync(path.join(REPO_ROOT, "scripts", "dev", script)), script).toBe(true);
     }
   });

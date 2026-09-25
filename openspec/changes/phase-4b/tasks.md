@@ -78,10 +78,10 @@ golden вне задач 1.1, 2.x и 6.x — остановка и строка 
 
 ## 7. Сквозная проверка и документы
 
-- [ ] 7.1 e2e критерия 4b (N26): Change фикстуры — `run start --operation review` → `run submit` (envelope фикстуры) →
+- [x] 7.1 e2e критерия 4b (N26): Change фикстуры — `run start --operation review` → `run submit` (envelope фикстуры) →
   `transition SPECIFIED` → `APPROVED` с `adversarial-review` `PASS`; затем `IMPLEMENTING` → `VERIFYING` → `gate` `VERIFYING->MERGED`
   с `analyze-clean` `PASS`; без waivers. Проверка: e2e зелёный на ubuntu и windows.
-- [ ] 7.2 Документы: 02 (статусы evidence, `review`, `spec_tree`), 04 §6–7 (`run submit`, `analyze` — MVP), 06 §5 (находки MVP),
+- [x] 7.2 Документы: 02 (статусы evidence, `review`, `spec_tree`), 04 §6–7 (`run submit`, `analyze` — MVP), 06 §5 (находки MVP),
   07 §4 (схема), 03 §4 (Run `review`); `backlog.md` — закрыть BL-2, BL-3, BL-13, A-19, A-23…A-27. Проверка: `dev-context.test.ts`,
   `hygiene.js` без битых ссылок.
 - [ ] 7.3 `warrant analyze phase-4b` на ветке impl-PR — без находок (N28). Проверка: код 0; иначе правка `tasks.md` или тестов,

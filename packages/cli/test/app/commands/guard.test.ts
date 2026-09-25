@@ -248,6 +248,16 @@ describe("warrant guard under a review Run (REQ-ENF-004)", () => {
     expect(events(p, id).map((e) => e["decision"])).toEqual(["allow", "deny"]);
   });
 
+  it("shell: an envelope in a heredoc of warrant run submit is data, a command after the delimiter line is not (I-167)", async () => {
+    const { p, id } = await underReview();
+    const submit = `warrant run submit <<'JSON'\n{"statement": "it's; a && b | c"}\nJSON`;
+    expect((await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", submit] })).data).toEqual({ decision: "allow", hints: [] });
+    const after = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", `${submit}\nrm -rf x`] });
+    expect(after.data["decision"]).toBe("deny");
+    expect(after.data["reason"]).toContain("rm -rf x");
+    expect(events(p, id).map((e) => e["decision"])).toEqual(["allow", "deny"]);
+  });
+
   it("post and other actions keep their answers", async () => {
     const { p } = await underReview();
     expect((await guard(p, { phase: "post", action: "shell", argv: ["cat", "x"] })).data["decision"]).toBe("allow");

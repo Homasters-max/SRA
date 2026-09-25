@@ -1,7 +1,7 @@
 /**
  * The shell parse of `guard` (design §6, ADR-0017 п. 5, task 5.2): the
- * tokenizer (`core/shell.ts`) — quotes, `\`, operators, a newline —, simple commands with
- * `VAR=…` dropped and `bash -c` parsed one level deep, the default prefix of
+ * tokenizer (`core/shell.ts`) — quotes, `\`, operators, a newline, a heredoc as
+ * data (I-167) —, simple commands with `VAR=…` dropped and `bash -c` parsed one level deep, the default prefix of
  * `run.command` and the prefix match.
  */
 import { describe, expect, it } from "vitest";
@@ -33,6 +33,49 @@ describe("shellWords", () => {
 
   it("an operator inside quotes stays part of the word", () => {
     expect(shellWords(`echo "a && b" 'c;d'`)).toEqual(["echo", "a && b", "c;d"]);
+  });
+});
+
+describe("shellWords: a heredoc is data of its command (I-167)", () => {
+  it("drops the redirection and the body for <<DELIM, <<'DELIM', <<\"DELIM\" and << DELIM", () => {
+    for (const redirection of ["<<EOF", "<<'EOF'", '<<"EOF"', "<< EOF", "<<E'O'F"]) {
+      expect(shellWords(`cat ${redirection}\nrm -rf x; it's && a | b\nEOF\nls -l`), redirection).toEqual(["cat", "\n", "ls", "-l"]);
+    }
+    expect(shellWords("cat<<EOF\nrm x\nEOF")).toEqual(["cat", "\n"]);
+  });
+
+  it("<<- strips leading tabs of the body lines and of the delimiter line", () => {
+    expect(shellWords("cat <<-EOF\n\trm x\n\t\tEOF\nls")).toEqual(["cat", "\n", "ls"]);
+    // Without `-` a tab-indented delimiter line is body: the heredoc is never closed.
+    expect(shellWords("cat <<EOF\n\tEOF")).toEqual(["cat", "\n", "EOF"]);
+  });
+
+  it("a heredoc in the middle of a && chain: the rest of its line stays commands, the body does not", () => {
+    expect(shellWords("cat <<EOF && warrant run submit\nrm x; y\nEOF\nls")).toEqual([
+      "cat", "&&", "warrant", "run", "submit", "\n", "ls"
+    ]);
+    expect(shellWords("cat <<A <<-B | wc\na\nA\n\tb\n\tB")).toEqual(["cat", "|", "wc", "\n"]);
+  });
+
+  it("a redirection before the command name does not shift its first word", () => {
+    expect(simpleCommands(shellWords("<<EOF pytest -q\nx\nEOF"))).toEqual([["pytest", "-q"]]);
+  });
+
+  it("a delimiter line that never comes: the lines stay commands (fail-safe)", () => {
+    expect(shellWords("warrant run submit <<'JSON'\n{\nrm -rf x")).toEqual([
+      "warrant", "run", "submit", "\n", "{", "\n", "rm", "-rf", "x"
+    ]);
+    expect(shellWords("cat <<EOF")).toEqual(["cat"]);
+  });
+
+  it("a delimiter line ending in CR closes; <<< and << without a delimiter are words", () => {
+    expect(shellWords("cat <<EOF\r\nrm x\r\nEOF\r\nls")).toEqual(["cat", "\n", "ls"]);
+    expect(shellWords("cat <<<'a b'")).toEqual(["cat", "<<<a b"]);
+    expect(shellWords("echo << ;ls")).toEqual(["echo", "<<", ";", "ls"]);
+  });
+
+  it("a heredoc inside bash -c is data too", () => {
+    expect(leafCommands(["bash", "-c", "warrant run submit <<'J'\nrm x\nJ"])).toEqual([["warrant", "run", "submit"]]);
   });
 });
 
@@ -92,6 +135,15 @@ describe("reviewShellAnswer (REQ-ENF-004)", () => {
     expect(denied.decision).toBe("deny");
     expect(denied.reason).toContain("cat x");
     expect(denied.hints.join(" ")).toContain("warrant run submit");
+  });
+
+  it("an envelope in a heredoc is data: allow; a command after the delimiter line is denied (I-167)", () => {
+    const envelope = `{"statement": "it's; a && b | c", "run": "RUN-1"}`;
+    expect(reviewShellAnswer(shellWords(`warrant run submit <<'JSON'\n${envelope}\nJSON`), run).decision).toBe("allow");
+    const after = reviewShellAnswer(shellWords(`warrant run submit <<'JSON'\n${envelope}\nJSON\nrm -rf x`), run);
+    expect(after.decision).toBe("deny");
+    expect(after.reason).toContain("rm -rf x");
+    expect(reviewShellAnswer(shellWords(`warrant run submit <<'JSON'\n${envelope}`), run).decision).toBe("deny");
   });
 
   it("no command, no argv, a longer bash nesting and a lookalike are denied", () => {

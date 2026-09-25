@@ -12,6 +12,14 @@
  * `PreToolUse` and another in `PostToolUse` (the latter is known to reach the model, graft-audit §4); the model is
  * asked to quote the words it received. Q2, Q3: the model tries to create each file of `DENY_TARGETS` once with Write;
  * a file that exists after the scenario was not denied.
+ *
+ * The subagent (phase-4b task 6.2, ADR-0034 п. 10): `.claude/agents/probe-agent.md` carries its own hook `PreToolUse`
+ * on `Bash` in the frontmatter — the recorder with the argument `agent`, which answers `deny` to the marker command.
+ * The subagent runs a plain command, a heredoc and the marker; the answers:
+ *
+ *   A1 is the frontmatter hook called on the subagent's Bash (and does the hook of settings.json see those calls);
+ *   A2 does its `deny` reach: the marker command writes a file, so a file left after the scenario means it ran;
+ *   A3 how the hook input of a subagent call differs from that of the main session (`agent_id`, `agent_type`, …).
  */
 
 /** Matcher of both recording hooks: the tools the adapter `claude` translates (F19). */
@@ -53,16 +61,44 @@ export const BASH_COMMAND = "echo probe-bash";
 /** Where the probe keeps its files inside the probe project. */
 export const PROBE_DIR = ".probe";
 
+/** The probe subagent: its name and file in the probe project. */
+export const AGENT_NAME = "probe-agent";
+export const AGENT_FILE = `.claude/agents/${AGENT_NAME}.md`;
+
+/** The three Bash calls of the subagent, each found in the records by its word. */
+export const AGENT_BASH_WORD = "probe-agent-bash";
+export const AGENT_BASH_COMMAND = `echo ${AGENT_BASH_WORD}`;
+export const AGENT_HEREDOC_WORD = "probe-agent-heredoc";
+export const AGENT_HEREDOC_COMMAND = `cat <<'JSON'\n{"probe": "${AGENT_HEREDOC_WORD}", "text": "it's; a && b | c"}\nJSON`;
+export const AGENT_DENY_MARKER = "probe-agent-deny";
+/** Written by the marker command: present after the scenario — the command ran, the deny did not act. */
+export const AGENT_DENY_FILE = "probe-agent-deny.txt";
+export const AGENT_DENY_COMMAND = `echo ${AGENT_DENY_MARKER} > ${AGENT_DENY_FILE}`;
+
+/** Fixtures of the subagent: `PreToolUse` of its Bash calls, from the frontmatter hook (`agent`) or settings.json (`session`). */
+export const AGENT_FIXTURES = [
+  { file: "agent-pre-bash.json", word: AGENT_BASH_WORD, source: "agent" },
+  { file: "agent-pre-bash-heredoc.json", word: AGENT_HEREDOC_WORD, source: "agent" },
+  { file: "agent-pre-bash-deny.json", word: AGENT_DENY_MARKER, source: "agent" },
+  { file: "agent-session-pre-bash.json", word: AGENT_BASH_WORD, source: "session" }
+];
+
 /** `x.y.z` of `claude --version` (`2.1.263 (Claude Code)`), or undefined. */
 export function parseVersion(text) {
   const match = /\b(\d+\.\d+\.\d+)\b/.exec(String(text));
   return match ? match[1] : undefined;
 }
 
-/** The probe: the code words of Q1, fresh per setup so that an old session cannot answer. */
+/** The probe: the code words of Q1 and of the subagent's deny, fresh per setup so that an old session cannot answer. */
 export function newProbe(random) {
   const word = () => `${random().toString(36).slice(2, 8)}`;
-  return { trigger: CONTEXT_TRIGGER, preWord: `pre-${word()}`, postWord: `post-${word()}` };
+  return {
+    trigger: CONTEXT_TRIGGER,
+    preWord: `pre-${word()}`,
+    postWord: `post-${word()}`,
+    denyMarker: AGENT_DENY_MARKER,
+    denyWord: `deny-${word()}`
+  };
 }
 
 /** `.claude/settings.json` of the probe project: the recorder on both events, the deny entries, `echo` allowed. */
@@ -85,10 +121,12 @@ export function notebook() {
 }
 
 /**
- * What the recorder does with one hook input: the record file name (sortable: time, a sequence, event, tool, `ctx`
- * when it answered with a code word) and its stdout. Self-contained — its source is copied into the recorder.
+ * What the recorder does with one hook input: the record file name (sortable: time, a sequence, `agent` when the
+ * hook of the subagent's frontmatter called it, event, tool, `ctx` / `deny` when it answered) and its stdout: a code
+ * word for the trigger of Q1 (hook of settings.json), `deny` for the marker command (hook of the subagent).
+ * Self-contained — its source is copied into the recorder.
  */
-export function recordHook(input, probe, stamp) {
+export function recordHook(input, probe, stamp, source) {
   let json;
   try {
     json = JSON.parse(input);
@@ -101,8 +139,15 @@ export function recordHook(input, probe, stamp) {
   const tool = safe(object.tool_name);
   const toolInput = object.tool_input !== null && typeof object.tool_input === "object" ? object.tool_input : {};
   const command = toolInput.command;
-  const answers = tool === "Bash" && typeof command === "string" && command.includes(probe.trigger);
-  const name = `${stamp}-${event}-${tool}${answers ? "-ctx" : ""}.json`;
+  const agent = source === "agent";
+  const bash = tool === "Bash" && typeof command === "string";
+  const denies = agent && bash && event === "PreToolUse" && typeof probe.denyMarker === "string" && command.includes(probe.denyMarker);
+  const answers = !agent && bash && command.includes(probe.trigger);
+  const name = `${stamp}${agent ? "-agent" : ""}-${event}-${tool}${answers ? "-ctx" : ""}${denies ? "-deny" : ""}.json`;
+  if (denies) {
+    const reason = `probe-hooks agent deny: ${probe.denyWord}`;
+    return { name, stdout: JSON.stringify({ hookSpecificOutput: { hookEventName: event, permissionDecision: "deny", permissionDecisionReason: reason } }) };
+  }
   if (!answers) return { name, stdout: "" };
   const word = event === "PreToolUse" ? probe.preWord : probe.postWord;
   const output = { hookSpecificOutput: { hookEventName: event, additionalContext: `probe-hooks code word: ${word}` } };
@@ -112,7 +157,7 @@ export function recordHook(input, probe, stamp) {
 /** Source of `.probe/recorder.mjs`: stdin of the hook to `.probe/records/<name>`, the answer of `recordHook` to stdout. */
 export function recorderSource(probe) {
   return [
-    "// Recorder of scripts/dev/probe-hooks.js (task 8.2): writes the stdin of each hook to records/.",
+    "// Recorder of scripts/dev/probe-hooks.js: writes the stdin of each hook to records/; argument `agent` — the subagent's hook.",
     'import { mkdirSync, writeFileSync } from "node:fs";',
     'import path from "node:path";',
     'import { fileURLToPath } from "node:url";',
@@ -125,10 +170,47 @@ export function recorderSource(probe) {
     'process.stdin.setEncoding("utf8");',
     "for await (const chunk of process.stdin) input += chunk;",
     'const stamp = `${String(Date.now()).padStart(15, "0")}-${String(process.hrtime.bigint()).padStart(20, "0")}`;',
-    "const { name, stdout } = recordHook(input, probe, stamp);",
+    "const { name, stdout } = recordHook(input, probe, stamp, process.argv[2]);",
     'mkdirSync(path.join(dir, "records"), { recursive: true });',
     'writeFileSync(path.join(dir, "records", name), input);',
     "if (stdout) process.stdout.write(stdout);",
+    ""
+  ].join("\n");
+}
+
+/**
+ * `.claude/agents/probe-agent.md`: read-only tools and Bash, the recorder as `PreToolUse` hook on `Bash` in the
+ * frontmatter (the shape the generator of `warrant-reviewer` uses, design phase-4b §6), the three calls as its body.
+ */
+export function agentFile(recorderPath) {
+  const command = `node "${recorderPath}" agent`.replace(/'/g, "''");
+  return [
+    "---",
+    `name: ${AGENT_NAME}`,
+    "description: Probe of a PreToolUse hook in the frontmatter of a subagent (scripts/dev/probe-hooks.js). Use only when asked to run the probe agent.",
+    "tools: Read, Grep, Glob, Bash",
+    "hooks:",
+    "  PreToolUse:",
+    '    - matcher: "Bash"',
+    "      hooks:",
+    "        - type: command",
+    `          command: '${command}'`,
+    "---",
+    "",
+    "You are a probe of hooks. Do exactly these steps, one Bash call each, in order. Do not retry, rephrase or work",
+    "around a refusal, and use no other tool.",
+    "",
+    `1. Run the Bash command: ${AGENT_BASH_COMMAND}`,
+    "2. Run this Bash command exactly as written, as one call (a heredoc over three lines):",
+    "",
+    "```bash",
+    AGENT_HEREDOC_COMMAND,
+    "```",
+    "",
+    `3. Run the Bash command: ${AGENT_DENY_COMMAND}`,
+    "",
+    "Then report for each step: whether the command ran, its output, and verbatim every refusal or hook message you",
+    'received (quote every line that contains "probe-hooks").',
     ""
   ].join("\n");
 }
@@ -149,7 +231,10 @@ export function scenarioPrompt() {
     "6. For each path below, try once to create it with the Write tool with the content: x",
     targets,
     "   Then list which of them were refused and quote each refusal message.",
-    "7. Stop."
+    `7. Use the Agent tool to run the subagent ${AGENT_NAME} with the prompt: Run the probe.`,
+    "   Relay its report verbatim, then say whether a line \"probe-hooks agent deny: …\" reached it and whether the",
+    `   file ${AGENT_DENY_FILE} exists now (check with the Read tool; do not create it).`,
+    "8. Stop."
   ].join("\n");
 }
 
@@ -167,6 +252,20 @@ function parsed(records) {
 }
 
 const slash = (p) => String(p).replace(/\\/g, "/");
+
+/** True when the record was written by the hook of the subagent's frontmatter (`recordHook` with `agent`). */
+const fromAgent = (name) => name.includes("-agent-");
+
+/** The first parsed record of a Bash call whose command contains `word`, by hook (`agent` or not) and event. */
+function bashRecord(all, agent, event, word) {
+  return all.find(
+    ({ name, json }) =>
+      fromAgent(name) === agent &&
+      json.hook_event_name === event &&
+      json.tool_name === "Bash" &&
+      String(json.tool_input?.command ?? "").includes(word)
+  )?.json;
+}
 
 /** True when the tool call of `json` is the one of the scenario the fixture of its tool records. */
 function scenarioCall(json) {
@@ -210,7 +309,7 @@ export function redacted(json, home) {
  * the scenario call; `missing` names those the records lack.
  */
 export function pickFixtures(records, home) {
-  const all = parsed(records);
+  const all = parsed(records).filter(({ name }) => !fromAgent(name));
   const fixtures = [];
   const missing = [];
   for (const f of FIXTURES) {
@@ -219,6 +318,73 @@ export function pickFixtures(records, home) {
     else missing.push(f.file);
   }
   return { fixtures, missing };
+}
+
+/**
+ * The fixtures of the subagent from the records (`AGENT_FIXTURES`); `absent` names those the records lack — an answer
+ * of the probe (the frontmatter hook was not called), not a failure of `collect`.
+ */
+export function pickAgentFixtures(records, home) {
+  const all = parsed(records);
+  const fixtures = [];
+  const absent = [];
+  for (const f of AGENT_FIXTURES) {
+    const hit = bashRecord(all, f.source === "agent", "PreToolUse", f.word);
+    if (hit) fixtures.push({ file: f.file, text: `${JSON.stringify(redacted(hit, home), null, 2)}\n` });
+    else absent.push(f.file);
+  }
+  return { fixtures, absent };
+}
+
+/** Top-level keys of two hook inputs compared; `agentFields` — the keys of `other` named `agent…` with their values. */
+function inputDiff(main, other) {
+  if (main === undefined || other === undefined) return undefined;
+  const a = Object.keys(main);
+  const b = Object.keys(other);
+  return {
+    onlyOther: b.filter((k) => !a.includes(k)).sort(),
+    onlyMain: a.filter((k) => !b.includes(k)).sort(),
+    agentFields: Object.fromEntries(b.filter((k) => /^agent/i.test(k)).sort().map((k) => [k, other[k]]))
+  };
+}
+
+/**
+ * The answers about the subagent: per call whether the frontmatter hook and the hook of settings.json saw it (A1);
+ * whether the deny of the marker command acted — the recorder answered deny, and the command neither wrote
+ * `AGENT_DENY_FILE` nor reached `PostToolUse` (A2); the input of a subagent call against the main session's Bash
+ * of step 4 (A3); the heredoc command as Claude Code passed it.
+ */
+export function agentAnswers(records, exists) {
+  const all = parsed(records);
+  const steps = [
+    ["plain", AGENT_BASH_WORD],
+    ["heredoc", AGENT_HEREDOC_WORD],
+    ["marker", AGENT_DENY_MARKER]
+  ].map(([step, word]) => ({
+    step,
+    frontmatterPre: bashRecord(all, true, "PreToolUse", word) !== undefined,
+    sessionPre: bashRecord(all, false, "PreToolUse", word) !== undefined,
+    sessionPost: bashRecord(all, false, "PostToolUse", word) !== undefined
+  }));
+  const marker = steps[2];
+  const answeredDeny = records.some((r) => fromAgent(r.name) && r.name.endsWith("-PreToolUse-Bash-deny.json"));
+  const ran = exists(AGENT_DENY_FILE);
+  let deny;
+  if (!marker.frontmatterPre && !marker.sessionPre && !ran) deny = "not tried: no hook saw the marker command (step 7 not done?)";
+  else if (!answeredDeny) deny = "no deny sent: the frontmatter hook was not called on the marker command";
+  else if (ran || marker.sessionPost) deny = `deny did NOT act: the marker command ran (${ran ? `${AGENT_DENY_FILE} written` : "PostToolUse seen"})`;
+  else deny = "deny acted: the marker command did not run";
+  const main = all.find(
+    ({ name, json }) => !fromAgent(name) && json.hook_event_name === "PreToolUse" && json.tool_name === "Bash" && json.tool_input?.command === BASH_COMMAND
+  )?.json;
+  const heredoc = bashRecord(all, true, "PreToolUse", AGENT_HEREDOC_WORD) ?? bashRecord(all, false, "PreToolUse", AGENT_HEREDOC_WORD);
+  return {
+    steps,
+    deny,
+    frontmatterVsMain: inputDiff(main, bashRecord(all, true, "PreToolUse", AGENT_BASH_WORD)),
+    sessionVsMain: inputDiff(main, bashRecord(all, false, "PreToolUse", AGENT_BASH_WORD)),
+    heredocCommand: heredoc?.tool_input?.command
+  };
 }
 
 /** The Write calls of the records on a project path (`cwd`-relative or absolute), by event. */
@@ -277,8 +443,36 @@ export function readings(answers) {
   return { q2Anchor, q2Relative, q3 };
 }
 
-/** The report `collect` prints. */
-export function formatReport({ version, fixtureDir, written, missing, answers }) {
+/** Lines of the report about the subagent (`agent`: `{ absent, answers }` of `pickAgentFixtures`, `agentAnswers`). */
+function agentLines({ absent, answers }, denyWord) {
+  const yes = (flag) => (flag ? "yes" : "no ");
+  const diff = (d) =>
+    d === undefined
+      ? "— (a record is missing)"
+      : `only in the subagent's: [${d.onlyOther.join(", ")}]; only in the main session's: [${d.onlyMain.join(", ")}]; agent fields: ${JSON.stringify(d.agentFields)}`;
+  const lines = [
+    "",
+    `Subagent ${AGENT_NAME} (hook PreToolUse on Bash in its frontmatter)`,
+    ...(absent.length > 0 ? [`   absent agent fixtures: ${absent.join(", ")}`] : []),
+    "A1 is the frontmatter hook called on the subagent's Bash? (and the hook of settings.json)"
+  ];
+  for (const s of answers.steps) {
+    lines.push(`   ${s.step.padEnd(8)} frontmatter pre ${yes(s.frontmatterPre)}   settings.json pre ${yes(s.sessionPre)} post ${yes(s.sessionPost)}`);
+  }
+  lines.push(
+    "A2 does the deny of the frontmatter hook reach?",
+    `   ${answers.deny}`,
+    `   → the subagent's report (step 7) quotes "probe-hooks agent deny: ${denyWord}": yes — the reason reaches the model`,
+    "A3 input of a subagent call vs the main session's Bash (step 4):",
+    `   frontmatter hook:   ${diff(answers.frontmatterVsMain)}`,
+    `   settings.json hook: ${diff(answers.sessionVsMain)}`,
+    `   heredoc command as passed: ${answers.heredocCommand === undefined ? "— (not recorded)" : JSON.stringify(answers.heredocCommand)}`
+  );
+  return lines;
+}
+
+/** The report `collect` prints; `agent` — the part of the subagent, `denyWord` — its code word. */
+export function formatReport({ version, fixtureDir, written, missing, answers, agent, denyWord }) {
   const lines = [`Claude Code ${version}`];
   if (written.length > 0) lines.push(`fixtures → ${fixtureDir}: ${written.join(", ")}`);
   if (missing.length > 0) lines.push(`missing records (scenario steps 1–4 not done?): ${missing.join(", ")}`);
@@ -302,5 +496,6 @@ export function formatReport({ version, fixtureDir, written, missing, answers })
     `   Q3:          ${r.q3} (and note any warning Claude Code showed about Write(…) at start or in /permissions)`,
     "   pre yes on a denied target: PreToolUse runs before permissions.deny; pre no: the deny acts before the hooks"
   );
+  if (agent !== undefined) lines.push(...agentLines(agent, denyWord ?? "—"));
   return `${lines.join("\n")}\n`;
 }

@@ -29,6 +29,7 @@
     { "id": "core/sync", "path": "core/sync", "rank": 3 },
     { "id": "core/status", "path": "core/status", "rank": 3 },
     { "id": "core/transition", "path": "core/transition", "rank": 4 },
+    { "id": "core/guard", "path": "core/guard", "rank": 4 },
     { "id": "commands", "path": "commands", "layer": "commands" },
     { "id": "io", "path": "io", "layer": "io" },
     { "id": "bin", "path": "bin", "layer": "bin" },

@@ -2,9 +2,9 @@
 /**
  * The binary itself: an unknown command of argv (SCN-KRN-006), a command run
  * outside a project (SCN-KRN-007), `--version`, `--help` and `--dry-run` of
- * the commands that change state (REQ-KRN-034) — the parse of argv, the
- * exit code and stdout of the process, which no command of the test process
- * sees (ADR-0025, task 5.4: the file stays in e2e whole).
+ * the commands that change state (REQ-KRN-034), stdin of `guard` — the parse
+ * of argv, the exit code and stdout of the process, which no command of the
+ * test process sees (ADR-0025, task 5.4: the file stays in e2e whole).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
@@ -80,5 +80,22 @@ describe("cli skeleton", () => {
     expect(unknown.status).toBe(3);
     expect(unknown.json.errors[0].code).toBe("USAGE");
     expect(unknown.json.errors[0].hint).toMatch(/warrant run start --help/);
+  });
+
+  it("guard reads the event from stdin and answers with exit 0; --help gives an example (REQ-ENF-004, lens cli-contract)", async () => {
+    // Outside a project under WARRANT every event is allowed (SCN-ENF-016).
+    const event = JSON.stringify({ phase: "pre", action: "edit", paths: ["src/app.py"], cwd: dir });
+    const r = await runCli(["guard"], dir, {}, event);
+    expect(r.status).toBe(0);
+    expect(r.json).toEqual({ command: "guard", ok: true, data: { decision: "allow", hints: [] }, errors: [] });
+
+    const help = await runCli(["guard", "--help"], dir);
+    expect(help.status).toBe(0);
+    const examples = help.stderr.split("Examples:\n")[1]?.split("\n") ?? [];
+    expect(examples.some((line) => line.startsWith("  $ echo '{") && line.endsWith("| warrant guard"))).toBe(true);
+
+    const unknown = await runCli(["guard", "--no-such-flag"], dir, {}, "");
+    expect(unknown.status).toBe(3);
+    expect(unknown.json.errors[0].hint).toMatch(/warrant guard --help/);
   });
 });

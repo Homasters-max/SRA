@@ -27,6 +27,8 @@ import { runArchive } from "../commands/archive.js";
 import { runLink } from "../commands/link.js";
 import { runWaive } from "../commands/waive.js";
 import { runFinish, runStart } from "../commands/run.js";
+import { runGuard } from "../commands/guard.js";
+import { readStdin } from "../io/stdin.js";
 
 export type Runner = (ctx: Ctx, args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -362,9 +364,25 @@ register(
   runGroup
 );
 
+register(
+  "guard",
+  "decide on one action of an agent: a normalised event on stdin, data{decision, reason?, hints[]} on stdout, exit 0",
+  async (ctx) => runGuard(ctx, await readStdin()),
+  (c) =>
+    c.addHelpText(
+      "after",
+      '\nstdin: {"phase": "pre"|"post", "action": "edit"|"shell"|"other", "paths": [...], "argv"?: [...], "cwd": "<dir>"}\n' +
+        examples([
+          `echo '{"phase":"pre","action":"edit","paths":["src/app.py"],"cwd":"."}' | warrant guard`,
+          `echo '{"phase":"pre","action":"shell","paths":[],"argv":["pytest","tests/"],"cwd":"."}' | warrant guard`
+        ])
+    )
+);
+
 /** `hint` of a usage error Commander reports, for the commands born with hints (REQ-KRN-002). */
 function usageHint(command: string): string | undefined {
-  return command === "run" ? "see `warrant run start --help` or `warrant run finish --help`" : undefined;
+  if (command === "run") return "see `warrant run start --help` or `warrant run finish --help`";
+  return command === "guard" ? "see `warrant guard --help`" : undefined;
 }
 
 async function main(): Promise<void> {

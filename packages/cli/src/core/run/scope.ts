@@ -23,14 +23,20 @@ function directory(value: string | undefined): string | undefined {
 export function writeScopeOf(operation: RunOperation, change: string, config: WarrantConfig): string[] {
   const dir = `openspec/changes/${change}`;
   if (operation === "specify") return [`${dir}/**`];
-  const roots = [directory(config.paths.src), directory(config.paths.tests)].filter((d): d is string => d !== undefined);
-  if (roots.length === 0) {
+  const code = codeScope(config);
+  if (code.length === 0) {
     throw new WarrantError("CONFIG_INVALID", "--operation implement needs paths.src or paths.tests in .warrant/warrant.json", {
       path: ".warrant/warrant.json#/paths",
       hint: 'set "paths": { "src": "<dir>", "tests": "<dir>" } in .warrant/warrant.json, then `warrant validate`'
     });
   }
-  return [...new Set(roots)].map((root) => `${root}/**`).concat(`${dir}/tasks.md`);
+  return code.concat(`${dir}/tasks.md`);
+}
+
+/** `<paths.src>/**` and `<paths.tests>/**` of `warrant.json`, those that are set: the code and tests of the project. */
+export function codeScope(config: WarrantConfig): string[] {
+  const roots = [directory(config.paths.src), directory(config.paths.tests)].filter((d): d is string => d !== undefined);
+  return [...new Set(roots)].map((root) => `${root}/**`);
 }
 
 /** The predicate «inside the Run»: `write_scope` and a non-empty `scope`, both. */

@@ -44,12 +44,12 @@ golden вне групп 2 и 6 — остановка и строка I-N.
 
 ## 5. Guard (REQ-ENF-004)
 
-- [ ] 5.1 Нормализованное событие и `warrant guard` без `--frontend`: `pre` `edit` (Run, без Run, вне проекта, нет
+- [x] 5.1 Нормализованное событие и `warrant guard` без `--frontend`: `pre` `edit` (Run, без Run, вне проекта, нет
   `warrant.json`), fail-closed (F9). Проверка: SCN-ENF-011, 012, 015, 016.
-- [ ] 5.2 `pre` `shell`: `guard_prefixes` и токенайзер (§6). Проверка: SCN-ENF-013; unit токенайзера (кавычки, `&&`,
+- [x] 5.2 `pre` `shell`: `guard_prefixes` и токенайзер (§6). Проверка: SCN-ENF-013; unit токенайзера (кавычки, `&&`,
   `bash -c`, `VAR=1`).
-- [ ] 5.3 `post`: hints из `validate --files` и правил раз за Run, лимит 10 + «и ещё N». Проверка: SCN-ENF-014.
-- [ ] 5.4 `guard_events[]` под замком (F18): `pre` → `deny BUSY`, `post` → потеря + stderr. Проверка: `app`-тест с занятым
+- [x] 5.3 `post`: hints из `validate --files` и правил раз за Run, лимит 10 + «и ещё N». Проверка: SCN-ENF-014.
+- [x] 5.4 `guard_events[]` под замком (F18): `pre` → `deny BUSY`, `post` → потеря + stderr. Проверка: `app`-тест с занятым
   замком.
 
 ## 6. Файлы frontend (REQ-KRN-004, REQ-KRN-033)

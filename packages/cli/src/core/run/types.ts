@@ -19,11 +19,19 @@ export type RunOperation = (typeof RUN_OPERATIONS)[number];
 export const GUARD_DECISIONS = ["allow", "deny"] as const;
 export type GuardDecision = (typeof GUARD_DECISIONS)[number];
 
+/** When guard is asked: before or after the action of the agent (ADR-0018 п. 2). */
+export const GUARD_PHASES = ["pre", "post"] as const;
+export type GuardPhase = (typeof GUARD_PHASES)[number];
+
+/** Kind of the action guard is asked about: a file edit, a shell command, anything else. */
+export const GUARD_ACTIONS = ["edit", "shell", "other"] as const;
+export type GuardAction = (typeof GUARD_ACTIONS)[number];
+
 /** One element of `guard_events[]` (F16): codes and ids only, no frontend. */
 export interface GuardEventRecord {
   at: string;
-  phase: "pre" | "post";
-  action: "edit" | "shell" | "other";
+  phase: GuardPhase;
+  action: GuardAction;
   paths: string[];
   decision: GuardDecision;
   reason?: string;

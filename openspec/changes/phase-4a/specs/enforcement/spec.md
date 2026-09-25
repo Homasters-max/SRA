@@ -102,7 +102,7 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 - `edit` при активном Run — `deny` для пути вне `write_scope` или вне непустого `scope` (reason называет путь и scope), иначе
   `allow`;
 - `edit` без активного Run — `deny` с hint `warrant run start <change> --operation …` для путей под `paths.src`, `paths.tests`,
-  `openspec/changes/**` и policy-путями (`match.paths` профилей подключённых packs); иначе `allow` с той же подсказкой
+  `openspec/changes/**` и policy-путями (`match.paths` профиля `factory-change`); иначе `allow` с той же подсказкой
   ([ADR-0022](../../../../docs/adr/WARRANT-ADR-0022-path-rules.md) п. 7);
 - `shell` — `deny`, если простая команда строки после shell-разбора начинается с одного из `execution.guard_prefixes` check с
   `exclusive: true` или `local ≠ allowed` (по умолчанию — первые токены `run.command` до первого флага или плейсхолдера), с hint

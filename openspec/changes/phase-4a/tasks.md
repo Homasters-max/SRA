@@ -26,10 +26,10 @@ golden вне групп 2 и 6 — остановка и строка I-N.
 
 ## 3. validate --files и путь проекта (REQ-KRN-032, A-20)
 
-- [ ] 3.1 A-20: `projectPath` в `core/fs.ts` (§4), реестр `helpers`; 5 копий — через него, `immutable.ts` — через
+- [x] 3.1 A-20: `projectPath` в `core/fs.ts` (§4), реестр `helpers`; 5 копий — через него, `immutable.ts` — через
   `toProjectPaths`. Проверка: unit `projectPath` (корень, `..cache`, другой диск); `grep "path.relative(" packages/cli/src`
   — только владелец и места без вопроса «внутри»; golden без правок.
-- [ ] 3.2 `warrant validate --files <paths>` по реестру (§3): `checked[]`, `skipped[]` (`no-check`, `missing`, `outside`),
+- [x] 3.2 `warrant validate --files <paths>` по реестру (§3): `checked[]`, `skipped[]` (`no-check`, `missing`, `outside`),
   без дочерних процессов, кроме `git show HEAD:<path>`. Проверка: SCN-KRN-127…129; unit — на фейках без процессов.
 
 ## 4. Run (REQ-ENF-001…003, A-12)

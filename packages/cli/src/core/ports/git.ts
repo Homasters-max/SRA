@@ -57,8 +57,10 @@ export interface GitPort {
   /** `git ls-tree -r --name-only --full-name <rev> -- <paths>`: file paths from the top of the repository; null on failure. */
   files(rev: string, paths: string[]): Promise<string[] | null>;
   /**
-   * Contents of `<rev>:<path>` for each path from the top of the repository;
-   * a path missing at `rev` is absent from the map.
+   * Contents of `<rev>:<path>` for each path from the top of the repository,
+   * or `./<path>` relative to the project (git's own `<rev>:./<path>`, no
+   * prefix needed — `validate --files`, I-159); keys are the paths as given, a
+   * path missing at `rev` is absent from the map.
    */
   contents(rev: string, paths: string[]): Promise<Map<string, string>>;
 }

@@ -101,11 +101,21 @@ register(
 register(
   "validate",
   "validate configuration, packs, schemas, ids and generated files",
-  (ctx) => {
+  (ctx, _args, opts) => {
     // CONFIG_MISSING first, exactly as for the other config-bound commands (SCN-KRN-007).
     requireConfigPath(ctx.root);
-    return runValidate(ctx);
-  }
+    return runValidate(ctx, { ...(typeof opts["files"] === "string" ? { files: opts["files"] } : {}) });
+  },
+  (c) =>
+    c
+      .option(
+        "--files <a,b>",
+        "only the checks of one file over these comma-separated paths (no lock, hash, generated files or openspec)"
+      )
+      .addHelpText(
+        "after",
+        examples(["warrant validate", "warrant validate --files .warrant/local/areas.json,openspec/specs/search/spec.md"])
+      )
 );
 register(
   "fmt",

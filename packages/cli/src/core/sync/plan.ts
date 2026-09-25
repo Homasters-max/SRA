@@ -15,7 +15,7 @@ import semver from "semver";
 import { bytesHash } from "../canon/hash.js";
 import { canonicalText } from "../canon/format-json.js";
 import { cliError, type CliError } from "../errors.js";
-import { reportPath } from "../fs.js";
+import { projectPath, reportPath } from "../fs.js";
 import { isPlainObject } from "../json.js";
 import { emitYaml, type YamlObject, type YamlValue } from "../openspec/yaml-emit.js";
 import { bundleRoot, packContentHash, LOCK_REL } from "../packs/hash.js";
@@ -271,9 +271,8 @@ function resolveSkill(pack: LoadedPack, root: string, spec: string, errors: CliE
 
 /** POSIX path of `absolute` relative to `dir`, or undefined when it lies outside. */
 function inside(dir: string, absolute: string): string | undefined {
-  const relative = path.relative(dir, absolute);
-  if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) return undefined;
-  return relative.split(path.sep).join("/");
+  const relative = projectPath(dir, absolute);
+  return relative === "" ? undefined : relative;
 }
 
 /** `lock.skills` for every skill the enabled packs declare, in the project or in the bundle. */

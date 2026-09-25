@@ -11,6 +11,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { projectPath } from "../fs.js";
+
 /** Environment variable that moves `<state>` out of the project (D-2). */
 export const STATE_ENV = "WARRANT_STATE_DIR";
 
@@ -42,9 +44,8 @@ export function rawDir(root: string, change: string, checkId: string, env: NodeJ
  * otherwise (a `WARRANT_STATE_DIR` outside the project, SCN-VER-003).
  */
 export function projectUri(root: string, absolute: string): string {
-  const rel = path.relative(root, absolute);
-  if (rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel)) return rel.split(path.sep).join("/");
-  return pathToFileURL(absolute).href;
+  const rel = projectPath(root, absolute);
+  return rel === undefined || rel === "" ? pathToFileURL(absolute).href : rel;
 }
 
 /** Ids of the records in an evidence directory, sorted (ULIDs sort by time). */

@@ -243,6 +243,10 @@ describe.each(CASES)("GitPort contract: $side, project prefix '$prefix'", ({ mak
       new Map([[top("openspec/changes/c/proposal.md"), "# P\n"]])
     );
     expect(await r.port.contents(r.sha("base"), [top("src/stray.ts")])).toEqual(new Map());
+    // `./` — relative to the project, without the prefix (validate --files, I-159).
+    expect(await r.port.contents("HEAD", ["./openspec/changes/c/proposal.md", "./missing.md"])).toEqual(
+      new Map([["./openspec/changes/c/proposal.md", "# P\n"]])
+    );
   });
 
   it("a fast-forward merge moves the branch without a merge commit", async () => {

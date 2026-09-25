@@ -432,3 +432,19 @@ export async function checkIds(ctx: Ctx): Promise<{
   errors.push(...placement.errors);
   return { errors, files: scan.files, ids: scan.ids, placementSkipped: placement.skipped };
 }
+
+/**
+ * Check (5) under `validate --files` (REQ-KRN-032) for the project paths
+ * `files`: format (5a) and AREA (5b) of their ids, and (5c) for every id they
+ * declare, against the whole `scan`. Placement (5d) is the reconciliation
+ * with `openspec show` — a project check, not run here (ADR-0019 point 1, I-159).
+ */
+export function checkIdsIn(scan: ScanResult, areas: Set<string>, files: ReadonlySet<string>): CliError[] {
+  const own = scan.ids.filter((found) => files.has(found.file));
+  const declared = new Set(own.map((found) => found.id));
+  return [
+    ...scan.malformed.filter((error) => files.has(error.path ?? "")),
+    ...checkAreas(own, areas),
+    ...checkDuplicates(scan.ids.filter((found) => declared.has(found.id)))
+  ];
+}

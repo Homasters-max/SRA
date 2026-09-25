@@ -48,6 +48,14 @@ describe("cli skeleton", () => {
     }
   });
 
+  it("--help of validate names --files and gives an example with it (REQ-KRN-032, lens cli-contract)", async () => {
+    const r = await runCli(["validate", "--help"], dir);
+    expect(r.status).toBe(0);
+    expect(r.stderr).toContain("--files <a,b>");
+    const examples = r.stderr.split("Examples:\n")[1]?.split("\n") ?? [];
+    expect(examples.some((line) => line.startsWith("  $ warrant validate --files "))).toBe(true);
+  });
+
   it("--dry-run reaches the command: a refusal carries data.dry_run (REQ-KRN-034)", async () => {
     const r = await runCli(["transition", "add-search", "SPECIFIED", "--dry-run"], dir);
     expect(r.status).toBe(3);

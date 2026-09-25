@@ -16,6 +16,7 @@ import { findParser, parserNames } from "../evidence/parsers/index.js";
 import { buildCheckRecord, collectArtifacts, type EvidenceStatus } from "../evidence/record.js";
 import { projectUri, rawDir } from "../evidence/store.js";
 import { manifestVersions, storeRecord } from "../evidence/write.js";
+import { projectPath } from "../fs.js";
 import type { GitFacts } from "../git/facts.js";
 import { allocateUlid } from "../ids/allocate.js";
 import { isPlainObject, strings } from "../json.js";
@@ -153,8 +154,7 @@ async function runOneIn(ctx: Context, object: PackObject, scratch: string | unde
 
   const raw = rawDir(ctx.root, ctx.change, object.id, ctx.env);
   const outDir = scratch ?? raw;
-  const outRel = path.relative(ctx.root, outDir);
-  const outArg = outRel.startsWith("..") || path.isAbsolute(outRel) ? outDir : outRel.split(path.sep).join("/");
+  const outArg = projectPath(ctx.root, outDir) ?? outDir;
   let argv: string[];
   try {
     argv = expandArgv(useScoped ? scoped : command, {

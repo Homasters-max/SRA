@@ -1,6 +1,6 @@
 /**
  * Paths and file-system walking shared by every module (ADR-0030 point 1, A-3):
- * the one owner of `posix`, `reportPath`, `walkFiles` and `readJson`. A local
+ * the one owner of `posix`, `projectPath`, `reportPath`, `walkFiles` and `readJson`. A local
  * copy of any of them is an error of `test/unit/meta/architecture.test.ts`
  * (`helper` rule).
  */
@@ -14,11 +14,25 @@ export function posix(p: string): string {
   return p.split(path.sep).join("/");
 }
 
-/** Path as it appears in `errors[].path`: relative to the project root, POSIX separators. */
+/**
+ * The project path of `absolute` (A-20, design §4): POSIX path relative to
+ * `root`, `""` for `root` itself, undefined when it lies outside — on another
+ * drive, or behind a `..` segment (a directory named `..cache` is inside).
+ * `platform` is for tests of the other platform's rules.
+ */
+export function projectPath(
+  root: string,
+  absolute: string,
+  platform: path.PlatformPath = path
+): string | undefined {
+  const rel = platform.relative(root, absolute);
+  if (platform.isAbsolute(rel) || rel === ".." || rel.startsWith(`..${platform.sep}`)) return undefined;
+  return rel.split(platform.sep).join("/");
+}
+
+/** Path as it appears in `errors[].path`: relative to the project root, POSIX separators; absolute outside it. */
 export function reportPath(absolute: string, projectRoot: string): string {
-  const rel = path.relative(projectRoot, absolute);
-  const chosen = rel.startsWith("..") || path.isAbsolute(rel) ? absolute : rel;
-  return posix(chosen);
+  return projectPath(projectRoot, absolute) ?? posix(absolute);
 }
 
 /** Every file under `dir`, recursively, as absolute paths sorted by POSIX relative path. */

@@ -10,7 +10,10 @@
  * `level` tells a check of one file (ADR-0019 point 1 (a)–(e)) from a check of
  * the whole project (lock, generated files, `openspec schema validate`, record
  * semantics); `appliesTo` says which project paths a `file` check reads. Both
- * are for `validate --files`: a full `validate` runs every check.
+ * are for `validate --files` (REQ-KRN-032, `runFileChecks`): a full
+ * `validate` runs every check; `--files` runs the `file` checks that accept a
+ * path, over the paths they accept, and reports only the findings of those
+ * paths — no `openspec`, no git but one `contents` call of check (9).
  *
  * Nothing is skipped unconditionally: `config.yaml` is generated whole, so
  * there is no flag to opt out of check (4) (REQ-KRN-025, откат I-43).
@@ -19,16 +22,16 @@
  * a git work tree it is skipped with a warning on stderr only, because fixture
  * projects without git are a normal place to run `validate`.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { checkCanonical, isRawEvidencePath, SCHEMA_COPIES_PREFIX, WARRANT_DIR } from "../canon/files.js";
 import type { WarrantConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
-import { reportPath, walkFiles } from "../fs.js";
-import { checkImmutableIds } from "../ids/immutable.js";
-import { checkIds, type FoundId } from "../ids/scan.js";
+import { projectPath, reportPath, walkFiles } from "../fs.js";
+import { checkImmutableFiles, checkImmutableIds } from "../ids/immutable.js";
+import { checkIds, checkIdsIn, loadAreas, scanIds, type FoundId, type ScanResult } from "../ids/scan.js";
 import { checkLock, LOCK_REL } from "../packs/hash.js";
 import type { LoadResult } from "../packs/types.js";
 import { readAllRecords, type RecordFile } from "../record/read.js";
@@ -54,6 +57,8 @@ export interface ValidateRun {
   declared: readonly FoundId[];
   /** Change records, read once for checks (9)–(11). */
   records(): ReadonlyMap<string, RecordFile>;
+  /** Ids of the whole project, scanned once for checks (5) and (13) under `--files`. */
+  scan(): ScanResult;
 }
 
 export interface ValidateCheck {
@@ -62,23 +67,39 @@ export interface ValidateCheck {
   readonly level: "file" | "project";
   /** True when the check reads this project path (POSIX, relative to the root); `project` checks read none. */
   appliesTo(file: string, config: WarrantConfig): boolean;
-  run(v: ValidateRun): Promise<readonly CliError[]>;
+  /**
+   * `files` — under `validate --files`, the project paths `appliesTo` accepted:
+   * the check reads only them and returns only their findings.
+   */
+  run(v: ValidateRun, files?: readonly string[]): Promise<readonly CliError[]>;
 }
 
 /** A new run over the loaded project: the loader's files are already checked. */
 export function validateRun(ctx: Ctx, loaded: LoadResult): ValidateRun {
   let records: ReadonlyMap<string, RecordFile> | undefined;
+  let scanned: ScanResult | undefined;
   return {
     ctx,
     loaded,
     checked: new Set(loaded.files),
     skipped: [],
     declared: [],
-    records: () => (records ??= readAllRecords(ctx.root))
+    records: () => (records ??= readAllRecords(ctx.root)),
+    scan: () => (scanned ??= scanIds(ctx.root))
   };
 }
 
 const none = (): boolean => false;
+
+/** Absolute path of a project path. */
+function absoluteOf(root: string, file: string): string {
+  return path.join(root, ...file.split("/"));
+}
+
+/** Findings whose `path` (without a `#pointer`) is one of `files`. */
+function findingsOf(errors: readonly CliError[], files: readonly string[]): CliError[] {
+  return errors.filter((error) => files.includes((error.path ?? "").split("#")[0] as string));
+}
 
 /** `.warrant/**` JSON governed by the schema and the canonical form: not the schema copies, not raw check output. */
 function isWarrantJson(file: string): boolean {
@@ -100,11 +121,12 @@ function underTests(file: string, config: WarrantConfig): boolean {
   return tests !== undefined && tests.length > 0 && (file === tests || file.startsWith(`${tests}/`));
 }
 
-/** Check (1) for every `.warrant/**` JSON file the loader did not read. */
-function checkWarrantFiles(v: ValidateRun): CliError[] {
+/** Check (1) for every `.warrant/**` JSON file the loader did not read — or only `files`. */
+function checkWarrantFiles(v: ValidateRun, files?: readonly string[]): CliError[] {
   const { root } = v.ctx;
   const errors: CliError[] = [];
-  for (const absolute of walkFiles(path.join(root, WARRANT_DIR))) {
+  const targets = files?.map((file) => absoluteOf(root, file)) ?? walkFiles(path.join(root, WARRANT_DIR));
+  for (const absolute of targets) {
     if (!absolute.toLowerCase().endsWith(".json")) continue;
     const reported = reportPath(absolute, root);
     if (reported.startsWith(SCHEMA_COPIES_PREFIX)) continue;
@@ -132,13 +154,13 @@ export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
     id: "packs", // check (1), (3)
     level: "file",
     appliesTo: (file) => (isWarrantJson(file) && file !== LOCK_REL) || /^packs\/.+\.json$/.test(file),
-    run: async (v) => v.loaded.errors
+    run: async (v, files) => (files === undefined ? v.loaded.errors : findingsOf(v.loaded.errors, files))
   },
   {
     id: "schema", // check (1)
     level: "file",
     appliesTo: (file) => isWarrantJson(file) && file !== LOCK_REL,
-    run: async (v) => checkWarrantFiles(v)
+    run: async (v, files) => checkWarrantFiles(v, files)
   },
   {
     id: "lock", // check (2)
@@ -162,7 +184,8 @@ export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
     id: "ids", // check (5)
     level: "file",
     appliesTo: isOpenspecMarkdown,
-    run: async (v) => {
+    run: async (v, files) => {
+      if (files !== undefined) return checkIdsIn(v.scan(), loadAreas(v.ctx.root), new Set(files));
       const ids = await checkIds(v.ctx);
       for (const file of ids.files) v.checked.add(file);
       v.declared = ids.ids;
@@ -178,11 +201,14 @@ export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
     id: "secrets", // check (6)
     level: "file",
     appliesTo: (file) => /^\.(warrant|claude)\//.test(file) && !isRawEvidencePath(file),
-    run: async (v) => {
+    run: async (v, files) => {
       const { root } = v.ctx;
+      const targets = files?.map((file) => absoluteOf(root, file));
       return scanSecrets(
         root,
-        (dir) => walkFiles(dir).filter((absolute) => !isRawEvidencePath(reportPath(absolute, root))),
+        (dir) =>
+          targets?.filter((absolute) => projectPath(dir, absolute) !== undefined) ??
+          walkFiles(dir).filter((absolute) => !isRawEvidencePath(reportPath(absolute, root))),
         (absolute) => reportPath(absolute, root)
       );
     }
@@ -192,7 +218,10 @@ export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
     id: "canonical", // check (7)
     level: "file",
     appliesTo: isWarrantJson,
-    run: async (v) => checkCanonical(v.ctx.root)
+    run: async (v, files) =>
+      files === undefined
+        ? checkCanonical(v.ctx.root)
+        : checkCanonical(v.ctx.root, files.map((file) => absoluteOf(v.ctx.root, file)))
   },
   {
     // Path rules (ADR-0022); `id` = file name is a semantic rule of the loader.
@@ -206,7 +235,8 @@ export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
     id: "ids-immutable", // check (9)
     level: "file",
     appliesTo: (file) => isOpenspecMarkdown(file) && !file.startsWith("openspec/changes/archive/"),
-    run: async (v) => {
+    run: async (v, files) => {
+      if (files !== undefined) return checkImmutableFiles(v.ctx, v.records(), files);
       const immutable = await checkImmutableIds(v.ctx, v.records());
       if (immutable.skipped !== undefined) {
         v.ctx.warn(`validate: check (9) stable ids against HEAD skipped: ${immutable.skipped}\n`);
@@ -245,7 +275,10 @@ export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
     level: "file",
     appliesTo: (file, config) =>
       /^openspec\/changes\/(?!archive\/)[^/]+\/tasks\.md$/.test(file) || underTests(file, config),
-    run: async (v) => checkDangling(v.ctx.root, v.loaded.config, v.declared)
+    run: async (v, files) =>
+      files === undefined
+        ? checkDangling(v.ctx.root, v.loaded.config, v.declared)
+        : checkDangling(v.ctx.root, v.loaded.config, v.scan().ids, files.map((file) => absoluteOf(v.ctx.root, file)))
   }
 ];
 
@@ -254,4 +287,66 @@ export async function runChecks(v: ValidateRun, checks: readonly ValidateCheck[]
   const errors: CliError[] = [];
   for (const check of checks) errors.push(...(await check.run(v)));
   return errors;
+}
+
+/** Why `validate --files` did not check a path (REQ-KRN-032). */
+export type SkipReason = "no-check" | "missing" | "outside";
+
+export interface FileChecks {
+  errors: CliError[];
+  /** Project paths at least one check read, sorted. */
+  checked: string[];
+  /** The other paths, sorted: the project path, or the path as given when it lies outside. */
+  skipped: Array<{ path: string; reason: SkipReason }>;
+}
+
+/**
+ * `validate --files` (REQ-KRN-032, ADR-0019): each `file` check of `checks`
+ * whose `appliesTo` accepts one of `paths` runs over the paths it accepts.
+ * A path is taken from the project root; one outside the project, missing
+ * from the disk or accepted by no check is not read.
+ */
+export async function runFileChecks(
+  v: ValidateRun,
+  paths: readonly string[],
+  checks: readonly ValidateCheck[] = VALIDATE_CHECKS
+): Promise<FileChecks> {
+  const { root } = v.ctx;
+  const skipped = new Map<string, SkipReason>();
+  const present: string[] = [];
+  for (const given of paths) {
+    const file = projectPath(root, path.resolve(root, given));
+    if (file === undefined) {
+      skipped.set(given, "outside");
+      continue;
+    }
+    if (present.includes(file) || skipped.has(file)) continue;
+    let isFile: boolean;
+    try {
+      isFile = statSync(absoluteOf(root, file)).isFile();
+    } catch {
+      skipped.set(file, "missing");
+      continue;
+    }
+    if (isFile) present.push(file);
+    else skipped.set(file, "no-check"); // a directory: no check reads one
+  }
+
+  const errors: CliError[] = [];
+  const checked = new Set<string>();
+  for (const check of checks) {
+    if (check.level !== "file") continue;
+    const files = present.filter((file) => check.appliesTo(file, v.loaded.config));
+    if (files.length === 0) continue;
+    for (const file of files) checked.add(file);
+    errors.push(...(await check.run(v, files)));
+  }
+  for (const file of present) if (!checked.has(file)) skipped.set(file, "no-check");
+
+  const byPath = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+  return {
+    errors,
+    checked: [...checked].sort(byPath),
+    skipped: [...skipped.entries()].sort((a, b) => byPath(a[0], b[0])).map(([file, reason]) => ({ path: file, reason }))
+  };
 }

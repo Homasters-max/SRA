@@ -70,14 +70,15 @@ export function checkFile(absolute: string): CanonicalCheck {
 }
 
 /**
- * Check (7) of `validate`: every `*.json` under `.warrant/**` is canonical.
+ * Check (7) of `validate`: every `*.json` under `.warrant/**` is canonical —
+ * or only `targets` (absolute paths), under `validate --files`.
  *
  * Unreadable or malformed files are left to check (1), which already reports
  * them; reporting them twice would only duplicate findings.
  */
-export function checkCanonical(root: string): CliError[] {
+export function checkCanonical(root: string, targets: readonly string[] = canonicalTargets(root)): CliError[] {
   const errors: CliError[] = [];
-  for (const absolute of canonicalTargets(root)) {
+  for (const absolute of targets) {
     const result = checkFile(absolute);
     if (result.status !== "differs") continue;
     errors.push(cliError("NOT_CANONICAL", "file is not in canonical form", { path: reportPath(absolute, root), hint: FMT_HINT }));

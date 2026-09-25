@@ -7,13 +7,17 @@
  * `CHECK_LOCAL_FORBIDDEN`) does not stop the gates: its gates are `BLOCKED`,
  * the failure is in `errors[]` and the exit code is the highest of the
  * failure's and the controller's.
+ *
+ * On `VERIFYING->MERGED` `data.findings[]` also names `FRONTEND_HOOKS_INACTIVE`
+ * (REQ-VER-009): a signal that changes neither the verdicts nor the exit code.
  */
 import { checksForTransition } from "../core/check/execute.js";
 import { exitCodeOf } from "../core/controller/evaluate.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, type ExitCode } from "../core/errors.js";
+import { MERGE_TRANSITION } from "../core/gates/types.js";
 import { evaluate } from "../core/transition/evaluate.js";
-import { decisionFields, gateData } from "../core/transition/gates.js";
+import { decisionFields, gateData, hooksFindings } from "../core/transition/gates.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath } from "./context.js";
 
@@ -41,7 +45,8 @@ export async function runVerify(ctx: Ctx, change: string, opts: VerifyOptions = 
   }
   const { policy, run, evaluation } = evaluated;
 
-  const gate = gateData(evaluation);
+  const hooks = evaluation.transition === MERGE_TRANSITION ? hooksFindings(ctx, change, evaluation, evaluated.loaded.config, env) : [];
+  const gate = gateData(evaluation, hooks);
   const data: Record<string, unknown> = {
     transition: evaluation.transition,
     checks: run.entries,

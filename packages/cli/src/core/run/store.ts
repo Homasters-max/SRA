@@ -11,7 +11,7 @@
  * it, `writeJsonFile`, release — so the events of parallel `guard` calls are
  * not lost to each other.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { writeJsonFile } from "../canon/format-json.js";
@@ -95,6 +95,26 @@ export function readCurrent(root: string, env: NodeJS.ProcessEnv = process.env):
   const read = readRun(root, id, env);
   if ("errors" in read) return { kind: "broken", id, path: read.path, errors: read.errors };
   return { kind: read.run.run_state === "RUNNING" ? "active" : "inactive", id, run: read.run, path: read.path };
+}
+
+/**
+ * The Runs of `change`, by id: every `<state>/runs/*.json` that passes
+ * `warrant://run/1` and names `change`, whatever its `run_state`. A broken
+ * file is skipped — `validate` reports it.
+ */
+export function readChangeRuns(root: string, change: string, env: NodeJS.ProcessEnv = process.env): Run[] {
+  let names: string[];
+  try {
+    names = readdirSync(runsDir(root, env)).filter((name) => name.endsWith(".json")).sort();
+  } catch {
+    return [];
+  }
+  const out: Run[] = [];
+  for (const name of names) {
+    const read = readRun(root, name.slice(0, -".json".length), env);
+    if ("run" in read && read.run.change === change) out.push(read.run);
+  }
+  return out;
 }
 
 /** What the writers of a Run need of `ctx`. */

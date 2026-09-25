@@ -44,6 +44,8 @@ export interface Finding {
   check?: string;
   error?: string;
   paths?: string[];
+  /** How many paths `paths` leaves out (`FRONTEND_HOOKS_INACTIVE`, REQ-VER-009). */
+  more?: number;
   items?: string[];
   /** Controller rule id (`CONTROLLER_RULE_IGNORED`, R-13). */
   rule?: string;

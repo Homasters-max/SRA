@@ -9,20 +9,23 @@ import path from "node:path";
 
 import { writeJsonFile } from "../canon/format-json.js";
 import { controllerInputs } from "../controller/inputs.js";
+import type { WarrantConfig } from "../config.js";
 import { controllerRules, evaluateController, type ControllerDecision } from "../controller/evaluate.js";
 import type { Ctx } from "../ctx.js";
 import { evidenceDir, MANIFEST_FILE, projectUri, readManifest, readRecords, type PendingRecord } from "../evidence/store.js";
-import type { Availability } from "../git/facts.js";
+import type { Availability, DiffEntry } from "../git/facts.js";
 import { FACTORY_PROFILE } from "../gates/l0/scope-valid.js";
 import { SPEC_APPROVED } from "../gates/l0/spec-approved.js";
 import type { CheckFailure, Finding, GateEngineResult, GateSignals, Verdict } from "../gates/types.js";
 import { evaluateGates } from "../gates/verdict.js";
 import { isPlainObject, strings } from "../json.js";
+import { hooksInactive } from "../liveness/index.js";
 import type { LoadResult } from "../packs/types.js";
 import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { ChangeRecord } from "../record/read.js";
 import type { EffectivePolicy } from "../resolve/index.js";
 import { roleMembers } from "../roles.js";
+import { readChangeRuns } from "../run/store.js";
 import { contractTrees, type ProjectFacts } from "./facts.js";
 
 /** Gate documents by id, override in force. */
@@ -45,6 +48,8 @@ export interface Evaluation {
   transition: string;
   engine: GateEngineResult;
   decision: ControllerDecision;
+  /** The diff the gates judged (`scope-valid`): the paths `hooksFindings` looks at. */
+  diff: Availability<DiffEntry[]>;
 }
 
 export interface EvaluateParams {
@@ -116,7 +121,12 @@ export async function evaluateTransition(params: EvaluateParams): Promise<Evalua
     policy,
     artifacts: params.artifacts
   });
-  return { transition: params.transition, engine, decision: evaluateController(controllerRules(loaded), inputs) };
+  return {
+    transition: params.transition,
+    engine,
+    decision: evaluateController(controllerRules(loaded), inputs),
+    diff: facts.diff
+  };
 }
 
 /** `controller_action`, `next`? and `rule` in the order the output prints them. */
@@ -155,12 +165,31 @@ export function evaluationFindings(evaluation: Evaluation): Finding[] {
   return [...evaluation.engine.findings, ...(evaluation.decision.findings ?? [])];
 }
 
-/** `data` of `gate` (and the gate half of `verify`). */
-export function gateData(evaluation: Evaluation): Record<string, unknown> {
+/**
+ * `FRONTEND_HOOKS_INACTIVE` (REQ-VER-009) on the diff of `evaluation` and the
+ * Runs of `change` in `<state>/runs/`; none when the diff is unknown. Added
+ * after the gates and the controller: it changes no verdict, no
+ * `controller_action`, no exit code.
+ */
+export function hooksFindings(
+  ctx: Pick<Ctx, "root">,
+  change: string,
+  evaluation: Evaluation,
+  config: WarrantConfig,
+  env: NodeJS.ProcessEnv
+): Finding[] {
+  if (!evaluation.diff.ok) return [];
+  const paths = evaluation.diff.value.map((entry) => entry.path);
+  const finding = hooksInactive(paths, readChangeRuns(ctx.root, change, env), config);
+  return finding === undefined ? [] : [finding];
+}
+
+/** `data` of `gate` (and the gate half of `verify`); `extra` — findings beside the verdicts (`hooksFindings`). */
+export function gateData(evaluation: Evaluation, extra: readonly Finding[] = []): Record<string, unknown> {
   return {
     transition: evaluation.transition,
     gates: evaluation.engine.gates,
-    findings: evaluationFindings(evaluation),
+    findings: [...evaluationFindings(evaluation), ...extra],
     ...decisionFields(evaluation.decision)
   };
 }

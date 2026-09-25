@@ -63,7 +63,7 @@ golden вне групп 2 и 6 — остановка и строка I-N.
 
 ## 7. Живость hooks (REQ-VER-009)
 
-- [ ] 7.1 `core/liveness/` (§2) и finding `FRONTEND_HOOKS_INACTIVE` в `status`, `verify`, `gate`. Проверка: SCN-VER-053…055;
+- [x] 7.1 `core/liveness/` (§2) и finding `FRONTEND_HOOKS_INACTIVE` в `status`, `verify`, `gate`. Проверка: SCN-VER-053…055;
   код выхода и verdicts при finding те же.
 
 ## 8. Адаптер claude (REQ-ENF-005) и документы

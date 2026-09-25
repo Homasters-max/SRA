@@ -9,7 +9,9 @@
  * the gates of the next forward transition judged by the evidence already
  * recorded — the gate engine without the runner, no check is started
  * (design §12). A Change without a next transition (`ARCHIVED`, `ABANDONED`)
- * has `verification: null`. Without an argument `data.rules` counts the path
+ * has `verification: null`. From `IMPLEMENTING` on `verification.findings[]`
+ * also names `FRONTEND_HOOKS_INACTIVE` (REQ-VER-009), which changes no verdict
+ * and no `controller_action`. Without an argument `data.rules` counts the path
  * rules and those without `enforced_by` (ADR-0022 point 4).
  *
  * Nothing here fails because a derived signal is missing: a Change whose
@@ -25,7 +27,7 @@ import { findChangeDir } from "../core/openspec/changes.js";
 import type { ArtifactStatuses } from "../core/ports/openspec.js";
 import { openspecAvailable } from "../core/openspec/version.js";
 import { loadPacks } from "../core/packs/loader.js";
-import { nextForwardTransition } from "../core/record/lifecycle.js";
+import { HOOKS_LIVENESS_STATES, nextForwardTransition } from "../core/record/lifecycle.js";
 import {
   listChangeNames,
   readAllRecords,
@@ -39,7 +41,7 @@ import { computeStale, type StaleEntry } from "../core/status/stale.js";
 import { resolveForProject, type Classification } from "../core/resolve/index.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { projectFacts, type ProjectFacts } from "../core/transition/facts.js";
-import { decisionFields, evaluateTransition, evaluationFindings } from "../core/transition/gates.js";
+import { decisionFields, evaluateTransition, evaluationFindings, hooksFindings } from "../core/transition/gates.js";
 import { conflictDecision } from "../core/transition/policy.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath } from "./context.js";
@@ -143,10 +145,13 @@ async function statusOf(
         artifacts: known,
         env
       });
+      const hooks = (HOOKS_LIVENESS_STATES as readonly string[]).includes(changeState)
+        ? hooksFindings(ctx, change, evaluation, loaded.config, env)
+        : [];
       verification = {
         transition,
         gates: evaluation.engine.gates,
-        findings: evaluationFindings(evaluation),
+        findings: [...evaluationFindings(evaluation), ...hooks],
         ...(decisionFields(evaluation.decision) as Pick<Verification, "controller_action" | "rule">)
       };
     }

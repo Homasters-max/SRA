@@ -1,6 +1,7 @@
 /**
  * `warrant id` (REQ-KRN-024): allocation and renumbering of stable ids.
  */
+import { loadConfig } from "../core/config.js";
 import type { Ctx } from "../core/ctx.js";
 import { WarrantError } from "../core/errors.js";
 import { allocateSpecLevel, allocateUlid, allocateWaiver, isSpecLevelPrefix, isUlidPrefix } from "../core/ids/allocate.js";
@@ -25,7 +26,7 @@ export function runId(ctx: Ctx, args: string[], opts: { change?: string } = {}):
     if (change === undefined || change === "") {
       throw new WarrantError("USAGE", "warrant id renumber requires --change <name>");
     }
-    const result = renumber(root, oldId, newId, change);
+    const result = renumber(root, loadConfig(root), oldId, newId, change);
     return success({ old: result.old, new: result.new, rewritten: result.rewritten }, change);
   }
 

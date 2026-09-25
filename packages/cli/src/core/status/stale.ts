@@ -7,7 +7,7 @@
  * an error — so this module is a pure function over an already-located
  * directory and the recorded state.
  */
-import type { ChangeDirLocation } from "../init/scaffold.js";
+import type { ChangeDirLocation } from "../openspec/changes.js";
 
 /** Codes of `data.stale[]`. They are not `errors[].code`: staleness is a report, not a failure. */
 export const STALE_CODES = ["CHANGE_DIR_MISSING", "ARCHIVED_WITHOUT_TRANSITION", "ABANDONED_DIR_PRESENT"] as const;

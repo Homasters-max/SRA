@@ -1,6 +1,6 @@
 {
   "$schema": "warrant://lock/1",
-  "kernel": "0.4.2",
+  "kernel": "0.4.3",
   "openspec": "1.13.1",
   "packs": {
     "core-sdd": {

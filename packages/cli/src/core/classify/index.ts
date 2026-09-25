@@ -23,8 +23,7 @@
  *
  * `risk_level` не вычисляется и не пишется: это работа resolver'а.
  */
-import picomatch from "picomatch";
-
+import { pathMatcher } from "../glob.js";
 import { readSchemaFile } from "../schemas/loader.js";
 import { RISK_DIMENSIONS, type Classification, type RiskDimension, type RiskEntry } from "../resolve/types.js";
 import type {
@@ -76,13 +75,10 @@ export function normalizePath(p: string): string {
   return p.trim().replace(/\\/g, "/").replace(/^\.\//, "");
 }
 
-/**
- * Совпадает ли хотя бы один изменённый путь с одним из шаблонов.
- * `dot: true` — иначе `.warrant/**` не совпал бы ни с чем (05 §4).
- */
+/** Совпадает ли хотя бы один изменённый путь с одним из шаблонов (семантика — `pathMatcher`, 05 §4). */
 function anyMatch(changed: string[], patterns: string[]): boolean {
   if (patterns.length === 0 || changed.length === 0) return false;
-  const isMatch = picomatch(patterns, { dot: true });
+  const isMatch = pathMatcher(patterns);
   return changed.some((p) => isMatch(p));
 }
 

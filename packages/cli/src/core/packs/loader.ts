@@ -17,7 +17,8 @@ import { fileURLToPath } from "node:url";
 
 import semver from "semver";
 
-import { WarrantError, type CliError } from "../errors.js";
+import { CONFIG_REL, loadConfig } from "../config.js";
+import { cliError, type CliError } from "../errors.js";
 import { readJson, reportPath, walkFiles } from "../fs.js";
 import { isPlainObject, strings } from "../json.js";
 import { validateFile } from "../schemas/semantic.js";
@@ -37,7 +38,6 @@ import {
 
 export const WARRANT_DIR = ".warrant";
 export const LOCAL_DIR = path.join(WARRANT_DIR, "local");
-export const CONFIG_REL = path.join(WARRANT_DIR, "warrant.json");
 
 /**
  * Directory holding the bundled packs.
@@ -53,10 +53,6 @@ export function bundledPacksDir(): string {
   if (override !== undefined && override !== "") return path.resolve(override);
   const here = path.dirname(fileURLToPath(import.meta.url));
   return path.join(here, "..", "..", "..", "..", "..", "packs");
-}
-
-function err(code: CliError["code"], message: string, p?: string): CliError {
-  return p === undefined ? { code, message } : { code, message, path: p };
 }
 
 /** Validates one loaded document and records every violation. */
@@ -82,45 +78,6 @@ function satisfies(version: string, range: string): boolean {
   }
 }
 
-/** Reads `.warrant/warrant.json`, throwing when it is missing or unusable (SCN-KRN-007). */
-export function loadConfig(projectRoot: string): Record<string, unknown> {
-  const absolute = path.join(projectRoot, CONFIG_REL);
-  if (!existsSync(absolute)) {
-    throw new WarrantError("CONFIG_MISSING", `${CONFIG_REL} not found in ${projectRoot}`, {
-      path: CONFIG_REL.split(path.sep).join("/")
-    });
-  }
-  const reported = CONFIG_REL.split(path.sep).join("/");
-  const errors: CliError[] = [];
-  const json = readJson(absolute, reported, errors);
-  if (json === undefined) {
-    throw new WarrantError("CONFIG_INVALID", errors[0]?.message ?? "unreadable", { path: reported });
-  }
-  const result = validateFile(json, reported);
-  if (!result.ok) {
-    const first = result.errors[0] as CliError;
-    throw new WarrantError("CONFIG_INVALID", first.message, { path: first.path ?? reported });
-  }
-  return json as Record<string, unknown>;
-}
-
-interface PackRequest {
-  id: string;
-  range: string;
-}
-
-function packRequests(config: Record<string, unknown>): PackRequest[] {
-  const packs = config["packs"];
-  if (!isPlainObject(packs)) return [];
-  const out: PackRequest[] = [];
-  for (const [id, value] of Object.entries(packs)) {
-    if (id === "$comment") continue;
-    const range = isPlainObject(value) && typeof value["version"] === "string" ? value["version"] : "*";
-    out.push({ id, range });
-  }
-  return out.sort((a, b) => (a.id < b.id ? -1 : 1));
-}
-
 /** Locates one pack: bundled first, then `.warrant/local/<id>/`. */
 function findPackDir(id: string, projectRoot: string): { dir: string; source: string } | null {
   const bundled = path.join(bundledPacksDir(), id);
@@ -141,10 +98,10 @@ function topologicalOrder(packs: LoadedPack[], errors: CliError[]): LoadedPack[]
     if (mark === "done") return;
     if (mark === "visiting") {
       errors.push(
-        err(
+        cliError(
           "CONFIG_INVALID",
           `packs form a dependency cycle: ${[...stack, pack.id].join(" -> ")}`,
-          pack.manifestPath
+          { path: pack.manifestPath }
         )
       );
       return;
@@ -193,10 +150,10 @@ function addRule(json: unknown, pack: string, reported: string, collected: Colle
   const existing = collected.rules.get(id);
   if (existing !== undefined) {
     collected.errors.push(
-      err(
+      cliError(
         "DUPLICATE_OBJECT_ID",
         `rule "${id}" is declared by ${existing.pack} (${existing.path}) and by ${pack} (${reported})`,
-        reported
+        { path: reported }
       )
     );
     return;
@@ -229,7 +186,9 @@ function loadEvidenceKinds(pack: LoadedPack, projectRoot: string, collected: Col
       const reported = reportPath(absolute, projectRoot);
       files.push(reported);
       if (!existsSync(absolute)) {
-        collected.errors.push(err("PACK_NOT_FOUND", `pack ${pack.id} provides a missing metrics schema`, reported));
+        collected.errors.push(
+          cliError("PACK_NOT_FOUND", `pack ${pack.id} provides a missing metrics schema`, { path: reported })
+        );
         continue;
       }
       const json = readJson(absolute, reported, collected.errors);
@@ -243,10 +202,10 @@ function loadEvidenceKinds(pack: LoadedPack, projectRoot: string, collected: Col
     if (existing !== undefined) {
       // Two declarations would leave the form of `metrics` ambiguous (D-13).
       collected.errors.push(
-        err(
+        cliError(
           "DUPLICATE_OBJECT_ID",
           `evidence kind "${normal.kind}" is declared by pack ${existing.pack} and by pack ${pack.id}`,
-          pack.manifestPath
+          { path: pack.manifestPath }
         )
       );
       continue;
@@ -270,7 +229,9 @@ function loadProvides(pack: LoadedPack, projectRoot: string, collected: Collecte
       const reported = reportPath(absolute, projectRoot);
       files.push(reported);
       if (!existsSync(absolute)) {
-        collected.errors.push(err("PACK_NOT_FOUND", `pack ${pack.id} provides a missing file`, reported));
+        collected.errors.push(
+          cliError("PACK_NOT_FOUND", `pack ${pack.id} provides a missing file`, { path: reported })
+        );
         continue;
       }
       const json = readJson(absolute, reported, collected.errors);
@@ -281,10 +242,10 @@ function loadProvides(pack: LoadedPack, projectRoot: string, collected: Collecte
       const existing = collected.objects.get(objectKey(kind, id));
       if (existing !== undefined) {
         collected.errors.push(
-          err(
+          cliError(
             "DUPLICATE_OBJECT_ID",
             `${kind} "${id}" is declared by pack ${existing.pack} (${existing.path}) and by pack ${pack.id} (${reported})`,
-            reported
+            { path: reported }
           )
         );
         continue;
@@ -299,7 +260,7 @@ function loadProvides(pack: LoadedPack, projectRoot: string, collected: Collecte
     const reported = reportPath(absolute, projectRoot);
     files.push(reported);
     if (!existsSync(absolute)) {
-      collected.errors.push(err("PACK_NOT_FOUND", `pack ${pack.id} provides a missing file`, reported));
+      collected.errors.push(cliError("PACK_NOT_FOUND", `pack ${pack.id} provides a missing file`, { path: reported }));
       continue;
     }
     const json = readJson(absolute, reported, collected.errors);
@@ -307,7 +268,9 @@ function loadProvides(pack: LoadedPack, projectRoot: string, collected: Collecte
     if (!validateInto(json, reported, collected.errors)) continue;
     const ref = parseSchemaUri(isPlainObject(json) ? json["$schema"] : undefined);
     if (ref === null || ref.name !== "rule") {
-      collected.errors.push(err("SCHEMA_VIOLATION", "provides.rules must list warrant://rule/1 documents", reported));
+      collected.errors.push(
+        cliError("SCHEMA_VIOLATION", "provides.rules must list warrant://rule/1 documents", { path: reported })
+      );
       continue;
     }
     addRule(json, pack.id, reported, collected);
@@ -320,7 +283,7 @@ function loadProvides(pack: LoadedPack, projectRoot: string, collected: Collecte
     const reported = reportPath(absolute, projectRoot);
     files.push(reported);
     if (!existsSync(absolute)) {
-      collected.errors.push(err("PACK_NOT_FOUND", `pack ${pack.id} provides a missing file`, reported));
+      collected.errors.push(cliError("PACK_NOT_FOUND", `pack ${pack.id} provides a missing file`, { path: reported }));
       continue;
     }
     const json = readJson(absolute, reported, collected.errors);
@@ -329,7 +292,7 @@ function loadProvides(pack: LoadedPack, projectRoot: string, collected: Collecte
     const ref = parseSchemaUri(isPlainObject(json) ? json["$schema"] : undefined);
     if (ref !== null && ref.name !== schemaName) {
       collected.errors.push(
-        err("SCHEMA_VIOLATION", `provides.${key} must carry schema warrant://${schemaName}/1`, reported)
+        cliError("SCHEMA_VIOLATION", `provides.${key} must carry schema warrant://${schemaName}/1`, { path: reported })
       );
     }
   }
@@ -340,7 +303,9 @@ function loadProvides(pack: LoadedPack, projectRoot: string, collected: Collecte
       const absolute = path.join(pack.dir, rel);
       const reported = reportPath(absolute, projectRoot);
       if (!existsSync(absolute)) {
-        collected.errors.push(err("PACK_NOT_FOUND", `pack ${pack.id} provides a missing file`, reported));
+        collected.errors.push(
+          cliError("PACK_NOT_FOUND", `pack ${pack.id} provides a missing file`, { path: reported })
+        );
       } else {
         files.push(reported);
       }
@@ -395,10 +360,10 @@ function loadLocalLayer(
     packLike.add(dir);
     if (packDirs.has(dir) || enabledPacks.has(name)) continue;
     collected.errors.push(
-      err(
+      cliError(
         "CONFIG_INVALID",
         `${reportPath(dir, projectRoot)}/ holds a pack manifest, but pack "${name}" is not enabled in ${CONFIG_REL.split(path.sep).join("/")}; enable it or move the files out of ${LOCAL_DIR.split(path.sep).join("/")}/`,
-        reportPath(manifest, projectRoot)
+        { path: reportPath(manifest, projectRoot) }
       )
     );
   }
@@ -447,10 +412,10 @@ function loadLocalLayer(
     if (typeof overrides !== "string") {
       if (existing !== undefined) {
         collected.errors.push(
-          err(
+          cliError(
             "DUPLICATE_OBJECT_ID",
             `${kind} "${id}" is declared by pack ${existing.pack} (${existing.path}) and again in ${reported}; a project-local replacement needs "overrides": "<pack>:<id>"`,
-            reported
+            { path: reported }
           )
         );
         continue;
@@ -463,10 +428,10 @@ function loadLocalLayer(
     const target = collected.objects.get(objectKey(kind, targetId));
     if (target === undefined || target.pack !== targetPack) {
       collected.errors.push(
-        err(
+        cliError(
           "OVERRIDE_INVALID",
           `overrides "${overrides}" does not name a ${kind} loaded from pack ${targetPack}`,
-          reported
+          { path: reported }
         )
       );
       continue;
@@ -485,10 +450,10 @@ function loadLocalLayer(
       }
       for (const [field, items] of [...groups.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
         collected.errors.push(
-          err(
+          cliError(
             "OVERRIDE_WEAKENS",
             `override of ${kind} "${targetId}" drops: ${items.join("; ")}; an override may only strengthen (05 section 5)`,
-            `${reported}${field}`
+            { path: `${reported}${field}` }
           )
         );
       }
@@ -516,14 +481,14 @@ export function loadPacks(projectRoot: string): LoadResult {
   const files: string[] = [CONFIG_REL.split(path.sep).join("/")];
   const found: LoadedPack[] = [];
 
-  for (const request of packRequests(config)) {
+  for (const request of config.packs) {
     const located = findPackDir(request.id, projectRoot);
     if (located === null) {
       errors.push(
-        err(
+        cliError(
           "PACK_NOT_FOUND",
           `pack "${request.id}" is not bundled with the CLI and is not present in ${LOCAL_DIR.split(path.sep).join("/")}/`,
-          `${CONFIG_REL.split(path.sep).join("/")}#/packs/${request.id}`
+          { path: `${CONFIG_REL.split(path.sep).join("/")}#/packs/${request.id}` }
         )
       );
       continue;
@@ -540,20 +505,20 @@ export function loadPacks(projectRoot: string): LoadResult {
     const version = typeof obj["version"] === "string" ? obj["version"] : "0.0.0";
     if (!satisfies(version, request.range)) {
       errors.push(
-        err(
+        cliError(
           "CONFIG_INVALID",
           `pack ${request.id} version ${version} does not satisfy the configured range "${request.range}"`,
-          reported
+          { path: reported }
         )
       );
     }
     const kernelRange = typeof obj["kernel"] === "string" ? obj["kernel"] : "*";
     if (!satisfies(kernelAsVersion(), kernelRange)) {
       errors.push(
-        err(
+        cliError(
           "CONFIG_INVALID",
           `pack ${request.id} requires kernel "${kernelRange}", but this CLI is kernel ${KERNEL_VERSION}`,
-          reported
+          { path: reported }
         )
       );
     }
@@ -577,16 +542,20 @@ export function loadPacks(projectRoot: string): LoadResult {
       const dep = byId.get(depId);
       if (dep === undefined) {
         errors.push(
-          err("PACK_NOT_FOUND", `pack ${pack.id} depends on "${depId}", which the project does not enable`, pack.manifestPath)
+          cliError(
+            "PACK_NOT_FOUND",
+            `pack ${pack.id} depends on "${depId}", which the project does not enable`,
+            { path: pack.manifestPath }
+          )
         );
         continue;
       }
       if (typeof range === "string" && !satisfies(dep.version, range)) {
         errors.push(
-          err(
+          cliError(
             "CONFIG_INVALID",
             `pack ${pack.id} requires ${depId} "${range}", but ${depId} is ${dep.version}`,
-            pack.manifestPath
+            { path: pack.manifestPath }
           )
         );
       }
@@ -602,7 +571,7 @@ export function loadPacks(projectRoot: string): LoadResult {
   loadLocalLayer(
     projectRoot,
     new Set(packs.map((p) => p.dir)),
-    new Set(packRequests(config).map((r) => r.id)),
+    new Set(config.packs.map((r) => r.id)),
     collected,
     files
   );

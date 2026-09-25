@@ -43,10 +43,10 @@ import {
   resolveCommit,
   type GitFacts
 } from "../core/git/facts.js";
-import { activeWaiverIds, staleReason } from "../core/gates/prefilter.js";
+import { staleReason } from "../core/gates/prefilter.js";
 import { freshest } from "../core/gates/verdict.js";
 import { allocateUlid } from "../core/ids/allocate.js";
-import { findChangeDir } from "../core/init/scaffold.js";
+import { findChangeDir } from "../core/openspec/changes.js";
 import { isPlainObject } from "../core/json.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
@@ -58,6 +58,7 @@ import { judgeGates, prepare } from "../core/transition/evaluate.js";
 import { decisionFields, evaluationFindings, gateDefinitions, type Evaluation } from "../core/transition/gates.js";
 import { evidenceOf, forwardEntry, gatesNotPassed, gatesNotPassedRefusal, RECORDED_BY } from "../core/transition/outcome.js";
 import { readWaivers } from "../core/waivers/read.js";
+import { countingWaiverIds } from "../core/waivers/status.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath } from "./context.js";
 
@@ -147,10 +148,13 @@ interface ApprovalParams {
 async function ensureApproval(params: ApprovalParams): Promise<{ evidence: string; reused: boolean }> {
   const { ctx, change, env, git, login, ref } = params;
   const { root } = ctx;
+  const definitions = gateDefinitions(params.loaded);
+  // The same "waiver counts" as the gate engine (A-14): roles, `waivable`, `targets` included.
+  const approvers = roleMembers(params.loaded.config);
   const admit = {
     commit: git.commit,
     base: git.baseCommit,
-    activeWaivers: activeWaiverIds(readWaivers(root), ctx.clock.today())
+    activeWaivers: countingWaiverIds(readWaivers(root), definitions, { today: ctx.clock.today(), approvers })
   };
   for (const record of readRecords(evidenceDir(root, change, env))) {
     const json = record.json;
@@ -169,7 +173,7 @@ async function ensureApproval(params: ApprovalParams): Promise<{ evidence: strin
     }
   }
 
-  const gate = gateDefinitions(params.loaded).get(HUMAN_APPROVAL);
+  const gate = definitions.get(HUMAN_APPROVAL);
   const level = typeof gate?.["level"] === "string" ? gate["level"] : "L0";
   const subject: Record<string, unknown> = {
     commit: git.commit,

@@ -16,9 +16,8 @@
  * A rename counts as the removal of its source and the write of its target, so
  * the move made by `openspec archive` is judged path by path.
  */
-import picomatch from "picomatch";
-
 import type { DiffEntry } from "../../git/facts.js";
+import { pathMatcher } from "../../glob.js";
 import { noInput, pass, type Calculator } from "./types.js";
 
 export const FACTORY_PROFILE = "factory-change";
@@ -79,7 +78,7 @@ export function scopeViolations(entries: readonly DiffEntry[], input: ScopeInput
       const policy =
         input.profiles.includes(FACTORY_PROFILE) || input.policyPaths.length === 0
           ? () => false
-          : picomatch([...input.policyPaths], { dot: true });
+          : pathMatcher(input.policyPaths);
       allowed = (t) => {
         if (own(t.path)) return true;
         if (t.path.startsWith("openspec/specs/") || t.path.startsWith("openspec/changes/archive/")) return false;

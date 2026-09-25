@@ -27,8 +27,7 @@
  * Step 4 applies to `BLOCKED` as well as to `FAIL`: a waiver is how a gate
  * without a producer passes (SCN-VER-015, P-16).
  */
-import picomatch from "picomatch";
-
+import { pathMatcher } from "../glob.js";
 import { isPlainObject, strings } from "../json.js";
 import { CALCULATORS, type L0Result } from "./l0/index.js";
 import { prefilter } from "./prefilter.js";
@@ -41,7 +40,7 @@ import {
   type GateEngineResult,
   type Verdict
 } from "./types.js";
-import { waiverStatus, type WaiverContext, type WaiverIgnoredReason } from "../waivers/status.js";
+import { countingWaiverIds, waiverStatus, type WaiverContext, type WaiverIgnoredReason } from "../waivers/status.js";
 
 /** The worse of two verdicts in the order `FAIL` > `BLOCKED` > `WAIVED` > `NOT_APPLICABLE` > `PASS`. */
 export function worse(a: Verdict, b: Verdict): Verdict {
@@ -205,13 +204,7 @@ export function evaluateGates(input: GateEngineInput): GateEngineResult {
   // A waiver that does not count waives nothing anywhere: not a gate (step 4),
   // not a kind of `evidence-complete`, not a record's `metrics.waivers`
   // (review of phase 3, R-2, R-8; design §1).
-  const waiverCtx = waiverContext(input);
-  const active = new Set<string>();
-  for (const waiver of input.waivers) {
-    const gate = waiver.json["gate"];
-    const status = waiverStatus(waiver.json, typeof gate === "string" ? definitions.get(gate) : undefined, waiverCtx);
-    if (status.counts && typeof waiver.json["id"] === "string") active.add(waiver.json["id"]);
-  }
+  const active = countingWaiverIds(input.waivers, definitions, waiverContext(input));
   const { admissible, excluded } = prefilter(input.records, {
     commit: signals.commit,
     base: signals.base,
@@ -281,10 +274,8 @@ function baseOutcome(
         evidence: []
       };
     }
-    const matchers = patterns.map((p) => globToMatcher(p));
-    const hit = signals.diff.value.some((entry) =>
-      [entry.path, entry.from].some((p) => p !== undefined && matchers.some((m) => m(p)))
-    );
+    const matches = pathMatcher(patterns);
+    const hit = signals.diff.value.some((entry) => [entry.path, entry.from].some((p) => p !== undefined && matches(p)));
     if (!hit) return { verdict: "NOT_APPLICABLE", findings: [], evidence: [] };
   }
 
@@ -382,8 +373,4 @@ function applyWaivers(id: string, definition: Record<string, unknown>, base: Gat
     return { verdict: "WAIVED", findings, evidence: base.evidence };
   }
   return { verdict: base.verdict, findings, evidence: base.evidence };
-}
-
-function globToMatcher(pattern: string): (p: string) => boolean {
-  return picomatch(pattern, { dot: true });
 }

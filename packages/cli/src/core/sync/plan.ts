@@ -14,7 +14,7 @@ import semver from "semver";
 
 import { bytesHash } from "../canon/hash.js";
 import { canonicalText } from "../canon/format-json.js";
-import type { CliError } from "../errors.js";
+import { cliError, type CliError } from "../errors.js";
 import { reportPath } from "../fs.js";
 import { isPlainObject } from "../json.js";
 import { emitYaml, type YamlObject, type YamlValue } from "../openspec/yaml-emit.js";
@@ -74,10 +74,6 @@ export interface PlanInput {
   openspecVersion: string | null;
 }
 
-function err(code: CliError["code"], message: string, p: string): CliError {
-  return { code, message, path: p };
-}
-
 /**
  * Reads a JSON file, returning undefined and recording the failure as one
  * `cannot read <path>: …` for both an unreadable and a malformed file. It
@@ -88,7 +84,7 @@ function readJsonCombinedError(absolute: string, reported: string, errors: CliEr
   try {
     return JSON.parse(readFileSync(absolute, "utf8"));
   } catch (cause) {
-    errors.push(err("CONFIG_INVALID", `cannot read ${reported}: ${(cause as Error).message}`, reported));
+    errors.push(cliError("CONFIG_INVALID", `cannot read ${reported}: ${(cause as Error).message}`, { path: reported }));
     return undefined;
   }
 }
@@ -242,10 +238,10 @@ function resolveSkill(pack: LoadedPack, root: string, spec: string, errors: CliE
   const absolute = candidates.find((candidate) => existsSync(candidate));
   if (absolute === undefined) {
     errors.push(
-      err(
+      cliError(
         "PACK_NOT_FOUND",
         `pack ${pack.id} provides skill "${spec}", but no SKILL.md was found for it`,
-        `sra/skills/${name}/SKILL.md`
+        { path: `sra/skills/${name}/SKILL.md` }
       )
     );
     return undefined;
@@ -254,15 +250,17 @@ function resolveSkill(pack: LoadedPack, root: string, spec: string, errors: CliE
   const reported = reportPath(absolute, root);
   const version = skillFrontmatterVersion(readFileSync(absolute, "utf8"));
   if (version === undefined) {
-    errors.push(err("CONFIG_INVALID", `skill "${name}" has no \`version\` in its frontmatter`, reported));
+    errors.push(
+      cliError("CONFIG_INVALID", `skill "${name}" has no \`version\` in its frontmatter`, { path: reported })
+    );
     return undefined;
   }
   if (!semver.satisfies(version, range, { includePrerelease: true })) {
     errors.push(
-      err(
+      cliError(
         "CONFIG_INVALID",
         `pack ${pack.id} requires skill "${name}" ${range}, but the file on disk is ${version}`,
-        reported
+        { path: reported }
       )
     );
     return undefined;
@@ -313,20 +311,20 @@ export function planSync(input: PlanInput): SyncPlan {
   const providers = loaded.packs.filter((p) => provided(p, "openspec_schema") !== undefined);
   if (providers.length === 0) {
     errors.push(
-      err(
+      cliError(
         "CONFIG_INVALID",
         "no enabled pack provides `openspec_schema`; `warrant sync` has nothing to generate",
-        ".warrant/warrant.json#/packs"
+        { path: ".warrant/warrant.json#/packs" }
       )
     );
     return { schema: "", artifacts: [], files, errors, stale, rules: {}, ruleSources: {} };
   }
   if (providers.length > 1) {
     errors.push(
-      err(
+      cliError(
         "CONFIG_INVALID",
         `packs ${providers.map((p) => p.id).join(", ")} all provide \`openspec_schema\`; phase 1 supports exactly one`,
-        ".warrant/warrant.json#/packs"
+        { path: ".warrant/warrant.json#/packs" }
       )
     );
     return { schema: "", artifacts: [], files, errors, stale, rules: {}, ruleSources: {} };
@@ -338,7 +336,7 @@ export function planSync(input: PlanInput): SyncPlan {
   const schemaJson = readJsonCombinedError(schemaAbs, schemaRel, errors);
   if (!isPlainObject(schemaJson)) {
     if (errors.length === 0) {
-      errors.push(err("CONFIG_INVALID", "openspec schema source is not an object", schemaRel));
+      errors.push(cliError("CONFIG_INVALID", "openspec schema source is not an object", { path: schemaRel }));
     }
     return { schema: "", artifacts: [], files, errors, stale, rules: {}, ruleSources: {} };
   }
@@ -391,14 +389,20 @@ export function planSync(input: PlanInput): SyncPlan {
     const target = `${schemaDir}/templates/${path.basename(rel)}`;
     if (templateTargets.has(target)) {
       errors.push(
-        err("CONFIG_INVALID", `pack ${owner.id} provides two templates named ${path.basename(rel)}`, reportPath(absolute, root))
+        cliError(
+          "CONFIG_INVALID",
+          `pack ${owner.id} provides two templates named ${path.basename(rel)}`,
+          { path: reportPath(absolute, root) }
+        )
       );
       continue;
     }
     templateTargets.add(target);
     const bytes = currentBytes(absolute);
     if (bytes === undefined) {
-      errors.push(err("PACK_NOT_FOUND", `pack ${owner.id} provides a missing template`, reportPath(absolute, root)));
+      errors.push(
+        cliError("PACK_NOT_FOUND", `pack ${owner.id} provides a missing template`, { path: reportPath(absolute, root) })
+      );
       continue;
     }
     add(target, bytes);
@@ -418,7 +422,13 @@ export function planSync(input: PlanInput): SyncPlan {
     const file = schemaFileName(name, KERNEL_MAJOR);
     const bytes = currentBytes(path.join(SCHEMAS_DIR, file));
     if (bytes === undefined) {
-      errors.push(err("INTERNAL", `kernel schema ${file} is missing from the installed CLI`, `.warrant/schemas/${file}`));
+      errors.push(
+        cliError(
+          "INTERNAL",
+          `kernel schema ${file} is missing from the installed CLI`,
+          { path: `.warrant/schemas/${file}` }
+        )
+      );
       continue;
     }
     add(`.warrant/schemas/${file}`, bytes);

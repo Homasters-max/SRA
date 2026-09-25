@@ -6,12 +6,12 @@
  * resolution itself (REQ-KRN-026; SCN-KRN-065..069, 115) is tested in the test
  * process: `test/app/commands/resolve.test.ts` (ADR-0025, task 5.4).
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { canonicalText } from "../../src/core/canon/format-json.js";
 import { CLI_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { write } from "../helpers/synced.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const GOLDEN_DIR = path.join(CLI_ROOT, "test", "golden", "resolve", "feature-high-adds-review");
@@ -21,12 +21,6 @@ const tempDirs: string[] = [];
 afterAll(() => {
   for (const dir of tempDirs) removeDir(dir);
 });
-
-function write(root: string, rel: string, content: string | object): void {
-  const absolute = path.join(root, rel);
-  mkdirSync(path.dirname(absolute), { recursive: true });
-  writeFileSync(absolute, typeof content === "string" ? content : canonicalText(content).text, "utf8");
-}
 
 describe("warrant resolve (argv)", () => {
   it("maps <change>, --explain and --classification; exit 0, 2 on a policy conflict, 3 on a missing Change (SCN-KRN-067, SCN-KRN-069)", async () => {

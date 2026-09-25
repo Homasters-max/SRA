@@ -6,11 +6,12 @@
  * tested in the test process: `test/app/commands/fmt.test.ts` (ADR-0025,
  * task 5.4).
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { write } from "../helpers/synced.js";
 
 const tempDirs: string[] = [];
 
@@ -22,12 +23,6 @@ function project(): string {
   const root = makeTempDir("warrant-fmt-");
   tempDirs.push(root);
   return root;
-}
-
-function write(root: string, rel: string, text: string): void {
-  const absolute = path.join(root, rel);
-  mkdirSync(path.dirname(absolute), { recursive: true });
-  writeFileSync(absolute, text, "utf8");
 }
 
 function read(root: string, rel: string): string {

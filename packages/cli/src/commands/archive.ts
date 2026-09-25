@@ -22,7 +22,7 @@
 import { checksForTransition } from "../core/check/execute.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type ExitCode } from "../core/errors.js";
-import { findChangeDir } from "../core/init/scaffold.js";
+import { findChangeDir } from "../core/openspec/changes.js";
 import type { LoadResult, PackObject } from "../core/packs/types.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { appendTransition, assertNotFrozen, recordPath, stateOfRecord } from "../core/record/write.js";

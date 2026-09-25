@@ -140,13 +140,10 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
     return { ok: false, entry: { id: object.id, error: error.code }, error };
   }
 
-  const defaults = isPlainObject(ctx.loaded.config["defaults"]) ? ctx.loaded.config["defaults"] : {};
   const timeoutS =
     typeof execution["timeout_s"] === "number"
       ? execution["timeout_s"]
-      : typeof defaults["check_timeout_s"] === "number"
-        ? defaults["check_timeout_s"]
-        : DEFAULT_TIMEOUT_S;
+      : (ctx.loaded.config.defaults.checkTimeoutS ?? DEFAULT_TIMEOUT_S);
 
   let release: (() => void) | undefined;
   if (execution["exclusive"] === true) {

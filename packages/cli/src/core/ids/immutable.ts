@@ -28,7 +28,7 @@ import path from "node:path";
 
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
-import { findChangeDir } from "../init/scaffold.js";
+import { findChangeDir } from "../openspec/changes.js";
 import { IDS_FROZEN_FROM } from "../record/lifecycle.js";
 import { stateOf, type RecordFile } from "../record/read.js";
 import { scanMarkdown } from "./scan.js";

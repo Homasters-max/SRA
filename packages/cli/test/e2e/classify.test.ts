@@ -9,12 +9,13 @@
  * `test/app/commands/classify.test.ts` (ADR-0025, task 5.4).
  */
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { canonicalText } from "../../src/core/canon/format-json.js";
 import { CORE_SDD_RANGE, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { git } from "../helpers/git.js";
+import { write } from "../helpers/synced.js";
 
 const tempDirs: string[] = [];
 afterAll(() => {
@@ -22,17 +23,6 @@ afterAll(() => {
 });
 
 const hasGit = spawnSync("git", ["--version"]).status === 0;
-
-function git(root: string, ...args: string[]): void {
-  const proc = spawnSync("git", args, { cwd: root, encoding: "utf8" });
-  if (proc.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${proc.stderr}`);
-}
-
-function write(root: string, rel: string, content: string | object): void {
-  const absolute = path.join(root, rel);
-  mkdirSync(path.dirname(absolute), { recursive: true });
-  writeFileSync(absolute, typeof content === "string" ? content : canonicalText(content).text, "utf8");
-}
 
 describe.skipIf(!hasGit)("warrant classify (argv)", () => {
   it("maps <change>, --base, --paths, --propose, repeatable --set, --by and --ref; exit 0, and 3 on a refusal (SCN-KRN-073, SCN-KRN-105)", async () => {

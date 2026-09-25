@@ -32,6 +32,49 @@ function pointerMatches(actual: string | undefined, expected: string): boolean {
   return pointer === expected || pointer.startsWith(`${expected}/`);
 }
 
+/**
+ * Scenarios of openspec/specs/kernel whose document is a fixture: `<schema>/<file>` → SCN id, shown in the test name
+ * (SCN tag, packages/cli/CLAUDE.md). A valid fixture is the example the scenario names, with the substitutions the
+ * scenario states (ULID ids, URL refs) and concrete values for the placeholders of the document (`<login>`, `sha256:…`);
+ * an invalid one is its counter-example, and its `.expect.json` names the same id in `scenario`.
+ */
+const SCENARIOS: Record<string, string> = {
+  "areas/valid-single-area.json": "SCN-KRN-040",
+  "areas/invalid-lowercase-area.json": "SCN-KRN-041",
+  "change-record/valid-doc-example.json": "SCN-KRN-022",
+  "change-record/invalid-risk-without-source.json": "SCN-KRN-023",
+  "check/valid-pytest.json": "SCN-KRN-020",
+  "check/invalid-level-l2.json": "SCN-KRN-021",
+  "config/invalid-pack-without-version.json": "SCN-KRN-009",
+  "config/invalid-pack-version-not-range.json": "SCN-KRN-009",
+  "controller-rules/invalid-unknown-action.json": "SCN-KRN-029",
+  "evidence/valid-doc-example.json": "SCN-KRN-024",
+  "evidence/invalid-counter-id.json": "SCN-KRN-025",
+  "evidence-manifest/valid-doc-example.json": "SCN-KRN-026",
+  "evidence-manifest/invalid-verdict-outside-enum.json": "SCN-KRN-027",
+  "gate/valid-tests-passed.json": "SCN-KRN-018",
+  "lock/invalid-hash-not-sha256.json": "SCN-KRN-011",
+  "openspec-rules/valid-doc-example.json": "SCN-KRN-034",
+  "openspec-rules/invalid-unknown-operation.json": "SCN-KRN-035",
+  "openspec-schema/valid-warrant-sdd.json": "SCN-KRN-036",
+  "overlay/valid-security-high.json": "SCN-KRN-016",
+  "overlay/invalid-dimension-value.json": "SCN-KRN-017",
+  "profile/valid-data-change.json": "SCN-KRN-014",
+  "profile/invalid-unknown-transition.json": "SCN-KRN-015",
+  "risk-floor/valid-doc-example.json": "SCN-KRN-030",
+  "risk-floor/invalid-foreign-dimension-value.json": "SCN-KRN-031",
+  "risk-levels/valid-doc-example.json": "SCN-KRN-032",
+  "risk-levels/invalid-missing-default.json": "SCN-KRN-033",
+  "waiver/valid-doc-example.json": "SCN-KRN-038",
+  "waiver/invalid-missing-expires-at.json": "SCN-KRN-039"
+};
+
+/** ` (SCN-…)` for a fixture of the table, empty otherwise. */
+function tag(schema: string, file: string): string {
+  const id = SCENARIOS[`${schema}/${file}`];
+  return id === undefined ? "" : ` (${id})`;
+}
+
 describe("schema fixtures", () => {
   const dirs = readdirSync(FIXTURES, { withFileTypes: true })
     .filter((d) => d.isDirectory())
@@ -40,6 +83,17 @@ describe("schema fixtures", () => {
 
   it("covers every document schema (task 2.2)", () => {
     expect(dirs).toEqual([...DOCUMENT_SCHEMAS].sort());
+  });
+
+  it("every fixture of the scenario table exists, and an invalid one's .expect.json names the same scenario", () => {
+    for (const [rel, id] of Object.entries(SCENARIOS)) {
+      const [schema = "", file = ""] = rel.split("/");
+      expect(readdirSync(join(FIXTURES, schema)), rel).toContain(file);
+      if (file.startsWith("invalid-")) {
+        const expectation = readJson(join(FIXTURES, schema, file.replace(/\.json$/, ".expect.json"))) as Expectation;
+        expect(expectation.scenario, rel).toBe(id);
+      }
+    }
   });
 
   for (const schema of dirs) {
@@ -53,7 +107,7 @@ describe("schema fixtures", () => {
       });
 
       for (const file of files.filter((f) => f.startsWith("valid-"))) {
-        it(`accepts ${file}`, () => {
+        it(`accepts ${file}${tag(schema, file)}`, () => {
           // No file path: fixture names encode `valid-*`, not the document id,
           // and the change-record naming rule is asserted in semantic.test.ts.
           const result = validateFile(readJson(join(dir, file)));
@@ -65,7 +119,7 @@ describe("schema fixtures", () => {
       }
 
       for (const file of files.filter((f) => f.startsWith("invalid-"))) {
-        it(`rejects ${file}`, () => {
+        it(`rejects ${file}${tag(schema, file)}`, () => {
           const expectation = readJson(
             join(dir, file.replace(/\.json$/, ".expect.json"))
           ) as Expectation;

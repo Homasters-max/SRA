@@ -11,13 +11,20 @@ import { validateDocument } from "../schemas/loader.js";
 /** Directory of the waiver documents, relative to the project root. */
 export const WAIVERS_DIR = path.join(".warrant", "waivers");
 
+/** One `.warrant/waivers/*.json` document that parsed to an object. */
+export interface WaiverInput {
+  /** Path as reported, for findings. */
+  path: string;
+  json: Record<string, unknown>;
+}
+
 /**
  * Every waiver document under `.warrant/waivers/` that parses to an object and
  * matches its schema, for the gate engine (design §8). A file that does not is
  * `validate`'s finding and waives nothing.
  */
-export function readWaivers(root: string): { path: string; json: Record<string, unknown> }[] {
-  const out: { path: string; json: Record<string, unknown> }[] = [];
+export function readWaivers(root: string): WaiverInput[] {
+  const out: WaiverInput[] = [];
   for (const absolute of walkFiles(path.join(root, WAIVERS_DIR))) {
     if (!absolute.toLowerCase().endsWith(".json")) continue;
     let json: unknown;

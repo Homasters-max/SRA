@@ -1,22 +1,18 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { loadConfig } from "../../../src/core/config.js";
 import type { WarrantError } from "../../../src/core/errors.js";
 import { idOccurrenceRe, renumber } from "../../../src/core/ids/renumber.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
+import { write } from "../../helpers/synced.js";
 
 const tempDirs: string[] = [];
 
 afterAll(() => {
   for (const dir of tempDirs) removeDir(dir);
 });
-
-function write(root: string, rel: string, text: string | object): void {
-  const absolute = path.join(root, rel);
-  mkdirSync(path.dirname(absolute), { recursive: true });
-  writeFileSync(absolute, typeof text === "string" ? text : JSON.stringify(text, null, 2) + "\n");
-}
 
 function read(root: string, rel: string): string {
   return readFileSync(path.join(root, rel), "utf8");
@@ -70,7 +66,7 @@ describe("renumber", () => {
     write(root, "openspec/specs/kernel/spec.md", "<!-- id: REQ-KRN-007 -->\n");
     write(root, "docs/other.md", "REQ-KRN-007 elsewhere\n");
 
-    const result = renumber(root, "REQ-KRN-007", "REQ-KRN-013", "add-search");
+    const result = renumber(root, loadConfig(root), "REQ-KRN-007", "REQ-KRN-013", "add-search");
 
     expect(result.rewritten).toEqual([
       "openspec/changes/add-search/specs/kernel/spec.md",
@@ -94,7 +90,7 @@ describe("renumber", () => {
       change_state: "SPECIFIED",
       unknowns: [{ id: "UNK-KRN-004", text: "q", blocking: false }]
     });
-    const result = renumber(root, "UNK-KRN-004", "UNK-KRN-011", "add-search");
+    const result = renumber(root, loadConfig(root), "UNK-KRN-004", "UNK-KRN-011", "add-search");
     expect(result.rewritten).toEqual([".warrant/changes/add-search.json"]);
     expect(read(root, ".warrant/changes/add-search.json")).toContain('"UNK-KRN-011"');
   });
@@ -102,7 +98,7 @@ describe("renumber", () => {
   it("refuses when the Change is MERGED and touches no file (SCN-KRN-060)", () => {
     const root = project("MERGED");
     write(root, "openspec/changes/add-search/tasks.md", "REQ-KRN-007\n");
-    const error = caught(() => renumber(root, "REQ-KRN-007", "REQ-KRN-013", "add-search"));
+    const error = caught(() => renumber(root, loadConfig(root), "REQ-KRN-007", "REQ-KRN-013", "add-search"));
     expect(error.code).toBe("ID_IMMUTABLE");
     expect(error.exitCode).toBe(3);
     expect(read(root, "openspec/changes/add-search/tasks.md")).toBe("REQ-KRN-007\n");
@@ -112,21 +108,21 @@ describe("renumber", () => {
     const root = project();
     write(root, "openspec/changes/add-search/tasks.md", "REQ-KRN-007\n");
     write(root, "openspec/specs/kernel/spec.md", "<!-- id: REQ-KRN-013 -->\n");
-    const error = caught(() => renumber(root, "REQ-KRN-007", "REQ-KRN-013", "add-search"));
+    const error = caught(() => renumber(root, loadConfig(root), "REQ-KRN-007", "REQ-KRN-013", "add-search"));
     expect(error.code).toBe("ID_TAKEN");
     expect(read(root, "openspec/changes/add-search/tasks.md")).toBe("REQ-KRN-007\n");
   });
 
   it("refuses an unknown Change and a malformed or cross-prefix id", () => {
     const root = project();
-    expect(caught(() => renumber(root, "REQ-KRN-007", "REQ-KRN-013", "nope")).code).toBe("CHANGE_NOT_FOUND");
-    expect(caught(() => renumber(root, "REQ-KRN-7", "REQ-KRN-013", "add-search")).code).toBe("ID_FORMAT");
-    expect(caught(() => renumber(root, "REQ-KRN-007", "SCN-KRN-013", "add-search")).code).toBe("ID_FORMAT");
+    expect(caught(() => renumber(root, loadConfig(root), "REQ-KRN-007", "REQ-KRN-013", "nope")).code).toBe("CHANGE_NOT_FOUND");
+    expect(caught(() => renumber(root, loadConfig(root), "REQ-KRN-7", "REQ-KRN-013", "add-search")).code).toBe("ID_FORMAT");
+    expect(caught(() => renumber(root, loadConfig(root), "REQ-KRN-007", "SCN-KRN-013", "add-search")).code).toBe("ID_FORMAT");
   });
 
   it("refuses with USAGE when the old id occurs nowhere in the change", () => {
     const root = project();
     write(root, "openspec/changes/add-search/tasks.md", "nothing here\n");
-    expect(caught(() => renumber(root, "REQ-KRN-007", "REQ-KRN-013", "add-search")).code).toBe("USAGE");
+    expect(caught(() => renumber(root, loadConfig(root), "REQ-KRN-007", "REQ-KRN-013", "add-search")).code).toBe("USAGE");
   });
 });

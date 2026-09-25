@@ -33,7 +33,7 @@ const DEFINITIONS = new Map(
 
 function loaded(objects: Partial<PackObject>[], packs: string[] = ["core-sdd"]): LoadResult {
   return {
-    config: {},
+    config: { kernel: "0.1", openspec: "*", packs: [], defaults: { checkTimeoutS: undefined }, paths: {}, roles: new Map() },
     packs: packs.map((id) => ({ id, version: "0.2.0", dir: "", source: "bundled", manifest: {}, manifestPath: "" })),
     objects: objects as PackObject[],
     rules: [],

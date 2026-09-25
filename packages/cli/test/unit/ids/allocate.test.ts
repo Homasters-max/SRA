@@ -1,22 +1,15 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { WarrantError } from "../../../src/core/errors.js";
 import { allocateSpecLevel, allocateUlid, allocateWaiver, highestNumber } from "../../../src/core/ids/allocate.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
+import { write } from "../../helpers/synced.js";
 
 const tempDirs: string[] = [];
 
 afterAll(() => {
   for (const dir of tempDirs) removeDir(dir);
 });
-
-function write(root: string, rel: string, text: string | object): void {
-  const absolute = path.join(root, rel);
-  mkdirSync(path.dirname(absolute), { recursive: true });
-  writeFileSync(absolute, typeof text === "string" ? text : JSON.stringify(text, null, 2) + "\n");
-}
 
 function project(): string {
   const root = makeTempDir("warrant-ids-");

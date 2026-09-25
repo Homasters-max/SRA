@@ -1,4 +1,5 @@
 /** Shared shapes of the pack loader (design D-7, 08 sections 2-4). */
+import type { WarrantConfig } from "../config.js";
 import type { CliError } from "../errors.js";
 
 /** Kinds of objects a pack contributes that carry an id and can be overridden. */
@@ -94,8 +95,8 @@ export interface EvidenceKind {
 }
 
 export interface LoadResult {
-  /** Parsed `.warrant/warrant.json`. */
-  config: Record<string, unknown>;
+  /** `.warrant/warrant.json` as a typed value. */
+  config: WarrantConfig;
   /** Packs in dependency (topological) order. */
   packs: LoadedPack[];
   /** Object set after duplicate detection and local overrides. */

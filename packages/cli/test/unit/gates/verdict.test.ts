@@ -8,9 +8,10 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { prefilter } from "../../../src/core/gates/prefilter.js";
-import type { EvidenceInput, GateSignals, WaiverInput } from "../../../src/core/gates/types.js";
+import type { EvidenceInput, GateSignals } from "../../../src/core/gates/types.js";
 import { evaluateGates, freshest, worstVerdict } from "../../../src/core/gates/verdict.js";
 import type { EffectivePolicy } from "../../../src/core/resolve/types.js";
+import type { WaiverInput } from "../../../src/core/waivers/read.js";
 import { REPO_ROOT } from "../../helpers/cli.js";
 
 const GATES_DIR = path.join(REPO_ROOT, "packs", "core-sdd", "gates");

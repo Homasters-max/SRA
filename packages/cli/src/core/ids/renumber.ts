@@ -6,12 +6,12 @@
  * The blast radius is therefore fixed by construction: `openspec/changes/<name>/**`,
  * the project test root from `paths.tests`, and the Change record itself.
  */
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
+import { testFiles, type WarrantConfig } from "../config.js";
 import { WarrantError } from "../errors.js";
 import { posix, walkFiles } from "../fs.js";
-import { loadConfig } from "../packs/loader.js";
 import { RENUMBER_FROZEN_STATES } from "../record/lifecycle.js";
 import { scanIds } from "./scan.js";
 
@@ -45,25 +45,12 @@ function readTextFile(absolute: string): string | undefined {
   return buffer.toString("utf8");
 }
 
-/** Directories whose files renumber is allowed to touch, plus the record file. */
-function targetFiles(projectRoot: string, change: string): string[] {
+/** Files renumber is allowed to touch: the Change directory, the test root (`testFiles`) and the record file. */
+function targetFiles(projectRoot: string, config: WarrantConfig, change: string): string[] {
   const files: string[] = [];
   const changeDir = path.join(projectRoot, "openspec", "changes", change);
   if (existsSync(changeDir)) files.push(...walkFiles(changeDir));
-
-  let testsRel: unknown;
-  try {
-    const config = loadConfig(projectRoot);
-    const paths = config["paths"];
-    testsRel = typeof paths === "object" && paths !== null ? (paths as Record<string, unknown>)["tests"] : undefined;
-  } catch {
-    // The caller has already required the config; an unusable one simply means no test root.
-    testsRel = undefined;
-  }
-  if (typeof testsRel === "string" && testsRel.length > 0) {
-    const testsDir = path.join(projectRoot, testsRel);
-    if (existsSync(testsDir) && statSync(testsDir).isDirectory()) files.push(...walkFiles(testsDir));
-  }
+  files.push(...testFiles(projectRoot, config));
 
   const record = path.join(projectRoot, ".warrant", "changes", `${change}.json`);
   if (existsSync(record)) files.push(record);
@@ -71,7 +58,13 @@ function targetFiles(projectRoot: string, change: string): string[] {
   return [...new Set(files)];
 }
 
-export function renumber(projectRoot: string, oldId: string, newId: string, change: string): RenumberResult {
+export function renumber(
+  projectRoot: string,
+  config: WarrantConfig,
+  oldId: string,
+  newId: string,
+  change: string
+): RenumberResult {
   const oldMatch = STABLE_ID_RE.exec(oldId);
   const newMatch = STABLE_ID_RE.exec(newId);
   if (oldMatch === null || newMatch === null) {
@@ -112,7 +105,7 @@ export function renumber(projectRoot: string, oldId: string, newId: string, chan
 
   const re = idOccurrenceRe(oldId);
   const planned: { absolute: string; text: string }[] = [];
-  for (const absolute of targetFiles(projectRoot, change)) {
+  for (const absolute of targetFiles(projectRoot, config, change)) {
     const text = readTextFile(absolute);
     if (text === undefined) continue;
     const replaced = text.replace(re, newId);

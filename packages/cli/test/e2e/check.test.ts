@@ -13,6 +13,7 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { git } from "../helpers/git.js";
 import { PACKS, record, useSyncedProject, write } from "../helpers/synced.js";
 
 const hasGit = spawnSync("git", ["--version"]).status === 0;
@@ -25,15 +26,6 @@ afterAll(() => {
 
 const NODE = process.execPath;
 const EVIDENCE = ".warrant/evidence/add-search";
-
-function git(cwd: string, ...args: string[]): string {
-  const run = spawnSync("git", ["-c", "user.name=warrant-test", "-c", "user.email=test@example.invalid", ...args], {
-    cwd,
-    encoding: "utf8"
-  });
-  if (run.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${run.stderr}`);
-  return run.stdout.trim();
-}
 
 function recordFiles(dir: string): string[] {
   try {

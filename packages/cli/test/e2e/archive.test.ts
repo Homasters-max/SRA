@@ -18,6 +18,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { runCli, type CliRun } from "../helpers/cli.js";
+import { git } from "../helpers/git.js";
 import { PACKS, record, useSyncedProject, write } from "../helpers/synced.js";
 
 const hasGit = spawnSync("git", ["--version"]).status === 0;
@@ -27,11 +28,6 @@ const ACTIVE = "openspec/changes/add-search";
 
 function cli(root: string, args: string[]): Promise<CliRun> {
   return runCli(args, root, { WARRANT_PACKS_DIR: PACKS, GITHUB_ACTIONS: "" });
-}
-
-function git(cwd: string, ...args: string[]): void {
-  const run = spawnSync("git", args, { cwd, encoding: "utf8" });
-  if (run.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${run.stderr}`);
 }
 
 const SPEC = `# Spec Delta

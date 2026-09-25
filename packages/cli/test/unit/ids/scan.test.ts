@@ -1,22 +1,15 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { checkAreas, checkDuplicates, loadAreas, originOf, scanIds, scanMalformed, scanMarkdown } from "../../../src/core/ids/scan.js";
 import { highestNumber } from "../../../src/core/ids/allocate.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
+import { write } from "../../helpers/synced.js";
 
 const tempDirs: string[] = [];
 
 afterAll(() => {
   for (const dir of tempDirs) removeDir(dir);
 });
-
-function write(root: string, rel: string, text: string): void {
-  const absolute = path.join(root, rel);
-  mkdirSync(path.dirname(absolute), { recursive: true });
-  writeFileSync(absolute, text);
-}
 
 const SPEC = [
   "## ADDED Requirements",
@@ -99,6 +92,8 @@ describe("origins (B6)", () => {
     });
   });
 
+  // SCN-KRN-081, first half of THEN: REQ-KRN-001 in specs and in archive — no ID_DUPLICATE (`validate` and `ids-valid`
+  // run checkDuplicates); the second half — "counts archive in the highest number used by `warrant id`" below.
   it("does not report specs x archive as a duplicate", () => {
     const ids = [
       ...scanMarkdown(SPEC, "openspec/specs/kernel/spec.md"),
@@ -141,6 +136,7 @@ describe("origins (B6)", () => {
     expect(errors[0]?.message).toContain("openspec/changes/archive/2026-01-01-x/design.md");
   });
 
+  // SCN-KRN-081, second half of THEN: `warrant id REQ KRN` (highestNumber) counts archive in the maximum.
   it("counts archive in the highest number used by `warrant id`", () => {
     const root = makeTempDir("warrant-ids-b6-");
     tempDirs.push(root);

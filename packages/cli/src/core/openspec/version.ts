@@ -9,6 +9,7 @@
  */
 import semver from "semver";
 
+import type { WarrantConfig } from "../config.js";
 import { WarrantError } from "../errors.js";
 import type { OpenSpecPort } from "../ports/openspec.js";
 
@@ -17,16 +18,11 @@ export async function openspecAvailable(openspec: OpenSpecPort): Promise<boolean
   return (await openspec.version()) !== null;
 }
 
-function configuredRange(config: Record<string, unknown>): string {
-  const value = config["openspec"];
-  return typeof value === "string" ? value : "*";
-}
-
 /**
  * Throws when `openspec` is missing or its version does not satisfy the range
  * in `warrant.json`; returns the exact version otherwise.
  */
-export async function requireOpenspec(openspec: OpenSpecPort, config: Record<string, unknown>): Promise<string> {
+export async function requireOpenspec(openspec: OpenSpecPort, config: WarrantConfig): Promise<string> {
   const version = await openspec.version();
   if (version === null) {
     throw new WarrantError(
@@ -35,7 +31,7 @@ export async function requireOpenspec(openspec: OpenSpecPort, config: Record<str
       { path: ".warrant/warrant.json#/openspec" }
     );
   }
-  const range = configuredRange(config);
+  const range = config.openspec;
   if (range !== "*" && !semver.satisfies(version, range, { includePrerelease: true })) {
     throw new WarrantError(
       "OPENSPEC_VERSION",

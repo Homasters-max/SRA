@@ -10,6 +10,7 @@ import type { CliError } from "../errors.js";
 import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { EffectivePolicy } from "../resolve/types.js";
 import type { Availability, BlobTree, DiffEntry } from "../git/facts.js";
+import type { WaiverInput } from "../waivers/read.js";
 
 export type { Availability, BlobTree, DiffEntry } from "../git/facts.js";
 
@@ -52,13 +53,6 @@ export interface Finding {
 /** One stored evidence record. */
 export interface EvidenceInput {
   id: string;
-  json: Record<string, unknown>;
-}
-
-/** One `.warrant/waivers/*.json` document that parsed to an object. */
-export interface WaiverInput {
-  /** Path as reported, for findings. */
-  path: string;
   json: Record<string, unknown>;
 }
 

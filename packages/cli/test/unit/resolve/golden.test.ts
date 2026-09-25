@@ -7,7 +7,7 @@
  * expected files are written by hand from 05 section 5: they are the contract,
  * not a recording of the implementation.
  */
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -15,6 +15,7 @@ import { loadPacks } from "../../../src/core/packs/loader.js";
 import { resolveForProject, type Classification } from "../../../src/core/resolve/index.js";
 import { CLI_VERSION } from "../../../src/version.js";
 import { CLI_ROOT, makeTempDir, removeDir } from "../../helpers/cli.js";
+import { write } from "../../helpers/synced.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const GOLDEN_DIR = path.join(CLI_ROOT, "test", "golden", "resolve");
@@ -23,7 +24,7 @@ const tempDirs: string[] = [];
 interface GoldenInput {
   packs: string[];
   classification?: Classification;
-  local?: Record<string, unknown>;
+  local?: Record<string, object>;
 }
 
 beforeAll(() => {
@@ -34,12 +35,6 @@ afterAll(() => {
   delete process.env["WARRANT_PACKS_DIR"];
   for (const dir of tempDirs) removeDir(dir);
 });
-
-function write(root: string, rel: string, value: unknown): void {
-  const absolute = path.join(root, rel);
-  mkdirSync(path.dirname(absolute), { recursive: true });
-  writeFileSync(absolute, JSON.stringify(value, null, 2) + "\n", "utf8");
-}
 
 /** A temporary project matching one golden `input.json`. */
 export function buildProject(input: GoldenInput): string {

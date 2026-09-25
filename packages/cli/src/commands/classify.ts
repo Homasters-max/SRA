@@ -38,6 +38,7 @@ import {
 } from "../core/classify/index.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
+import { changedFromGit } from "../core/git/paths.js";
 import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
 import type { LoadResult } from "../core/packs/types.js";
@@ -125,37 +126,6 @@ function humanValues(loaded: LoadResult, sets: ReturnType<typeof parseSets>, log
   if (Object.keys(sets.risk).length > 0) human.risk = sets.risk;
   if (ref !== undefined) human.ref = ref;
   return human;
-}
-
-/**
- * Изменённые пути из `git diff --name-only <base>...HEAD`.
- *
- * `git` печатает пути относительно корня репозитория, а classification живёт в
- * проекте, поэтому пути переносятся в систему координат проекта; всё, что вне
- * проекта, отбрасывается — policy проекта о нём ничего сказать не может.
- */
-async function changedFromGit(ctx: Ctx, base: string): Promise<string[]> {
-  // The prefix as git sees it: a path spelled differently (symlink, 8.3 name) must not drop every line (I-100).
-  const prefix = await ctx.git.prefix();
-  if (prefix === null) {
-    throw new WarrantError(
-      "USAGE",
-      `${ctx.root} is not a git repository; pass --paths <file> with one changed path per line`
-    );
-  }
-  const diff = await ctx.git.diffNames(base);
-  if (!diff.ok) {
-    throw new WarrantError(
-      "USAGE",
-      `git could not diff "${base}...HEAD": ${diff.detail}; pass an existing ref with --base or use --paths`
-    );
-  }
-
-  const lines = diff.value;
-  if (prefix === "") return lines;
-  return lines
-    .filter((line) => line.startsWith(`${prefix}/`))
-    .map((line) => line.slice(prefix.length + 1));
 }
 
 /** Изменённые пути из файла `--paths`: по одному на строку, пустые строки игнорируются. */

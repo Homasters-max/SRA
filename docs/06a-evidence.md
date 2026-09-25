@@ -50,6 +50,7 @@ Evidence:  claim "customer_id остаётся уникальным после �
 |---|---|
 | `kind` | Из каталога kinds, объявленных packs (`test-report`, `schema-diff`, `review`, `human-approval`, …) |
 | `level` | L0 / L1 / L2 по источнику |
+| `subject.spec_tree` | Только у `review`: hash `{proposal.md, specs/**}` каталога Change, как у `spec-approved`; запись устаревает с правкой spec, а не с новым коммитом ([ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 3) |
 | `produced_by.type` | `check` (L0/L1), `skill` (L2), `human` |
 | `attestation` | Кто ручается за происхождение записи (§3) |
 | `limitations` | Что evidence **не** доказывает (scope, выборка, окружение) |

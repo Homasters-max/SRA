@@ -2,19 +2,20 @@
 
 ## Цель
 
-Фаза 4 — MVP frontend по нарезке [ADR-0034](../adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 6: `core-seams` и `phase-4a`
-(Run, guard, адаптер `claude`) закрыты → Change `phase-4b` (producers gates, `warrant ci`) → slice в отдельном
-репозитории. Выход 4b: verdict impl-PR без ручного переноса artifact'а, новые Changes без пары waivers.
+Фаза 4 — MVP frontend по нарезке [ADR-0034](../adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 6, уточнённой
+[ADR-0036](../adr/WARRANT-ADR-0036-phase-4b-producers.md): `core-seams` и `phase-4a` закрыты → Change `phase-4b`
+(producers) → Change `phase-4c` (CI) → slice в отдельном репозитории.
 
 ## Готовый запрос
 
 ```text
-Шаг 1 — Change phase-4b до spec-PR. Снимок аудита 2026-09-25-core-seams старше тега v0.5.0 — аудит обязателен:
-навык architecture-audit (--against docs/process/audits/2026-09-25-core-seams.json), затем repo-hygiene. Прочитай
-ADR-0034 п. 6, 9–14, ADR-0010, ADR-0014 п. 3, ADR-0020, архив openspec/changes/archive/2026-09-25-phase-4a/
-(design — I-156…I-165), backlog: BL-2, BL-3, BL-7, BL-9, BL-12, BL-13, R-12, R-16, A-5, A-19, BL-35…BL-38.
-Grilling нарезки 4b (skill-result/1, run submit, analyze, warrant ci, ForgePort, producers analyze-clean и
-adversarial-review — субагент warrant-reviewer); затем openspec-propose и change-spec-pr в ветке spec/phase-4b.
+Change phase-4b до spec-PR. Grilling нарезки проведён (N18–N26, ADR-0036), аудит — 2026-09-25-phase-4a (A-23…A-27).
+Прочитай ADR-0036, ADR-0034 п. 10, ADR-0024, отчёт docs/process/audits/2026-09-25-phase-4a.md (§3, §3.4), 07 §4,
+06 §3–5, архив openspec/changes/archive/2026-09-25-phase-4a/ (design — I-160…I-165), backlog: BL-2, BL-3, BL-13,
+A-23…A-27. Навык openspec-propose: proposal, delta specs (verification — REQ-VER-003 и spec_tree, enforcement —
+операция review и run submit, kernel — analyze, core-sdd — kernel-диапазон pack), design.md со строками N19, N20,
+N22–N25 из ADR-0036, tasks.md (первая группа — A-24, A-23, A-25 + A-27, enums; CLI 0.6.0 первой задачей). Затем
+навык change-spec-pr в ветке spec/phase-4b (пара waivers analyze-clean / adversarial-review ещё нужна).
 ```
 
 ## Открытые вопросы
@@ -23,12 +24,11 @@ adversarial-review — субагент warrant-reviewer); затем openspec-p
 
 ## Не забыть
 
-- Сдача результата `warrant-reviewer` — строкой `I-N` в 4b (ADR-0034 п. 10); зонд 2.1.263: deny действует до
+- Сдача результата `warrant-reviewer` — строкой `I-N` в 4b после зонда (ADR-0034 п. 10): deny действует до
   `PreToolUse`, `additionalContext` `PreToolUse` доходит только после результата; кандидат — хук во frontmatter
-  субагента, из Bash только `warrant run submit`.
-- Фикстуры Claude Code — `test/contract/fixtures/claude/2.1.263/`; `probe-hooks.js` перезаписывает их и вычищает путь
-  профиля; NotebookEdit в сценарии зонда требует предварительного Read.
+  субагента, из Bash только `warrant run submit`. Фикстуры — `test/contract/fixtures/claude/<версия>/`, `probe-hooks.js`.
+- CLI 0.6.0 не проходит `kernel` pack'ов `>=0.1 <0.6` — как I-156 `phase-4a`: pack `core-sdd` patch и 7 fixture-packs.
+- Приёмка 4b по dogfooding — spec-PR 4c первый без пары waivers (ADR-0036 п. 1); провал — находка 4c.
 - Sample-проект slice — `Homasters-max/warrant-slice` (Python + pytest), создаёт maintainer до slice.
-- Правка delta specs в impl-PR после approval закрывается waiver'ом на `spec-approved` (ADR-0024 п. 4, как WAV-2026-013).
-- Субагенты под `PreToolUse deny` (ADR-0031): хук отклоняет любой grep по `packages/`, в том числе по JSON-фикстурам, —
-  в промпте разрешать инструмент Grep для не-кода.
+- Субагенты под `PreToolUse deny` (ADR-0031): grep по `packages/` отклоняется и по JSON-фикстурам — в промпте
+  разрешать инструмент Grep для не-кода.

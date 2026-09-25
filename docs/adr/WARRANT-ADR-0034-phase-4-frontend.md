@@ -5,7 +5,11 @@ adr_state: ACCEPTED
 date: 2026-09-25
 supersedes: []
 amends: [WARRANT-ADR-0011, WARRANT-ADR-0013, WARRANT-ADR-0014, WARRANT-ADR-0018, WARRANT-ADR-0020, WARRANT-ADR-0023, WARRANT-ADR-0025]
+amended_by: [WARRANT-ADR-0036]
 ---
+
+> Уточнено [ADR-0036](WARRANT-ADR-0036-phase-4b-producers.md): п. 6 — 4b делится на `phase-4b` (producers, п. 10) и
+> `phase-4c` (CI, п. 9, 11–14), порядок `core-seams` → 4a → 4b → 4c → slice; evidence review привязана к дереву spec.
 
 ## Context
 

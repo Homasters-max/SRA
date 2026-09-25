@@ -1,0 +1,13 @@
+{
+  "$schema": "warrant://config/1",
+  "kernel": "0.1",
+  "openspec": ">=0.1 <0.2",
+  "packs": {
+    "core-sdd": {
+      "version": "0.1"
+    }
+  },
+  "frontends": [
+    "codex"
+  ]
+}

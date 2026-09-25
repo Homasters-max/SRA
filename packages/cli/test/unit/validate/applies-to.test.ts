@@ -15,7 +15,8 @@ function config(tests?: string): WarrantConfig {
     packs: [],
     defaults: { checkTimeoutS: undefined },
     paths: tests === undefined ? {} : { tests },
-    roles: new Map()
+    roles: new Map(),
+    frontends: []
   };
 }
 

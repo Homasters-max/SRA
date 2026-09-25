@@ -11,7 +11,7 @@ import { createWrites } from "../core/writes.js";
 import { emitToProcess, failure, resultFromThrown, writeStdout, type CommandResult } from "../io/output.js";
 import { CLI_VERSION } from "../version.js";
 import { projectRoot, requireConfigPath } from "../commands/context.js";
-import { runInitCommand } from "../commands/init.js";
+import { initFrontends, runInitCommand } from "../commands/init.js";
 import { runValidate } from "../commands/validate.js";
 import { runFmt } from "../commands/fmt.js";
 import { runId } from "../commands/id.js";
@@ -108,8 +108,28 @@ register(
   "initialise .warrant/ or a new change",
   // `init` is the one command that must run without an existing config;
   // `init change` checks for one itself.
-  (ctx, args, opts) => runInitCommand(ctx, args, { force: opts["force"] as boolean | undefined }),
-  (c) => c.argument("[what]").argument("[name]").option("--force")
+  (ctx, args, opts) =>
+    runInitCommand(ctx, args, {
+      force: opts["force"] as boolean | undefined,
+      frontend: opts["frontend"] as string | undefined
+    }),
+  (c) =>
+    c
+      .argument("[what]")
+      .argument("[name]")
+      .option("--force", "rewrite the files init owns")
+      .option(
+        "--frontend <name>",
+        `record frontends: [<name>] in the new warrant.json, so sync generates its files (one of: ${initFrontends().join(", ")})`
+      )
+      .addHelpText(
+        "after",
+        examples([
+          "warrant init",
+          ...initFrontends().map((name) => `warrant init --frontend ${name}`),
+          "warrant init change add-search"
+        ])
+      )
 );
 register(
   "validate",

@@ -7,7 +7,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { loadConfig, testFiles } from "../../../src/core/config.js";
+import { knownFrontends, loadConfig, testFiles } from "../../../src/core/config.js";
 import { readSchemaFile } from "../../../src/core/schemas/loader.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 
@@ -18,7 +18,8 @@ const READ: Record<string, string> = {
   packs: "packs",
   defaults: "defaults",
   paths: "paths",
-  roles: "roles"
+  roles: "roles",
+  frontends: "frontends"
 };
 
 /** Properties of `config/1` nobody reads yet: the first reader adds the field (design §2). */
@@ -79,7 +80,8 @@ describe("WarrantConfig ↔ config/1", () => {
       ],
       defaults: { checkTimeoutS: 1800 },
       paths: { adr: "docs/adr", glossary: "docs/glossary.md", tests: "tests" },
-      roles: new Map([["data-owner", ["<login>"]]])
+      roles: new Map([["data-owner", ["<login>"]]]),
+      frontends: []
     });
   });
 
@@ -97,6 +99,13 @@ describe("WarrantConfig ↔ config/1", () => {
     expect(config.roles).toEqual(new Map([["maintainer", ["kat"]]]));
     expect(config.defaults).toEqual({ checkTimeoutS: undefined });
     expect(config.paths).toEqual({});
+    expect(config.frontends).toEqual([]);
+  });
+
+  it("reads frontends, and knownFrontends is the enum of config/1 (SCN-KRN-126)", () => {
+    const config = loadConfig(project({ ...EXAMPLE, frontends: ["claude"] }));
+    expect(config.frontends).toEqual(["claude"]);
+    expect(knownFrontends()).toEqual(["claude"]);
   });
 });
 

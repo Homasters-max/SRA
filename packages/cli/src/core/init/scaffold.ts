@@ -53,13 +53,22 @@ export function bundledPackVersion(packId: string, packsDir: string = bundledPac
   });
 }
 
-/** Contents of `.warrant/warrant.json` for a fresh project. */
-export function configDocument(kernel: string, openspecVersion: string, packVersion: string): Record<string, unknown> {
+/**
+ * Contents of `.warrant/warrant.json` for a fresh project; `frontends` only
+ * when `init --frontend` named one (REQ-KRN-033).
+ */
+export function configDocument(
+  kernel: string,
+  openspecVersion: string,
+  packVersion: string,
+  frontends: readonly string[] = []
+): Record<string, unknown> {
   return {
     $schema: "warrant://config/1",
     kernel,
     openspec: openspecRange(openspecVersion),
-    packs: { [DEFAULT_PACK]: { version: `^${packVersion}` } }
+    packs: { [DEFAULT_PACK]: { version: `^${packVersion}` } },
+    ...(frontends.length > 0 ? { frontends: [...frontends] } : {})
   };
 }
 

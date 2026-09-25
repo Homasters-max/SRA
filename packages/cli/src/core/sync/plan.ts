@@ -14,7 +14,7 @@ import semver from "semver";
 
 import { bytesHash } from "../canon/hash.js";
 import { canonicalText } from "../canon/format-json.js";
-import { cliError, type CliError } from "../errors.js";
+import { cliError, SYNC_HINT, type CliError } from "../errors.js";
 import { projectPath, reportPath } from "../fs.js";
 import { isPlainObject } from "../json.js";
 import { emitYaml, type YamlObject, type YamlValue } from "../openspec/yaml-emit.js";
@@ -23,7 +23,11 @@ import type { LoadResult, LoadedPack } from "../packs/types.js";
 import { ALL_SCHEMAS, KERNEL_MAJOR, schemaFileName } from "../schemas/registry.js";
 import { SCHEMAS_DIR } from "../schemas/loader.js";
 import { CLI_VERSION } from "../../version.js";
+import { CURRENT_FILE } from "../run/store.js";
+import { agentsMd, AGENTS_MD_REL } from "./agents.js";
+import { CLAUDE_FRONTEND, claudeMdTarget, claudeSettingsTarget } from "./claude.js";
 import { mergeRules, type OpenspecRules } from "./rules.js";
+import { driftPath, linesTarget, type SubsetTarget } from "./subset.js";
 
 /** Project-local rules layer, merged after every pack (ADR-0015 point 2). */
 export const LOCAL_RULES_REL = ".warrant/local/openspec/rules.json";
@@ -44,12 +48,28 @@ export interface PlannedFile {
   changed: boolean;
 }
 
+/** One file `sync` owns only some entries of (design phase-4a §8); not in the lock. */
+export interface PlannedSubset {
+  /** Path relative to the project root, POSIX separators. */
+  path: string;
+  /** Bytes after `merge`; the current bytes when nothing drifted. */
+  bytes: Buffer;
+  /** Set for a JSON file: written through `writeJsonFile`. */
+  json?: unknown;
+  /** Pointers of our entries the current file lacks (`drift` of the target). */
+  drift: string[];
+  /** True when `bytes` differ from the current file or it is absent. */
+  changed: boolean;
+}
+
 export interface SyncPlan {
   /** Name of the OpenSpec schema the project generates, e.g. `warrant-sdd`. */
   schema: string;
   /** Artifact ids declared by that schema. */
   artifacts: string[];
   files: PlannedFile[];
+  /** Managed subsets: `.gitignore` always, the files of `frontends` (REQ-KRN-033). */
+  subsets: PlannedSubset[];
   /** Everything that could not be planned; when non-empty nothing may be written. */
   errors: CliError[];
   /**
@@ -316,7 +336,7 @@ export function planSync(input: PlanInput): SyncPlan {
         { path: ".warrant/warrant.json#/packs" }
       )
     );
-    return { schema: "", artifacts: [], files, errors, stale, rules: {}, ruleSources: {} };
+    return { schema: "", artifacts: [], files, subsets: [], errors, stale, rules: {}, ruleSources: {} };
   }
   if (providers.length > 1) {
     errors.push(
@@ -326,7 +346,7 @@ export function planSync(input: PlanInput): SyncPlan {
         { path: ".warrant/warrant.json#/packs" }
       )
     );
-    return { schema: "", artifacts: [], files, errors, stale, rules: {}, ruleSources: {} };
+    return { schema: "", artifacts: [], files, subsets: [], errors, stale, rules: {}, ruleSources: {} };
   }
 
   const owner = providers[0] as LoadedPack;
@@ -337,7 +357,7 @@ export function planSync(input: PlanInput): SyncPlan {
     if (errors.length === 0) {
       errors.push(cliError("CONFIG_INVALID", "openspec schema source is not an object", { path: schemaRel }));
     }
-    return { schema: "", artifacts: [], files, errors, stale, rules: {}, ruleSources: {} };
+    return { schema: "", artifacts: [], files, subsets: [], errors, stale, rules: {}, ruleSources: {} };
   }
   const schemaName = optionalString(schemaJson["name"]) ?? "";
   const artifactIds = (Array.isArray(schemaJson["artifacts"]) ? schemaJson["artifacts"] : [])
@@ -433,6 +453,15 @@ export function planSync(input: PlanInput): SyncPlan {
     add(`.warrant/schemas/${file}`, bytes);
   }
 
+  // `AGENTS.md` from the rules with `paths: ["**"]` (REQ-KRN-033); none — no file.
+  const agents = agentsMd(loaded.rules);
+  if (agents !== undefined) {
+    if ("error" in agents) errors.push(agents.error);
+    else add(AGENTS_MD_REL, agents.bytes);
+  }
+
+  const subsets = planSubsets(root, subsetTargets(loaded, agents !== undefined && !("error" in agents)), errors);
+
   // (4) The lock, hashing everything planned above but not itself.
   if (openspecVersion !== null) {
     const packs: Record<string, unknown> = {};
@@ -457,7 +486,65 @@ export function planSync(input: PlanInput): SyncPlan {
     add(LOCK_REL, Buffer.from(canonicalText(lock).text, "utf8"), lock);
   }
 
-  return { schema: schemaName, artifacts: artifactIds, files, errors, stale, rules, ruleSources };
+  return { schema: schemaName, artifacts: artifactIds, files, subsets, errors, stale, rules, ruleSources };
+}
+
+/**
+ * `GENERATED_DRIFT` for every own entry a managed subset lacks: `path` is the
+ * file with the JSON Pointer of the entry (REQ-KRN-033). Shared by `sync
+ * --check` and check (4) of `validate`, which read the same plan.
+ */
+export function subsetDrift(plan: SyncPlan): CliError[] {
+  return plan.subsets.flatMap((subset) =>
+    subset.drift.map((pointer) =>
+      cliError("GENERATED_DRIFT", "entry `warrant sync` keeps in this file is missing or differs", {
+        path: driftPath(subset.path, pointer),
+        hint: SYNC_HINT
+      })
+    )
+  );
+}
+
+/** `.gitignore` line of the Run pointer (F3): the Run file is committed, `current` is not. */
+export const RUNS_CURRENT_IGNORE = `.warrant/runs/${CURRENT_FILE}`;
+
+/**
+ * Managed subsets of this project: `.gitignore` always; with `frontends ∋
+ * claude` `.claude/settings.json`, and `CLAUDE.md` when `AGENTS.md` is generated.
+ * Without `frontends` no frontend file is touched (SCN-KRN-134).
+ */
+function subsetTargets(loaded: LoadResult, agentsGenerated: boolean): SubsetTarget[] {
+  const targets = [linesTarget(".gitignore", [RUNS_CURRENT_IGNORE])];
+  if (loaded.config.frontends.includes(CLAUDE_FRONTEND)) {
+    targets.push(claudeSettingsTarget);
+    if (agentsGenerated) targets.push(claudeMdTarget);
+  }
+  return targets;
+}
+
+/** Drift and merged bytes of each target; a target that cannot merge is an error of the plan. */
+function planSubsets(root: string, targets: readonly SubsetTarget[], errors: CliError[]): PlannedSubset[] {
+  const out: PlannedSubset[] = [];
+  for (const target of targets) {
+    const current = currentBytes(path.join(root, target.path));
+    const drift = target.drift(current);
+    if (drift.length === 0) {
+      out.push({ path: target.path, bytes: current ?? Buffer.alloc(0), drift, changed: false });
+      continue;
+    }
+    const merged = target.merge(current);
+    if ("error" in merged) {
+      errors.push(merged.error);
+      continue;
+    }
+    const changed = current === undefined || !current.equals(merged.bytes);
+    out.push(
+      merged.json === undefined
+        ? { path: target.path, bytes: merged.bytes, drift, changed }
+        : { path: target.path, bytes: merged.bytes, json: merged.json, drift, changed }
+    );
+  }
+  return out;
 }
 
 /** File names directly inside `dir`, sorted; empty when the directory is unreadable. */

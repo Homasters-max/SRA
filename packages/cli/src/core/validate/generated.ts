@@ -12,7 +12,7 @@ import type { Ctx } from "../ctx.js";
 import { cliError, SYNC_HINT, WarrantError, type CliError } from "../errors.js";
 import { openspecAvailable, requireOpenspec } from "../openspec/version.js";
 import type { LoadResult } from "../packs/types.js";
-import { planSync } from "../sync/plan.js";
+import { planSync, subsetDrift } from "../sync/plan.js";
 
 /** Check (4); pushes `openspec-schema` to `skipped` when `openspec` is not on PATH. */
 export async function checkGenerated(ctx: Ctx, loaded: LoadResult, skipped: string[]): Promise<CliError[]> {
@@ -43,6 +43,8 @@ export async function checkGenerated(ctx: Ctx, loaded: LoadResult, skipped: stri
       cliError("GENERATED_DRIFT", "file differs from what `warrant sync` would generate", { path: file.path, hint: SYNC_HINT })
     );
   }
+  // Managed subsets: only our entries, by the `drift` of the same plan (REQ-KRN-033).
+  errors.push(...subsetDrift(plan));
 
   const artifacts = new Set(plan.artifacts);
   for (const key of Object.keys(plan.rules.rules ?? {})) {

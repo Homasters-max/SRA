@@ -44,6 +44,8 @@ describe("warrant validate (8): path rules", () => {
       paths: ["**"],
       text: "Specs are written in the imperative."
     });
+    // A rule on ** is delivered through AGENTS.md, which `sync` generates (REQ-KRN-033).
+    await p.synced();
     const good = await validate(p);
     expect(good.errors).toEqual([]);
     expect(good.exitCode).toBe(0);

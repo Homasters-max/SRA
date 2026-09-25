@@ -14,7 +14,7 @@ import { cliError, EXIT, SYNC_HINT, type CliError, type ExitCode } from "../erro
 import { requireOpenspec } from "../openspec/version.js";
 import { LOCK_REL } from "../packs/hash.js";
 import { loadPacks } from "../packs/loader.js";
-import { planSync, type SyncPlan } from "./plan.js";
+import { planSync, subsetDrift, type SyncPlan } from "./plan.js";
 
 /** What a run of `sync` left: `data` of the command, its errors and exit code. */
 export interface SyncOutcome {
@@ -71,17 +71,21 @@ export async function applySync(ctx: Ctx, check: boolean): Promise<SyncOutcome> 
     return syncFailed(plan.errors, EXIT.CONFIG, payload(plan, []));
   }
 
-  const changed = plan.files.filter((f) => f.changed).map((f) => f.path);
+  const changedFiles = plan.files.filter((f) => f.changed).map((f) => f.path);
+  const changed = [...changedFiles, ...plan.subsets.filter((s) => s.changed).map((s) => s.path)];
 
   if (check) {
     if (changed.length === 0) return syncDone(payload(plan, changed));
-    const errors: CliError[] = changed.map((rel) =>
-      cliError(driftCode(rel), "file differs from what `warrant sync` would generate", { path: rel, hint: SYNC_HINT })
-    );
+    const errors: CliError[] = [
+      ...changedFiles.map((rel) =>
+        cliError(driftCode(rel), "file differs from what `warrant sync` would generate", { path: rel, hint: SYNC_HINT })
+      ),
+      ...subsetDrift(plan)
+    ];
     return syncFailed(errors, EXIT.FAIL, payload(plan, changed));
   }
 
-  for (const file of plan.files) {
+  for (const file of [...plan.files, ...plan.subsets]) {
     if (!file.changed) continue;
     const absolute = path.join(root, file.path);
     mkdirSync(path.dirname(absolute), { recursive: true });

@@ -54,11 +54,11 @@ golden вне групп 2 и 6 — остановка и строка I-N.
 
 ## 6. Файлы frontend (REQ-KRN-004, REQ-KRN-033)
 
-- [ ] 6.1 `config/1` — `frontends` (+ `WarrantConfig`, unit свойств схемы); `warrant init --frontend claude`. Проверка:
+- [x] 6.1 `config/1` — `frontends` (+ `WarrantConfig`, unit свойств схемы); `warrant init --frontend claude`. Проверка:
   SCN-KRN-126; e2e `init --frontend claude`.
-- [ ] 6.2 Цель «подмножество» в плане `sync` (§8): `.claude/settings.json`, `CLAUDE.md`, `.gitignore`; `validate` — `drift`
+- [x] 6.2 Цель «подмножество» в плане `sync` (§8): `.claude/settings.json`, `CLAUDE.md`, `.gitignore`; `validate` — `drift`
   из плана. Проверка: SCN-KRN-130, 131, 134; повторный `sync` без изменений байт.
-- [ ] 6.3 `AGENTS.md` из правил с `paths: ["**"]`, `GENERATED_TOO_LARGE`. Проверка: SCN-KRN-132, 133; golden `sync`
+- [x] 6.3 `AGENTS.md` из правил с `paths: ["**"]`, `GENERATED_TOO_LARGE`. Проверка: SCN-KRN-132, 133; golden `sync`
   обновлён (строка `.gitignore`).
 
 ## 7. Живость hooks (REQ-VER-009)

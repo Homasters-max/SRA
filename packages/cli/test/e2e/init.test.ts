@@ -53,4 +53,26 @@ describe("warrant init (argv)", () => {
     expect(unknown.json?.errors[0].code).toBe("USAGE");
     expect(unknown.status).toBe(3);
   }, 120_000);
+
+  it("maps --frontend: claude is recorded and synced, an unknown name is USAGE with hint, exit 3 (REQ-KRN-033)", async () => {
+    const root = makeTempDir("warrant-init-frontend-");
+    tempDirs.push(root);
+    expect(openspecSync(["init", "--tools", "none"], root).ok).toBe(true);
+
+    const unknown = await runCli(["init", "--frontend", "codex"], root);
+    expect(unknown.json?.errors[0]).toMatchObject({ code: "USAGE", hint: "pass one of: --frontend claude" });
+    expect(unknown.status).toBe(3);
+    expect(existsSync(path.join(root, ".warrant", "warrant.json"))).toBe(false);
+
+    const run = await runCli(["init", "--frontend", "claude"], root);
+    expect(run.json?.errors).toEqual([]);
+    expect(run.status).toBe(0);
+    expect(JSON.parse(readFileSync(path.join(root, ".warrant", "warrant.json"), "utf8")).frontends).toEqual(["claude"]);
+    expect(existsSync(path.join(root, ".claude", "settings.json"))).toBe(true);
+
+    const help = await runCli(["init", "--help"], root);
+    expect(help.status).toBe(0);
+    expect(help.stderr).toContain("--frontend <name>");
+    expect(help.stderr.split("Examples:\n")[1]?.split("\n")).toContain("  $ warrant init --frontend claude");
+  }, 120_000);
 });

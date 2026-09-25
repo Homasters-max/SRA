@@ -91,6 +91,33 @@ describe("warrant init", () => {
 
     // A second sync changes nothing: `init` left a fully synced project.
     expect((await invoke(() => runSync(p.ctx, { check: true }))).exitCode).toBe(0);
+    // `.gitignore` is `init`'s file and `sync` merged the Run line into it: listed once.
+    expect(created.filter((rel) => rel === ".gitignore")).toHaveLength(1);
+    expect(p.read(".gitignore")).toBe(".warrant/evidence/**/raw/\n.warrant/runs/current\n");
+    // Without --frontend no frontend is recorded and no file of Claude Code is written (SCN-KRN-134).
+    expect(config).not.toHaveProperty("frontends");
+    expect(existsSync(path.join(p.root, ".claude"))).toBe(false);
+  });
+
+  it("--frontend claude records frontends: [\"claude\"] and sync writes the managed subset (REQ-KRN-033)", async () => {
+    const p = project();
+    const run = await init(p, { frontend: "claude" });
+    expect(run.errors).toEqual([]);
+    const config = JSON.parse(p.read(".warrant/warrant.json")) as { frontends?: string[] };
+    expect(config.frontends).toEqual(["claude"]);
+    expect(run.data["created"]).toContain(".claude/settings.json");
+    expect((await validate(p)).ok).toBe(true);
+  });
+
+  it("an unknown --frontend is USAGE with a hint naming the known ones, nothing written", async () => {
+    const p = project();
+    const run = await init(p, { frontend: "codex" });
+    expect(run.exitCode).toBe(3);
+    expect(run.errors).toEqual([
+      { code: "USAGE", message: 'unknown frontend "codex"', hint: "pass one of: --frontend claude" }
+    ]);
+    expect(existsSync(path.join(p.root, ".warrant"))).toBe(false);
+    expect(p.openspec.calls).toEqual([]);
   });
 
   it("refuses a second init without --force, without calling openspec (SCN-KRN-053)", async () => {

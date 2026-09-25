@@ -21,7 +21,7 @@
     ".warrant/schemas/change-record.1.schema.json": "sha256:05b13a66b5b96a05edeb9d60cce8aa61a5c63291c2d107a62ee0cbf4396117a9",
     ".warrant/schemas/check.1.schema.json": "sha256:efce67f07adbcf41d37ea8a0940f3f988a1833e40864acd78e2cea5e33713676",
     ".warrant/schemas/common.1.schema.json": "sha256:207c36e2472cb1465ebe3c43c77dabdcc59ee895ebf76cffdaf097b596e05041",
-    ".warrant/schemas/config.1.schema.json": "sha256:3355f81084fc10bd21c43694bb7a2d0b337975ed561c83449d5252d5d133ebd6",
+    ".warrant/schemas/config.1.schema.json": "sha256:45b62c5db33a15f4d5d4b10ebb2e3c70aa5633ee0ea901683b51034b5dc3b7cd",
     ".warrant/schemas/controller-rules.1.schema.json": "sha256:6493b5f1f8f483c02157427c4bfe3a28ef5bd9a95c8259095cadeab261b6d765",
     ".warrant/schemas/evidence-manifest.1.schema.json": "sha256:25b416314d9759c0e0d854a47758dae7843f3dc48c743012e03478817bd9ffdb",
     ".warrant/schemas/evidence.1.schema.json": "sha256:d93118c8d992704b820fa387461b6ade57bb6885f2791cc97ebb6d6d71bdd3e8",

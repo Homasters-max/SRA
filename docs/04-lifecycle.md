@@ -165,7 +165,7 @@ Prompt не является enforcement (INV-04). Принуждение рас
 
 WARRANT **agent-agnostic**: вся логика в CLI, который общается JSON. Frontends — адаптеры, которые переводят
 родной формат агента в нормализованное событие `warrant guard` и обратно ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)).
-В MVP реализацию ведёт Codex в ручном режиме под hooks; слой ACP — диспетчер SEF со среза S1 ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)); адаптер Claude Code ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)) — later.
+В MVP реализацию ведёт Claude Code в ручном режиме под hooks — адаптер `claude`, только локальный режим ([ADR-0034](adr/WARRANT-ADR-0034-phase-4-frontend.md), [ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)); слой ACP — диспетчер SEF со среза S1 ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)); адаптер `codex` — до среза S1.
 Hooks внутри агента — ускорение, а не гарантия: запрет до действия, если они загружены; дальше ACP и CI.
 
 Известный предел: deny на `Edit` / `Write` не мешает записи через shell. Гарантия — не hook, а CI: запись
@@ -225,7 +225,7 @@ Hooks внутри агента — ускорение, а не гарантия
 | `warrant id <prefix> <area>`, `warrant id renumber <old> <new>` | Выдать stable ID; перенумеровать до `MERGED` при коллизии | MVP |
 | `warrant validate [--files <paths>]` | Конфигурация, packs, JSON Schema, IDs, сгенерированные YAML, отсутствие токенов; `--files` — только проверки одного файла ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)) | MVP |
 | `warrant fmt` | Привести JSON к каноническому виду | MVP |
-| `warrant sync` | Сгенерировать `openspec/config.yaml`, schema, `.codex/hooks.json`, `AGENTS.md` ([ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)) из packs; обновить lock | MVP |
+| `warrant sync` | Сгенерировать `openspec/config.yaml`, schema, свои записи `.claude/settings.json` (MVP; `.codex/hooks.json` — с адаптером `codex`, [ADR-0034](adr/WARRANT-ADR-0034-phase-4-frontend.md)), `AGENTS.md` ([ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)) из packs; обновить lock | MVP |
 | `warrant waive <change> <gate> --reason … --risk … --control … --owner … --expires …`, `warrant waive --activate <WAV> --by <login>`, `warrant waive --revoke <WAV> --by <login>` | Создать waiver в `PROPOSED` (агент MAY); активировать / отозвать — человек из `roles.maintainer`; только waivable gate, без `targets[]` ([05 §7](05-policy.md)) | MVP (было: later, [ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md)) |
 
 Коды выхода: `0` — ok; `1` — verdict FAIL / STOP; `2` — WAIT / ESCALATE; `3` — ошибка конфигурации.

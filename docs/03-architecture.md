@@ -116,10 +116,10 @@ project/
 │   ├── evidence/<change>/          manifest.json + записи EVID-*.json
 │   └── runs/                       RUN-*.json + current (в git в MVP; в sef-hub — вне репозитория, WARRANT_STATE_DIR, ADR-0020 п. 13)
 │
-├── .codex/hooks.json               генерируется warrant sync: hook warrant guard --frontend codex (ADR-0018, MVP)
+├── .codex/hooks.json               генерируется warrant sync: hook warrant guard --frontend codex (адаптер codex, до S1 SEF — ADR-0034)
 ├── AGENTS.md                       генерируется warrant sync из правил с paths ["**"] (ADR-0022)
-├── .claude/                        адаптер claude, later (ADR-0014)
-│   ├── settings.json               permissions.deny + hook warrant guard
+├── .claude/                        адаптер claude, MVP (ADR-0014, ADR-0034)
+│   ├── settings.json               свои permissions.deny + hook warrant guard; чужие ключи сохраняются
 │   └── agents/warrant-reviewer.md  subagent для review-Run
 │
 ├── <adr path>                      по умолчанию docs/adr/, задаётся в warrant.json
@@ -138,7 +138,7 @@ project/
 | `openspec/specs/`, `openspec/changes/` | OpenSpec | Обычный Change |
 | `openspec/schemas/`, `openspec/config.yaml` | WARRANT (через pack) | `factory-change` |
 | `.warrant/warrant.json`, `.warrant/warrant.lock.json`, `.warrant/local/` | WARRANT | `factory-change` |
-| `.claude/settings.json`, `.claude/agents/` | WARRANT (генерируется `warrant sync`; адаптер `claude` — later, [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)) | `factory-change` |
+| `.claude/settings.json`, `.claude/agents/` | WARRANT (генерируется `warrant sync` — управляемое подмножество; адаптер `claude` — MVP, [ADR-0034](adr/WARRANT-ADR-0034-phase-4-frontend.md)) | `factory-change` |
 | `.codex/hooks.json`, `AGENTS.md` | WARRANT (генерируется `warrant sync`, [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md), [ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)) | `factory-change` |
 | `.warrant/local/rules/`, `rules/` pack | WARRANT (path rules, [ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)) | `factory-change` |
 | `.claude/skills/openspec-*/` | OpenSpec (`openspec init \| update`; состав — профиль OpenSpec, [ADR-0032](adr/WARRANT-ADR-0032-dev-context.md) п. 8) | `chore` ([ADR-0015](adr/WARRANT-ADR-0015-openspec-sync-contract.md)) |

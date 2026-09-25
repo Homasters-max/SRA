@@ -5,7 +5,11 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: [WARRANT-ADR-0018]
+amended_by: [WARRANT-ADR-0034]
 ---
+
+> Уточнено [ADR-0034](WARRANT-ADR-0034-phase-4-frontend.md): п. 4 исполнен — адаптер `claude` в фазе 4 без ожидания S8. П. 1 действует: guard на
+> самом репозитории WARRANT — после пройденного slice MVP (п. 4).
 
 ## Context
 

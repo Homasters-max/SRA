@@ -5,8 +5,13 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: [WARRANT-ADR-0010, WARRANT-ADR-0011, WARRANT-ADR-0013, WARRANT-ADR-0014, WARRANT-ADR-0017, WARRANT-ADR-0018]
-amended_by: [WARRANT-ADR-0021, WARRANT-ADR-0022, WARRANT-ADR-0024]
+amended_by: [WARRANT-ADR-0021, WARRANT-ADR-0022, WARRANT-ADR-0024, WARRANT-ADR-0034]
 ---
+
+> Уточнено [ADR-0034](WARRANT-ADR-0034-phase-4-frontend.md): п. 4 — slice MVP ведёт Claude в ручном режиме под hooks (адаптер `claude`, только
+> локальный режим — «стол» R8; SEF его не использует); п. 5 — review spec в MVP выполняет Claude-субагент с
+> `limitations` «same model family as author», независимость по семействам — со вторым исполнителем тем же контрактом
+> (`codex exec` или `opencode`). Граница с SEF и п. 14 (`.codex/hooks.json` в эталоне) не меняются.
 
 > Уточнено [ADR-0024](WARRANT-ADR-0024-spec-approved-contract.md): дерево gate `spec-approved` (п. 9) — `{proposal.md, specs/**}`
 > без `design.md` (строки `I-N` пишутся при реализации); gate `waivable: true` — правка контракта после approval снимается

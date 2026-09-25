@@ -5,7 +5,11 @@ adr_state: ACCEPTED
 date: 2026-09-24
 supersedes: []
 amends: []
+amended_by: [WARRANT-ADR-0035]
 ---
+
+> Уточнено [ADR-0035](WARRANT-ADR-0035-ratchet-external-packages.md): п. 4–5 — `architecture.json` получает реестр
+> внешних пакетов «пакет → файл-владелец» и помощники `packages/cli/test`; храповик п. 6 действует для обоих.
 
 ## Context
 

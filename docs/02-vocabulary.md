@@ -112,6 +112,8 @@ Skill       ──produces──▶ Findings / Proposals — не verdict
 - `NOT_APPLICABLE` ставится только правилом `applies_when` или детерминированным check (evidence со статусом
   `NOT_APPLICABLE`, [06 §3](06-verification.md)), не мнением агента.
 - `WAIVED` требует `ACTIVE` waiver, срок которого не истёк.
+- `attestation.type` записи evidence — не ось статуса, а кто ручается за её происхождение: `ci`, `human-review`,
+  `signature`, `none` ([06a §3](06a-evidence.md)).
 
 ### Значения controller_action
 
@@ -124,9 +126,9 @@ Skill       ──produces──▶ Findings / Proposals — не verdict
 
 ### Run и событие guard
 
-- **Run** — одна попытка агента выполнить операцию Change (`specify` | `implement`) в пределах `write_scope`
-  (`warrant://run/1`, [03 §4](03-architecture.md)); ось — `run_state`. **Активный Run** — Run в `RUNNING`, чей id записан
-  в `<state>/runs/current`; на worktree он один.
+- **Run** — одна попытка агента выполнить операцию Change (`specify` | `implement` | `review`) в пределах
+  `write_scope` (`warrant://run/1`, [03 §4](03-architecture.md)); ось — `run_state`. **Активный Run** — Run в `RUNNING`, чей
+  id записан в `<state>/runs/current`; на worktree он один.
 - **Событие guard** — запись `guard_events[]` активного Run о вызове `warrant guard`: `phase` (`pre` — до действия,
   `post` — после), `action` (`edit` | `shell` | `other`), `decision` (`allow` | `deny`), `findings[]` (коды),
   `rules_shown[]` (id показанных правил). `decision` — ответ hook, не ось статуса: `deny` отменяет действие агента, а не

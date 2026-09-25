@@ -40,8 +40,15 @@ export interface RunFinishOptions {
 
 const START_USAGE = "warrant run start <change> --operation specify|implement [--scope <globs>] [--task <label>]";
 
+/** Operations `run start` takes: `review` comes with `run submit` (phase-4b, REQ-ENF-002). */
+type StartOperation = Exclude<RunOperation, "review">;
+
+function isStartOperation(value: string): value is StartOperation {
+  return isRunOperation(value) && value !== "review";
+}
+
 /** The state a Change must be in for the operation (F2). */
-const STATE_OF: Readonly<Record<RunOperation, string>> = { specify: "PROPOSED", implement: "IMPLEMENTING" };
+const STATE_OF: Readonly<Record<StartOperation, string>> = { specify: "PROPOSED", implement: "IMPLEMENTING" };
 
 /** `hint` of an error of `run` that was not born with one: by its code, else `warrant validate`. */
 const DEFAULT_HINTS: Partial<Record<ErrorCode, string>> = {
@@ -74,7 +81,7 @@ async function start(ctx: Ctx, change: string | undefined, opts: RunStartOptions
   requireConfigPath(root);
   if (change === undefined || change === "") throw new WarrantError("USAGE", "run start needs the name of a Change", { hint: START_USAGE });
   const operation = opts.operation;
-  if (operation === undefined || !isRunOperation(operation)) {
+  if (operation === undefined || !isStartOperation(operation)) {
     throw new WarrantError("USAGE", `--operation must be specify or implement${operation === undefined ? "" : `, got "${operation}"`}`, {
       hint: START_USAGE
     });

@@ -12,7 +12,12 @@ import { bytesHash, canonicalHash } from "../canon/hash.js";
 import { projectUri, walkFiles } from "../fs.js";
 import type { Attestation } from "./attestation.js";
 
-export type EvidenceStatus = "PROVEN" | "NOT_PROVEN" | "INCONCLUSIVE" | "NOT_APPLICABLE";
+/** Status axis of an evidence record (02 §2): owned here (registry `enums` of `architecture.json`); the schema holds the same values. */
+export const EVIDENCE_STATUSES = ["PROVEN", "NOT_PROVEN", "INCONCLUSIVE", "NOT_APPLICABLE"] as const;
+export type EvidenceStatus = (typeof EVIDENCE_STATUSES)[number];
+
+/** Statuses of a record that account for its kind (R-8, `evidence-complete`): a `NOT_PROVEN` record proves nothing. */
+export const COUNTING_STATUSES: ReadonlySet<unknown> = new Set<EvidenceStatus>(["PROVEN", "NOT_APPLICABLE"]);
 
 /** Commit written when the project is not a git work tree (design §6). */
 export const NO_GIT_COMMIT = "nogit";

@@ -24,14 +24,14 @@ golden вне задач 1.1, 2.x и 6.x — остановка и строка 
 
 ## 2. Схемы и реестры (REQ-ENF-001, REQ-ENF-006, REQ-SDD-001)
 
-- [ ] 2.1 Реестр `enums`: `evidence-status`, `attestation-type` (§2); `run-operation` += `review`; словари 02 и 04 §6.
+- [x] 2.1 Реестр `enums`: `evidence-status`, `attestation-type` (§2); `run-operation` += `review`; словари 02 и 04 §6.
   Проверка: мета-тест `enums` зелёный; `COUNTING_STATUSES` — через словарь владельца.
-- [ ] 2.2 `run.1.schema.json`: операция `review`, пустой `write_scope` и обязательный `spec_tree` только у `review`
+- [x] 2.2 `run.1.schema.json`: операция `review`, пустой `write_scope` и обязательный `spec_tree` только у `review`
   (REQ-ENF-001). Проверка: SCN-ENF-001…003, SCN-ENF-022, SCN-ENF-023 (фикстуры `test/fixtures/schemas/run/`).
-- [ ] 2.3 `skill-result.1.schema.json` (REQ-ENF-006), имя в `DOCUMENT_SCHEMAS`; `evidence.1.schema.json` — `subject.spec_tree`;
+- [x] 2.3 `skill-result.1.schema.json` (REQ-ENF-006), имя в `DOCUMENT_SCHEMAS`; `evidence.1.schema.json` — `subject.spec_tree`;
   копии — `warrant sync`, golden — `npm run golden:update`. Проверка: SCN-ENF-028, SCN-ENF-029; `validate` проверяет
   `<state>/runs/*.result.json`.
-- [ ] 2.4 Kind `review` в pack — объект с `evidence/review.metrics.schema.json` (REQ-SDD-001). Проверка: SCN-SDD-024.
+- [x] 2.4 Kind `review` в pack — объект с `evidence/review.metrics.schema.json` (REQ-SDD-001). Проверка: SCN-SDD-024.
 
 ## 3. analyze и analyze-clean (REQ-VER-010, REQ-VER-004)
 

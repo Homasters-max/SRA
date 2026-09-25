@@ -62,6 +62,10 @@
           "type": "string",
           "minLength": 1
         },
+        "spec_tree": {
+          "description": "Hash of the spec tree of the Change (`proposal.md`, `specs/**`) the claim holds for (ADR-0036 section 3): a record with it is judged by the spec tree at the evaluated commit instead of by `commit` and `base_commit`.",
+          "$ref": "warrant://common/1#/$defs/sha256"
+        },
         "dataset_snapshot": {
           "description": "Data snapshot the claim holds for, or null when no data is involved.",
           "type": ["string", "null"]

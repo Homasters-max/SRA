@@ -294,7 +294,8 @@ describe("loadPacks: rules and evidence kinds (phase 3)", () => {
     expect(result.errors).toEqual([]);
     const kinds = Object.fromEntries(result.evidenceKinds.map((k) => [k.kind, k.metricsSchema?.path ?? null]));
     expect(Object.keys(kinds)).toEqual(["test-report", "spec-report", "review", "human-approval"]);
-    expect(kinds["review"]).toBeNull();
+    expect(kinds["human-approval"]).toBeNull();
+    expect(kinds["review"]).toMatch(/packs\/core-sdd\/evidence\/review\.metrics\.schema\.json$/);
     expect(kinds["test-report"]).toMatch(/packs\/core-sdd\/evidence\/test-report\.metrics\.schema\.json$/);
     const form = result.evidenceKinds[0]?.metricsSchema?.json as { required: string[] };
     expect(form.required).toContain("tests");

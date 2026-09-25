@@ -212,17 +212,18 @@ describe("pack core-sdd: каталог", () => {
     expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true);
   });
 
-  it("evidence_kinds: test-report и spec-report — объекты с существующими metrics_schema, review и human-approval — строки (SCN-SDD-017)", () => {
+  it("evidence_kinds: test-report, spec-report и review — объекты с существующими metrics_schema, human-approval — строка (SCN-SDD-017, SCN-SDD-024)", () => {
     const kinds = provides["evidence_kinds"] as unknown as (string | { kind: string; metrics_schema: string })[];
     expect(kinds).toEqual([
       { kind: "test-report", metrics_schema: "evidence/test-report.metrics.schema.json" },
       { kind: "spec-report", metrics_schema: "evidence/spec-report.metrics.schema.json" },
-      "review",
+      { kind: "review", metrics_schema: "evidence/review.metrics.schema.json" },
       "human-approval"
     ]);
     const shapes: Record<string, Record<string, string>> = {
       "test-report": { tests: "integer", failures: "integer", errors: "integer", skipped: "integer" },
-      "spec-report": { issues: "integer" }
+      "spec-report": { issues: "integer" },
+      review: { BLOCKER: "integer", MAJOR: "integer", MINOR: "integer", INFO: "integer" }
     };
     for (const entry of kinds) {
       if (typeof entry === "string") continue;

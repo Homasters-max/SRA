@@ -1,0 +1,64 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/authoring@1.2.0",
+  "run": "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "No behavior defined for duplicate IDs.",
+      "targets": [
+        "REQ-CUS-002"
+      ],
+      "recommendation": "Add scenario for duplicate input."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/add-customer/specs/customer/spec.md",
+      "change": "Add a scenario for duplicate input."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Can historical records be rewritten?",
+      "blocking": true,
+      "impact": [
+        "design"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Source timestamps are UTC."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Soft or hard delete?",
+      "options": [
+        "soft",
+        "hard"
+      ]
+    }
+  ],
+  "artifacts_to_update": [
+    "design.md"
+  ],
+  "recommended_operations": [
+    "clarify"
+  ],
+  "provenance": {
+    "context_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "model": "claude-opus-4",
+    "started_at": "2026-09-25T10:00:00Z",
+    "finished_at": "2026-09-25T10:12:00Z"
+  }
+}

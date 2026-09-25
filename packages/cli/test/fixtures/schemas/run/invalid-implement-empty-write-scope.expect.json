@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/write_scope",
+  "scenario": "SCN-ENF-023"
+}

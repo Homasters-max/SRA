@@ -97,8 +97,10 @@
     { "id": "id-prefix", "owner": "core/ids/scan.ts", "doc": "docs/02-vocabulary.md", "values": ["REQ", "SCN", "TASK", "ADR", "DCT", "UNK", "ASM", "EVID", "RUN", "WAV"] },
     { "id": "waiver-state", "owner": "core/waivers/status.ts", "doc": "docs/02-vocabulary.md", "values": ["PROPOSED", "ACTIVE", "EXPIRED", "REVOKED"] },
     { "id": "run-state", "owner": "core/run/types.ts", "doc": "docs/02-vocabulary.md", "values": ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"] },
-    { "id": "run-operation", "owner": "core/run/types.ts", "doc": "docs/04-lifecycle.md", "values": ["specify", "implement"] },
-    { "id": "guard-decision", "owner": "core/ports/frontend.ts", "doc": "docs/04-lifecycle.md", "values": ["allow", "deny"] }
+    { "id": "run-operation", "owner": "core/run/types.ts", "doc": "docs/04-lifecycle.md", "values": ["specify", "implement", "review"] },
+    { "id": "guard-decision", "owner": "core/ports/frontend.ts", "doc": "docs/04-lifecycle.md", "values": ["allow", "deny"] },
+    { "id": "evidence-status", "owner": "core/evidence/record.ts", "doc": "docs/02-vocabulary.md", "values": ["PROVEN", "NOT_PROVEN", "INCONCLUSIVE", "NOT_APPLICABLE"] },
+    { "id": "attestation-type", "owner": "core/evidence/attestation.ts", "doc": "docs/02-vocabulary.md", "values": ["ci", "human-review", "signature", "none"] }
   ],
   "exceptions": []
 }

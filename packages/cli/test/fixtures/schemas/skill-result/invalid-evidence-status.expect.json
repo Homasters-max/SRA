@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/evidence_status",
+  "scenario": "SCN-ENF-029"
+}

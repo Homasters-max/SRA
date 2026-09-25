@@ -6,7 +6,7 @@
     "core-sdd": {
       "version": "0.3.2",
       "source": "bundled",
-      "hash": "sha256:30066b23eb27663b1ce4633d4f426b6772b401c3d2f6dcafd0f3db72b0a44710"
+      "hash": "sha256:e7fe55b570ab9ed0a8505d1b0f64bddb8ffe206c620639e76d4201a99ea3d9f9"
     }
   },
   "skills": {
@@ -25,7 +25,7 @@
     ".warrant/schemas/config.1.schema.json": "sha256:45b62c5db33a15f4d5d4b10ebb2e3c70aa5633ee0ea901683b51034b5dc3b7cd",
     ".warrant/schemas/controller-rules.1.schema.json": "sha256:6493b5f1f8f483c02157427c4bfe3a28ef5bd9a95c8259095cadeab261b6d765",
     ".warrant/schemas/evidence-manifest.1.schema.json": "sha256:25b416314d9759c0e0d854a47758dae7843f3dc48c743012e03478817bd9ffdb",
-    ".warrant/schemas/evidence.1.schema.json": "sha256:d93118c8d992704b820fa387461b6ade57bb6885f2791cc97ebb6d6d71bdd3e8",
+    ".warrant/schemas/evidence.1.schema.json": "sha256:1865282aea27725d4d80432a51eb2b663df644f7b98d58da2443a2dd6cfebfe1",
     ".warrant/schemas/gate.1.schema.json": "sha256:aadc86c6f42777a62baf409d8663bb249502f2a157eeb4fdb5a9d5fdbe1f56a6",
     ".warrant/schemas/lock.1.schema.json": "sha256:f230067ef8bd43b93ee5dbe1536d2d98696e9a77d9fb98b00bdaa59f06cc6189",
     ".warrant/schemas/openspec-rules.1.schema.json": "sha256:a4abec7af798154247505389062cf6f8be3bdfb85a62be28db9b332c6aaf07bb",
@@ -36,7 +36,8 @@
     ".warrant/schemas/risk-floor.1.schema.json": "sha256:ef10883aea0f0da08f25d3749225889fcec4fb29ed0efe2f88423da8dc7511ec",
     ".warrant/schemas/risk-levels.1.schema.json": "sha256:7517af13d686af3009c8e355a9881182c5d6fc6b5f8317e0933bbcafaa5c5f26",
     ".warrant/schemas/rule.1.schema.json": "sha256:825af0cac60ca2281b1316335b06ae674ed72378a059ac20774899e520a03482",
-    ".warrant/schemas/run.1.schema.json": "sha256:9124dbf90475c539773b03f6c890d92a4ceec43464a86e7bb433396bafd7b408",
+    ".warrant/schemas/run.1.schema.json": "sha256:dd65e195d4056af6302cbd4b782910feb8b3b7d04692ab41835b366bab55dc08",
+    ".warrant/schemas/skill-result.1.schema.json": "sha256:1c055fb0139ab1294e624477422cfb4cffeb8be4df70b3facab118d8de85b5f4",
     ".warrant/schemas/waiver.1.schema.json": "sha256:427d12eff01e3a2f4c1a37e61a02a839d59835b710a9afff74ccee0f67f0d1ea",
     "openspec/config.yaml": "sha256:f5dc5917fd988e1e3fb603996d7b539a57adbdf7132322644a073c38fce8ac22",
     "openspec/schemas/warrant-sdd/schema.yaml": "sha256:b608edc3b6b8532fc4a9d3f5cdbc0b702e8882a6999f75ae9453a8fb4ad05189",

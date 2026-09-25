@@ -1,0 +1,25 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "No behavior defined for duplicate IDs.",
+      "targets": [
+        "REQ-CUS-002"
+      ],
+      "recommendation": "Add scenario for duplicate input."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "model": "claude-opus-4",
+    "started_at": "2026-09-25T10:00:00Z",
+    "finished_at": "2026-09-25T10:12:00Z"
+  }
+}

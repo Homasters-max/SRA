@@ -67,7 +67,10 @@
         "kind": "spec-report",
         "metrics_schema": "evidence/spec-report.metrics.schema.json"
       },
-      "review",
+      {
+        "kind": "review",
+        "metrics_schema": "evidence/review.metrics.schema.json"
+      },
       "human-approval"
     ]
   }

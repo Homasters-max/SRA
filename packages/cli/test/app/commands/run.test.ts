@@ -1,6 +1,6 @@
 /**
  * `warrant run start` / `run finish` in the test process (REQ-ENF-001…003,
- * SCN-ENF-002, 004…010): the Run file and `current`, `write_scope` by
+ * SCN-ENF-002, 004…010, 023): the Run file and `current`, `write_scope` by
  * operation, the Context Pack, one active Run per worktree, `--dry-run`, the
  * lock of the Run file (F18) and a `hint` on every error (REQ-KRN-002).
  */
@@ -330,5 +330,39 @@ describe("warrant validate over Run files (SCN-ENF-002)", () => {
     expect(errors).toContainEqual(
       expect.objectContaining({ code: "SCHEMA_VIOLATION", path: `${RUNS}/${id}.json#/guard_events/0/decision` })
     );
+  });
+
+  it("an implement Run with an empty write_scope or a spec_tree is SCHEMA_VIOLATION at the Run file (SCN-ENF-023)", async () => {
+    const p = await repo("IMPLEMENTING");
+    const id = (await start(p, "add-search", { operation: "implement" })).data["run"] as string;
+    const stored = readRun(p, id);
+    for (const [change, pointer] of [
+      [{ write_scope: [] }, "/write_scope"],
+      [{ spec_tree: `sha256:${"2".repeat(64)}` }, "/spec_tree"]
+    ] as const) {
+      p.write(`${RUNS}/${id}.json`, { ...stored, ...change });
+      const errors = await validateErrors(p);
+      expect(errors).toContainEqual(expect.objectContaining({ code: "SCHEMA_VIOLATION", path: `${RUNS}/${id}.json#${pointer}` }));
+    }
+  });
+
+  it("checks <state>/runs/*.result.json by warrant://skill-result/1 (REQ-ENF-006)", async () => {
+    const p = await repo("PROPOSED");
+    const id = "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y";
+    const envelope = {
+      $schema: "warrant://skill-result/1",
+      skill: "specification/adversarial-review@0.2.0",
+      run: id,
+      run_state: "SUCCEEDED",
+      findings: [{ id: "F-1", marker: "INFERENCE", severity: "MAJOR", category: "missing-boundary", statement: "No behavior for duplicate ids." }],
+      provenance: { started_at: "2026-09-25T10:00:00Z", finished_at: "2026-09-25T10:12:00Z" }
+    };
+    p.write(`${RUNS}/${id}.result.json`, envelope);
+    expect(await validateErrors(p)).toEqual([]);
+
+    p.write(`${RUNS}/${id}.result.json`, { ...envelope, evidence_status: "PROVEN" });
+    expect(await validateErrors(p)).toEqual([
+      expect.objectContaining({ code: "SCHEMA_VIOLATION", path: `${RUNS}/${id}.result.json#/evidence_status` })
+    ]);
   });
 });

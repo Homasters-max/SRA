@@ -1,0 +1,16 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-2026-011",
+  "change": "phase-4a",
+  "gate": "analyze-clean",
+  "reason": "warrant analyze arrives in Change 4b (ADR-0034 p. 6, BL-2): analyze-clean has no producer and stays BLOCKED/NO_INPUT.",
+  "risk": "HIGH",
+  "compensating_controls": [
+    "Change 4b implements the producer",
+    "maintainer review of PR"
+  ],
+  "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
+  "expires_at": "2026-12-31",
+  "waiver_state": "ACTIVE"
+}

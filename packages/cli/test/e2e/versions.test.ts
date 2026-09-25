@@ -89,6 +89,8 @@ describe.skipIf(!hasGit)("version discipline (R-14)", () => {
     expect(check(root)).toMatchObject({ tag: null, errors: [] });
   });
 
+  // SCN-SDD-021: pack `p` stands for core-sdd — files outside golden/ changed, pack.json at the version of the tag →
+  // the error names the pack; `npm run versions:check` (scripts/versions-check.js) runs the same checkVersions.
   it("a component changed without a bump is an error; docs, golden, scripts and devDependencies are not", () => {
     const root = released();
     expect(check(root)).toMatchObject({ tag: "v1.0.0", errors: [] });

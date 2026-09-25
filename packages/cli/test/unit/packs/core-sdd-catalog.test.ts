@@ -203,7 +203,7 @@ describe("pack core-sdd: каталог", () => {
     }
   });
 
-  it("версия 0.3.x, kernel >=0.1 <0.5, rules пуст (REQ-SDD-001)", () => {
+  it("версия 0.3.x, kernel >=0.1 <0.5, rules пуст, pack.json валиден (REQ-SDD-001, SCN-KRN-012)", () => {
     // REQ-SDD-001 называет 0.3.x; patch растёт по дисциплине версий (R-14).
     expect(manifest.version).toMatch(/^0\.3\.\d+$/);
     expect(manifest.kernel).toBe(">=0.1 <0.5");

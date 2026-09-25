@@ -67,7 +67,8 @@ describe("WarrantConfig ↔ config/1", () => {
     expect(Object.keys(config).sort()).toEqual(Object.values(READ).sort());
   });
 
-  it("builds the example of 08 §3", () => {
+  // loadConfig validates the file against config/1 before it builds the value: the example is valid.
+  it("builds the example of 08 §3 (SCN-KRN-008)", () => {
     expect(loadConfig(project(EXAMPLE))).toEqual({
       kernel: "0.1",
       openspec: "1.13.x",

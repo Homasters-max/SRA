@@ -1,0 +1,5 @@
+{
+  "code": "SCHEMA_VIOLATION",
+  "path": "/packs/core-sdd/version",
+  "scenario": "SCN-KRN-009"
+}

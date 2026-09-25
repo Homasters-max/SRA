@@ -6,14 +6,14 @@
     "core-sdd": {
       "version": "0.3.2",
       "source": "bundled",
-      "hash": "sha256:e7fe55b570ab9ed0a8505d1b0f64bddb8ffe206c620639e76d4201a99ea3d9f9"
+      "hash": "sha256:a8751e867dee8b2b0faeb449f22beffbf011263dfd158c0a90c88cf02a20e446"
     }
   },
   "skills": {
     "specification/adversarial-review": {
-      "version": "0.1.0",
+      "version": "0.2.0",
       "path": "sra/skills/specification/adversarial-review/SKILL.md",
-      "hash": "sha256:a0e8e2dfb9524761930ba6dc178cecf1e3b0f74ba1569bad463b1a4f744db373",
+      "hash": "sha256:23feaa7cca577e7f9850ea4e73903e7736848e870190faf5b3ad0d1139aaa436",
       "source": "bundled"
     }
   },

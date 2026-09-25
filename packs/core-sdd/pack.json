@@ -56,7 +56,7 @@
     "openspec_schema": "openspec/schema.json",
     "openspec_rules": "openspec/rules.json",
     "skills": [
-      "specification/adversarial-review@^0.1"
+      "specification/adversarial-review@^0.2"
     ],
     "evidence_kinds": [
       {

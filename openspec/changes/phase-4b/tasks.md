@@ -63,7 +63,7 @@ golden вне задач 1.1, 2.x и 6.x — остановка и строка 
 
 ## 6. Skill, sync, субагент (REQ-SDD-008, REQ-KRN-033)
 
-- [ ] 6.1 Skill `specification/adversarial-review` `0.2.0`: процедура, семь категорий, `severity` и критерий `BLOCKER`,
+- [x] 6.1 Skill `specification/adversarial-review` `0.2.0`: процедура, семь категорий, `severity` и критерий `BLOCKER`,
   envelope `skill-result/1`, запрет правки; pack — `^0.2`, lock — `sync` (REQ-SDD-008). Проверка: SCN-SDD-013, SCN-SDD-014,
   SCN-SDD-025; `versions:check`.
 - [ ] 6.2 Зонд Claude Code (maintainer, `scripts/dev/probe-hooks.js`): хук `PreToolUse` во frontmatter субагента на `Bash` —

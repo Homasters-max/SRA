@@ -59,7 +59,7 @@ describe("pack core-sdd: каталог", () => {
     expect(provides["gates"]).toContain("gates/spec-approved.json");
     expect(provides["checks"]).toEqual(["checks/openspec-validate.json", "checks/tests-passed.json"]);
     expect(provides["controller_rules"]).toEqual(["controller/rules.json"]);
-    expect(provides["skills"]).toEqual(["specification/adversarial-review@^0.1"]);
+    expect(provides["skills"]).toEqual(["specification/adversarial-review@^0.2"]);
   });
 
   it("каждый список provides отсортирован и каждый путь существует", () => {
@@ -256,14 +256,14 @@ describe("pack core-sdd: каталог", () => {
     );
   });
 
-  it("skill adversarial-review лежит на месте с frontmatter 0.1.0 (REQ-SDD-008)", () => {
+  it("skill adversarial-review лежит на месте с frontmatter 0.2.0 (REQ-SDD-008)", () => {
     const file = path.join(REPO_ROOT, "sra", "skills", "specification", "adversarial-review", "SKILL.md");
     expect(existsSync(file)).toBe(true);
     const text = readFileSync(file, "utf8");
     expect(text.startsWith("---\n")).toBe(true);
     const frontmatter = text.slice(4, text.indexOf("\n---", 4));
     expect(frontmatter).toMatch(/^name: adversarial-review$/m);
-    expect(frontmatter).toMatch(/^version: 0\.1\.0$/m);
+    expect(frontmatter).toMatch(/^version: 0\.2\.0$/m);
     expect(frontmatter).toMatch(/^description: .+$/m);
   });
 });

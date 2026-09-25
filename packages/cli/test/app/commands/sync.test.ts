@@ -217,7 +217,7 @@ describe("warrant sync: skills in the lock (REQ-SDD-008)", () => {
 
     const lock = JSON.parse(readFileSync(path.join(p.root, ".warrant", "warrant.lock.json"), "utf8"));
     expect(lock.skills["specification/adversarial-review"]).toEqual({
-      version: "0.1.0",
+      version: "0.2.0",
       path: SKILL_REL,
       hash: bytesHash(readFileSync(path.join(p.root, SKILL_REL)))
     });
@@ -282,7 +282,7 @@ describe("warrant sync: a skill that ships with the CLI outside the project (I-5
 
     const lock = JSON.parse(readFileSync(path.join(p.root, ".warrant", "warrant.lock.json"), "utf8"));
     expect(lock.skills[SKILL]).toEqual({
-      version: "0.1.0",
+      version: "0.2.0",
       path: IN_PACK,
       hash: bytesHash(readFileSync(path.join(bundle, IN_PACK))),
       source: "bundled"

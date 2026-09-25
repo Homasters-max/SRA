@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { reviewShellAnswer } from "../../../src/core/guard/decide.js";
+import { reviewShellAnswer, SUBMIT_HINT } from "../../../src/core/guard/decide.js";
 import { defaultPrefix, leafCommands, simpleCommands, startsWithPrefix } from "../../../src/core/guard/shell.js";
 import type { Run } from "../../../src/core/run/types.js";
 import { shellWords } from "../../../src/core/shell.js";
@@ -77,6 +77,35 @@ describe("shellWords: a heredoc is data of its command (I-167)", () => {
   it("a heredoc inside bash -c is data too", () => {
     expect(leafCommands(["bash", "-c", "warrant run submit <<'J'\nrm x\nJ"])).toEqual([["warrant", "run", "submit"]]);
   });
+
+  it("<< in a comment is no heredoc: the next lines stay commands; quotes and \\ in a comment are text, its words stay words", () => {
+    expect(shellWords("warrant run submit # <<X\nrm -rf src\nX")).toEqual([
+      "warrant", "run", "submit", "#", "<<X", "\n", "rm", "-rf", "src", "\n", "X"
+    ]);
+    expect(simpleCommands(shellWords("echo # it's \\\npytest\n'"))).toEqual([["echo", "#", "it's", "\\"], ["pytest"], [""]]);
+    // `#` inside a word, quoted or escaped starts no comment.
+    expect(shellWords("a#b <<X\nrm\nX")).toEqual(["a#b", "\n"]);
+    expect(shellWords("echo '#' <<X\nrm\nX")).toEqual(["echo", "#", "\n"]);
+    expect(shellWords("echo \\# <<X\nrm\nX")).toEqual(["echo", "#", "\n"]);
+    expect(shellWords("cat <<X # c\nrm\nX\nls")).toEqual(["cat", "#", "c", "\n", "ls"]);
+  });
+
+  it("<< inside $((…)), ((…)), $[…], ${…} is no heredoc: the next lines stay commands", () => {
+    for (const line of ["echo $((1<<X))", "((x<<X))", "(( (1+2) << X ))", "echo $[1<<X]", "echo ${x:-<<X}", "a=$((1<<X)) && ls"]) {
+      const commands = simpleCommands(shellWords(`${line}\npytest\nX`));
+      expect(commands.slice(-2), line).toEqual([["pytest"], ["X"]]);
+    }
+    // After the closing bracket, and for `$(…)` / `((…) )` (no arithmetic), a heredoc is one again.
+    expect(shellWords("echo $((1)) <<X\nrm\nX")).toEqual(["echo", "$((1))", "\n"]);
+    expect(shellWords("echo $(cat <<X\nrm\nX\n)")).toEqual(["echo", "$(cat", "\n", ")"]);
+    expect(shellWords("((cat <<X\nit's\nX\n) )\npytest")).toEqual(["((cat", "\n", ")", ")", "\n", "pytest"]);
+    // An unclosed one is no arithmetic: the heredoc is read as before.
+    expect(shellWords("echo $((1 <<X\nrm\nX")).toEqual(["echo", "$((1", "\n"]);
+  });
+
+  it("# and $(( in a heredoc body do not change the parse: the body is data", () => {
+    expect(shellWords("warrant run submit <<'JSON'\n# $((1<<Y)) ${z\n{\"a\": \"it's\"}\nJSON\nls")).toEqual(["warrant", "run", "submit", "\n", "ls"]);
+  });
 });
 
 describe("simpleCommands", () => {
@@ -123,6 +152,14 @@ describe("leafCommands", () => {
     expect(leafCommands(["bash", "-c", ""])).toEqual([]);
     expect(leafCommands(["bash", "run-tests.sh"])).toEqual([["bash", "run-tests.sh"]]);
   });
+
+  it("as written: VAR=… stays, only exactly bash -c / sh -c <string> is parsed", () => {
+    expect(leafCommands(shellWords("X=1 warrant run submit"), true)).toEqual([["X=1", "warrant", "run", "submit"]]);
+    expect(leafCommands(["sh", "-c", "a && b"], true)).toEqual([["a"], ["b"]]);
+    for (const wrapper of [["bash", "-lc", "a"], ["/bin/bash", "-c", "a"], ["bash", "-c", "a", "x"], ["bash", "-e", "-c", "a"]]) {
+      expect(leafCommands(wrapper, true), JSON.stringify(wrapper)).toEqual([wrapper]);
+    }
+  });
 });
 
 describe("reviewShellAnswer (REQ-ENF-004)", () => {
@@ -144,6 +181,49 @@ describe("reviewShellAnswer (REQ-ENF-004)", () => {
     expect(after.decision).toBe("deny");
     expect(after.reason).toContain("rm -rf x");
     expect(reviewShellAnswer(shellWords(`warrant run submit <<'JSON'\n${envelope}`), run).decision).toBe("deny");
+  });
+
+  it("only the strict form: exactly warrant run submit, --dry-run and --file <path> once each, trailing newlines", () => {
+    for (const line of [
+      "warrant run submit",
+      "warrant run submit --file envelope.json",
+      "warrant run submit --dry-run --file a/b.json",
+      "warrant run submit --file 'C:\\r\\результат-1.json' --dry-run\n\n",
+      "warrant run submit --dry-run --file a.json && warrant run submit --file a.json",
+      "warrant run submit <<'JSON'\n{\"statement\": \"it's; a && b | c # d $((1<<2))\"}\nJSON"
+    ]) {
+      expect(reviewShellAnswer(shellWords(line), run).decision, line).toBe("allow");
+    }
+  });
+
+  it("anything else is denied with the reason and hint as before: &, redirections, $(…), `…`, <(…), VAR=…, a comment, wrappers, options", () => {
+    for (const line of [
+      "warrant run submit & rm -rf src",
+      "warrant run submit > openspec/changes/c/proposal.md",
+      "warrant run submit --file $(rm -rf src)",
+      "warrant run submit --file `rm -rf src`",
+      "warrant run submit --file <(rm -rf src)",
+      "warrant run submit --file 'a b.json'",
+      "warrant run submit --file 'x;rm'",
+      "NODE_OPTIONS=--import=x warrant run submit",
+      "warrant run submit # <<X\nrm -rf src\nX",
+      "warrant run submit # note",
+      "warrant run submit --file",
+      "warrant run submit --file -x.json",
+      "warrant run submit --dry-run --dry-run",
+      "warrant run submit --force",
+      "warrant run submit < envelope.json",
+      "bash -lc 'warrant run submit'",
+      "/bin/bash -c 'warrant run submit'",
+      "bash -c 'warrant run submit' x"
+    ]) {
+      const denied = reviewShellAnswer(shellWords(line), run);
+      expect(denied.decision, line).toBe("deny");
+      expect(denied.reason, line).toContain("a review Run runs only `warrant run submit`");
+      expect(denied.hints, line).toEqual([SUBMIT_HINT]);
+    }
+    expect(reviewShellAnswer(shellWords("NODE_OPTIONS=--import=x warrant run submit"), run).reason).toContain("NODE_OPTIONS=--import=x");
+    expect(reviewShellAnswer(shellWords("warrant run submit # <<X\nrm -rf src\nX"), run).reason).toContain("`warrant run submit # <<X`");
   });
 
   it("no command, no argv, a longer bash nesting and a lookalike are denied", () => {

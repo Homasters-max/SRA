@@ -4,6 +4,8 @@
  * match of a simple command against `guard_prefixes`. A simple command drops
  * its leading `VAR=…` assignments; `bash -c` / `sh -c` with one string is
  * parsed again, one level deep — the limit INV-07 (ADR-0017 Consequences).
+ * The strict form under a `review` Run (REQ-ENF-004) takes the commands as
+ * written: `VAR=…` stays and only exactly `bash -c <string>` is parsed.
  */
 import { SHELL_OPERATORS, shellWords } from "../shell.js";
 
@@ -24,6 +26,11 @@ function shellString(command: readonly string[]): string | undefined {
   return undefined;
 }
 
+/** The string of exactly `bash -c <string>` / `sh -c <string>`: no option, no path, no argument after it. */
+function exactShellString(command: readonly string[]): string | undefined {
+  return command.length === 3 && SHELLS.has(command[0] as string) && command[1] === "-c" ? command[2] : undefined;
+}
+
 /**
  * Simple commands of `words` (from `shellWords` or the `argv` of an event):
  * split at the operators, without leading `VAR=…`; the string of `bash -c` is
@@ -39,22 +46,24 @@ export function simpleCommands(words: readonly string[], depth = 1): string[][] 
 /**
  * The commands that run: as {@link simpleCommands}, but a `bash -c` whose
  * string is parsed stands for the commands of that string, not for itself;
- * one `depth` levels deep stays a command of its own.
+ * one `depth` levels deep stays a command of its own. `asWritten` — the strict
+ * form under a `review` Run (REQ-ENF-004): a leading `VAR=…` stays a word of
+ * its command, and only exactly `bash -c <string>` / `sh -c <string>` is parsed.
  */
-export function leafCommands(words: readonly string[], depth = 1): string[][] {
-  return split(words).flatMap((command) => {
-    const script = shellString(command);
-    return script !== undefined && depth > 0 ? leafCommands(shellWords(script), depth - 1) : [command];
+export function leafCommands(words: readonly string[], asWritten = false, depth = 1): string[][] {
+  return split(words, !asWritten).flatMap((command) => {
+    const script = asWritten ? exactShellString(command) : shellString(command);
+    return script !== undefined && depth > 0 ? leafCommands(shellWords(script), asWritten, depth - 1) : [command];
   });
 }
 
-/** `words` split at the operators into commands, without leading `VAR=…` and empty ones. */
-function split(words: readonly string[]): string[][] {
+/** `words` split at the operators into commands, without empty ones and, unless kept, without leading `VAR=…`. */
+function split(words: readonly string[], dropAssignments = true): string[][] {
   const out: string[][] = [];
   let current: string[] = [];
   const flush = (): void => {
     let start = 0;
-    while (start < current.length && ASSIGNMENT_RE.test(current[start] as string)) start++;
+    while (dropAssignments && start < current.length && ASSIGNMENT_RE.test(current[start] as string)) start++;
     const command = current.slice(start);
     current = [];
     if (command.length > 0) out.push(command);

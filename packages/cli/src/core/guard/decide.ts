@@ -4,7 +4,8 @@
  *
  * - `edit` with an active Run — `deny` for a path outside `write_scope` or a
  *   non-empty `scope` (F1); under a `review` Run — `deny` for any path;
- * - `shell` under a `review` Run — `allow` only for `warrant run submit`;
+ * - `shell` under a `review` Run — `allow` only for the strict form of
+ *   `warrant run submit [--file <path>] [--dry-run]`;
  * - `edit` without one — `deny` for the paths of code, tests, Changes and the
  *   policy paths, `allow` for the rest, both with the hint `run start`
  *   (ADR-0022 п. 7);
@@ -36,6 +37,12 @@ const allow = (hints: string[] = []): Answer => ({ decision: "allow", hints });
 
 /** The words every simple command of a shell line under a `review` Run starts with (REQ-ENF-004). */
 export const SUBMIT_PREFIX: readonly string[] = ["warrant", "run", "submit"];
+
+/**
+ * A path after `--file` under a `review` Run: letters, digits and `_ . / \ : @ + , ~ -`,
+ * no leading `-` — no shell metacharacter, no blank (REQ-ENF-004, REQ-ENF-007).
+ */
+const SUBMIT_PATH_RE = /^(?!-)[\p{L}\p{N}_./\\:@+,~-]+$/u;
 
 /** `hint` of a refusal under a `review` Run. */
 export const SUBMIT_HINT = "a review Run only reads; hand in its result with `warrant run submit` (envelope warrant://skill-result/1)";
@@ -113,13 +120,39 @@ export function guardedChecks(loaded: LoadResult): GuardedCheck[] {
 }
 
 /**
- * `pre` `shell` under a `review` Run: `allow` only when every simple command
- * of `argv` — the commands inside `bash -c`, not the wrapper — starts with
- * `warrant run submit`; anything else, or no command at all, is `deny`.
+ * True for the strict form `warrant run submit [--file <path>] [--dry-run]`
+ * (REQ-ENF-007): exactly these words, each option at most once, in any order,
+ * the path by {@link SUBMIT_PATH_RE}.
+ */
+function isSubmit(command: readonly string[]): boolean {
+  if (!startsWithPrefix(command, SUBMIT_PREFIX)) return false;
+  let dryRun = false;
+  let file = false;
+  for (let i = SUBMIT_PREFIX.length; i < command.length; i++) {
+    const word = command[i];
+    if (word === "--dry-run" && !dryRun) {
+      dryRun = true;
+    } else if (word === "--file" && !file && SUBMIT_PATH_RE.test(command[i + 1] ?? "")) {
+      file = true;
+      i++;
+    } else {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * `pre` `shell` under a `review` Run, fail-closed: `allow` only when every
+ * command of `argv` as written — a leading `VAR=…` kept; the commands inside
+ * exactly `bash -c <string>`, not the wrapper — is the strict form of
+ * `warrant run submit` ({@link isSubmit}); the operators of the tokenizer and
+ * a heredoc (data, I-167) may join them. Any other word — `&`, a redirection,
+ * `$(…)`, a comment, an assignment — or no command at all is `deny`.
  */
 export function reviewShellAnswer(argv: readonly string[] | undefined, run: Run): Answer {
-  const commands = argv === undefined ? [] : leafCommands(argv);
-  const other = commands.find((command) => !startsWithPrefix(command, SUBMIT_PREFIX));
+  const commands = argv === undefined ? [] : leafCommands(argv, true);
+  const other = commands.find((command) => !isSubmit(command));
   if (commands.length > 0 && other === undefined) return allow();
   const what = other === undefined ? "no command" : `\`${other.join(" ")}\``;
   return {

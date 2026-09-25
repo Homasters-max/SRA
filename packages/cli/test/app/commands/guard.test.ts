@@ -212,6 +212,15 @@ describe("warrant guard: pre shell", () => {
     expect(make.data["hints"]).toEqual(["warrant check <change> tests [--paths <a,b>]"]);
   });
 
+  it("<< in a comment or inside $((…)) is no heredoc: pytest on the next line is denied (I-167)", async () => {
+    const p = await repo("IMPLEMENTING", (b) => testsCheck(b));
+    for (const line of ["echo # <<X\npytest\nX", "echo $((1<<X))\npytest\nX"]) {
+      const result = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", line] });
+      expect(result.data["decision"], line).toBe("deny");
+      expect(result.data["hints"], line).toEqual(["warrant check <change> tests"]);
+    }
+  });
+
   it("a check that may run directly is not guarded", async () => {
     const p = await repo("IMPLEMENTING", (b) => testsCheck(b, { exclusive: false, local: "allowed" }));
     expect((await guard(p, { phase: "pre", action: "shell", argv: ["pytest"] })).data["decision"]).toBe("allow");
@@ -246,6 +255,33 @@ describe("warrant guard under a review Run (REQ-ENF-004)", () => {
     expect(mixed.data["decision"]).toBe("deny");
     expect(mixed.data["hints"].join(" ")).toContain("warrant run submit");
     expect(events(p, id).map((e) => e["decision"])).toEqual(["allow", "deny"]);
+  });
+
+  it("shell: only the strict form of warrant run submit is allowed; &, a redirection, $(…), `…`, <(…), VAR=… and << in a comment are denied (SCN-ENF-027)", async () => {
+    const { p, id } = await underReview();
+    const allowed = [
+      "warrant run submit --file envelope.json",
+      "warrant run submit --dry-run --file a/b.json",
+      "warrant run submit <<'JSON'\n{\"statement\": \"it's; a && b | c # d $((1<<2))\"}\nJSON"
+    ];
+    const denied = [
+      "warrant run submit & rm -rf src",
+      "warrant run submit > openspec/changes/add-search/proposal.md",
+      "warrant run submit --file $(rm -rf src)",
+      "warrant run submit --file `rm -rf src`",
+      "warrant run submit --file <(rm -rf src)",
+      "NODE_OPTIONS=--import=x warrant run submit",
+      "warrant run submit # <<X\nrm -rf src\nX"
+    ];
+    for (const line of allowed) {
+      expect((await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", line] })).data, line).toEqual({ decision: "allow", hints: [] });
+    }
+    for (const line of denied) {
+      const result = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", line] });
+      expect(result.data["decision"], line).toBe("deny");
+      expect(result.data["hints"].join(" "), line).toContain("warrant run submit");
+    }
+    expect(events(p, id).map((e) => e["decision"])).toEqual([...allowed.map(() => "allow"), ...denied.map(() => "deny")]);
   });
 
   it("shell: an envelope in a heredoc of warrant run submit is data, a command after the delimiter line is not (I-167)", async () => {

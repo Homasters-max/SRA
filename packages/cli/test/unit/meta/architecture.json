@@ -40,7 +40,7 @@
     "commands": ["rank:*", "io", "version.ts"],
     "io": ["core"],
     "bin": ["commands", "adapters", "core/ports", "core", "io", "version.ts"],
-    "adapters": ["core/ports", "core"]
+    "adapters": ["core/ports", "core", "core/json"]
   },
   "no_sibling_imports": { "commands": ["commands/context.ts"] },
   "helpers": [
@@ -86,7 +86,7 @@
     { "id": "waiver-state", "owner": "core/waivers/status.ts", "doc": "docs/02-vocabulary.md", "values": ["PROPOSED", "ACTIVE", "EXPIRED", "REVOKED"] },
     { "id": "run-state", "owner": "core/run/types.ts", "doc": "docs/02-vocabulary.md", "values": ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"] },
     { "id": "run-operation", "owner": "core/run/types.ts", "doc": "docs/04-lifecycle.md", "values": ["specify", "implement"] },
-    { "id": "guard-decision", "owner": "core/run/types.ts", "doc": "docs/04-lifecycle.md", "values": ["allow", "deny"] }
+    { "id": "guard-decision", "owner": "core/ports/frontend.ts", "doc": "docs/04-lifecycle.md", "values": ["allow", "deny"] }
   ],
   "exceptions": []
 }

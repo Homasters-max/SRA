@@ -103,3 +103,12 @@ export async function emitToProcess(command: string, result: CommandResult): Pro
   await writeStdout(formatEnvelope(toEnvelope(command, result)));
   process.exitCode = result.exitCode;
 }
+
+/**
+ * Prints the native answer of a frontend adapter (`warrant guard --frontend`,
+ * REQ-ENF-005) instead of the envelope and sets its exit code the same way.
+ */
+export async function emitNative(answer: { stdout: string; exit: number }): Promise<void> {
+  if (answer.stdout !== "") await writeStdout(answer.stdout);
+  process.exitCode = answer.exit;
+}

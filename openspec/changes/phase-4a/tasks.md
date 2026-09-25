@@ -68,7 +68,7 @@ golden вне групп 2 и 6 — остановка и строка I-N.
 
 ## 8. Адаптер claude (REQ-ENF-005) и документы
 
-- [ ] 8.1 Порт `core/ports/frontend.ts`, `adapters/frontend/claude.ts`, `--frontend` в `bin/warrant.ts` (§2, §7); мета-тест
+- [x] 8.1 Порт `core/ports/frontend.ts`, `adapters/frontend/claude.ts`, `--frontend` в `bin/warrant.ts` (§2, §7); мета-тест
   нейтральности (§9). Проверка: SCN-ENF-020; строка `claude` вне разрешённых мест роняет тест.
 - [ ] 8.2 `scripts/dev/probe-hooks.js` и фикстуры родного входа с версией Claude Code (§7); зонд `additionalContext`
   `PreToolUse` и якоря путей deny — итог строкой I-N. Проверка: фикстуры `Edit`, `Write`, `NotebookEdit`, `Bash` для `pre`

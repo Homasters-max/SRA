@@ -1,8 +1,10 @@
 /**
  * `warrant://run/1` as types (REQ-ENF-001, 03 §4): the dictionaries of a Run —
- * `run_state`, `operation`, the decision of guard — are owned here (registry
- * `enums` of `architecture.json`); the schema holds the same values.
+ * `run_state`, `operation` — are owned here (registry `enums` of
+ * `architecture.json`); those of a guard event — by the port of guard
+ * (`core/ports/frontend.ts`). The schema holds the same values.
  */
+import type { GuardAction, GuardDecision, GuardPhase } from "../ports/frontend.js";
 
 /** State axis of a Run (02 §2). */
 export const RUN_STATES = ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"] as const;
@@ -14,18 +16,6 @@ export const FINAL_RUN_STATES: readonly RunState[] = RUN_STATES.slice(2);
 /** Operation of a Run (04 §3): the artifacts of the Change, or its code and tests. */
 export const RUN_OPERATIONS = ["specify", "implement"] as const;
 export type RunOperation = (typeof RUN_OPERATIONS)[number];
-
-/** Decision of `warrant guard` on one action (ADR-0018 п. 2). */
-export const GUARD_DECISIONS = ["allow", "deny"] as const;
-export type GuardDecision = (typeof GUARD_DECISIONS)[number];
-
-/** When guard is asked: before or after the action of the agent (ADR-0018 п. 2). */
-export const GUARD_PHASES = ["pre", "post"] as const;
-export type GuardPhase = (typeof GUARD_PHASES)[number];
-
-/** Kind of the action guard is asked about: a file edit, a shell command, anything else. */
-export const GUARD_ACTIONS = ["edit", "shell", "other"] as const;
-export type GuardAction = (typeof GUARD_ACTIONS)[number];
 
 /** One element of `guard_events[]` (F16): codes and ids only, no frontend. */
 export interface GuardEventRecord {

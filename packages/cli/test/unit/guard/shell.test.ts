@@ -1,12 +1,13 @@
 /**
  * The shell parse of `guard` (design §6, ADR-0017 п. 5, task 5.2): the
- * tokenizer — quotes, `\`, operators, a newline —, simple commands with
+ * tokenizer (`core/shell.ts`) — quotes, `\`, operators, a newline —, simple commands with
  * `VAR=…` dropped and `bash -c` parsed one level deep, the default prefix of
  * `run.command` and the prefix match.
  */
 import { describe, expect, it } from "vitest";
 
-import { defaultPrefix, shellWords, simpleCommands, startsWithPrefix } from "../../../src/core/guard/shell.js";
+import { defaultPrefix, simpleCommands, startsWithPrefix } from "../../../src/core/guard/shell.js";
+import { shellWords } from "../../../src/core/shell.js";
 
 describe("shellWords", () => {
   it("splits at blanks; quotes join, single quotes are literal", () => {

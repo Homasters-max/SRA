@@ -21,18 +21,12 @@ import { projectPath } from "../fs.js";
 import { pathMatcher } from "../glob.js";
 import { loadPacks } from "../packs/loader.js";
 import type { LoadedRule, LoadResult } from "../packs/types.js";
+import { UNREADABLE_EXIT, type FrontendAdapter, type FrontendResponse, type GuardEvent, type GuardResult } from "../ports/frontend.js";
 import { readCurrent, runFile, updateRun } from "../run/store.js";
-import type { GuardDecision, GuardEventRecord, Run } from "../run/types.js";
+import type { GuardEventRecord, Run } from "../run/types.js";
 import { runFileChecks, validateRun } from "../validate/registry.js";
 import { editWithoutRun, editWithRun, guardedChecks, shellAnswer, VALIDATE_HINT, type Answer } from "./decide.js";
-import { parseEvent, type GuardEvent } from "./event.js";
-
-/** What `warrant guard` prints in `data` (REQ-ENF-004). */
-export interface GuardResult {
-  decision: GuardDecision;
-  reason?: string;
-  hints: string[];
-}
+import { parseEvent } from "./event.js";
 
 /** At most this many finding lines in `hints[]`, then one «and N more» (ADR-0019 п. 10). */
 export const FINDING_LINES = 10;
@@ -197,9 +191,14 @@ async function post(ctx: Ctx, event: GuardEvent, env: NodeJS.ProcessEnv): Promis
   return { decision: "allow", hints: [...findingsHints, ...rules.map(ruleLine)] };
 }
 
+/** A project under WARRANT has `.warrant/warrant.json`; guard allows everything elsewhere (SCN-ENF-016). */
+function underWarrant(root: string): boolean {
+  return existsSync(path.join(root, ".warrant", "warrant.json"));
+}
+
 /** `warrant guard` on the text of stdin, in the project `ctx.root`. */
 export async function guard(ctx: Ctx, input: string, env: NodeJS.ProcessEnv = process.env): Promise<GuardResult> {
-  if (!existsSync(path.join(ctx.root, ".warrant", "warrant.json"))) return ALLOW;
+  if (!underWarrant(ctx.root)) return ALLOW;
   const parsed = parseEvent(input);
   if (!parsed.ok) {
     if (parsed.phase === "post") {
@@ -208,7 +207,41 @@ export async function guard(ctx: Ctx, input: string, env: NodeJS.ProcessEnv = pr
     }
     return { decision: "deny", reason: parsed.message, hints: [VALIDATE_HINT] };
   }
-  const { event } = parsed;
+  return decide(ctx, parsed.event, env);
+}
+
+/**
+ * `warrant guard --frontend <name>` on the text of stdin (REQ-ENF-005): the
+ * adapter makes the event of the native input, guard decides as on the
+ * normalised event, the adapter makes the native answer of the decision.
+ * A native input that does not read — exit `UNREADABLE_EXIT`, the reason on
+ * stderr, stdout empty. Outside a project under WARRANT nothing is read:
+ * `allow`, stdout empty (SCN-ENF-016).
+ */
+export async function guardFrontend(
+  ctx: Ctx,
+  adapter: FrontendAdapter,
+  input: string,
+  env: NodeJS.ProcessEnv = process.env
+): Promise<FrontendResponse> {
+  if (!underWarrant(ctx.root)) return { stdout: "", exit: 0 };
+  const unreadable = (why: string): FrontendResponse => {
+    ctx.warn(`warrant guard --frontend ${adapter.name}: ${why}\n`);
+    return { stdout: "", exit: UNREADABLE_EXIT };
+  };
+  let native: unknown;
+  try {
+    native = JSON.parse(input);
+  } catch (cause) {
+    return unreadable(`stdin is not JSON: ${(cause as Error).message}`);
+  }
+  const event = adapter.toEvent(native);
+  if (event === undefined) return unreadable(`stdin is not ${adapter.input}`);
+  return adapter.respond(await decide(ctx, event, env), event);
+}
+
+/** The decision on a read event: `pre` fails closed, `post` open (F9). */
+async function decide(ctx: Ctx, event: GuardEvent, env: NodeJS.ProcessEnv): Promise<GuardResult> {
   if (event.phase === "pre") {
     try {
       return await pre(ctx, event, env);

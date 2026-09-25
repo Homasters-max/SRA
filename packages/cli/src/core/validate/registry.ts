@@ -36,7 +36,7 @@ import { checkLock, LOCK_REL } from "../packs/hash.js";
 import type { LoadResult } from "../packs/types.js";
 import { readAllRecords, type RecordFile } from "../record/read.js";
 import { validateFile } from "../schemas/semantic.js";
-import { scanSecrets } from "../secrets.js";
+import { scanSecrets, SECRET_SCAN_DIRS } from "../secrets.js";
 import { checkWaivers } from "../waivers/check.js";
 import { checkDangling } from "./dangling.js";
 import { checkEvidence } from "./evidence.js";
@@ -200,7 +200,7 @@ export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
     // Raw check output is never committed (I-76).
     id: "secrets", // check (6)
     level: "file",
-    appliesTo: (file) => /^\.(warrant|claude)\//.test(file) && !isRawEvidencePath(file),
+    appliesTo: (file) => SECRET_SCAN_DIRS.some((dir) => file.startsWith(`${dir}/`)) && !isRawEvidencePath(file),
     run: async (v, files) => {
       const { root } = v.ctx;
       const targets = files?.map((file) => absoluteOf(root, file));

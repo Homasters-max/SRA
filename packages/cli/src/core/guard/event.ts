@@ -1,23 +1,13 @@
 /**
- * The normalised event of `warrant guard` (REQ-ENF-004, ADR-0018 п. 2): what a
- * frontend adapter makes of its native hook input, and what `warrant guard`
- * without `--frontend` reads from stdin — `{ phase, action, paths[], argv?, cwd }`.
- * Keys beyond these are ignored (ADR-0018 names `run?`, which guard does not
- * need: the active Run is the one `<state>/runs/current` names).
+ * The normalised event of `warrant guard` read from stdin (REQ-ENF-004,
+ * ADR-0018 п. 2) — `{ phase, action, paths[], argv?, cwd }`, the type of the
+ * port of guard (`core/ports/frontend.ts`); a frontend adapter makes the same
+ * event of its native hook input. Keys beyond these are ignored (ADR-0018
+ * names `run?`, which guard does not need: the active Run is the one
+ * `<state>/runs/current` names).
  */
 import { isPlainObject } from "../json.js";
-import { GUARD_ACTIONS, GUARD_PHASES, type GuardAction, type GuardPhase } from "../run/types.js";
-
-export interface GuardEvent {
-  phase: GuardPhase;
-  action: GuardAction;
-  /** Paths the action touches: absolute, or relative to `cwd`. */
-  paths: string[];
-  /** The shell command as words (operators `&&`, `||`, `;`, `|` and a newline are words of their own). */
-  argv?: string[];
-  /** Working directory of the action. */
-  cwd: string;
-}
+import { GUARD_ACTIONS, GUARD_PHASES, type GuardEvent, type GuardPhase } from "../ports/frontend.js";
 
 export type ParsedEvent =
   | { ok: true; event: GuardEvent }

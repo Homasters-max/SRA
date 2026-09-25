@@ -8,7 +8,7 @@ import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError } from "../core/errors.js";
 import { systemClock } from "../core/ports/clock.js";
 import { createWrites } from "../core/writes.js";
-import { emitToProcess, failure, resultFromThrown, writeStdout, type CommandResult } from "../io/output.js";
+import { emitNative, emitToProcess, failure, resultFromThrown, writeStdout, type CommandResult } from "../io/output.js";
 import { CLI_VERSION } from "../version.js";
 import { projectRoot, requireConfigPath } from "../commands/context.js";
 import { initFrontends, runInitCommand } from "../commands/init.js";
@@ -27,8 +27,13 @@ import { runArchive } from "../commands/archive.js";
 import { runLink } from "../commands/link.js";
 import { runWaive } from "../commands/waive.js";
 import { runFinish, runStart } from "../commands/run.js";
-import { runGuard } from "../commands/guard.js";
+import { runGuard, runGuardFrontend } from "../commands/guard.js";
 import { readStdin } from "../io/stdin.js";
+import { UNREADABLE_EXIT, type FrontendAdapter } from "../core/ports/frontend.js";
+import { claudeFrontend } from "../adapters/frontend/claude.js";
+
+/** Adapters of `warrant guard --frontend <name>` (REQ-ENF-005): the one place of `bin` that names a frontend (design §9). */
+const FRONTENDS: readonly FrontendAdapter[] = [claudeFrontend];
 
 export type Runner = (ctx: Ctx, args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -384,20 +389,49 @@ register(
   runGroup
 );
 
-register(
-  "guard",
-  "decide on one action of an agent: a normalised event on stdin, data{decision, reason?, hints[]} on stdout, exit 0",
-  async (ctx) => runGuard(ctx, await readStdin()),
-  (c) =>
-    c.addHelpText(
-      "after",
-      '\nstdin: {"phase": "pre"|"post", "action": "edit"|"shell"|"other", "paths": [...], "argv"?: [...], "cwd": "<dir>"}\n' +
-        examples([
-          `echo '{"phase":"pre","action":"edit","paths":["src/app.py"],"cwd":"."}' | warrant guard`,
-          `echo '{"phase":"pre","action":"shell","paths":[],"argv":["pytest","tests/"],"cwd":"."}' | warrant guard`
-        ])
-    )
-);
+/**
+ * `warrant guard --frontend <name>` (REQ-ENF-005): the native answer of the
+ * adapter instead of the envelope; an unknown name is `USAGE` (exit 3) naming
+ * the known ones, before stdin is read. What throws past guard is a failure of
+ * the hook: the reason on stderr, the exit of an input that does not read.
+ */
+async function guardFrontend(name: string): Promise<void> {
+  const adapter = FRONTENDS.find((a) => a.name === name);
+  if (adapter === undefined) {
+    const known = FRONTENDS.map((a) => `--frontend ${a.name}`).join(", ");
+    await emitToProcess("guard", failure(new WarrantError("USAGE", `unknown frontend ${JSON.stringify(name)}`, { hint: `pass one of: ${known}` })));
+    return;
+  }
+  try {
+    await emitNative(await runGuardFrontend(productionCtx(false), adapter, await readStdin()));
+  } catch (thrown) {
+    process.stderr.write(`warrant guard --frontend ${adapter.name}: ${thrown instanceof Error ? thrown.message : String(thrown)}\n`);
+    process.exitCode = UNREADABLE_EXIT;
+  }
+}
+
+// Not `register`: with `--frontend` the answer is the adapter's, not the envelope.
+program
+  .command("guard")
+  .description("decide on one action of an agent: a normalised event on stdin, data{decision, reason?, hints[]} on stdout, exit 0")
+  .option(
+    "--frontend <name>",
+    `read the native hook input of the agent and print its native answer instead of the envelope (one of: ${FRONTENDS.map((a) => a.name).join(", ")})`
+  )
+  .addHelpText(
+    "after",
+    '\nstdin: {"phase": "pre"|"post", "action": "edit"|"shell"|"other", "paths": [...], "argv"?: [...], "cwd": "<dir>"}\n' +
+      `stdin with --frontend <name>: the hook input of that agent; one that does not read — exit ${UNREADABLE_EXIT}, the reason on stderr\n` +
+      examples([
+        `echo '{"phase":"pre","action":"edit","paths":["src/app.py"],"cwd":"."}' | warrant guard`,
+        `echo '{"phase":"pre","action":"shell","paths":[],"argv":["pytest","tests/"],"cwd":"."}' | warrant guard`,
+        ...FRONTENDS.map((a) => `warrant guard --frontend ${a.name} < hook-input.json`)
+      ])
+  )
+  .action(async (opts: Record<string, unknown>) => {
+    if (typeof opts["frontend"] === "string") return guardFrontend(opts["frontend"]);
+    await run("guard", async (ctx) => runGuard(ctx, await readStdin()), [], opts);
+  });
 
 /** `hint` of a usage error Commander reports, for the commands born with hints (REQ-KRN-002). */
 function usageHint(command: string): string | undefined {

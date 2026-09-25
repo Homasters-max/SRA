@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3BXVE5N2P1PZ0AZJ2KBEN6Y",
+  "claim": {
+    "text": "Homasters-max approved core-seams for VERIFYING->MERGED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "e7937b4306233206bde5323cda7cc1f608ee2aec",
+    "base_commit": "06c54e86bab9d8efb074f0eead12c88273a63bb3",
+    "spec_revision": "openspec/changes/core-seams@e7937b4306233206bde5323cda7cc1f608ee2aec",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/36117006079"
+  },
+  "context_hash": "sha256:fb3d1a4c382a115415b9ba345deac73a457fd8444c309dbfba3b69380242eaed",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-25T09:20:27.317Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

@@ -4,16 +4,19 @@
 
 Фаза 4 — MVP frontend по нарезке [ADR-0034](../adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 6: process-PR
 инструментов аудита → Change `core-seams` (3e) → 4a (Run, guard, адаптер `claude`) → 4b (producers, `warrant ci`) →
-slice в отдельном репозитории. Grilling нарезки закрыт 2026-09-25 (N1–N17), ADR-0034 и ADR-0035 приняты.
+slice в отдельном репозитории. Grilling нарезки закрыт 2026-09-25 (N1–N17), ADR-0034 и ADR-0035 приняты; `core-seams`
+закрыт (spec #42, impl #43, архив — v0.4.3).
 
 ## Готовый запрос
 
 ```text
-Шаг 2 — archive-PR Change core-seams (навык change-archive-pr; impl-PR — `gh pr list --state all --head
-worktree/core-seams`), тег v0.4.3. Затем шаг 3 — Change 4a (ADR-0034 п. 6): spec-PR с delta specs (Run, guard,
-validate --files, sync → .claude/settings.json и AGENTS.md, hint и --dry-run; адаптер claude последней группой);
-реестр проверок validate (A-9) первой группой; линза cli-contract. Аудит перед spec-PR 4a — по hygiene.js
-(audit-stale после core-seams вероятен).
+Шаг 3 — Change 4a (ADR-0034 п. 6; навыки openspec-propose → change-spec-pr, линза cli-contract): spec-PR с delta specs —
+Run (`warrant://run/1`, `run start`), `guard` pre / post с портом (A-12), `guard_prefixes`, guard без Run → deny,
+`validate --files`, `FRONTEND_HOOKS_INACTIVE`, `sync` → `.claude/settings.json` (управляемое подмножество) и
+`AGENTS.md`, `hint` в ошибках (`cliError` получает `hint`, ADR-0034 п. 8) и `--dry-run`; реестр проверок `validate`
+(A-9) — первой группой, адаптер `claude` — последней. Перед spec-PR — архитектурный аудит, если hygiene.js покажет
+audit-stale (после core-seams вероятно). Прочитай: ADR-0034, ADR-0014, ADR-0017…0019, ADR-0022, строки 4a в
+docs/backlog.md (A-9, A-12, BL-3, BL-5, BL-7, BL-9, BL-10, BL-13, BL-14, BL-20).
 ```
 
 ## Открытые вопросы

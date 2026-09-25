@@ -11,6 +11,10 @@ amended_by: [WARRANT-ADR-0017, WARRANT-ADR-0018, WARRANT-ADR-0020, WARRANT-ADR-0
 > `.claude/settings.json` генерируется не целиком — `sync` владеет только своими deny и хуками, `validate` сверяет
 > это подмножество (п. 3). Review-субагент п. 3 — producer `adversarial-review` в MVP (п. 10).
 
+> Уточнено зондом Claude Code 2.1.263 (Change `phase-4a`, I-165): путевая запись `Write(<glob>)` в `permissions.deny`
+> не действует, а `Edit(<glob>)` отказывает и инструменту `Write` — п. 1 пишется как `Edit(/…)` на каждый путь (якорь `/`
+> — корень проекта) и три `Bash(…:*)`; смысл нормы тот же. Отказ deny срабатывает до `PreToolUse`.
+
 > Уточнено [ADR-0018](WARRANT-ADR-0018-frontend-adapters.md) и [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md):
 > решения этого ADR становятся адаптером `claude` (later); MVP ведёт Codex в ручном режиме под hooks и CI
 > (заметка ADR-0018 говорила «через codex-acp»); `warrant guard` принимает нормализованное событие и `--frontend`.

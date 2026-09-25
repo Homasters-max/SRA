@@ -9,7 +9,7 @@
  * `risk` (overlays whose `match` agrees with the classification).
  */
 import { canonicalHash } from "../canon/hash.js";
-import type { CliError } from "../errors.js";
+import { cliError, type CliError } from "../errors.js";
 import { isPlainObject } from "../json.js";
 import type { LoadResult, PackObject } from "../packs/types.js";
 import { CLI_VERSION } from "../../version.js";
@@ -26,10 +26,6 @@ import {
 
 /** Pack id standing for the implicit project layer `.warrant/local/` (I-8). */
 const LOCAL_PACK = "local";
-
-function err(code: CliError["code"], message: string, path?: string): CliError {
-  return path === undefined ? { code, message } : { code, message, path };
-}
 
 /**
  * `sources[]` entry of one object (05 section 6).
@@ -114,19 +110,17 @@ function expandProfiles(
   const out: PackObject[] = [];
   const state = new Map<string, "visiting" | "done">();
 
-  const visit = (id: string, stack: string[], from: string | undefined): void => {
+  const visit = (id: string, stack: string[], at: { path?: string }): void => {
     const mark = state.get(id);
     if (mark === "done") return;
     if (mark === "visiting") {
-      errors.push(
-        err("CONFIG_INVALID", `profiles form an "extends" cycle: ${[...stack, id].join(" -> ")}`, from)
-      );
+      errors.push(cliError("CONFIG_INVALID", `profiles form an "extends" cycle: ${[...stack, id].join(" -> ")}`, at));
       return;
     }
     const object = byId.get(id);
     if (object === undefined) {
       errors.push(
-        err("CONFIG_INVALID", `classification names profile "${id}", which no enabled pack provides`, from)
+        cliError("CONFIG_INVALID", `classification names profile "${id}", which no enabled pack provides`, at)
       );
       state.set(id, "done");
       return;
@@ -135,14 +129,14 @@ function expandProfiles(
     const parents = isPlainObject(object.json) && Array.isArray(object.json["extends"])
       ? (object.json["extends"] as unknown[]).filter((v): v is string => typeof v === "string")
       : [];
-    for (const parent of parents) visit(parent, [...stack, id], object.path);
+    for (const parent of parents) visit(parent, [...stack, id], { path: object.path });
     state.set(id, "done");
     out.push(object);
   };
 
   // The declared order of `profiles` must not change the result, so it is
   // normalised before expansion; `extends` still orders parents before children.
-  for (const id of [...new Set(ids)].sort()) visit(id, [], undefined);
+  for (const id of [...new Set(ids)].sort()) visit(id, [], {});
   return out;
 }
 

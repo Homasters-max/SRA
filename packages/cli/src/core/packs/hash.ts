@@ -11,7 +11,7 @@ import path from "node:path";
 
 import { bytesHash, canonicalHash } from "../canon/hash.js";
 import type { WarrantConfig } from "../config.js";
-import type { CliError } from "../errors.js";
+import { cliError, type CliError } from "../errors.js";
 import { reportPath, walkFiles } from "../fs.js";
 import { isPlainObject } from "../json.js";
 import { validateFile } from "../schemas/semantic.js";
@@ -30,10 +30,6 @@ export const LOCK_REL = ".warrant/warrant.lock.json";
  */
 export function bundleRoot(): string {
   return path.dirname(bundledPacksDir());
-}
-
-function err(code: CliError["code"], message: string, p: string): CliError {
-  return { code, message, path: p };
 }
 
 /**
@@ -82,14 +78,14 @@ export function checkLock(input: LockCheckInput): CliError[] {
   const errors: CliError[] = [];
 
   if (!existsSync(absolute)) {
-    return [err("LOCK_MISMATCH", "lock file is missing; run `warrant sync`", LOCK_REL)];
+    return [cliError("LOCK_MISMATCH", "lock file is missing; run `warrant sync`", { path: LOCK_REL })];
   }
 
   let json: unknown;
   try {
     json = JSON.parse(readFileSync(absolute, "utf8"));
   } catch (cause) {
-    return [err("LOCK_MISMATCH", `lock file is not valid JSON: ${(cause as Error).message}`, LOCK_REL)];
+    return [cliError("LOCK_MISMATCH", `lock file is not valid JSON: ${(cause as Error).message}`, { path: LOCK_REL })];
   }
 
   const validation = validateFile(json, LOCK_REL);
@@ -100,10 +96,10 @@ export function checkLock(input: LockCheckInput): CliError[] {
   const lockKernel = typeof lock["kernel"] === "string" ? lock["kernel"] : "";
   if (lockKernel.split(".").slice(0, 2).join(".") !== KERNEL_VERSION) {
     errors.push(
-      err(
+      cliError(
         "LOCK_MISMATCH",
         `lock was written by kernel ${lockKernel || "(absent)"}, this CLI is ${CLI_VERSION}; run \`warrant sync\``,
-        `${LOCK_REL}#/kernel`
+        { path: `${LOCK_REL}#/kernel` }
       )
     );
   }
@@ -113,26 +109,30 @@ export function checkLock(input: LockCheckInput): CliError[] {
     const entry = lockPacks[pack.id];
     if (!isPlainObject(entry)) {
       errors.push(
-        err("LOCK_MISMATCH", `pack ${pack.id} is enabled but absent from the lock; run \`warrant sync\``, `${LOCK_REL}#/packs/${pack.id}`)
+        cliError(
+          "LOCK_MISMATCH",
+          `pack ${pack.id} is enabled but absent from the lock; run \`warrant sync\``,
+          { path: `${LOCK_REL}#/packs/${pack.id}` }
+        )
       );
       continue;
     }
     if (entry["version"] !== pack.version) {
       errors.push(
-        err(
+        cliError(
           "LOCK_MISMATCH",
           `lock records ${pack.id} ${String(entry["version"])}, the pack on disk is ${pack.version}`,
-          `${LOCK_REL}#/packs/${pack.id}/version`
+          { path: `${LOCK_REL}#/packs/${pack.id}/version` }
         )
       );
     }
     const actual = packContentHash(pack.dir);
     if (entry["hash"] !== actual) {
       errors.push(
-        err(
+        cliError(
           "LOCK_MISMATCH",
           `content of pack ${pack.id} does not match the hash in the lock; run \`warrant sync\``,
-          `${LOCK_REL}#/packs/${pack.id}/hash`
+          { path: `${LOCK_REL}#/packs/${pack.id}/hash` }
         )
       );
     }
@@ -141,10 +141,10 @@ export function checkLock(input: LockCheckInput): CliError[] {
     const lockVersion = typeof entry["version"] === "string" ? entry["version"] : "";
     if (lockVersion !== "" && range !== "*" && !semver.satisfies(lockVersion, range, { includePrerelease: true })) {
       errors.push(
-        err(
+        cliError(
           "LOCK_MISMATCH",
           `lock records ${pack.id} ${lockVersion}, which does not satisfy the configured range "${range}"`,
-          `${LOCK_REL}#/packs/${pack.id}/version`
+          { path: `${LOCK_REL}#/packs/${pack.id}/version` }
         )
       );
     }
@@ -156,10 +156,10 @@ export function checkLock(input: LockCheckInput): CliError[] {
   for (const id of Object.keys(lockPacks).sort()) {
     if (id === "$comment" || configured.has(id)) continue;
     errors.push(
-      err(
+      cliError(
         "LOCK_MISMATCH",
         `lock records pack ${id}, which .warrant/warrant.json does not enable; run \`warrant sync\``,
-        `${LOCK_REL}#/packs/${id}`
+        { path: `${LOCK_REL}#/packs/${id}` }
       )
     );
   }
@@ -169,12 +169,16 @@ export function checkLock(input: LockCheckInput): CliError[] {
     if (rel === "$comment") continue;
     const target = path.join(projectRoot, rel);
     if (!existsSync(target)) {
-      errors.push(err("LOCK_MISMATCH", `generated file listed in the lock is missing`, rel));
+      errors.push(cliError("LOCK_MISMATCH", `generated file listed in the lock is missing`, { path: rel }));
       continue;
     }
     if (bytesHash(readFileSync(target)) !== hash) {
       errors.push(
-        err("LOCK_MISMATCH", `generated file differs from the hash in the lock; run \`warrant sync\``, `${LOCK_REL}#/generated/${rel}`)
+        cliError(
+          "LOCK_MISMATCH",
+          `generated file differs from the hash in the lock; run \`warrant sync\``,
+          { path: `${LOCK_REL}#/generated/${rel}` }
+        )
       );
     }
   }
@@ -186,7 +190,13 @@ export function checkLock(input: LockCheckInput): CliError[] {
     const bundled = entry["source"] === "bundled";
     const target = path.join(bundled ? bundleRoot() : projectRoot, rel);
     if (rel === "" || !existsSync(target)) {
-      errors.push(err("LOCK_MISMATCH", `skill ${name} listed in the lock is missing`, `${LOCK_REL}#/skills/${name}/path`));
+      errors.push(
+        cliError(
+          "LOCK_MISMATCH",
+          `skill ${name} listed in the lock is missing`,
+          { path: `${LOCK_REL}#/skills/${name}/path` }
+        )
+      );
       continue;
     }
     const actual = statSync(target).isDirectory() ? packContentHash(target) : bytesHash(readFileSync(target));
@@ -194,10 +204,10 @@ export function checkLock(input: LockCheckInput): CliError[] {
       // The path reported is the skill itself: that is the file to look at,
       // and `warrant sync` is what reconciles the lock with it (SCN-SDD-014).
       errors.push(
-        err(
+        cliError(
           "LOCK_MISMATCH",
           `content of skill ${name} does not match the hash in the lock; run \`warrant sync\``,
-          bundled ? reportPath(target, projectRoot) : rel
+          { path: bundled ? reportPath(target, projectRoot) : rel }
         )
       );
     }

@@ -46,9 +46,9 @@ design.md, A-N и BL-N — [docs/backlog.md](../../../docs/backlog.md).
 
 ## 5. Фабрика ошибки и `findChangeDir` (A-17, A-8)
 
-- [ ] 5.1 `cliError` в `core/errors.ts` (§5); 4 копии `err` удалены; реестр `err` → `cliError`. Проверка: исключения
+- [x] 5.1 `cliError` в `core/errors.ts` (§5); 4 копии `err` удалены; реестр `err` → `cliError`. Проверка: исключения
   `helper` A-17 сняты.
-- [ ] 5.2 `core/openspec/changes.ts`: `findChangeDir`, `ChangeDirLocation`; 6 импортёров переведены; помощник в
+- [x] 5.2 `core/openspec/changes.ts`: `findChangeDir`, `ChangeDirLocation`; 6 импортёров переведены; помощник в
   реестре. Проверка: `cs deps packages/cli/src --level 2` — рёбер `ids → init`, `status → init`, `transition → init`
   ради `findChangeDir` нет.
 

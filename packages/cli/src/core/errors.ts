@@ -60,6 +60,14 @@ export interface CliError {
   path?: string;
 }
 
+/**
+ * The one factory of an `errors[]` entry (A-17): the key `path` is present only
+ * when given, keys in the order `code`, `message`, `path`.
+ */
+export function cliError(code: ErrorCode, message: string, options: { path?: string } = {}): CliError {
+  return options.path === undefined ? { code, message } : { code, message, path: options.path };
+}
+
 /** Exit codes per REQ-KRN-003. */
 export const EXIT = {
   OK: 0,

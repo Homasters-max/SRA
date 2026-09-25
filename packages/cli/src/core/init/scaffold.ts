@@ -4,10 +4,11 @@
  * Everything here is a decision about names and file contents; nothing touches
  * the file system, so the rules are unit-testable without a temp project.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { WarrantError } from "../errors.js";
+import { findChangeDir } from "../openspec/changes.js";
 import { bundledPacksDir } from "../packs/loader.js";
 
 /** Pack enabled by a fresh project: the baseline spec-driven workflow. */
@@ -107,39 +108,6 @@ export function schemaFromConfigYaml(text: string): string | null {
   const match = /^schema:[ \t]*(?:"([^"]+)"|'([^']+)'|([^\s#]+))[ \t]*$/m.exec(text);
   if (match === null) return null;
   return match[1] ?? match[2] ?? match[3] ?? null;
-}
-
-/**
- * Directory of a Change under `openspec/changes/`, as a POSIX path relative to
- * the project root, or null when there is none.
- *
- * `active` is `openspec/changes/<name>`; `archive` is the archived copy, whose
- * directory is `<YYYY-MM-DD>-<name>` (or plain `<name>` when it was moved by
- * hand). Shared by `init change` (a name conflict) and `status` (a stale record).
- */
-export interface ChangeDirLocation {
-  where: "active" | "archive";
-  path: string;
-}
-
-const ARCHIVE_DATE_RE = /^\d{4}-\d{2}-\d{2}-/;
-
-export function findChangeDir(root: string, name: string): ChangeDirLocation | null {
-  const active = path.join(root, "openspec", "changes", name);
-  if (existsSync(active)) return { where: "active", path: `openspec/changes/${name}` };
-  const archive = path.join(root, "openspec", "changes", "archive");
-  let entries: string[];
-  try {
-    entries = readdirSync(archive, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name);
-  } catch {
-    return null;
-  }
-  // Exactly `<name>` or `<YYYY-MM-DD>-<name>`: a bare suffix match would make
-  // `auth` collide with an archived `add-auth`.
-  const found = entries.find((entry) => entry === name || (ARCHIVE_DATE_RE.test(entry) && entry.slice(11) === name));
-  return found === undefined ? null : { where: "archive", path: `openspec/changes/archive/${found}` };
 }
 
 /**

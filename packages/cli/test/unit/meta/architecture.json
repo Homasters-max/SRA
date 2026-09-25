@@ -47,10 +47,11 @@
     { "name": "reportPath", "owner": "core/fs.ts" },
     { "name": "walkFiles", "owner": "core/fs.ts" },
     { "name": "readJson", "owner": "core/fs.ts" },
-    { "name": "err", "owner": "core/errors.ts" },
+    { "name": "cliError", "owner": "core/errors.ts" },
     { "name": "pathMatcher", "owner": "core/glob.ts" },
     { "name": "toProjectPaths", "owner": "core/git/paths.ts" },
-    { "name": "countingWaiverIds", "owner": "core/waivers/status.ts" }
+    { "name": "countingWaiverIds", "owner": "core/waivers/status.ts" },
+    { "name": "findChangeDir", "owner": "core/openspec/changes.ts" }
   ],
   "packages": [
     { "name": "picomatch", "owner": "core/glob.ts" },
@@ -77,10 +78,6 @@
   ],
   "exceptions": [
     { "id": "A-12", "rule": "rank", "from": "adapters/check-runner.ts", "to": "core/check/interrupt.ts" },
-    { "id": "A-17", "rule": "helper", "from": "core/packs/hash.ts", "helper": "err" },
-    { "id": "A-17", "rule": "helper", "from": "core/packs/loader.ts", "helper": "err" },
-    { "id": "A-17", "rule": "helper", "from": "core/resolve/layers.ts", "helper": "err" },
-    { "id": "A-17", "rule": "helper", "from": "core/sync/plan.ts", "helper": "err" },
     { "id": "A-18", "rule": "test-helper", "from": "contract/gates/diff-prefix.test.ts", "helper": "git" },
     { "id": "A-18", "rule": "test-helper", "from": "e2e/archive.test.ts", "helper": "git" },
     { "id": "A-18", "rule": "test-helper", "from": "e2e/check.test.ts", "helper": "git" },

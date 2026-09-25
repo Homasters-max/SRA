@@ -10,7 +10,7 @@ import { changedPaths, contractTree, currentBranch, type Availability, type Diff
 import { approvalOf } from "../gates/l0/spec-approved.js";
 import type { ContractTrees, EvidenceInput } from "../gates/types.js";
 import { checkAreas, checkDuplicates, loadAreas, scanIds } from "../ids/scan.js";
-import { findChangeDir } from "../init/scaffold.js";
+import { findChangeDir } from "../openspec/changes.js";
 import { openspecAvailable } from "../openspec/version.js";
 import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { ChangeRecord } from "../record/read.js";

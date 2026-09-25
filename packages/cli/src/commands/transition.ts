@@ -46,7 +46,7 @@ import {
 import { staleReason } from "../core/gates/prefilter.js";
 import { freshest } from "../core/gates/verdict.js";
 import { allocateUlid } from "../core/ids/allocate.js";
-import { findChangeDir } from "../core/init/scaffold.js";
+import { findChangeDir } from "../core/openspec/changes.js";
 import { isPlainObject } from "../core/json.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";

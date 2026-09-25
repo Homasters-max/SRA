@@ -66,7 +66,7 @@ golden вне задач 1.1, 2.x и 6.x — остановка и строка 
 - [x] 6.1 Skill `specification/adversarial-review` `0.2.0`: процедура, семь категорий, `severity` и критерий `BLOCKER`,
   envelope `skill-result/1`, запрет правки; pack — `^0.2`, lock — `sync` (REQ-SDD-008). Проверка: SCN-SDD-013, SCN-SDD-014,
   SCN-SDD-025; `versions:check`.
-- [ ] 6.2 Зонд Claude Code (maintainer, `scripts/dev/probe-hooks.js`): хук `PreToolUse` во frontmatter субагента на `Bash` —
+- [x] 6.2 Зонд Claude Code (maintainer, `scripts/dev/probe-hooks.js`): хук `PreToolUse` во frontmatter субагента на `Bash` —
   вызывается ли, доходит ли `deny`, чем отличается родной вход; фикстуры — `test/contract/fixtures/claude/<версия>/`. Итог —
   строка `I-N` (ADR-0034 п. 10). Проверка: фикстуры в репозитории, строка в §«Решения по ходу реализации».
 - [ ] 6.3 Цель `sync` `.claude/agents/warrant-reviewer.md` (§6, REQ-KRN-033), `validate` — побайтно. Проверка: SCN-KRN-139,

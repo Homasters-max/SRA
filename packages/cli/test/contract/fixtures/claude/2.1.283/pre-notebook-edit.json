@@ -1,0 +1,19 @@
+{
+  "session_id": "6a5d0951-3b77-4f99-8264-1f5ef9a018f1",
+  "transcript_path": "~\\.claude\\projects\\D--tmp-warrant-probe-4b\\6a5d0951-3b77-4f99-8264-1f5ef9a018f1.jsonl",
+  "cwd": "D:\\tmp\\warrant-probe-4b",
+  "scratchpad_dir": "~\\AppData\\Local\\Temp\\claude\\D--tmp-warrant-probe-4b\\6a5d0951-3b77-4f99-8264-1f5ef9a018f1\\scratchpad",
+  "prompt_id": "93abc727-9962-457d-800b-68a91bdb5cd1",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "NotebookEdit",
+  "tool_input": {
+    "notebook_path": "D:\\tmp\\warrant-probe-4b\\nb.ipynb",
+    "cell_id": "cell-1",
+    "new_source": "print(2)"
+  },
+  "tool_use_id": "toolu_01FtdWJrp9xqV6Q2xpVrm2Ag"
+}

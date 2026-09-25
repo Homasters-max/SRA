@@ -1,0 +1,32 @@
+{
+  "session_id": "6a5d0951-3b77-4f99-8264-1f5ef9a018f1",
+  "transcript_path": "~\\.claude\\projects\\D--tmp-warrant-probe-4b\\6a5d0951-3b77-4f99-8264-1f5ef9a018f1.jsonl",
+  "cwd": "D:\\tmp\\warrant-probe-4b",
+  "scratchpad_dir": "~\\AppData\\Local\\Temp\\claude\\D--tmp-warrant-probe-4b\\6a5d0951-3b77-4f99-8264-1f5ef9a018f1\\scratchpad",
+  "prompt_id": "93abc727-9962-457d-800b-68a91bdb5cd1",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "NotebookEdit",
+  "tool_input": {
+    "notebook_path": "D:\\tmp\\warrant-probe-4b\\nb.ipynb",
+    "cell_id": "cell-1",
+    "new_source": "print(2)"
+  },
+  "tool_response": {
+    "new_source": "print(2)",
+    "old_source": "print(1)",
+    "cell_type": "code",
+    "language": "python",
+    "edit_mode": "replace",
+    "cell_id": "cell-1",
+    "error": "",
+    "notebook_path": "D:\\tmp\\warrant-probe-4b\\nb.ipynb",
+    "original_file": "{\n \"cells\": [\n  {\n   \"cell_type\": \"code\",\n   \"execution_count\": null,\n   \"id\": \"cell-1\",\n   \"metadata\": {},\n   \"outputs\": [],\n   \"source\": [\n    \"print(1)\"\n   ]\n  }\n ],\n \"metadata\": {},\n \"nbformat\": 4,\n \"nbformat_minor\": 5\n}\n",
+    "updated_file": "{\n \"cells\": [\n  {\n   \"cell_type\": \"code\",\n   \"execution_count\": null,\n   \"id\": \"cell-1\",\n   \"metadata\": {},\n   \"outputs\": [],\n   \"source\": \"print(2)\"\n  }\n ],\n \"metadata\": {},\n \"nbformat\": 4,\n \"nbformat_minor\": 5\n}"
+  },
+  "tool_use_id": "toolu_01FtdWJrp9xqV6Q2xpVrm2Ag",
+  "duration_ms": 18
+}

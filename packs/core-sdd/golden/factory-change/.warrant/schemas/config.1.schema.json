@@ -148,6 +148,16 @@
         "type": "string",
         "minLength": 1
       }
+    },
+    "frontends": {
+      "description": "Frontends `warrant sync` generates files for (ADR-0034 point 1); when absent no frontend file is touched.",
+      "type": "array",
+      "items": {
+        "description": "Name of a frontend adapter.",
+        "type": "string",
+        "enum": ["claude"]
+      },
+      "uniqueItems": true
     }
   },
   "required": ["$schema", "kernel", "openspec", "packs"],

@@ -81,13 +81,20 @@ function readText(absolute: string): string | undefined {
 
 /**
  * Check (13). `declared` are the ids scanned by check (5); only declarations
- * in `openspec/**` count (records carry UNK/ASM ids, never REQ/SCN).
+ * in `openspec/**` count (records carry UNK/ASM ids, never REQ/SCN). `only`
+ * (absolute paths, under `validate --files`) replaces the walk of `tasks.md`
+ * and `paths.tests`.
  */
-export function checkDangling(root: string, config: WarrantConfig, declared: readonly FoundId[]): CliError[] {
+export function checkDangling(
+  root: string,
+  config: WarrantConfig,
+  declared: readonly FoundId[],
+  only?: readonly string[]
+): CliError[] {
   const known = new Set(declared.filter((f) => f.file.startsWith("openspec/")).map((f) => f.id));
   const errors: CliError[] = [];
   const tasks = activeTaskFiles(root);
-  const files = [...new Set([...tasks, ...testFiles(root, config)])];
+  const files = only ?? [...new Set([...tasks, ...testFiles(root, config)])];
   for (const absolute of files) {
     // A tasks.md is always read; only test files may be skipped as not text.
     const text = tasks.includes(absolute) ? readFileSync(absolute, "utf8") : readText(absolute);

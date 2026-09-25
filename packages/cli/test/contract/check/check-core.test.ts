@@ -10,6 +10,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { acquireLock, lockPath } from "../../../src/core/check/lock.js";
 import { expandArgv, splitPaths } from "../../../src/core/check/placeholders.js";
 import { runCommand } from "../../../src/adapters/check-runner.js";
+import { processSignals } from "../../../src/adapters/signals.js";
 import { WarrantError } from "../../../src/core/errors.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 
@@ -87,11 +88,11 @@ describe("exclusive lock", () => {
 
   it("is taken once, reports its holder while held and is free again after release", () => {
     const file = path.join(temp(), "git", "warrant", "check.lock");
-    const first = acquireLock(file, holder);
+    const first = acquireLock(file, holder, processSignals);
     expect(first.ok).toBe(true);
     expect(JSON.parse(readFileSync(file, "utf8"))).toEqual(holder);
 
-    const second = acquireLock(file, { ...holder, pid: 1, check: "other" });
+    const second = acquireLock(file, { ...holder, pid: 1, check: "other" }, processSignals);
     expect(second).toEqual({ ok: false, holder });
 
     if (!first.ok) throw new Error("unreachable");
@@ -99,7 +100,7 @@ describe("exclusive lock", () => {
     first.release(); // idempotent
     expect(existsSync(file)).toBe(false);
 
-    const third = acquireLock(file, holder);
+    const third = acquireLock(file, holder, processSignals);
     expect(third.ok).toBe(true);
     if (third.ok) third.release();
   });
@@ -107,7 +108,7 @@ describe("exclusive lock", () => {
   it("reports an unreadable holder as null rather than failing", () => {
     const file = path.join(temp(), "check.lock");
     writeFileSync(file, "", "utf8");
-    expect(acquireLock(file, holder)).toEqual({ ok: false, holder: null });
+    expect(acquireLock(file, holder, processSignals)).toEqual({ ok: false, holder: null });
   });
 });
 

@@ -32,7 +32,8 @@ export function record(change: string, state: string, extra: Record<string, unkn
   };
 }
 
-export function validate(root: string): Promise<CliRun> {
+/** `warrant validate` through the binary (e2e); at level `app` — `validate` of `app/helpers/validate.ts`. */
+export function validateCli(root: string): Promise<CliRun> {
   return runCli(["validate"], root, { WARRANT_PACKS_DIR: PACKS });
 }
 

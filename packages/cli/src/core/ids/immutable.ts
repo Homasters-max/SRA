@@ -28,6 +28,7 @@ import path from "node:path";
 
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
+import { toProjectPaths } from "../git/paths.js";
 import { findChangeDir } from "../openspec/changes.js";
 import { IDS_FROZEN_FROM } from "../record/lifecycle.js";
 import { stateOf, type RecordFile } from "../record/read.js";
@@ -157,7 +158,8 @@ export async function checkImmutableIds(ctx: Ctx, records: ReadonlyMap<string, R
   if ((await ctx.git.head()) === null) {
     return { errors: [], skipped: "the repository has no HEAD commit" };
   }
-  const prefix = project === "" ? "" : `${project}/`;
+  /** Repository path of a project path, as `git show` expects it. */
+  const repoPath = (rel: string): string => (project === "" ? rel : `${project}/${rel}`);
 
   const listing = await ctx.git.files("HEAD", ["openspec/specs", "openspec/changes"]);
   if (listing === null) return { errors: [], skipped: "`git ls-tree HEAD` failed" };
@@ -166,12 +168,10 @@ export async function checkImmutableIds(ctx: Ctx, records: ReadonlyMap<string, R
   const counterpart = new Map<string, string>();
   /** Names of the archive directories committed in `HEAD` (I-77). */
   const headArchiveDirs = new Set<string>();
-  for (const full of listing) {
-    if (!full.startsWith(prefix)) continue;
-    const archived = /^openspec\/changes\/archive\/([^/]+)\//.exec(full.slice(prefix.length));
+  for (const rel of toProjectPaths(project, listing)) {
+    const archived = /^openspec\/changes\/archive\/([^/]+)\//.exec(rel);
     if (archived !== null) headArchiveDirs.add(archived[1] as string);
-    if (!full.toLowerCase().endsWith(".md")) continue;
-    const rel = full.slice(prefix.length);
+    if (!rel.toLowerCase().endsWith(".md")) continue;
     if (rel.startsWith("openspec/specs/")) {
       counterpart.set(rel, rel);
       continue;
@@ -188,27 +188,67 @@ export async function checkImmutableIds(ctx: Ctx, records: ReadonlyMap<string, R
     counterpart.set(rel, target);
   }
 
-  const heads = await ctx.git.contents("HEAD", [...counterpart.keys()].map((rel) => `${prefix}${rel}`));
+  const heads = await ctx.git.contents("HEAD", [...counterpart.keys()].map(repoPath));
   const removed = removedByNewArchives(root, headArchiveDirs);
   const errors: CliError[] = [];
   for (const [rel, target] of counterpart) {
-    const before = heads.get(`${prefix}${rel}`);
-    if (before === undefined) continue;
-    const absolute = path.join(root, ...target.split("/"));
-    const after = existsSync(absolute) ? readFileSync(absolute, "utf8") : "";
-    const now = new Set(scanMarkdown(after, target).map((f) => f.id));
-    const names = removed.get(rel);
-    const exempt = names === undefined ? new Set<string>() : requirementBlockIds(before, rel, names);
-    const gone = [...new Set(scanMarkdown(before, rel).map((f) => f.id))]
-      .filter((id) => !now.has(id) && !exempt.has(id))
-      .sort();
-    for (const id of gone) {
-      errors.push({
-        code: "ID_IMMUTABLE",
-        message: `${id} is declared in HEAD:${rel} and is changed or removed in the working tree; stable ids are immutable (ADR-0019 point 1c)`,
-        path: target
-      });
-    }
+    const before = heads.get(repoPath(rel));
+    if (before !== undefined) errors.push(...goneIds(root, rel, target, before, removed));
   }
   return { errors, skipped: undefined };
+}
+
+/** `ID_IMMUTABLE` for each id of `before` (`HEAD:<rel>`) missing from the working-tree file `target`. */
+function goneIds(
+  root: string,
+  rel: string,
+  target: string,
+  before: string,
+  removed: ReadonlyMap<string, Set<string>>
+): CliError[] {
+  const absolute = path.join(root, ...target.split("/"));
+  const after = existsSync(absolute) ? readFileSync(absolute, "utf8") : "";
+  const now = new Set(scanMarkdown(after, target).map((f) => f.id));
+  const names = removed.get(rel);
+  const exempt = names === undefined ? new Set<string>() : requirementBlockIds(before, rel, names);
+  return [...new Set(scanMarkdown(before, rel).map((f) => f.id))]
+    .filter((id) => !now.has(id) && !exempt.has(id))
+    .sort()
+    .map((id) => ({
+      code: "ID_IMMUTABLE",
+      message: `${id} is declared in HEAD:${rel} and is changed or removed in the working tree; stable ids are immutable (ADR-0019 point 1c)`,
+      path: target
+    }));
+}
+
+/**
+ * Check (9) under `validate --files` (REQ-KRN-032): the project paths `files`
+ * in the scope of the check, each against its own `HEAD` version. The one
+ * child process is the `contents` call — `HEAD:./<path>`, relative to the
+ * project, so neither the prefix nor `ls-tree` is asked (ADR-0019 point 6).
+ * Without the `HEAD` listing the new archive directories are not known:
+ * every archive directory counts for the exemption of I-77 (I-159). Outside
+ * git or before the first commit `contents` answers nothing — no finding.
+ */
+export async function checkImmutableFiles(
+  ctx: Pick<Ctx, "root" | "git">,
+  records: ReadonlyMap<string, RecordFile>,
+  files: readonly string[]
+): Promise<CliError[]> {
+  const inScope = files.filter((rel) => {
+    if (rel.startsWith("openspec/specs/")) return true;
+    const m = /^openspec\/changes\/([^/]+)\//.exec(rel);
+    return m !== null && m[1] !== "archive" && IDS_FROZEN_FROM.has(stateOf(records.get(m[1] as string)) ?? "");
+  });
+  if (inScope.length === 0) return [];
+  const heads = await ctx.git.contents("HEAD", inScope.map((rel) => `./${rel}`));
+  const removed = inScope.some((rel) => rel.startsWith("openspec/specs/"))
+    ? removedByNewArchives(ctx.root, new Set())
+    : new Map<string, Set<string>>();
+  const errors: CliError[] = [];
+  for (const rel of inScope) {
+    const before = heads.get(`./${rel}`);
+    if (before !== undefined) errors.push(...goneIds(ctx.root, rel, rel, before, removed));
+  }
+  return errors;
 }

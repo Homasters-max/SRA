@@ -16,11 +16,13 @@
     { "id": "core/evidence", "path": "core/evidence", "rank": 1 },
     { "id": "core/ids", "path": "core/ids", "rank": 1 },
     { "id": "core/init", "path": "core/init", "rank": 1 },
+    { "id": "core/git", "path": "core/git", "rank": 1 },
     { "id": "core/resolve", "path": "core/resolve", "rank": 2 },
     { "id": "core/classify", "path": "core/classify", "rank": 2 },
     { "id": "core/waivers", "path": "core/waivers", "rank": 2 },
     { "id": "core/roles", "path": "core/roles.ts", "rank": 2 },
-    { "id": "core/git", "path": "core/git", "rank": 2 },
+    { "id": "core/run", "path": "core/run", "rank": 2 },
+    { "id": "core/liveness", "path": "core/liveness", "rank": 2 },
     { "id": "core/gates", "path": "core/gates", "rank": 3 },
     { "id": "core/controller", "path": "core/controller", "rank": 3 },
     { "id": "core/check", "path": "core/check", "rank": 3 },
@@ -28,6 +30,7 @@
     { "id": "core/sync", "path": "core/sync", "rank": 3 },
     { "id": "core/status", "path": "core/status", "rank": 3 },
     { "id": "core/transition", "path": "core/transition", "rank": 4 },
+    { "id": "core/guard", "path": "core/guard", "rank": 4 },
     { "id": "commands", "path": "commands", "layer": "commands" },
     { "id": "io", "path": "io", "layer": "io" },
     { "id": "bin", "path": "bin", "layer": "bin" },
@@ -37,13 +40,14 @@
     "commands": ["rank:*", "io", "version.ts"],
     "io": ["core"],
     "bin": ["commands", "adapters", "core/ports", "core", "io", "version.ts"],
-    "adapters": ["core/ports", "core"]
+    "adapters": ["core/ports", "core", "core/json"]
   },
   "no_sibling_imports": { "commands": ["commands/context.ts"] },
   "helpers": [
     { "name": "isPlainObject", "owner": "core/json.ts" },
     { "name": "strings", "owner": "core/json.ts" },
     { "name": "posix", "owner": "core/fs.ts" },
+    { "name": "projectPath", "owner": "core/fs.ts" },
     { "name": "reportPath", "owner": "core/fs.ts" },
     { "name": "walkFiles", "owner": "core/fs.ts" },
     { "name": "readJson", "owner": "core/fs.ts" },
@@ -64,7 +68,15 @@
     "root": "packages/cli/test",
     "helpers": [
       { "name": "write", "owner": "helpers/synced.ts" },
-      { "name": "git", "owner": "helpers/git.ts" }
+      { "name": "git", "owner": "helpers/git.ts" },
+      { "name": "validate", "owner": "app/helpers/validate.ts" },
+      { "name": "validateErrors", "owner": "app/helpers/validate.ts" },
+      { "name": "errorCodes", "owner": "app/helpers/validate.ts" },
+      { "name": "withoutDryRun", "owner": "app/helpers/dry-run.ts" },
+      { "name": "writtenBeyond", "owner": "app/helpers/dry-run.ts" },
+      { "name": "recordedVersions", "owner": "helpers/claude-hooks.ts" },
+      { "name": "recordedHook", "owner": "helpers/claude-hooks.ts" },
+      { "name": "recordedInputIn", "owner": "helpers/claude-hooks.ts" }
     ]
   },
   "enums": [
@@ -74,9 +86,10 @@
     { "id": "controller-action", "owner": "core/controller/evaluate.ts", "doc": "docs/02-vocabulary.md", "values": ["CONTINUE", "WAIT", "STOP", "ESCALATE"] },
     { "id": "risk-level", "owner": "core/resolve/types.ts", "doc": "docs/05-policy.md", "values": ["LOW", "MEDIUM", "HIGH"] },
     { "id": "id-prefix", "owner": "core/ids/scan.ts", "doc": "docs/02-vocabulary.md", "values": ["REQ", "SCN", "TASK", "ADR", "DCT", "UNK", "ASM", "EVID", "RUN", "WAV"] },
-    { "id": "waiver-state", "owner": "core/waivers/status.ts", "doc": "docs/02-vocabulary.md", "values": ["PROPOSED", "ACTIVE", "EXPIRED", "REVOKED"] }
+    { "id": "waiver-state", "owner": "core/waivers/status.ts", "doc": "docs/02-vocabulary.md", "values": ["PROPOSED", "ACTIVE", "EXPIRED", "REVOKED"] },
+    { "id": "run-state", "owner": "core/run/types.ts", "doc": "docs/02-vocabulary.md", "values": ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"] },
+    { "id": "run-operation", "owner": "core/run/types.ts", "doc": "docs/04-lifecycle.md", "values": ["specify", "implement"] },
+    { "id": "guard-decision", "owner": "core/ports/frontend.ts", "doc": "docs/04-lifecycle.md", "values": ["allow", "deny"] }
   ],
-  "exceptions": [
-    { "id": "A-12", "rule": "rank", "from": "adapters/check-runner.ts", "to": "core/check/interrupt.ts" }
-  ]
+  "exceptions": []
 }

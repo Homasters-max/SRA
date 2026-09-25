@@ -26,6 +26,11 @@
  *
  * `ARCHIVED` is entered only through `warrant archive`, which moves the
  * directory first. There is no `--force`.
+ *
+ * `--dry-run` (REQ-KRN-034): the same checks, gates and JSON, with
+ * `data.dry_run` and `data.would_write[]`; the record, the `human-approval`
+ * record and the manifest are not written — the gates judge the approval
+ * record as built — and the directory of an `ABANDONED` Change stays.
  */
 import { rmSync } from "node:fs";
 import path from "node:path";
@@ -59,8 +64,9 @@ import { decisionFields, evaluationFindings, gateDefinitions, type Evaluation } 
 import { evidenceOf, forwardEntry, gatesNotPassed, gatesNotPassedRefusal, RECORDED_BY } from "../core/transition/outcome.js";
 import { readWaivers } from "../core/waivers/read.js";
 import { countingWaiverIds } from "../core/waivers/status.js";
+import type { PendingRecord } from "../core/evidence/store.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { requireConfigPath } from "./context.js";
+import { requireConfigPath, withDryRun } from "./context.js";
 
 export interface TransitionOptions {
   /** `--ref <url>`: the forge artefact of the act (review, CI run); required for `APPROVED` and `MERGED`. */
@@ -91,8 +97,9 @@ function gateFields(evaluation: Evaluation): Record<string, unknown> {
 
 /** `COMMIT_NOT_MERGED` unless `sha` is the head of a merged impl-PR (review of phase 3, R-1). */
 async function assertMergedHead(ctx: Ctx, sha: string, source: string): Promise<void> {
-  const reason = await notMergedHeadReason(ctx, sha);
-  if (reason !== null) throw new WarrantError("COMMIT_NOT_MERGED", `${source}: ${reason}`);
+  const refused = await notMergedHeadReason(ctx, sha);
+  if (refused === null) return;
+  throw new WarrantError("COMMIT_NOT_MERGED", `${source}: ${refused.reason}`, refused.hint === undefined ? {} : { hint: refused.hint });
 }
 
 /**
@@ -115,7 +122,7 @@ async function mergedCommit(ctx: Ctx, change: string, env: NodeJS.ProcessEnv, re
   const subject = isPlainObject(latest?.json["subject"]) ? latest.json["subject"] : undefined;
   const commit = typeof subject?.["commit"] === "string" ? subject["commit"] : undefined;
   if (latest === undefined || commit === undefined) {
-    throw new WarrantError("USAGE", `no evidence of "${change}" names a commit; pass --commit <sha>`);
+    throw new WarrantError("USAGE", `no evidence of "${change}" names a commit`, { hint: "pass --commit <sha>" });
   }
   const sha = await resolveCommit(ctx, commit);
   if (sha === null || !(await isAncestor(ctx, sha, "HEAD"))) {
@@ -145,7 +152,7 @@ interface ApprovalParams {
  * §10): an existing one the pre-filter still admits — same commit and base,
  * same login and ref — is reused; otherwise a new one is written.
  */
-async function ensureApproval(params: ApprovalParams): Promise<{ evidence: string; reused: boolean }> {
+async function ensureApproval(params: ApprovalParams): Promise<{ evidence: string; reused: boolean; record?: PendingRecord }> {
   const { ctx, change, env, git, login, ref } = params;
   const { root } = ctx;
   const definitions = gateDefinitions(params.loaded);
@@ -207,6 +214,7 @@ async function ensureApproval(params: ApprovalParams): Promise<{ evidence: strin
   };
   storeRecord({
     root,
+    writes: ctx.writes,
     change,
     env,
     record,
@@ -214,7 +222,7 @@ async function ensureApproval(params: ApprovalParams): Promise<{ evidence: strin
     versions: await manifestVersions(ctx, params.policy.hash),
     what: `${HUMAN_APPROVAL} by ${login}`
   });
-  return { evidence: id, reused: false };
+  return { evidence: id, reused: false, record: { id, json: record } };
 }
 
 /** A ref without one trailing `/`: `…/runs/1/` and `…/runs/1` name the same run. */
@@ -251,6 +259,16 @@ export async function runTransition(
   opts: TransitionOptions = {},
   env: NodeJS.ProcessEnv = process.env
 ): Promise<CommandResult> {
+  return withDryRun(ctx, () => recordTransition(ctx, change, target, opts, env));
+}
+
+async function recordTransition(
+  ctx: Ctx,
+  change: string,
+  target: string,
+  opts: TransitionOptions,
+  env: NodeJS.ProcessEnv
+): Promise<CommandResult> {
   const { root, warn } = ctx;
   requireConfigPath(root);
   if (!isChangeState(target)) throw new WarrantError("USAGE", `${JSON.stringify(target)} is not a change_state`);
@@ -278,13 +296,13 @@ export async function runTransition(
   if (kind === "backward" || kind === "abandon") {
     if (opts.by !== undefined) warn(`transition: --by is ignored on ${transition}: it has no gates\n`);
     const entry: TransitionEntry = { to: target, at: new Date().toISOString(), by: RECORDED_BY, ...refPart };
-    appendTransition(root, change, record, entry);
+    appendTransition(ctx, change, record, entry);
     const data: Record<string, unknown> = { transition, change_state: target, recorded: entry };
     if (kind === "abandon") {
       // Record first, then the directory (design §10).
       const location = findChangeDir(root, change);
       const removed = location?.where === "active" ? location.path : null;
-      rmSync(path.join(root, "openspec", "changes", change), { recursive: true, force: true });
+      if (removed !== null) ctx.writes.write(removed, () => rmSync(path.join(root, removed), { recursive: true, force: true }));
       data["removed"] = removed;
     }
     return success(data, change);
@@ -328,6 +346,7 @@ async function forward(params: ForwardParams): Promise<CommandResult> {
   }
 
   // The human act comes first and stays, whatever the gates say (design §10).
+  const pending: PendingRecord[] = [];
   if ((policy.gates[transition] ?? []).includes(HUMAN_APPROVAL)) {
     if (opts.by === undefined) {
       throw new WarrantError("USAGE", `${transition} has gate ${HUMAN_APPROVAL}: pass --by <login> and --ref <url> of the review`);
@@ -343,12 +362,14 @@ async function forward(params: ForwardParams): Promise<CommandResult> {
         { path: ".warrant/warrant.json" }
       );
     }
-    data["approval"] = await ensureApproval({ ctx, change, env, loaded, policy, transition, git, login: opts.by, ref: opts.ref });
+    const approval = await ensureApproval({ ctx, change, env, loaded, policy, transition, git, login: opts.by, ref: opts.ref });
+    data["approval"] = { evidence: approval.evidence, reused: approval.reused };
+    if (approval.record !== undefined) pending.push(approval.record);
   } else if (opts.by !== undefined) {
     warn(`transition: --by is ignored: ${transition} has no gate ${HUMAN_APPROVAL} in the effective policy\n`);
   }
 
-  const evaluation = await judgeGates(ctx, change, prepared, git, undefined);
+  const evaluation = await judgeGates(ctx, change, prepared, git, undefined, pending);
   Object.assign(data, gateFields(evaluation));
 
   const failed = gatesNotPassed(evaluation.engine.gates);
@@ -359,6 +380,6 @@ async function forward(params: ForwardParams): Promise<CommandResult> {
   if (target === "MERGED" && opts.ref !== undefined) assertRunRef(root, change, env, evaluation, opts.ref);
 
   const entry = forwardEntry(target, policy, evaluation, opts.ref);
-  appendTransition(root, change, record, entry);
+  appendTransition(ctx, change, record, entry);
   return success({ ...data, change_state: target, recorded: entry }, change);
 }

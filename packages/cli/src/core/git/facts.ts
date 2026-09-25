@@ -172,7 +172,8 @@ export function parentsOf(ctx: GitCtx, commit: string): Promise<string[]> {
 }
 
 /**
- * Why `commit` is not the head of a merged impl-PR, or null when it is
+ * Why `commit` is not the head of a merged impl-PR (`reason`, and `hint` when
+ * there is a fix), or null when it is
  * (review of phase 3, R-1). The gates of `MERGED` judge `base...commit` only,
  * so the commit must be the last one of the impl-PR: a parent other than the
  * first of the merge commit that brought it into the first-parent line of
@@ -180,15 +181,25 @@ export function parentsOf(ctx: GitCtx, commit: string): Promise<string[]> {
  * a commit on the line itself (fast-forward, a commit of the base branch)
  * has no PR boundary at all.
  */
-export async function notMergedHeadReason(ctx: GitCtx, commit: string, of = "HEAD"): Promise<string | null> {
+export async function notMergedHeadReason(
+  ctx: GitCtx,
+  commit: string,
+  of = "HEAD"
+): Promise<{ reason: string; hint?: string } | null> {
   const merge = await mergeCommitOf(ctx, commit, of);
-  if (merge === null) return `commit ${commit} is not on the first-parent line of ${of}`;
+  if (merge === null) return { reason: `commit ${commit} is not on the first-parent line of ${of}` };
   if (merge === commit) {
-    return `commit ${commit} lies on the first-parent line of ${of} itself (a fast-forward or a commit of the base branch), not on a merged impl-PR: merge the impl-PR with a merge commit`;
+    return {
+      reason: `commit ${commit} lies on the first-parent line of ${of} itself (a fast-forward or a commit of the base branch), not on a merged impl-PR`,
+      hint: "merge the impl-PR with a merge commit"
+    };
   }
   const heads = (await parentsOf(ctx, merge)).slice(1);
   if (heads.includes(commit)) return null;
-  return `commit ${commit} is not the head of the impl-PR merged by ${merge} (head ${heads.join(", ") || "unknown"}): the commits after it would go unjudged; take the evidence of the CI run on the head and pass --commit <head>`;
+  return {
+    reason: `commit ${commit} is not the head of the impl-PR merged by ${merge} (head ${heads.join(", ") || "unknown"}): the commits after it would go unjudged`,
+    hint: "take the evidence of the CI run on the head and pass --commit <head>"
+  };
 }
 
 /**

@@ -49,6 +49,9 @@ export const LINKABLE_STATES: readonly ChangeState[] = ["PROPOSED", "SPECIFIED"]
 /** States a Change must be in to stand in `amends[]` of another (ADR-0021 point 5). */
 export const AMENDS_TARGET_STATES: readonly ChangeState[] = ["MERGED", "ARCHIVED"];
 
+/** States in which `status` reports `FRONTEND_HOOKS_INACTIVE`: `IMPLEMENTING` and later (REQ-VER-009). */
+export const HOOKS_LIVENESS_STATES: readonly ChangeState[] = ["IMPLEMENTING", "VERIFYING", "MERGED", "ARCHIVED"];
+
 /** States whose transition needs `--ref` (P-6). */
 export const REF_REQUIRED_STATES: readonly ChangeState[] = ["APPROVED", "MERGED"];
 

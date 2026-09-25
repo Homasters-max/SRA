@@ -226,7 +226,7 @@ export function dedupeErrors(errors: CliError[]): CliError[] {
   const seen = new Set<string>();
   const out: CliError[] = [];
   for (const e of errors) {
-    const k = `${e.code} ${e.path ?? ""} ${e.message}`;
+    const k = `${e.code}\u0000${e.path ?? ""}\u0000${e.message}`;
     if (seen.has(k)) continue;
     seen.add(k);
     out.push(e);

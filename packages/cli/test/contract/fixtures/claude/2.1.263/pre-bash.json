@@ -1,0 +1,18 @@
+{
+  "session_id": "f02bbdf5-59c8-4548-95de-724d6b9cf181",
+  "transcript_path": "~\\.claude\\projects\\D--tmp-warrant-probe\\f02bbdf5-59c8-4548-95de-724d6b9cf181.jsonl",
+  "cwd": "D:\\tmp\\warrant-probe",
+  "scratchpad_dir": "~\\AppData\\Local\\Temp\\claude\\D--tmp-warrant-probe\\f02bbdf5-59c8-4548-95de-724d6b9cf181\\scratchpad",
+  "prompt_id": "008a45c8-e2c4-4672-b114-b780bccf7e1b",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "echo probe-bash",
+    "description": "Echo probe-bash"
+  },
+  "tool_use_id": "toolu_01NgwCdwrfh7SpuzjJxoziWC"
+}

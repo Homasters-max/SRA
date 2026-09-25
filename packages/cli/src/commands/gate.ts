@@ -7,8 +7,9 @@
  * next forward one from `change_state`) and the controller over them, and
  * prints `data.transition`, `data.gates`, `data.findings[]`,
  * `data.controller_action`, `data.next`? and `data.rule`. The exit code is the
- * controller's: CONTINUE 0, STOP 1, WAIT and ESCALATE 2.
- *
+ * controller's: CONTINUE 0, STOP 1, WAIT and ESCALATE 2. On `VERIFYING->MERGED`
+ * `data.findings[]` also names `FRONTEND_HOOKS_INACTIVE` (REQ-VER-009), which
+ * changes neither the verdicts nor the exit code.
  *
  * The steps live in `core/transition/` and are shared with `verify`,
  * `archive`, `transition` and `status`: git and OpenSpec are only ever reached
@@ -17,8 +18,9 @@
 import { exitCodeOf } from "../core/controller/evaluate.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT } from "../core/errors.js";
+import { MERGE_TRANSITION } from "../core/gates/types.js";
 import { evaluate } from "../core/transition/evaluate.js";
-import { decisionFields, gateData } from "../core/transition/gates.js";
+import { decisionFields, gateData, hooksFindings } from "../core/transition/gates.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath } from "./context.js";
 
@@ -45,7 +47,8 @@ export async function runGate(
   }
   const { evaluation } = evaluated;
 
-  const data = gateData(evaluation);
+  const hooks = evaluation.transition === MERGE_TRANSITION ? hooksFindings(ctx, change, evaluation, evaluated.loaded.config, env) : [];
+  const data = gateData(evaluation, hooks);
   const exitCode = exitCodeOf(evaluation.decision.controller_action);
   return exitCode === EXIT.OK ? success(data, change) : failures([], exitCode, data, change);
 }

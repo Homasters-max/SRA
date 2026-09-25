@@ -15,6 +15,7 @@ export const ERROR_CODES = [
   "OVERRIDE_WEAKENS",
   "LOCK_MISMATCH",
   "GENERATED_DRIFT",
+  "GENERATED_TOO_LARGE",
   "OPENSPEC_SCHEMA_INVALID",
   "RULES_ARTIFACT_UNKNOWN",
   "ID_FORMAT",
@@ -48,24 +49,46 @@ export const ERROR_CODES = [
   "COMMIT_NOT_MERGED",
   "REF_MISMATCH",
   "BELOW_FLOOR",
+  "RUN_ACTIVE",
+  "RUN_NOT_ACTIVE",
   "INTERNAL"
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
-/** One entry of `errors[]` in the envelope. `path` is a file path or a JSON Pointer. */
+/**
+ * One entry of `errors[]` in the envelope. `path` is a file path or a JSON Pointer;
+ * `message` says what is wrong, `hint` — the command or action that fixes it
+ * (REQ-KRN-002, ADR-0034 п. 8). The fix text is never repeated in `message`.
+ */
 export interface CliError {
   code: ErrorCode;
   message: string;
   path?: string;
+  hint?: string;
+}
+
+/** `hint` of errors fixed by regenerating the lock and the generated files. */
+export const SYNC_HINT = "run `warrant sync`";
+
+/** `hint` of errors fixed by rewriting files in canonical form. */
+export const FMT_HINT = "run `warrant fmt`";
+
+/** Options of an `errors[]` entry: where it is and how to fix it. */
+export interface ErrorOptions {
+  path?: string;
+  hint?: string;
 }
 
 /**
- * The one factory of an `errors[]` entry (A-17): the key `path` is present only
- * when given, keys in the order `code`, `message`, `path`.
+ * The one factory of an `errors[]` entry (A-17): the keys `path` and `hint` are
+ * present only when given, keys in the order `code`, `message`, `path`, `hint`.
  */
-export function cliError(code: ErrorCode, message: string, options: { path?: string } = {}): CliError {
-  return options.path === undefined ? { code, message } : { code, message, path: options.path };
+export function cliError(code: ErrorCode, message: string, options: ErrorOptions = {}): CliError {
+  const error: CliError = { code, message };
+  if (options.path !== undefined) error.path = options.path;
+  if (options.hint !== undefined) error.hint = options.hint;
+  return error;
 }
 
 /** Exit codes per REQ-KRN-003. */
@@ -85,20 +108,23 @@ export type ExitCode = (typeof EXIT)[keyof typeof EXIT];
 export class WarrantError extends Error {
   readonly code: ErrorCode;
   readonly path: string | undefined;
+  readonly hint: string | undefined;
   readonly exitCode: ExitCode;
 
-  constructor(code: ErrorCode, message: string, options: { path?: string; exitCode?: ExitCode } = {}) {
+  constructor(code: ErrorCode, message: string, options: ErrorOptions & { exitCode?: ExitCode } = {}) {
     super(message);
     this.name = "WarrantError";
     this.code = code;
     this.path = options.path;
+    this.hint = options.hint;
     this.exitCode = options.exitCode ?? EXIT.CONFIG;
   }
 
   toCliError(): CliError {
-    return this.path === undefined
-      ? { code: this.code, message: this.message }
-      : { code: this.code, message: this.message, path: this.path };
+    const options: ErrorOptions = {};
+    if (this.path !== undefined) options.path = this.path;
+    if (this.hint !== undefined) options.hint = this.hint;
+    return cliError(this.code, this.message, options);
   }
 }
 

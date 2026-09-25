@@ -28,7 +28,8 @@ export const DOCUMENT_SCHEMAS = [
   "openspec-rules",
   "openspec-schema",
   "waiver",
-  "rule"
+  "rule",
+  "run"
 ] as const;
 
 export type DocumentSchemaName = (typeof DOCUMENT_SCHEMAS)[number];

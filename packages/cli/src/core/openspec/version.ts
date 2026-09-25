@@ -27,8 +27,8 @@ export async function requireOpenspec(openspec: OpenSpecPort, config: WarrantCon
   if (version === null) {
     throw new WarrantError(
       "OPENSPEC_FAILED",
-      "`openspec` is required but was not found on PATH; install it (see docs/08-packs.md) and retry",
-      { path: ".warrant/warrant.json#/openspec" }
+      "`openspec` is required but was not found on PATH",
+      { path: ".warrant/warrant.json#/openspec", hint: "install it (see docs/08-packs.md) and retry" }
     );
   }
   const range = config.openspec;

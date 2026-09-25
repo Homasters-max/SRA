@@ -7,25 +7,17 @@
 import { describe, expect, it } from "vitest";
 
 import { runFmt } from "../../../src/commands/fmt.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import type { CliError } from "../../../src/core/errors.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { deltaSpecMarkdown, type ModelRequirement } from "../helpers/fakes/spec-model.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { errorCodes, validate } from "../helpers/validate.js";
 
 const project = useProjectBuilder();
 
 function synced(): Promise<ProjectBuilder> {
   return project().synced();
-}
-
-function validate(p: ProjectBuilder): Promise<CommandResult> {
-  return invoke(() => runValidate(p.ctx));
-}
-
-function codes(run: CommandResult): string[] {
-  return run.errors.map((e) => e.code);
 }
 
 function findError(run: CommandResult, code: string): CliError | undefined {
@@ -43,7 +35,7 @@ describe("warrant validate (8): path rules", () => {
     });
     const bad = await validate(p);
     expect(bad.exitCode).toBe(3);
-    expect(codes(bad)).toEqual(["RULE_SCOPE"]);
+    expect(errorCodes(bad)).toEqual(["RULE_SCOPE"]);
     expect(findError(bad, "RULE_SCOPE")?.path).toContain(".warrant/local/rules/spec-style.json");
 
     p.write(".warrant/local/rules/spec-style.json", {
@@ -52,6 +44,8 @@ describe("warrant validate (8): path rules", () => {
       paths: ["**"],
       text: "Specs are written in the imperative."
     });
+    // A rule on ** is delivered through AGENTS.md, which `sync` generates (REQ-KRN-033).
+    await p.synced();
     const good = await validate(p);
     expect(good.errors).toEqual([]);
     expect(good.exitCode).toBe(0);
@@ -77,7 +71,7 @@ describe("warrant validate (10): targets of amends and supersedes", () => {
     p.withRecord("add-search", "SPECIFIED").withRecord("fix-search", "PROPOSED", { amends: ["add-search"] });
     const run = await validate(p);
     expect(run.exitCode).toBe(3);
-    expect(codes(run)).toEqual(["LINK_TARGET_INVALID"]);
+    expect(errorCodes(run)).toEqual(["LINK_TARGET_INVALID"]);
     expect(findError(run, "LINK_TARGET_INVALID")?.path).toBe(".warrant/changes/fix-search.json#/amends/0");
 
     p.withRecord("add-search", "MERGED");
@@ -125,7 +119,7 @@ describe("warrant validate (11): waivers", () => {
     ]);
     expect(found[0]?.message).toContain("not waivable");
     expect(found[1]?.message).toContain("human:bob");
-    expect(codes(run)).toEqual(["WAIVER_INVALID", "WAIVER_INVALID"]);
+    expect(errorCodes(run)).toEqual(["WAIVER_INVALID", "WAIVER_INVALID"]);
   });
 
   it("reports a waiver for an unknown change and an unknown gate", async () => {
@@ -164,7 +158,7 @@ describe("warrant validate (11): waivers", () => {
     p.withWaiver({ ...proposed, waiver_state: "ACTIVE" });
     const active = await validate(p);
     expect(active.exitCode).toBe(3);
-    expect(new Set(codes(active))).toEqual(new Set(["SCHEMA_VIOLATION"]));
+    expect(new Set(errorCodes(active))).toEqual(new Set(["SCHEMA_VIOLATION"]));
     expect(active.errors.map((e) => e.path)).toContain(".warrant/waivers/WAV-2026-001.json#/approved_by");
   });
 
@@ -172,7 +166,7 @@ describe("warrant validate (11): waivers", () => {
     const p = await synced();
     p.withRecord("add-search", "IMPLEMENTING").withWaiver(waiver({ targets: [{ path: "src/search.ts" }] }));
     const run = await validate(p);
-    expect(codes(run)).toEqual(["PACK_FORM_UNKNOWN"]);
+    expect(errorCodes(run)).toEqual(["PACK_FORM_UNKNOWN"]);
     expect(findError(run, "PACK_FORM_UNKNOWN")?.path).toBe(".warrant/waivers/WAV-2026-001.json#/targets");
   });
 });
@@ -319,7 +313,7 @@ describe("warrant validate (13): dangling REQ/SCN references", () => {
       .withSpec("search", [SEARCH], "Search behaviour for the tests.");
     const run = await validate(p);
     expect(run.exitCode).toBe(3);
-    expect(codes(run)).toEqual(["ID_DANGLING"]);
+    expect(errorCodes(run)).toEqual(["ID_DANGLING"]);
     const found = findError(run, "ID_DANGLING");
     expect(found?.path).toBe("openspec/changes/add-search/tasks.md");
     expect(found?.message).toContain("SCN-SRC-042");
@@ -347,6 +341,6 @@ describe("warrant validate (13): dangling REQ/SCN references", () => {
     const dangling = run.errors.filter((e) => e.code === "ID_DANGLING");
     expect(dangling.map((e) => `${e.path ?? ""} ${e.message.split(" ")[0] ?? ""}`)).toEqual(["tests/search.test.py REQ-SRC-777"]);
     expect(dangling[0]?.message).toContain("line 3");
-    expect(codes(run)).toEqual(["ID_DANGLING"]);
+    expect(errorCodes(run)).toEqual(["ID_DANGLING"]);
   });
 });

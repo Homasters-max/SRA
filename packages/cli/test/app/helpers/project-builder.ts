@@ -21,12 +21,14 @@ import { writeJsonFile } from "../../../src/core/canon/format-json.js";
 import type { Ctx } from "../../../src/core/ctx.js";
 import { packContentHash } from "../../../src/core/packs/hash.js";
 import type { Json } from "../../../src/core/schemas/loader.js";
+import { createWrites } from "../../../src/core/writes.js";
 import { CLI_VERSION } from "../../../src/version.js";
 import { CORE_SDD_RANGE, CORE_SDD_VERSION, REPO_ROOT } from "../../helpers/cli.js";
 import { FakeCheckRunner, type FakeBehaviour } from "./fakes/checks.js";
 import { FakeClock } from "./fakes/clock.js";
 import { FakeGit, type Tree } from "./fakes/git.js";
 import { FakeOpenSpec, OPENSPEC_VERSION } from "./fakes/openspec.js";
+import { FakeSignals } from "./fakes/signals.js";
 import { deltaSpecMarkdown, mainSpecMarkdown, proposalMarkdown, type ModelRequirement } from "./fakes/spec-model.js";
 
 export const PACKS = path.join(REPO_ROOT, "packs");
@@ -77,6 +79,7 @@ export class ProjectBuilder {
   readonly openspec: FakeOpenSpec;
   readonly git: FakeGit;
   readonly checks = new FakeCheckRunner();
+  readonly signals = new FakeSignals();
   /** What the commands wrote to stderr through `ctx.warn`. */
   readonly warnings: string[] = [];
   readonly ctx: Ctx;
@@ -99,6 +102,8 @@ export class ProjectBuilder {
       git: this.git,
       checks: this.checks,
       clock: this.clock,
+      signals: this.signals,
+      writes: createWrites(false),
       warn: (text) => void this.warnings.push(text)
     };
     this.base();
@@ -147,6 +152,33 @@ export class ProjectBuilder {
   remove(rel: string): this {
     rmSync(path.join(this.root, ...rel.split("/")), { recursive: true, force: true });
     return this;
+  }
+
+  /** The `ctx` of `--dry-run`: the same fakes, `writes` collecting instead of writing (REQ-KRN-034). */
+  dryRun(): Ctx {
+    return { ...this.ctx, writes: createWrites(true) };
+  }
+
+  /**
+   * Every directory (`<path>/`) and file of the project, POSIX paths relative to
+   * `root`, files with their bytes in base64: equal before and after a command
+   * that wrote nothing.
+   */
+  tree(): Record<string, string> {
+    const out: Record<string, string> = {};
+    const visit = (rel: string): void => {
+      for (const entry of readdirSync(path.join(this.root, rel), { withFileTypes: true })) {
+        const child = rel === "" ? entry.name : `${rel}/${entry.name}`;
+        if (entry.isDirectory()) {
+          out[`${child}/`] = "";
+          visit(child);
+        } else {
+          out[child] = readFileSync(path.join(this.root, child)).toString("base64");
+        }
+      }
+    };
+    visit("");
+    return out;
   }
 
   /** A Change directory `openspec/changes/<name>/` with its artifacts; `FakeOpenSpec` learns the same. */

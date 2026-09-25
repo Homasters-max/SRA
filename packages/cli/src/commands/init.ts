@@ -15,6 +15,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { writeJsonFile } from "../core/canon/format-json.js";
+import { knownFrontends } from "../core/config.js";
 import type { Ctx } from "../core/ctx.js";
 import { WarrantError } from "../core/errors.js";
 import {
@@ -38,6 +39,25 @@ import { CONFIG_FILE, WARRANT_DIR, requireConfigPath } from "./context.js";
 export interface InitOptions {
   /** `--force`: rewrite the files `init` owns instead of keeping what is there. */
   force?: boolean | undefined;
+  /** `--frontend <name>`: record `frontends: [name]` in the new config (REQ-KRN-033). */
+  frontend?: string | undefined;
+}
+
+/** Values `--frontend` accepts, for `--help` of `init`: the enum of `config/1`, not a list of the kernel. */
+export function initFrontends(): string[] {
+  return knownFrontends();
+}
+
+/** `--frontend` as the `frontends[]` of the config; an unknown name is `USAGE` naming the known ones. */
+function frontendsOf(frontend: string | undefined): string[] {
+  if (frontend === undefined) return [];
+  const known = knownFrontends();
+  if (!known.includes(frontend)) {
+    throw new WarrantError("USAGE", `unknown frontend ${JSON.stringify(frontend)}`, {
+      hint: `pass one of: ${known.map((name) => `--frontend ${name}`).join(", ")}`
+    });
+  }
+  return [frontend];
 }
 
 const CONFIG_REL = `${WARRANT_DIR}/${CONFIG_FILE}`;
@@ -66,13 +86,15 @@ function makeWriter(root: string, force: boolean, created: string[]) {
 export async function runInit(ctx: Ctx, opts: InitOptions = {}): Promise<CommandResult> {
   const { root } = ctx;
   const force = opts.force === true;
+  const frontends = frontendsOf(opts.frontend);
   const configAbs = path.join(root, WARRANT_DIR, CONFIG_FILE);
 
   // Checked first, and without touching `openspec`: a second `init` must fail
   // the same way whether or not the binary is installed (SCN-KRN-053).
   if (existsSync(configAbs) && !force) {
-    throw new WarrantError("ALREADY_INITIALIZED", `${CONFIG_REL} already exists; rerun with --force to rewrite it`, {
-      path: CONFIG_REL
+    throw new WarrantError("ALREADY_INITIALIZED", `${CONFIG_REL} already exists`, {
+      path: CONFIG_REL,
+      hint: "rerun with --force to rewrite it"
     });
   }
 
@@ -82,8 +104,8 @@ export async function runInit(ctx: Ctx, opts: InitOptions = {}): Promise<Command
   if (version === null) {
     throw new WarrantError(
       "OPENSPEC_FAILED",
-      "`openspec` is required but was not found on PATH; install it and rerun `warrant init`",
-      { path: CONFIG_REL }
+      "`openspec` is required but was not found on PATH",
+      { path: CONFIG_REL, hint: "install it and rerun `warrant init`" }
     );
   }
   const packVersion = bundledPackVersion(DEFAULT_PACK);
@@ -91,7 +113,7 @@ export async function runInit(ctx: Ctx, opts: InitOptions = {}): Promise<Command
   const created: string[] = [];
   const write = makeWriter(root, force, created);
 
-  write.json(CONFIG_REL, configDocument(KERNEL_VERSION, version, packVersion));
+  write.json(CONFIG_REL, configDocument(KERNEL_VERSION, version, packVersion, frontends));
   write.json(`${WARRANT_DIR}/local/areas.json`, areasDocument());
   write.json(`${WARRANT_DIR}/local/openspec/rules.json`, rulesDocument());
   for (const dir of KEPT_DIRS) write.text(`${WARRANT_DIR}/${dir}/.gitkeep`, "");
@@ -108,8 +130,9 @@ export async function runInit(ctx: Ctx, opts: InitOptions = {}): Promise<Command
   // Schema copies, the OpenSpec files and the lock are `sync`'s files.
   requireConfigPath(root);
   const synced = await applySync(ctx, false);
+  // `.gitignore` can be both `init`'s file and one `sync` merged a line into.
   const data: Record<string, unknown> = {
-    created: [...created, ...((synced.data["changed"] as string[] | undefined) ?? [])],
+    created: [...new Set([...created, ...((synced.data["changed"] as string[] | undefined) ?? [])])],
     sync: synced.data
   };
   if (!synced.ok) return failures(synced.errors, synced.exitCode, data);
@@ -133,8 +156,9 @@ export async function runInitChange(ctx: Ctx, name: string | undefined): Promise
 
   const configYaml = path.join(root, "openspec", "config.yaml");
   if (!existsSync(configYaml)) {
-    throw new WarrantError("CONFIG_INVALID", "openspec/config.yaml not found; run `warrant sync` first", {
-      path: "openspec/config.yaml"
+    throw new WarrantError("CONFIG_INVALID", "openspec/config.yaml not found", {
+      path: "openspec/config.yaml",
+      hint: "run `warrant sync` first"
     });
   }
   const schema = schemaFromConfigYaml(readFileSync(configYaml, "utf8"));
@@ -163,6 +187,13 @@ export async function runInitChange(ctx: Ctx, name: string | undefined): Promise
 export async function runInitCommand(ctx: Ctx, args: string[], opts: InitOptions = {}): Promise<CommandResult> {
   const what = args[0];
   if (what === undefined) return runInit(ctx, opts);
-  if (what === "change") return runInitChange(ctx, args[1]);
-  throw new WarrantError("USAGE", `unknown argument "${what}"; usage: warrant init [change <name>] [--force]`);
+  if (what === "change") {
+    if (opts.frontend !== undefined) {
+      throw new WarrantError("USAGE", "--frontend applies to `warrant init` of a project, not to `init change`", {
+        hint: "run `warrant init change <name>` without --frontend"
+      });
+    }
+    return runInitChange(ctx, args[1]);
+  }
+  throw new WarrantError("USAGE", `unknown argument "${what}"; usage: warrant init [change <name>] [--force] [--frontend <name>]`);
 }

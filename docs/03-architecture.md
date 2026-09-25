@@ -81,10 +81,19 @@ Change: add-customer-search
 
 Change — единица работы и спецификации. Run — одна попытка агента выполнить операцию.
 
-Schema `warrant://run/1` (MVP): `change`, `operation`, `skill` (`namespace/name@version`), `model`, `context_hash`,
-`effective_policy_hash`, `write_scope[]`, `branch`, `started_at`, `finished_at`, `run_state`, `evidence[]`,
-`guard_events[]` (отказы `warrant guard`, [ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md)).
-Активный Run указан в `.warrant/runs/current` — единственный источник `write_scope` для hook.
+Schema `warrant://run/1` (фаза 4a): обязательные `id` (`RUN-<ULID>`), `change`, `operation` (`specify` | `implement`),
+`write_scope[]`, `scope[]` (сужение `--scope`, может быть пустым), `branch`, `started_at`, `run_state`, `context_hash`,
+`effective_policy_hash`, `guard_events[]`; необязательные `task`, `skill` (`namespace/name@version`), `model`,
+`finished_at`, `evidence[]`. Событие `guard_events[]` — каждый вызов `warrant guard` при активном Run: `at`, `phase`
+(`pre` | `post`), `action` (`edit` | `shell` | `other`), `paths[]`, `decision`, `findings[]` (коды), `rules_shown[]` (id
+правил), `reason?`, `argv?` (только `deny` по префиксу check); имени frontend в Run нет
+([ADR-0034](adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 2). Run создаёт `warrant run start <change> --operation <op>`
+(его JSON — Context Pack), закрывает `warrant run finish [--state …]` ([04 §7](04-lifecycle.md)).
+
+Файл Run `<state>/runs/<id>.json` коммитится вместе с работой: `FRONTEND_HOOKS_INACTIVE` сверяет с его событиями diff
+Change ([06](06-verification.md)). Активный Run указан в `<state>/runs/current` (одна строка — id) — единственный источник
+`write_scope` для guard; `current` не коммитится (строку `.warrant/runs/current` в `.gitignore` держит `warrant sync`).
+Активный Run — один на worktree; Run не в `RUNNING` активным не считается.
 Это позволяет оценивать качество самой фабрики.
 
 ## 5. Development ≠ Runtime

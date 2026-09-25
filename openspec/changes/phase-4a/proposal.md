@@ -41,7 +41,7 @@ Change 4a ([ADR-0034](../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п
   `run start`, `run finish` (F12).
 - **Швы**: реестр проверок `validate` (A-9); `projectPath` — владелец «путь проекта» (A-20); помощник `validate` в тестах
   (A-21); NUL в `core/schemas/loader.ts` и мета-тест (A-22); общий замок `check` и Run с `onInterrupt` за портом (A-12).
-- CLI `0.4.3 → 0.5.0` (F20); pack `core-sdd` без изменений.
+- CLI `0.4.3 → 0.5.0` (F20); pack `core-sdd` `0.3.0 → 0.3.1` — только диапазон `kernel: ">=0.1 <0.6"` (I-156).
 
 ## Capabilities
 
@@ -53,6 +53,7 @@ Change 4a ([ADR-0034](../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п
 - `kernel`: REQ-KRN-002 (`errors[].hint`), REQ-KRN-004 (`frontends`); новые требования — `validate --files`, файлы frontend и
   `AGENTS.md` в `sync` / `validate` / `init`, режим `--dry-run`.
 - `verification`: новое требование — живость hooks, finding `FRONTEND_HOOKS_INACTIVE` в `status` и `verify`.
+- `core-sdd`: REQ-SDD-001 — диапазон `kernel` `<0.6` (I-156).
 
 ## Non-Goals
 
@@ -68,7 +69,7 @@ Change 4a ([ADR-0034](../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п
 ## Impact
 
 - `packages/cli/src`: новые `commands/{run,guard}.ts`, `core/run/*` (Run, Context Pack, `write_scope`), `core/guard/*`
-  (решение, события, `guard_prefixes`, hints), `core/hooks/*` (`FRONTEND_HOOKS_INACTIVE`), `adapters/frontend/claude*`,
+  (решение, события, `guard_prefixes`, hints), `core/liveness/*` (`FRONTEND_HOOKS_INACTIVE`), `adapters/frontend/claude*`,
   порт замка; реестр проверок `core/validate/*`; правки `commands/{validate,sync,init,status,verify,gate,transition,archive,
   waive}.ts`, `core/sync/*`, `core/errors.ts` (`hint`), `core/fs.ts` (`projectPath`), `core/schemas/loader.ts`, `bin/warrant.ts`.
 - `packages/cli/schemas/`: `run.1.schema.json` (новая), `config.1.schema.json` (`frontends`) и копии в `.warrant/schemas/`.

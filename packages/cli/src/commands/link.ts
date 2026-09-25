@@ -75,7 +75,7 @@ export function runLink(ctx: Ctx, change: string, opts: LinkOptions = {}): Comma
     // An emptied list is dropped: the field is optional and `[]` says nothing more.
     if (next.length === 0) delete updated[field];
     else updated[field] = next;
-    writeRecord(root, change, record, updated);
+    writeRecord(ctx, change, record, updated);
   }
 
   const written = changed ? next : current;

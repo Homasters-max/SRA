@@ -63,7 +63,8 @@ describe("checkLock", () => {
     const loaded = loadPacks(root);
     const errors = checkLock({ projectRoot: root, config: loaded.config, packs: loaded.packs });
     expect(errors.map((e) => e.code)).toEqual(["LOCK_MISMATCH"]);
-    expect(errors[0]?.message).toMatch(/warrant sync/);
+    expect(errors[0]?.message).toBe("lock file is missing");
+    expect(errors[0]?.hint).toBe("run `warrant sync`");
   });
 
   it("accepts a lock that matches the packs on disk", () => {

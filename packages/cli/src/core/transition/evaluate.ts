@@ -15,6 +15,7 @@ import { splitPaths } from "../check/placeholders.js";
 import type { ControllerDecision } from "../controller/evaluate.js";
 import type { Ctx } from "../ctx.js";
 import { WarrantError, type CliError } from "../errors.js";
+import type { PendingRecord } from "../evidence/store.js";
 import { readGitFacts, type GitFacts } from "../git/facts.js";
 import { loadPacks } from "../packs/loader.js";
 import type { LoadResult, PackObject } from "../packs/types.js";
@@ -103,9 +104,17 @@ export function prepare(ctx: Ctx, change: string, opts: EvaluateOptions): Prepar
 /**
  * Gates and controller on the given git facts, after the checks of `run`
  * (their failures block the gates they feed); the verdicts are written into
- * the manifest of the Change.
+ * the manifest of the Change. The records of `run` and `pending` are judged
+ * with those on disk — under `--dry-run` they were never written.
  */
-export async function judgeGates(ctx: Ctx, change: string, prepared: Prepared, git: GitFacts, run: ChecksRun | undefined): Promise<Evaluation> {
+export async function judgeGates(
+  ctx: Ctx,
+  change: string,
+  prepared: Prepared,
+  git: GitFacts,
+  run: ChecksRun | undefined,
+  pending: PendingRecord[] = []
+): Promise<Evaluation> {
   const evaluation = await evaluateTransition({
     ctx,
     change,
@@ -117,9 +126,10 @@ export async function judgeGates(ctx: Ctx, change: string, prepared: Prepared, g
     artifacts: await artifactStatuses(ctx, change),
     env: prepared.env,
     only: prepared.only,
+    pending: [...(run?.records ?? []), ...pending],
     ...(run === undefined ? {} : { checkFailures: run.failures })
   });
-  recordVerdicts(ctx.root, change, prepared.env, evaluation.engine.gates);
+  recordVerdicts(ctx, change, prepared.env, evaluation.engine.gates);
   return evaluation;
 }
 

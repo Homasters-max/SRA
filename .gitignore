@@ -4,3 +4,4 @@ dist/
 .obsidian/
 .warrant/evidence/**/raw/
 .claude/settings.local.json
+.warrant/runs/current

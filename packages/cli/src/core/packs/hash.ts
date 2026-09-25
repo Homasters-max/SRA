@@ -11,7 +11,7 @@ import path from "node:path";
 
 import { bytesHash, canonicalHash } from "../canon/hash.js";
 import type { WarrantConfig } from "../config.js";
-import { cliError, type CliError } from "../errors.js";
+import { cliError, SYNC_HINT, type CliError } from "../errors.js";
 import { reportPath, walkFiles } from "../fs.js";
 import { isPlainObject } from "../json.js";
 import { validateFile } from "../schemas/semantic.js";
@@ -78,7 +78,7 @@ export function checkLock(input: LockCheckInput): CliError[] {
   const errors: CliError[] = [];
 
   if (!existsSync(absolute)) {
-    return [cliError("LOCK_MISMATCH", "lock file is missing; run `warrant sync`", { path: LOCK_REL })];
+    return [cliError("LOCK_MISMATCH", "lock file is missing", { path: LOCK_REL, hint: SYNC_HINT })];
   }
 
   let json: unknown;
@@ -98,8 +98,8 @@ export function checkLock(input: LockCheckInput): CliError[] {
     errors.push(
       cliError(
         "LOCK_MISMATCH",
-        `lock was written by kernel ${lockKernel || "(absent)"}, this CLI is ${CLI_VERSION}; run \`warrant sync\``,
-        { path: `${LOCK_REL}#/kernel` }
+        `lock was written by kernel ${lockKernel || "(absent)"}, this CLI is ${CLI_VERSION}`,
+        { path: `${LOCK_REL}#/kernel`, hint: SYNC_HINT }
       )
     );
   }
@@ -111,8 +111,8 @@ export function checkLock(input: LockCheckInput): CliError[] {
       errors.push(
         cliError(
           "LOCK_MISMATCH",
-          `pack ${pack.id} is enabled but absent from the lock; run \`warrant sync\``,
-          { path: `${LOCK_REL}#/packs/${pack.id}` }
+          `pack ${pack.id} is enabled but absent from the lock`,
+          { path: `${LOCK_REL}#/packs/${pack.id}`, hint: SYNC_HINT }
         )
       );
       continue;
@@ -131,8 +131,8 @@ export function checkLock(input: LockCheckInput): CliError[] {
       errors.push(
         cliError(
           "LOCK_MISMATCH",
-          `content of pack ${pack.id} does not match the hash in the lock; run \`warrant sync\``,
-          { path: `${LOCK_REL}#/packs/${pack.id}/hash` }
+          `content of pack ${pack.id} does not match the hash in the lock`,
+          { path: `${LOCK_REL}#/packs/${pack.id}/hash`, hint: SYNC_HINT }
         )
       );
     }
@@ -158,8 +158,8 @@ export function checkLock(input: LockCheckInput): CliError[] {
     errors.push(
       cliError(
         "LOCK_MISMATCH",
-        `lock records pack ${id}, which .warrant/warrant.json does not enable; run \`warrant sync\``,
-        { path: `${LOCK_REL}#/packs/${id}` }
+        `lock records pack ${id}, which .warrant/warrant.json does not enable`,
+        { path: `${LOCK_REL}#/packs/${id}`, hint: SYNC_HINT }
       )
     );
   }
@@ -176,8 +176,8 @@ export function checkLock(input: LockCheckInput): CliError[] {
       errors.push(
         cliError(
           "LOCK_MISMATCH",
-          `generated file differs from the hash in the lock; run \`warrant sync\``,
-          { path: `${LOCK_REL}#/generated/${rel}` }
+          "generated file differs from the hash in the lock",
+          { path: `${LOCK_REL}#/generated/${rel}`, hint: SYNC_HINT }
         )
       );
     }
@@ -206,8 +206,8 @@ export function checkLock(input: LockCheckInput): CliError[] {
       errors.push(
         cliError(
           "LOCK_MISMATCH",
-          `content of skill ${name} does not match the hash in the lock; run \`warrant sync\``,
-          { path: bundled ? reportPath(target, projectRoot) : rel }
+          `content of skill ${name} does not match the hash in the lock`,
+          { path: bundled ? reportPath(target, projectRoot) : rel, hint: SYNC_HINT }
         )
       );
     }

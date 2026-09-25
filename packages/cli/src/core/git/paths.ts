@@ -32,14 +32,16 @@ export async function changedFromGit(ctx: Pick<Ctx, "git" | "root">, base: strin
   if (prefix === null) {
     throw new WarrantError(
       "USAGE",
-      `${ctx.root} is not a git repository; pass --paths <file> with one changed path per line`
+      `${ctx.root} is not a git repository`,
+      { hint: "pass --paths <file> with one changed path per line" }
     );
   }
   const diff = await ctx.git.diffNames(base);
   if (!diff.ok) {
     throw new WarrantError(
       "USAGE",
-      `git could not diff "${base}...HEAD": ${diff.detail}; pass an existing ref with --base or use --paths`
+      `git could not diff "${base}...HEAD": ${diff.detail}`,
+      { hint: "pass an existing ref with --base or use --paths" }
     );
   }
   return toProjectPaths(prefix, diff.value);

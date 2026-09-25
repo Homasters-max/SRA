@@ -318,7 +318,7 @@ export class FakeGit implements GitPort {
       const tree = this.treeOf(rev);
       if (tree === null) return out;
       for (const p of paths) {
-        const content = tree.get(p);
+        const content = tree.get(p.startsWith("./") ? this.repoPath(p.slice(2)) : p);
         if (content !== undefined) out.set(p, content.toString("utf8"));
       }
       return out;

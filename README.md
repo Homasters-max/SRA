@@ -39,17 +39,23 @@ npm test
 ## Команды
 
 Реализованы команды фаз 1 (`phase-1-kernel`, REQ-KRN-021…027), 2 (`phase-2-core-sdd`, REQ-KRN-028), 3
-(`phase-3-verification`, REQ-VER-001…008) и 3b (`phase-3b`: `link`, `waive`, `classify --ref`, REQ-KRN-028, 030, 031). Каждая печатает один JSON-объект `{ command, ok, change?, data, errors }`;
-коды выхода `0 / 1 / 2 / 3` ([04 §7](docs/04-lifecycle.md)).
+(`phase-3-verification`, REQ-VER-001…008), 3b (`phase-3b`: `link`, `waive`, `classify --ref`, REQ-KRN-028, 030, 031) и 4a
+(`phase-4a`: `run`, `guard`, адаптер `claude`, `validate --files`, REQ-ENF-001…005, REQ-KRN-032, 033). Каждая печатает один
+JSON-объект `{ command, ok, change?, data, errors }` (ошибка — с `hint`, как исправить); коды выхода `0 / 1 / 2 / 3`
+([04 §7](docs/04-lifecycle.md)). `--dry-run` у `transition`, `archive`, `waive`, `run start`, `run finish` печатает тот же
+JSON с `dry_run: true` и `would_write[]`, ничего не записывая.
 
 | Команда | Что делает |
 |---|---|
-| `warrant init [--force]` | создаёт `.warrant/` (`warrant.json`, `local/areas.json`, `local/openspec/rules.json`, каталоги), затем `sync` |
+| `warrant init [--force] [--frontend claude]` | создаёт `.warrant/` (`warrant.json`, `local/areas.json`, `local/openspec/rules.json`, каталоги), затем `sync`; `--frontend claude` — `frontends: ["claude"]` |
 | `warrant init change <name>` | `openspec new change` + record `.warrant/changes/<name>.json` в `PROPOSED`; имя проверяется по records и archive |
-| `warrant validate` | семь проверок REQ-KRN-021: схемы, lock, packs, generated, ID, секреты, каноничность |
+| `warrant validate [--files <paths>]` | проверки REQ-KRN-021 (схемы, lock, packs, generated, ID, секреты, каноничность, …); `--files` — только проверки одного файла на этих путях, без процессов (REQ-KRN-032) |
+| `warrant run start <change> --operation specify\|implement [--scope <globs>] [--task <label>]` | Run в `RUNNING` (`.warrant/runs/<RUN-id>.json`, коммитится) и `.warrant/runs/current` (не коммитится); `write_scope` по операции; JSON — Context Pack (`rules[]`, `items[]`, `context_hash`) |
+| `warrant run finish [--state SUCCEEDED\|FAILED\|CANCELLED]` | закрывает активный Run, удаляет `current` |
+| `warrant guard [--frontend claude]` | решение hook: `pre` — `deny` вне `write_scope` активного Run, на правку кода без Run и на прямой запуск тяжёлого check; `post` — hints (находки `validate --files`, текст правил); событие — в `guard_events[]` Run. Без `--frontend` — нормализованное событие и конверт; `--frontend claude` — stdin и ответ хука Claude Code, код 2 на неразборчивый вход |
 | `warrant fmt [paths...] [--check]` | каноническая форма JSON (порядок ключей по схеме, LF, отступ 2) |
 | `warrant id <PREFIX> <AREA>` · `id EVID` · `id RUN` · `id WAV` · `id renumber <old> <new> --change <c>` | стабильные ID ([ADR-0012](docs/adr/WARRANT-ADR-0012-id-allocation.md)) |
-| `warrant sync [--check]` | генерирует `openspec/config.yaml` целиком, `openspec/schemas/<schema>/**`, копии схем, lock ([ADR-0015](docs/adr/WARRANT-ADR-0015-openspec-sync-contract.md)) |
+| `warrant sync [--check]` | генерирует `openspec/config.yaml` целиком, `openspec/schemas/<schema>/**`, копии схем, lock ([ADR-0015](docs/adr/WARRANT-ADR-0015-openspec-sync-contract.md)), `AGENTS.md` из правил на `**`; держит строку `.warrant/runs/current` в `.gitignore`; при `frontends ∋ claude` — свои записи `.claude/settings.json` (static deny `Edit(/…)`, `Bash(…)` и hooks `warrant guard --frontend claude`, чужие ключи сохраняются) и `@AGENTS.md` в `CLAUDE.md` |
 | `warrant classify <change> [--base <ref>] [--paths <file>] [--propose <json>]` | classification change'а: floor rules pack'ов по diff (`--base`) или по списку путей (`--paths`), предложения — `--propose`; максимум по каждому измерению, источник каждого значения в `from`, отклонённые предложения — в `ignored[]`; пишет `classification` в record (REQ-KRN-028) |
 | `warrant classify <change> --set <dim>=<value> [--set profile=<id>] --by <login>` | human-источник classification: только повышение или подтверждение (`from: human:<login>`), ниже floor — `BELOW_FLOOR`, login вне `roles` — `ROLE_REQUIRED` |
 | `warrant classify <change> --set <dim>=<value> --by <login> --ref <url>` | понижение ниже floor с approval ([04 §8](docs/04-lifecycle.md)): только в `PROPOSED`/`SPECIFIED` (иначе `STATE_INVALID`), `login` — в роли из `approvals[]` перехода `SPECIFIED->APPROVED` (без них — `maintainer`; иначе `ROLE_REQUIRED`), `--ref` — http(s) URL approval. Значение пишется как `{ value, from: "human:<login>", ref }` и сохраняется следующими `classify` (floor — в `ignored[]` с `approved-below-floor`), пока нет нового `--set` этого измерения. `ref` не верифицируется до `warrant ci` (фаза 4) |

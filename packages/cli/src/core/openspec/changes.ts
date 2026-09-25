@@ -8,6 +8,8 @@
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
+import { posix, walkFiles } from "../fs.js";
+
 /**
  * Directory of a Change under `openspec/changes/`, as a POSIX path relative to
  * the project root, or null when there is none.
@@ -39,4 +41,20 @@ export function findChangeDir(root: string, name: string): ChangeDirLocation | n
   // `auth` collide with an archived `add-auth`.
   const found = entries.find((entry) => entry === name || (ARCHIVE_DATE_RE.test(entry) && entry.slice(11) === name));
   return found === undefined ? null : { where: "archive", path: `openspec/changes/archive/${found}` };
+}
+
+/**
+ * What `openspec archive <name>` changes (REQ-KRN-034, `archive --dry-run`):
+ * the active directory moves to `openspec/changes/archive/<today>-<name>`, and
+ * every delta spec `specs/<capability>/spec.md` of the Change is merged into
+ * `openspec/specs/<capability>/spec.md`.
+ */
+export function archivePlan(root: string, name: string, today: string): { archive: string; targets: string[] } {
+  const active = `openspec/changes/${name}`;
+  const archive = `openspec/changes/archive/${today}-${name}`;
+  const specsDir = path.join(root, "openspec", "changes", name, "specs");
+  const specs = walkFiles(specsDir)
+    .filter((file) => path.basename(file) === "spec.md")
+    .map((file) => `openspec/specs/${posix(path.relative(specsDir, file))}`);
+  return { archive, targets: [active, archive, ...specs] };
 }

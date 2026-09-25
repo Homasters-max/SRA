@@ -18,8 +18,8 @@ import type { ChildProcess } from "node:child_process";
 
 import spawnCjs from "cross-spawn";
 
-import { onInterrupt } from "../core/check/interrupt.js";
 import type { CheckRunnerPort, RunOutcome, RunSpec } from "../core/ports/checks.js";
+import { onInterrupt } from "./signals.js";
 
 // `cross-spawn` is CommonJS with `export =`.
 const spawn = spawnCjs as unknown as typeof import("cross-spawn");

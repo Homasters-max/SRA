@@ -24,7 +24,7 @@ export function transitionOf(record: ChangeRecord, requested: string | undefined
   const state = String(record["change_state"]);
   const next = nextForwardTransition(state);
   if (next === null) {
-    throw new WarrantError("USAGE", `change is ${state}: there is no forward transition to evaluate; pass --transition`);
+    throw new WarrantError("USAGE", `change is ${state}: there is no forward transition to evaluate`, { hint: "pass --transition" });
   }
   return next;
 }

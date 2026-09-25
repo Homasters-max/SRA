@@ -13,7 +13,8 @@ import path from "node:path";
 
 import { WarrantError, type CliError } from "./errors.js";
 import { readJson, walkFiles } from "./fs.js";
-import { isPlainObject } from "./json.js";
+import { isPlainObject, strings } from "./json.js";
+import { readSchemaFile } from "./schemas/loader.js";
 import { validateFile } from "./schemas/semantic.js";
 
 export const CONFIG_REL = path.join(".warrant", "warrant.json");
@@ -34,9 +35,22 @@ export interface WarrantConfig {
   readonly paths: { readonly adr?: string; readonly glossary?: string; readonly tests?: string; readonly src?: string };
   /** Role → logins, without `$comment`. */
   readonly roles: ReadonlyMap<string, readonly string[]>;
+  /** Frontends `warrant sync` generates files for (ADR-0034 п. 1); empty when absent. */
+  readonly frontends: readonly string[];
 }
 
 const PATH_KEYS = ["adr", "glossary", "tests", "src"] as const;
+
+/**
+ * Names `frontends[]` of `config/1` accepts. The schema is their one owner, so
+ * no frontend name is spelled in the kernel (design §9).
+ */
+export function knownFrontends(): string[] {
+  const properties = readSchemaFile("config")["properties"];
+  const frontends = isPlainObject(properties) ? properties["frontends"] : undefined;
+  const items = isPlainObject(frontends) ? frontends["items"] : undefined;
+  return strings(isPlainObject(items) ? items["enum"] : undefined);
+}
 
 function packEntries(packs: unknown): PackEntry[] {
   if (!isPlainObject(packs)) return [];
@@ -83,7 +97,8 @@ function toWarrantConfig(json: Record<string, unknown>): WarrantConfig {
       checkTimeoutS: typeof defaults["check_timeout_s"] === "number" ? defaults["check_timeout_s"] : undefined
     },
     paths: pathEntries(json["paths"]),
-    roles: roleEntries(json["roles"])
+    roles: roleEntries(json["roles"]),
+    frontends: strings(json["frontends"])
   };
 }
 

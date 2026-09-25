@@ -1,7 +1,7 @@
 /**
  * `warrant validate` in the test process: checks (1)–(7) of REQ-KRN-021 on
  * projects built by `ProjectBuilder` (SCN-KRN-005, 007, 043, 044, 045, 046, 048,
- * 078, 079, 080, 082, 094, SCN-SDD-010). Moved from e2e (ADR-0025, task 5.2);
+ * 078, 079, 080, 082, 094, 125, SCN-SDD-010). Moved from e2e (ADR-0025, task 5.2);
  * the parse of argv (`--no-generated`), the exit code of the binary and the
  * envelope as the only stdout stay in `e2e/validate.test.ts`.
  *
@@ -13,7 +13,6 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { runResolve } from "../../../src/commands/resolve.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import type { CliError } from "../../../src/core/errors.js";
 import { packContentHash } from "../../../src/core/packs/hash.js";
 import type { CommandResult } from "../../../src/io/output.js";
@@ -21,6 +20,7 @@ import { CLI_VERSION } from "../../../src/version.js";
 import { CLI_ROOT, CORE_SDD_RANGE, REPO_ROOT } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { validate } from "../helpers/validate.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const CORE_SDD = path.join(REPO_ROOT, "packs", "core-sdd");
@@ -66,10 +66,6 @@ function fixture(packs: Record<string, string>): ProjectBuilder {
         ])
       )
     });
-}
-
-function validate(p: ProjectBuilder): Promise<CommandResult> {
-  return invoke(() => runValidate(p.ctx));
 }
 
 function find(run: CommandResult, code: string): CliError | undefined {
@@ -163,7 +159,8 @@ describe("warrant validate", () => {
     const finding = find(run, "NOT_CANONICAL");
     expect(finding).toBeDefined();
     expect(finding?.path).toBe(".warrant/local/areas.json");
-    expect(finding?.message).toContain("warrant fmt");
+    expect(finding?.message).toBe("file is not in canonical form");
+    expect(finding?.hint).toBe("run `warrant fmt`");
   });
 
   it("reports CONFIG_MISSING before anything else (SCN-KRN-007)", async () => {
@@ -193,9 +190,19 @@ describe("warrant validate", () => {
       {
         code: "LOCK_MISMATCH",
         message: expect.stringContaining("bdd-tdd"),
-        path: ".warrant/warrant.lock.json#/packs/bdd-tdd"
+        path: ".warrant/warrant.lock.json#/packs/bdd-tdd",
+        hint: "run `warrant sync`"
       }
     ]);
+  });
+
+  it("keeps the fix of a missing lock in hint, not in message (SCN-KRN-125)", async () => {
+    const run = await validate(bare({ base: "^1.0" }));
+    const missing = run.errors.filter((e) => e.code === "LOCK_MISMATCH");
+    expect(missing).toEqual([
+      { code: "LOCK_MISMATCH", message: "lock file is missing", path: ".warrant/warrant.lock.json", hint: "run `warrant sync`" }
+    ]);
+    expect(missing[0]?.message).not.toMatch(/\brun\b/);
   });
 });
 

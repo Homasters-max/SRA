@@ -75,6 +75,8 @@ export interface LoadedRule {
   /** Path as reported in errors. */
   path: string;
   paths: string[];
+  /** The rule itself, as shown to the editor of a matched file (Context Pack, hints of `guard`). */
+  text: string;
   enforcedBy: string | undefined;
 }
 

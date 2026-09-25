@@ -31,9 +31,10 @@ export interface CliRun {
  *
  * Asynchronous on purpose: a synchronous child process blocks the vitest
  * worker's event loop, so the reporter RPC (`onTaskUpdate`) times out on the
- * long e2e runs even though every test passes.
+ * long e2e runs even though every test passes. `input`, when given, is the
+ * whole of stdin (`warrant guard`); otherwise stdin stays open and unread.
  */
-export function runCli(args: string[], cwd: string, env: NodeJS.ProcessEnv = {}): Promise<CliRun> {
+export function runCli(args: string[], cwd: string, env: NodeJS.ProcessEnv = {}, input?: string): Promise<CliRun> {
   return new Promise<CliRun>((resolve, reject) => {
     const child = spawn(process.execPath, [BIN, ...args], {
       cwd,
@@ -50,6 +51,7 @@ export function runCli(args: string[], cwd: string, env: NodeJS.ProcessEnv = {})
       stderr += chunk;
     });
     child.on("error", reject);
+    if (input !== undefined) child.stdin.end(input, "utf8");
     child.on("close", (code) => {
       let json: any = undefined;
       if (stdout.trim().length > 0) {

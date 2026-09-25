@@ -66,11 +66,11 @@ SHALL нести `hint`.
 
 `warrant validate --files <paths>` (пути через запятую, [ADR-0019](../../../../docs/adr/WARRANT-ADR-0019-post-edit-hints.md))
 SHALL выполнить только проверки одного файла, применимые к пути, с теми же кодами ошибок, что полный `validate`: (a) JSON
-`.warrant/**` и packs — схема и канонический вид; (b) Markdown `openspec/changes/**` — формат ID, размещение под заголовком,
-AREA из реестра; (c) stable ID изменён или удалён относительно `HEAD` — для `openspec/specs/**` и Change в состоянии
+`.warrant/**` и packs — схема и канонический вид; (b) Markdown `openspec/changes/**` — формат ID и AREA из реестра
+(размещение ID под заголовком — сверка с `openspec show`, только полный `validate`); (c) stable ID изменён или удалён относительно `HEAD` — для `openspec/specs/**` и Change в состоянии
 `APPROVED` и дальше; (d) висячие ссылки REQ / SCN в `tasks.md` и в файлах `paths.tests`; (e) строки, похожие на токены.
 Проверки уровня проекта (lock, hash, drift сгенерированных файлов, сверка с `openspec`) SHALL NOT выполняться. Команда SHALL
-NOT запускать дочерних процессов, кроме `git show HEAD:<path>` для (c). `data{ checked[], skipped[] }`: путь без применимой
+NOT запускать дочерних процессов, кроме одного чтения `HEAD:<path>` через git для (c). `data{ checked[], skipped[] }`: путь без применимой
 проверки, отсутствующий файл и путь вне проекта — в `skipped[]` с `reason` (`no-check`, `missing`, `outside`).
 
 #### Scenario: Неканонический JSON

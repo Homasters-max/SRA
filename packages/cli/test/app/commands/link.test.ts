@@ -10,11 +10,11 @@ import { describe, expect, it } from "vitest";
 
 import { runLink, type LinkOptions } from "../../../src/commands/link.js";
 import { runStatus } from "../../../src/commands/status.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import { canonicalText } from "../../../src/core/canon/format-json.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { validateErrors } from "../helpers/validate.js";
 
 const project = useProjectBuilder();
 
@@ -31,10 +31,6 @@ function link(p: ProjectBuilder, change: string, opts: LinkOptions): Promise<Res
 
 function status(p: ProjectBuilder, change: string): Promise<Result> {
   return invoke(() => runStatus(p.ctx, change, LOCAL));
-}
-
-async function validateErrors(p: ProjectBuilder): Promise<unknown[]> {
-  return (await invoke(() => runValidate(p.ctx))).errors;
 }
 
 function recordText(p: ProjectBuilder, change: string): string {

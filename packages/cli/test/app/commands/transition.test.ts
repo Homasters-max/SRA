@@ -4,7 +4,8 @@
  * `human-approval` by `--ref --by` — SCN-VER-031, 032 — `MERGED` on the
  * commit of CI evidence after a merge — SCN-VER-033, 034 — only on the head of
  * the impl-PR — SCN-VER-050, 051 — and only from the run of `--ref` —
- * SCN-VER-052 — and `ABANDONED` with the freeze of the record — SCN-VER-035.
+ * SCN-VER-052 — `ABANDONED` with the freeze of the record — SCN-VER-035 — and
+ * `--dry-run` — SCN-KRN-135, 136.
  * Moved from e2e (ADR-0025, task 5.1); the parse of argv and the exit code of
  * the binary stay in `e2e/transition.test.ts`.
  *
@@ -23,11 +24,12 @@ import { runClassify } from "../../../src/commands/classify.js";
 import { runGate } from "../../../src/commands/gate.js";
 import { runStatus } from "../../../src/commands/status.js";
 import { runTransition, type TransitionOptions } from "../../../src/commands/transition.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import { runVerify } from "../../../src/commands/verify.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { withoutDryRun, writtenBeyond } from "../helpers/dry-run.js";
+import { validateErrors } from "../helpers/validate.js";
 
 const project = useProjectBuilder();
 
@@ -61,10 +63,6 @@ function check(p: ProjectBuilder, id: string): Promise<Result> {
 
 function verifyMerge(p: ProjectBuilder, env: NodeJS.ProcessEnv): Promise<Result> {
   return invoke(() => runVerify(p.ctx, "add-search", { transition: "VERIFYING->MERGED" }, env));
-}
-
-async function validateErrors(p: ProjectBuilder): Promise<unknown[]> {
-  return (await invoke(() => runValidate(p.ctx))).errors;
 }
 
 function readJson(p: ProjectBuilder, rel: string): any {
@@ -476,5 +474,78 @@ describe("warrant transition", () => {
     expect(classify.errors[0]?.code).toBe("RECORD_FROZEN");
     expect(classify.exitCode).toBe(3);
     expect(p.read(RECORD)).toBe(before);
+  });
+});
+
+describe("warrant transition --dry-run (REQ-KRN-034)", () => {
+  function dry(p: ProjectBuilder, target: string, opts: TransitionOptions = {}): Promise<Result> {
+    return invoke(() => runTransition(p.dryRun(), "add-search", target, opts, LOCAL));
+  }
+
+  it("prints what SPECIFIED would record, writes nothing, and the real run writes only would_write[] (SCN-KRN-135)", async () => {
+    const p = await repo("PROPOSED", FEATURE);
+    expect((await check(p, "openspec-validate")).exitCode).toBe(0);
+    const before = p.tree();
+
+    const run = await dry(p, "SPECIFIED");
+    expect(run.errors).toEqual([]);
+    expect(run.exitCode).toBe(0);
+    expect(run.data["dry_run"]).toBe(true);
+    expect(run.data["would_write"]).toEqual([RECORD, `${EVIDENCE}/manifest.json`]);
+    expect(p.tree()).toEqual(before);
+
+    const real = await transition(p, "SPECIFIED");
+    expect(real.exitCode).toBe(0);
+    expect(real.data["dry_run"]).toBeUndefined();
+    expect(withoutDryRun(run.data)).toEqual(withoutDryRun(real.data));
+    expect(writtenBeyond(before, p.tree(), run.data["would_write"])).toEqual([]);
+  });
+
+  it("refuses with the same error and exit code as the real run when a gate fails (SCN-KRN-136)", async () => {
+    const p = await repo("PROPOSED", FEATURE, (b) => b.withOpenspecValidate(false));
+    expect((await check(p, "openspec-validate")).exitCode).toBe(0);
+    const before = p.tree();
+
+    const run = await dry(p, "SPECIFIED");
+    expect(p.tree()).toEqual(before);
+    const real = await transition(p, "SPECIFIED");
+    expect(run.errors[0]?.code).toBe("GATES_NOT_PASSED");
+    expect(run.errors).toEqual(real.errors);
+    expect(run.exitCode).toBe(real.exitCode);
+    expect(run.data["dry_run"]).toBe(true);
+    expect(withoutDryRun(run.data)).toEqual(withoutDryRun(real.data));
+  });
+
+  it("judges the human-approval record it would write, and writes neither it nor the record", async () => {
+    const p = await repo("SPECIFIED", FEATURE, (b) => waiver(b, "WAV-2026-001", "adversarial-review"));
+    expect((await check(p, "openspec-validate")).exitCode).toBe(0);
+    const before = p.tree();
+
+    const run = await dry(p, "APPROVED", { ref: REVIEW, by: "kat" });
+    expect(run.errors).toEqual([]);
+    expect(run.exitCode).toBe(0);
+    expect(run.data["gates"]["human-approval"]).toBe("PASS");
+    expect(run.data["approval"]).toEqual({ evidence: expect.stringMatching(/^EVID-/), reused: false });
+    expect(run.data["would_write"]).toEqual([RECORD, `${EVIDENCE}/${run.data["approval"].evidence}.json`, `${EVIDENCE}/manifest.json`]);
+    expect(p.tree()).toEqual(before);
+    expect(records(p).filter((r) => r.kind === "human-approval")).toEqual([]);
+
+    const real = await transition(p, "APPROVED", { ref: REVIEW, by: "kat" });
+    expect(withoutDryRun(run.data)).toEqual(withoutDryRun(real.data));
+    expect(writtenBeyond(before, p.tree(), run.data["would_write"])).toEqual([]);
+  });
+
+  it("ABANDONED under --dry-run keeps the directory and the record, and names both", async () => {
+    const p = await repo("SPECIFIED", FEATURE);
+    const before = p.tree();
+    const run = await dry(p, "ABANDONED");
+    expect(run.errors).toEqual([]);
+    expect(run.data["removed"]).toBe("openspec/changes/add-search");
+    expect(run.data["would_write"]).toEqual([RECORD, "openspec/changes/add-search"]);
+    expect(p.tree()).toEqual(before);
+    const refused = await dry(p, "DONE");
+    expect(refused.errors[0]?.code).toBe("USAGE");
+    expect(refused.exitCode).toBe(3);
+    expect(refused.data).toEqual({ dry_run: true, would_write: [] });
   });
 });

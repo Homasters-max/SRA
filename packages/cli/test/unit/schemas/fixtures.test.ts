@@ -33,7 +33,7 @@ function pointerMatches(actual: string | undefined, expected: string): boolean {
 }
 
 /**
- * Scenarios of openspec/specs/kernel whose document is a fixture: `<schema>/<file>` → SCN id, shown in the test name
+ * Scenarios of openspec/specs/kernel (and enforcement, `run/1`) whose document is a fixture: `<schema>/<file>` → SCN id, shown in the test name
  * (SCN tag, packages/cli/CLAUDE.md). A valid fixture is the example the scenario names, with the substitutions the
  * scenario states (ULID ids, URL refs) and concrete values for the placeholders of the document (`<login>`, `sha256:…`);
  * an invalid one is its counter-example, and its `.expect.json` names the same id in `scenario`.
@@ -47,6 +47,9 @@ const SCENARIOS: Record<string, string> = {
   "check/invalid-level-l2.json": "SCN-KRN-021",
   "config/invalid-pack-without-version.json": "SCN-KRN-009",
   "config/invalid-pack-version-not-range.json": "SCN-KRN-009",
+  "config/valid-frontends-claude.json": "SCN-KRN-126",
+  "config/invalid-frontends-unknown.json": "SCN-KRN-126",
+  "config/invalid-frontends-duplicate.json": "SCN-KRN-126",
   "controller-rules/invalid-unknown-action.json": "SCN-KRN-029",
   "evidence/valid-doc-example.json": "SCN-KRN-024",
   "evidence/invalid-counter-id.json": "SCN-KRN-025",
@@ -65,6 +68,10 @@ const SCENARIOS: Record<string, string> = {
   "risk-floor/invalid-foreign-dimension-value.json": "SCN-KRN-031",
   "risk-levels/valid-doc-example.json": "SCN-KRN-032",
   "risk-levels/invalid-missing-default.json": "SCN-KRN-033",
+  "run/valid-after-start.json": "SCN-ENF-001",
+  "run/invalid-event-decision-ask.json": "SCN-ENF-002",
+  "run/invalid-event-without-decision.json": "SCN-ENF-002",
+  "run/invalid-event-frontend-key.json": "SCN-ENF-003",
   "waiver/valid-doc-example.json": "SCN-KRN-038",
   "waiver/invalid-missing-expires-at.json": "SCN-KRN-039"
 };

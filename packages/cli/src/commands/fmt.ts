@@ -15,7 +15,7 @@ import path from "node:path";
 
 import { checkFile, canonicalTargets, WARRANT_DIR } from "../core/canon/files.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, WarrantError, type CliError } from "../core/errors.js";
+import { cliError, EXIT, FMT_HINT, WarrantError, type CliError } from "../core/errors.js";
 import { reportPath, walkFiles } from "../core/fs.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 
@@ -28,8 +28,9 @@ export interface FmtOptions {
 function targets(paths: string[], root: string, errors: CliError[]): string[] {
   if (paths.length === 0) {
     if (!existsSync(path.join(root, WARRANT_DIR))) {
-      throw new WarrantError("CONFIG_MISSING", `${WARRANT_DIR}/ not found in ${root}; pass explicit paths to format`, {
-        path: WARRANT_DIR
+      throw new WarrantError("CONFIG_MISSING", `${WARRANT_DIR}/ not found in ${root}`, {
+        path: WARRANT_DIR,
+        hint: "pass explicit paths to format"
       });
     }
     return canonicalTargets(root);
@@ -84,11 +85,7 @@ export function runFmt(ctx: Ctx, paths: string[], opts: FmtOptions = {}): Comman
 
   if (opts.check === true && changed.length > 0) {
     return failures(
-      changed.map((p) => ({
-        code: "NOT_CANONICAL" as const,
-        message: "file is not in canonical form; run `warrant fmt`",
-        path: p
-      })),
+      changed.map((p) => cliError("NOT_CANONICAL", "file is not in canonical form", { path: p, hint: FMT_HINT })),
       EXIT.FAIL,
       data
     );

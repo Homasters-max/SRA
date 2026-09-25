@@ -1,7 +1,8 @@
 /**
  * `warrant archive` in the test process (REQ-VER-008): the archive of a
  * `MERGED` Change — SCN-VER-036 —, the refusal outside `MERGED` — SCN-VER-037
- * — and the refusal when `spec-valid` fails — SCN-VER-038. Moved from e2e
+ * — the refusal when `spec-valid` fails — SCN-VER-038 — and `--dry-run` —
+ * SCN-KRN-137. Moved from e2e
  * (ADR-0025, task 5.4); the parse of argv, the exit codes of the binary and
  * the archive by the real `openspec` (the delta merged into the main spec) stay
  * in `e2e/archive.test.ts`.
@@ -20,10 +21,12 @@ import { describe, expect, it } from "vitest";
 
 import { runArchive } from "../../../src/commands/archive.js";
 import { runStatus } from "../../../src/commands/status.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { withoutDryRun, writtenBeyond } from "../helpers/dry-run.js";
+import { FAKE_TODAY } from "../helpers/fakes/clock.js";
+import { validateErrors } from "../helpers/validate.js";
 
 const project = useProjectBuilder();
 
@@ -112,7 +115,7 @@ describe("warrant archive", () => {
 
     const status: Result = await invoke(() => runStatus(p.ctx, "add-search", LOCAL));
     expect(status.data["stale"]).toEqual([]);
-    expect((await invoke(() => runValidate(p.ctx))).errors).toEqual([]);
+    expect(await validateErrors(p)).toEqual([]);
 
     // The record is frozen from now on.
     const again = await archive(p);
@@ -145,5 +148,51 @@ describe("warrant archive", () => {
     expect(p.openspec.calls.filter((c) => c.startsWith("archive"))).toEqual([]);
     expect(openspecFiles(p)).toEqual(files);
     expect(p.read(RECORD)).toBe(before);
+  });
+});
+
+describe("warrant archive --dry-run (REQ-KRN-034)", () => {
+  it("runs openspec validate and the gates, not openspec archive, and writes nothing (SCN-KRN-137)", async () => {
+    const p = await repo("MERGED");
+    const before = p.tree();
+
+    const run: Result = await invoke(() => runArchive(p.dryRun(), "add-search", LOCAL));
+    expect(run.errors).toEqual([]);
+    expect(run.exitCode).toBe(0);
+    expect(p.checks.calls.map((c) => c.argv.slice(1))).toEqual([["validate", "add-search", "--strict", "--json"]]);
+    expect(p.openspec.calls.filter((c) => c.startsWith("archive"))).toEqual([]);
+    expect(existsSync(path.join(p.root, ACTIVE, "proposal.md"))).toBe(true);
+    expect(p.tree()).toEqual(before);
+
+    const archived = `openspec/changes/archive/${FAKE_TODAY}-add-search`;
+    expect(run.data["dry_run"]).toBe(true);
+    expect(run.data["archive"]).toBe(archived);
+    expect(run.data["gates"]["spec-valid"]).toBe("PASS");
+    const evidence = run.data["checks"][0].evidence as string;
+    expect(run.data["would_write"]).toEqual([
+      RECORD,
+      `.warrant/evidence/add-search/${evidence}.json`,
+      ".warrant/evidence/add-search/manifest.json",
+      ".warrant/evidence/add-search/raw/openspec-validate",
+      ACTIVE,
+      archived,
+      "openspec/specs/search/spec.md"
+    ]);
+
+    const real = await archive(p);
+    expect(real.exitCode).toBe(0);
+    expect(withoutDryRun(run.data)).toEqual(withoutDryRun(real.data));
+    expect(writtenBeyond(before, p.tree(), run.data["would_write"])).toEqual([]);
+  });
+
+  it("refuses as the real run does when spec-valid fails", async () => {
+    const p = await repo("MERGED", false);
+    const before = p.tree();
+    const run: Result = await invoke(() => runArchive(p.dryRun(), "add-search", LOCAL));
+    expect(p.tree()).toEqual(before);
+    const real = await archive(p);
+    expect(run.errors).toEqual(real.errors);
+    expect(run.exitCode).toBe(real.exitCode);
+    expect(withoutDryRun(run.data)).toEqual(withoutDryRun(real.data));
   });
 });

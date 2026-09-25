@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "phase-4b",
-  "commit": "2d7dae351291b4ef9de7fd7a2b69aa6f7e8cf9d2",
+  "commit": "5170ed0b81e48007717a61c9b5f9657ddca5194e",
   "versions": {
     "warrant": "0.5.0",
     "openspec": "1.13.1",
@@ -10,9 +10,15 @@
   },
   "evidence": [
     "EVID-01M3CTT75ZF2CRRGT4TEYRRQDX",
-    "EVID-01M3CVNB5TRRR7QREGD90SF1JA"
+    "EVID-01M3CVNB5TRRR7QREGD90SF1JA",
+    "EVID-01M3CYCZZ81YE3MJH797Y9S3BT",
+    "EVID-01M3CYDPMA4VKBFZR0PE624XRD"
   ],
   "gates": {
+    "adversarial-review": "WAIVED",
+    "blocking-unknowns-resolved": "PASS",
+    "branch-isolated": "PASS",
+    "human-approval": "PASS",
     "ids-valid": "PASS",
     "required-artifacts-present": "PASS",
     "spec-valid": "PASS"

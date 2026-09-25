@@ -48,6 +48,8 @@ export const ERROR_CODES = [
   "COMMIT_NOT_MERGED",
   "REF_MISMATCH",
   "BELOW_FLOOR",
+  "RUN_ACTIVE",
+  "RUN_NOT_ACTIVE",
   "INTERNAL"
 ] as const;
 

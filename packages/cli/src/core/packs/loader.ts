@@ -163,6 +163,7 @@ function addRule(json: unknown, pack: string, reported: string, collected: Colle
     pack,
     path: reported,
     paths: strings(json["paths"]),
+    text: typeof json["text"] === "string" ? json["text"] : "",
     enforcedBy: typeof json["enforced_by"] === "string" ? json["enforced_by"] : undefined
   });
 }

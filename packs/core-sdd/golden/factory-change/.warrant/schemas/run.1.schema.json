@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://run/1",
+  "title": "WARRANT run",
+  "description": "One attempt of an agent at an operation of a Change (03 section 4): `<state>/runs/<id>.json`, committed with the work. The active Run is named by `<state>/runs/current`, which is not committed. Written only by the CLI; it names no frontend.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://run/1"
+    },
+    "id": {
+      "description": "Run id `RUN-<ULID>`, equal to the file name without `.json` (ADR-0012).",
+      "$ref": "warrant://common/1#/$defs/run_id"
+    },
+    "change": {
+      "description": "Name of the Change the Run works on.",
+      "$ref": "warrant://common/1#/$defs/kebab_id"
+    },
+    "operation": {
+      "description": "Operation of the Run: `specify` edits the artifacts of the Change, `implement` its code and tests (04 section 3).",
+      "type": "string",
+      "enum": ["specify", "implement"]
+    },
+    "task": {
+      "description": "Label of the task the Run is for, as given to `run start --task`; not checked.",
+      "type": "string",
+      "minLength": 1
+    },
+    "skill": {
+      "description": "Skill the Run executes, `namespace/name@version`.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*@\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "model": {
+      "description": "Model the agent of the Run is backed by.",
+      "type": "string",
+      "minLength": 1
+    },
+    "write_scope": {
+      "description": "Globs of the project paths the operation may write; guard denies an edit outside them.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "description": "One glob, relative to the project root.",
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "scope": {
+      "description": "Globs of `run start --scope` that narrow `write_scope`: a path must match both; empty narrows nothing.",
+      "type": "array",
+      "items": {
+        "description": "One glob, relative to the project root.",
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "branch": {
+      "description": "Git branch the Run started on: `HEAD` when detached, empty when git could not say.",
+      "type": "string"
+    },
+    "started_at": {
+      "description": "When the Run started (RFC 3339).",
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_at": {
+      "description": "When the Run finished (RFC 3339); absent while it runs.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "run_state": {
+      "description": "State axis of a Run (02 section 2).",
+      "type": "string",
+      "enum": ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"]
+    },
+    "context_hash": {
+      "description": "Hash of the Context Pack the Run started with: its `items` and `rules`.",
+      "$ref": "warrant://common/1#/$defs/sha256"
+    },
+    "effective_policy_hash": {
+      "description": "`hash` of the effective policy of the Change when the Run started (`warrant resolve`).",
+      "$ref": "warrant://common/1#/$defs/sha256"
+    },
+    "evidence": {
+      "description": "Evidence records produced by the Run.",
+      "type": "array",
+      "items": { "$ref": "warrant://common/1#/$defs/evid_id" }
+    },
+    "guard_events": {
+      "description": "Decisions of `warrant guard` during the Run, oldest first.",
+      "type": "array",
+      "items": {
+        "description": "One decision of guard on one action of the agent.",
+        "type": "object",
+        "properties": {
+          "at": {
+            "description": "When guard decided (RFC 3339).",
+            "type": "string",
+            "format": "date-time"
+          },
+          "phase": {
+            "description": "Before (`pre`) or after (`post`) the action.",
+            "type": "string",
+            "enum": ["pre", "post"]
+          },
+          "action": {
+            "description": "Kind of the action: a file edit, a shell command or anything else.",
+            "type": "string",
+            "enum": ["edit", "shell", "other"]
+          },
+          "paths": {
+            "description": "Project paths the action touches.",
+            "type": "array",
+            "items": {
+              "description": "One POSIX path relative to the project root.",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "decision": {
+            "description": "The decision of guard.",
+            "type": "string",
+            "enum": ["allow", "deny"]
+          },
+          "reason": {
+            "description": "Why guard denied the action.",
+            "type": "string",
+            "minLength": 1
+          },
+          "findings": {
+            "description": "Codes of the findings reported to the agent after the action.",
+            "type": "array",
+            "items": {
+              "description": "One finding code, UPPER_SNAKE.",
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$"
+            }
+          },
+          "rules_shown": {
+            "description": "Ids of the `rule/1` rules whose text was shown to the agent with this decision.",
+            "type": "array",
+            "items": { "$ref": "warrant://common/1#/$defs/kebab_id" }
+          },
+          "argv": {
+            "description": "The shell command guard denied by a prefix of `execution.guard_prefixes`, as words.",
+            "type": "array",
+            "items": {
+              "description": "One word of the command.",
+              "type": "string"
+            }
+          }
+        },
+        "required": ["at", "phase", "action", "paths", "decision", "findings", "rules_shown"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "$schema",
+    "id",
+    "change",
+    "operation",
+    "write_scope",
+    "scope",
+    "branch",
+    "started_at",
+    "run_state",
+    "context_hash",
+    "effective_policy_hash",
+    "guard_events"
+  ],
+  "additionalProperties": false
+}

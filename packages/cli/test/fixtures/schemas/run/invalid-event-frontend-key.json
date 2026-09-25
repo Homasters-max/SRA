@@ -1,0 +1,25 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y",
+  "change": "add-search",
+  "operation": "implement",
+  "write_scope": ["src/**"],
+  "scope": [],
+  "branch": "main",
+  "started_at": "2026-09-25T10:00:00.000Z",
+  "run_state": "RUNNING",
+  "context_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "effective_policy_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "guard_events": [
+    {
+      "at": "2026-09-25T10:05:00.000Z",
+      "phase": "pre",
+      "action": "edit",
+      "paths": ["src/app.py"],
+      "decision": "allow",
+      "findings": [],
+      "rules_shown": [],
+      "frontend": "claude"
+    }
+  ]
+}

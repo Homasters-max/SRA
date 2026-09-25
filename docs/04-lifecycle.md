@@ -160,7 +160,7 @@ Prompt не является enforcement (INV-04). Принуждение рас
 | **CI** `warrant ci` | Заново вычисляет L0/L1, верифицирует refs, блокирует merge. Не пишет в репозиторий ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)) | MVP |
 | **Форж** (GitHub) | Bot-идентичность агента без права merge; branch protection на `main`; required review | MVP |
 | **ACP client** (диспетчер SEF, [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)) | Наблюдает `tool_call`, `validate --files` после правки, `session/cancel` при записи вне `write_scope`, проверка живости hooks ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)) | S1 SEF; в MVP нет |
-| **Hook** `warrant guard --frontend <name>` | `pre`: отказ вне `write_scope` активного Run и на прямой запуск тяжёлых checks (ADR-0017); `post`: hints по изменённому файлу ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)) и текст правил по путям; без активного Run — `deny` ([ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)) | MVP (`codex`); `claude`, `opencode` — later |
+| **Hook** `warrant guard --frontend <name>` | `pre`: отказ вне `write_scope` активного Run и на прямой запуск тяжёлых checks (ADR-0017); `post`: hints по изменённому файлу ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)) и текст правил по путям; без активного Run — `deny` ([ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)); решение — `allow` или `deny` | MVP (`codex`); `claude`, `opencode` — later |
 | **Static deny** frontend'а | `permissions.deny` в `.claude/settings.json`, генерируется `warrant sync` | later (адаптер `claude`) |
 
 WARRANT **agent-agnostic**: вся логика в CLI, который общается JSON. Frontends — адаптеры, которые переводят

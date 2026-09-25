@@ -5,7 +5,7 @@ import { checkRuleScope, globInsideChanges, rulesSummary } from "../../src/core/
 import type { LoadedRule } from "../../src/core/packs/types.js";
 
 function rule(id: string, paths: string[], enforcedBy?: string): LoadedRule {
-  return { id, pack: "local", path: `.warrant/local/rules/${id}.json`, paths, enforcedBy };
+  return { id, pack: "local", path: `.warrant/local/rules/${id}.json`, paths, text: `Rule ${id}.`, enforcedBy };
 }
 
 describe("globInsideChanges", () => {

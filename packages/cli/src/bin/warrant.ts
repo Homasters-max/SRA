@@ -3,6 +3,7 @@ import { Command, CommanderError } from "commander";
 import { CheckRunner } from "../adapters/check-runner.js";
 import { GitCli } from "../adapters/git-cli.js";
 import { OpenSpecCli } from "../adapters/openspec-cli.js";
+import { processSignals } from "../adapters/signals.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError } from "../core/errors.js";
 import { systemClock } from "../core/ports/clock.js";
@@ -25,6 +26,7 @@ import { runTransition } from "../commands/transition.js";
 import { runArchive } from "../commands/archive.js";
 import { runLink } from "../commands/link.js";
 import { runWaive } from "../commands/waive.js";
+import { runFinish, runStart } from "../commands/run.js";
 
 export type Runner = (ctx: Ctx, args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
@@ -40,6 +42,7 @@ function productionCtx(dryRun: boolean): Ctx {
     git: new GitCli(root),
     checks: new CheckRunner(),
     clock: systemClock,
+    signals: processSignals,
     writes: createWrites(dryRun),
     warn: (text) => void process.stderr.write(text)
   };
@@ -81,12 +84,20 @@ function collect(value: string, previous: string[]): string[] {
   return [...previous, value];
 }
 
-function register(name: string, description: string, runner: Runner, configure?: (cmd: Command) => void): void {
-  const cmd = program.command(name).description(description);
+/** A command of `program`, or a subcommand of `parent` named `<parent> <name>` in the envelope (`run start`). */
+function register(
+  name: string,
+  description: string,
+  runner: Runner,
+  configure?: (cmd: Command) => void,
+  parent: Command = program
+): void {
+  const cmd = parent.command(name).description(description);
   configure?.(cmd);
+  const envelopeName = parent === program ? name : `${parent.name()} ${name}`;
   cmd.action(async (...actionArgs: unknown[]) => {
     const command = actionArgs[actionArgs.length - 1] as Command;
-    await run(name, runner, command.args, command.opts());
+    await run(envelopeName, runner, command.args, command.opts());
   });
 }
 
@@ -311,6 +322,51 @@ register(
       .addHelpText("after", examples(["warrant archive add-search --dry-run", "warrant archive add-search"]))
 );
 
+const runGroup = program
+  .command("run")
+  .description("start or finish a Run: one attempt of an agent at an operation of a change (write_scope, Context Pack)");
+register(
+  "start",
+  "create a RUNNING Run of a change and print its Context Pack; one active Run per worktree",
+  (ctx, args, opts) =>
+    runStart(ctx, args[0], {
+      ...(typeof opts["operation"] === "string" ? { operation: opts["operation"] } : {}),
+      ...(typeof opts["scope"] === "string" ? { scope: opts["scope"] } : {}),
+      ...(typeof opts["task"] === "string" ? { task: opts["task"] } : {})
+    }),
+  (c) =>
+    c
+      .argument("[change]", "the change the Run works on")
+      .option("--operation <specify|implement>", "specify: the artifacts of a PROPOSED change; implement: paths.src, paths.tests and tasks.md of an IMPLEMENTING one")
+      .option("--scope <globs>", "comma-separated globs that narrow write_scope: a path must match both")
+      .option("--task <label>", "label of the task, kept in the Run unchecked")
+      .option("--dry-run", DRY_RUN)
+      .addHelpText(
+        "after",
+        examples([
+          "warrant run start add-search --operation specify --dry-run",
+          "warrant run start add-search --operation implement --scope src/search/** --task 2.1"
+        ])
+      ),
+  runGroup
+);
+register(
+  "finish",
+  "end the active Run with a state and remove <state>/runs/current",
+  (ctx, _args, opts) => runFinish(ctx, { ...(typeof opts["state"] === "string" ? { state: opts["state"] } : {}) }),
+  (c) =>
+    c
+      .option("--state <SUCCEEDED|FAILED|CANCELLED>", "the state the Run ends in (default: SUCCEEDED)")
+      .option("--dry-run", DRY_RUN)
+      .addHelpText("after", examples(["warrant run finish --dry-run", "warrant run finish --state FAILED"])),
+  runGroup
+);
+
+/** `hint` of a usage error Commander reports, for the commands born with hints (REQ-KRN-002). */
+function usageHint(command: string): string | undefined {
+  return command === "run" ? "see `warrant run start --help` or `warrant run finish --help`" : undefined;
+}
+
 async function main(): Promise<void> {
   try {
     await program.parseAsync(process.argv);
@@ -324,7 +380,8 @@ async function main(): Promise<void> {
         return;
       }
       const command = process.argv[2] ?? "";
-      await emitToProcess(command, failure(new WarrantError("USAGE", thrown.message.trim())));
+      const hint = usageHint(command);
+      await emitToProcess(command, failure(new WarrantError("USAGE", thrown.message.trim(), hint === undefined ? {} : { hint })));
       return;
     }
     await emitToProcess(process.argv[2] ?? "", resultFromThrown(thrown));

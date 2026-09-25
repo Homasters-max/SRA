@@ -21,6 +21,7 @@
     { "id": "core/classify", "path": "core/classify", "rank": 2 },
     { "id": "core/waivers", "path": "core/waivers", "rank": 2 },
     { "id": "core/roles", "path": "core/roles.ts", "rank": 2 },
+    { "id": "core/run", "path": "core/run", "rank": 2 },
     { "id": "core/gates", "path": "core/gates", "rank": 3 },
     { "id": "core/controller", "path": "core/controller", "rank": 3 },
     { "id": "core/check", "path": "core/check", "rank": 3 },
@@ -80,9 +81,10 @@
     { "id": "controller-action", "owner": "core/controller/evaluate.ts", "doc": "docs/02-vocabulary.md", "values": ["CONTINUE", "WAIT", "STOP", "ESCALATE"] },
     { "id": "risk-level", "owner": "core/resolve/types.ts", "doc": "docs/05-policy.md", "values": ["LOW", "MEDIUM", "HIGH"] },
     { "id": "id-prefix", "owner": "core/ids/scan.ts", "doc": "docs/02-vocabulary.md", "values": ["REQ", "SCN", "TASK", "ADR", "DCT", "UNK", "ASM", "EVID", "RUN", "WAV"] },
-    { "id": "waiver-state", "owner": "core/waivers/status.ts", "doc": "docs/02-vocabulary.md", "values": ["PROPOSED", "ACTIVE", "EXPIRED", "REVOKED"] }
+    { "id": "waiver-state", "owner": "core/waivers/status.ts", "doc": "docs/02-vocabulary.md", "values": ["PROPOSED", "ACTIVE", "EXPIRED", "REVOKED"] },
+    { "id": "run-state", "owner": "core/run/types.ts", "doc": "docs/02-vocabulary.md", "values": ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"] },
+    { "id": "run-operation", "owner": "core/run/types.ts", "doc": "docs/04-lifecycle.md", "values": ["specify", "implement"] },
+    { "id": "guard-decision", "owner": "core/run/types.ts", "doc": "docs/04-lifecycle.md", "values": ["allow", "deny"] }
   ],
-  "exceptions": [
-    { "id": "A-12", "rule": "rank", "from": "adapters/check-runner.ts", "to": "core/check/interrupt.ts" }
-  ]
+  "exceptions": []
 }

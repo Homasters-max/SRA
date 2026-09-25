@@ -37,9 +37,9 @@ describe("cli skeleton", () => {
     expect(r.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it("--help of transition, archive and waive names --dry-run and gives an example with it (lens cli-contract)", async () => {
-    for (const command of ["transition", "archive", "waive"]) {
-      const r = await runCli([command, "--help"], dir);
+  it("--help of transition, archive, waive, run start and run finish names --dry-run and gives an example with it (lens cli-contract)", async () => {
+    for (const command of ["transition", "archive", "waive", "run start", "run finish"]) {
+      const r = await runCli([...command.split(" "), "--help"], dir);
       expect(r.status).toBe(0);
       expect(r.stdout).toBe("");
       expect(r.stderr).toContain("--dry-run");
@@ -61,5 +61,24 @@ describe("cli skeleton", () => {
     expect(r.status).toBe(3);
     expect(r.json.errors[0].code).toBe("CONFIG_MISSING");
     expect(r.json.data).toEqual({ dry_run: true, would_write: [] });
+  });
+
+  it("run start and run finish answer in the envelope of their own name, every error with a hint (REQ-ENF-002, REQ-KRN-002)", async () => {
+    const start = await runCli(["run", "start", "add-search", "--operation", "specify", "--dry-run"], dir);
+    expect(start.status).toBe(3);
+    expect(start.json.command).toBe("run start");
+    expect(start.json.errors[0].code).toBe("CONFIG_MISSING");
+    expect(start.json.errors[0].hint).toMatch(/warrant init/);
+    expect(start.json.data).toEqual({ dry_run: true, would_write: [] });
+
+    const finish = await runCli(["run", "finish"], dir);
+    expect(finish.status).toBe(3);
+    expect(finish.json.command).toBe("run finish");
+    expect(finish.json.errors[0].hint).toBeDefined();
+
+    const unknown = await runCli(["run", "start", "add-search", "--no-such-flag"], dir);
+    expect(unknown.status).toBe(3);
+    expect(unknown.json.errors[0].code).toBe("USAGE");
+    expect(unknown.json.errors[0].hint).toMatch(/warrant run start --help/);
   });
 });

@@ -34,13 +34,13 @@ golden вне групп 2 и 6 — остановка и строка I-N.
 
 ## 4. Run (REQ-ENF-001…003, A-12)
 
-- [ ] 4.1 Схема `run.1.schema.json` (+ копия в `.warrant/schemas/` через `sync`), реестр `enums`: `run-state`,
+- [x] 4.1 Схема `run.1.schema.json` (+ копия в `.warrant/schemas/` через `sync`), реестр `enums`: `run-state`,
   `run-operation`, `guard-decision`. Проверка: SCN-ENF-001…003.
-- [ ] 4.2 A-12: `core/lock.ts` (§5), замок `check` через него, `onInterrupt` за портом `ctx.signals`; исключение A-12 снято.
+- [x] 4.2 A-12: `core/lock.ts` (§5), замок `check` через него, `onInterrupt` за портом `ctx.signals`; исключение A-12 снято.
   Проверка: тесты `check` (`BUSY`, прерывание) без правок ожидаемых значений; `exceptions` в `architecture.json` пуст.
-- [ ] 4.3 `core/run/` (§2): `write_scope` по операции, `current`, запись под замком, Context Pack (`rules[]`, `items[]`,
+- [x] 4.3 `core/run/` (§2): `write_scope` по операции, `current`, запись под замком, Context Pack (`rules[]`, `items[]`,
   `context_hash`). Проверка: unit сужения и `rules[]` (SCN-ENF-007).
-- [ ] 4.4 `warrant run start` / `run finish` (+ `--dry-run`, `--help` с примером). Проверка: SCN-ENF-004…010.
+- [x] 4.4 `warrant run start` / `run finish` (+ `--dry-run`, `--help` с примером). Проверка: SCN-ENF-004…010.
 
 ## 5. Guard (REQ-ENF-004)
 

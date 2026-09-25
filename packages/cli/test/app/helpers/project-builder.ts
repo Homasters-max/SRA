@@ -28,6 +28,7 @@ import { FakeCheckRunner, type FakeBehaviour } from "./fakes/checks.js";
 import { FakeClock } from "./fakes/clock.js";
 import { FakeGit, type Tree } from "./fakes/git.js";
 import { FakeOpenSpec, OPENSPEC_VERSION } from "./fakes/openspec.js";
+import { FakeSignals } from "./fakes/signals.js";
 import { deltaSpecMarkdown, mainSpecMarkdown, proposalMarkdown, type ModelRequirement } from "./fakes/spec-model.js";
 
 export const PACKS = path.join(REPO_ROOT, "packs");
@@ -78,6 +79,7 @@ export class ProjectBuilder {
   readonly openspec: FakeOpenSpec;
   readonly git: FakeGit;
   readonly checks = new FakeCheckRunner();
+  readonly signals = new FakeSignals();
   /** What the commands wrote to stderr through `ctx.warn`. */
   readonly warnings: string[] = [];
   readonly ctx: Ctx;
@@ -100,6 +102,7 @@ export class ProjectBuilder {
       git: this.git,
       checks: this.checks,
       clock: this.clock,
+      signals: this.signals,
       writes: createWrites(false),
       warn: (text) => void this.warnings.push(text)
     };

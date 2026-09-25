@@ -67,6 +67,7 @@ export function checksForTransition(loaded: LoadResult, policy: EffectivePolicy,
 interface Context {
   root: string;
   checks: Ctx["checks"];
+  signals: Ctx["signals"];
   writes: Ctx["writes"];
   change: string;
   loaded: LoadResult;
@@ -180,12 +181,8 @@ async function runOneIn(ctx: Context, object: PackObject, scratch: string | unde
   if (execution["exclusive"] === true) {
     const where = lockPath(ctx.root, ctx.git.commonDir);
     if (where.warning !== undefined) ctx.warn(where.warning);
-    const lock = acquireLock(where.file, {
-      pid: process.pid,
-      check: object.id,
-      started_at: new Date().toISOString(),
-      cwd: ctx.root
-    });
+    const holder = { pid: process.pid, check: object.id, started_at: new Date().toISOString(), cwd: ctx.root };
+    const lock = acquireLock(where.file, holder, ctx.signals);
     if (!lock.ok) {
       const pid = isPlainObject(lock.holder) ? lock.holder["pid"] : undefined;
       const error = new WarrantError(
@@ -315,6 +312,7 @@ export async function executeChecks(params: ChecksParams): Promise<ChecksRun> {
   const ctx: Context = {
     root: params.ctx.root,
     checks: params.ctx.checks,
+    signals: params.ctx.signals,
     writes: params.ctx.writes,
     change: params.change,
     loaded,

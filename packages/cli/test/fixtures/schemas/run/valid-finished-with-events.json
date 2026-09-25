@@ -1,0 +1,50 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y",
+  "change": "add-search",
+  "operation": "implement",
+  "task": "2.1",
+  "skill": "specification/adversarial-review@0.1.0",
+  "model": "claude-opus",
+  "write_scope": ["src/**", "tests/**"],
+  "scope": ["src/search/**"],
+  "branch": "HEAD",
+  "started_at": "2026-09-25T10:00:00.000Z",
+  "finished_at": "2026-09-25T11:00:00.000Z",
+  "run_state": "SUCCEEDED",
+  "context_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "effective_policy_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "evidence": ["EVID-01J8Z3KQ2M7N4P6R8T0V2W4X6Y"],
+  "guard_events": [
+    {
+      "at": "2026-09-25T10:05:00.000Z",
+      "phase": "pre",
+      "action": "edit",
+      "paths": ["docs/readme.md"],
+      "decision": "deny",
+      "reason": "docs/readme.md is outside write_scope",
+      "findings": [],
+      "rules_shown": []
+    },
+    {
+      "at": "2026-09-25T10:06:00.000Z",
+      "phase": "pre",
+      "action": "shell",
+      "paths": [],
+      "decision": "deny",
+      "reason": "pytest is run by warrant check",
+      "findings": [],
+      "rules_shown": [],
+      "argv": ["bash", "-c", "cd src && pytest tests/"]
+    },
+    {
+      "at": "2026-09-25T10:07:00.000Z",
+      "phase": "post",
+      "action": "edit",
+      "paths": [".warrant/local/areas.json"],
+      "decision": "allow",
+      "findings": ["NOT_CANONICAL"],
+      "rules_shown": ["json-canonical"]
+    }
+  ]
+}

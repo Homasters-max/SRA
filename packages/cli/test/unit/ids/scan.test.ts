@@ -1,22 +1,15 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { checkAreas, checkDuplicates, loadAreas, originOf, scanIds, scanMalformed, scanMarkdown } from "../../../src/core/ids/scan.js";
 import { highestNumber } from "../../../src/core/ids/allocate.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
+import { write } from "../../helpers/synced.js";
 
 const tempDirs: string[] = [];
 
 afterAll(() => {
   for (const dir of tempDirs) removeDir(dir);
 });
-
-function write(root: string, rel: string, text: string): void {
-  const absolute = path.join(root, rel);
-  mkdirSync(path.dirname(absolute), { recursive: true });
-  writeFileSync(absolute, text);
-}
 
 const SPEC = [
   "## ADDED Requirements",

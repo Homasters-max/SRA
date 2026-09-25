@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -6,18 +6,13 @@ import { loadConfig } from "../../../src/core/config.js";
 import type { WarrantError } from "../../../src/core/errors.js";
 import { idOccurrenceRe, renumber } from "../../../src/core/ids/renumber.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
+import { write } from "../../helpers/synced.js";
 
 const tempDirs: string[] = [];
 
 afterAll(() => {
   for (const dir of tempDirs) removeDir(dir);
 });
-
-function write(root: string, rel: string, text: string | object): void {
-  const absolute = path.join(root, rel);
-  mkdirSync(path.dirname(absolute), { recursive: true });
-  writeFileSync(absolute, typeof text === "string" ? text : JSON.stringify(text, null, 2) + "\n");
-}
 
 function read(root: string, rel: string): string {
   return readFileSync(path.join(root, rel), "utf8");

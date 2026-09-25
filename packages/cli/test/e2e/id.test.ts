@@ -6,22 +6,17 @@
  * (REQ-KRN-024; SCN-KRN-056..060, 007) are tested in the test process:
  * `test/app/commands/id.test.ts` (ADR-0025, task 5.4).
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { write } from "../helpers/synced.js";
 
 const tempDirs: string[] = [];
 afterAll(() => {
   for (const dir of tempDirs) removeDir(dir);
 });
-
-function write(root: string, rel: string, content: string | object): void {
-  const absolute = path.join(root, rel);
-  mkdirSync(path.dirname(absolute), { recursive: true });
-  writeFileSync(absolute, typeof content === "string" ? content : JSON.stringify(content, null, 2) + "\n");
-}
 
 describe("warrant id (argv)", () => {
   it("maps <kind> <area>, <kind> and renumber --change; exit 0, and 3 on a refusal (SCN-KRN-056, SCN-KRN-059)", async () => {

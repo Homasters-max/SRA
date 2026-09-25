@@ -5,12 +5,11 @@
  * (REQ-KRN-027; SCN-KRN-067, 070..072, 102..104) is tested in the test process:
  * `test/app/commands/status.test.ts` (ADR-0025, task 5.3).
  */
-import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { canonicalText } from "../../src/core/canon/format-json.js";
 import { CLI_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
+import { write } from "../helpers/synced.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const tempDirs: string[] = [];
@@ -27,12 +26,6 @@ function env(): NodeJS.ProcessEnv {
   const dir = makeTempDir("warrant-no-openspec-");
   tempDirs.push(dir);
   return { WARRANT_PACKS_DIR: FIXTURE_PACKS, [PATH_KEY]: dir };
-}
-
-function write(root: string, rel: string, content: string | object): void {
-  const absolute = path.join(root, rel);
-  mkdirSync(path.dirname(absolute), { recursive: true });
-  writeFileSync(absolute, typeof content === "string" ? content : canonicalText(content).text, "utf8");
 }
 
 function record(change: string, state = "PROPOSED", extra: Record<string, unknown> = {}): Record<string, unknown> {

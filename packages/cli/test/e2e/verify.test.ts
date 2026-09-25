@@ -10,15 +10,11 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 import { runCli, type CliRun } from "../helpers/cli.js";
+import { git } from "../helpers/git.js";
 import { PACKS, record, useSyncedProject, write } from "../helpers/synced.js";
 
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
-
-function git(cwd: string, ...args: string[]): void {
-  const run = spawnSync("git", args, { cwd, encoding: "utf8" });
-  if (run.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${run.stderr}`);
-}
 
 describe.skipIf(!hasGit)("warrant verify (argv)", () => {
   it("maps <change> and --transition; exit 2 on WAIT, 0 on CONTINUE, 3 on a usage error", async () => {

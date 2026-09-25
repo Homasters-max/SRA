@@ -13,6 +13,7 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { REPO_ROOT, makeTempDir, removeDir } from "../helpers/cli.js";
+import { git } from "../helpers/git.js";
 
 interface VersionError {
   component: string;
@@ -30,11 +31,6 @@ const tempDirs: string[] = [];
 afterAll(() => {
   for (const dir of tempDirs) removeDir(dir);
 });
-
-function git(cwd: string, ...args: string[]): void {
-  const run = spawnSync("git", args, { cwd, encoding: "utf8" });
-  if (run.status !== 0) throw new Error(`git ${args.join(" ")}: ${run.stderr}`);
-}
 
 function put(root: string, file: string, content: string): void {
   mkdirSync(path.dirname(path.join(root, file)), { recursive: true });

@@ -31,6 +31,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { openspecSync } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli, type CliRun } from "../helpers/cli.js";
+import { git } from "../helpers/git.js";
 import { write } from "../helpers/synced.js";
 
 // `openspec` is slow to start, especially on Windows.
@@ -78,11 +79,6 @@ let root: string;
 
 function cli(args: string[], env: NodeJS.ProcessEnv = LOCAL): Promise<CliRun> {
   return runCli(args, root, env);
-}
-
-function git(...args: string[]): void {
-  const run = spawnSync("git", ["-c", "core.autocrlf=false", ...args], { cwd: root, encoding: "utf8" });
-  if (run.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${run.stderr}`);
 }
 
 function readJson(rel: string): any {
@@ -186,14 +182,14 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
         expires_at: "2099-12-31",
         waiver_state: "ACTIVE"
       });
-      git("-c", "init.defaultBranch=main", "init", "--quiet");
-      git("config", "user.name", "warrant-test");
-      git("config", "user.email", "test@example.invalid");
-      git("checkout", "--quiet", "-B", "main");
-      git("add", "-A");
-      git("commit", "--quiet", "-m", "project");
+      git(root, "-c", "init.defaultBranch=main", "init", "--quiet");
+      git(root, "config", "user.name", "warrant-test");
+      git(root, "config", "user.email", "test@example.invalid");
+      git(root, "checkout", "--quiet", "-B", "main");
+      git(root, "add", "-A");
+      git(root, "commit", "--quiet", "-m", "project");
 
-      git("checkout", "--quiet", "-b", "spec/demo");
+      git(root, "checkout", "--quiet", "-b", "spec/demo");
       write(
         root,
         `${ACTIVE}/proposal.md`,
@@ -202,8 +198,8 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
       write(root, `${ACTIVE}/design.md`, "# Design\n\n## Context\n\nA linear scan is enough for the catalogue size.\n");
       write(root, `${ACTIVE}/tasks.md`, "# Tasks\n\n## 1. Search\n\n- [x] 1.1 Implement search and verify the unit test passes\n");
       write(root, `${ACTIVE}/specs/search/spec.md`, SPEC);
-      git("add", "-A");
-      git("commit", "--quiet", "-m", "spec");
+      git(root, "add", "-A");
+      git(root, "commit", "--quiet", "-m", "spec");
 
       const classified = await cli(["classify", "demo", "--base", "main"]);
       expect(classified.json?.errors).toEqual([]);
@@ -223,10 +219,10 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
       expect(approved.json?.data.gates).toMatchObject({ "adversarial-review": "WAIVED", "human-approval": "PASS", "spec-valid": "PASS" });
       expect(approved.status).toBe(0);
 
-      git("add", "-A");
-      git("commit", "--quiet", "-m", "approved");
-      git("checkout", "--quiet", "main");
-      git("merge", "--quiet", "--no-ff", "spec/demo", "-m", "Merge spec-PR");
+      git(root, "add", "-A");
+      git(root, "commit", "--quiet", "-m", "approved");
+      git(root, "checkout", "--quiet", "main");
+      git(root, "merge", "--quiet", "--no-ff", "spec/demo", "-m", "Merge spec-PR");
       expect(readJson(RECORD).change_state).toBe("APPROVED");
     },
     TIMEOUT
@@ -235,7 +231,7 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
   it(
     "impl-PR: IMPLEMENTING on the branch, VERIFYING, the code, CI verify VERIFYING->MERGED, merged",
     async () => {
-      git("checkout", "--quiet", "-b", "worktree/demo");
+      git(root, "checkout", "--quiet", "-b", "worktree/demo");
       const implementing = await cli(["transition", "demo", "IMPLEMENTING"]);
       expect(implementing.json?.errors).toEqual([]);
       expect(implementing.json?.data.gates).toEqual({ "branch-isolated": "PASS" });
@@ -244,8 +240,8 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
       expect(verifying.json?.data.change_state).toBe("VERIFYING");
 
       write(root, "src/search.ts", "export const search = 1;\n");
-      git("add", "-A");
-      git("commit", "--quiet", "-m", "impl");
+      git(root, "add", "-A");
+      git(root, "commit", "--quiet", "-m", "impl");
 
       const ci = await cli(["verify", "demo", "--transition", "VERIFYING->MERGED"], CI_ENV);
       expect(ci.json?.errors).toEqual([]);
@@ -255,9 +251,9 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
       expect(ci.status).toBe(0);
 
       // The records of the CI run leave the runner as an artifact: set aside, then committed on `archive/demo`.
-      git("stash", "push", "--quiet", "--include-untracked");
-      git("checkout", "--quiet", "main");
-      git("merge", "--quiet", "--no-ff", "worktree/demo", "-m", "Merge impl-PR");
+      git(root, "stash", "push", "--quiet", "--include-untracked");
+      git(root, "checkout", "--quiet", "main");
+      git(root, "merge", "--quiet", "--no-ff", "worktree/demo", "-m", "Merge impl-PR");
     },
     TIMEOUT
   );
@@ -265,10 +261,10 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
   it(
     "archive/demo: MERGED on the CI evidence, archive demo, a clean validate",
     async () => {
-      git("checkout", "--quiet", "-b", "archive/demo");
-      git("stash", "pop", "--quiet");
-      git("add", "-A");
-      git("commit", "--quiet", "-m", "evidence from CI");
+      git(root, "checkout", "--quiet", "-b", "archive/demo");
+      git(root, "stash", "pop", "--quiet");
+      git(root, "add", "-A");
+      git(root, "commit", "--quiet", "-m", "evidence from CI");
 
       const merged = await cli(["transition", "demo", "MERGED", "--ref", CI_RUN]);
       expect(merged.json?.errors).toEqual([]);

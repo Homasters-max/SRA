@@ -54,9 +54,9 @@ design.md, A-N и BL-N — [docs/backlog.md](../../../docs/backlog.md).
 
 ## 6. Помощники тестов (A-18)
 
-- [ ] 6.1 `test/helpers/git.ts` (§6); 9 копий `git` удалены. Проверка: исключения `test-helper` `git` сняты; e2e и
+- [x] 6.1 `test/helpers/git.ts` (§6); 9 копий `git` удалены. Проверка: исключения `test-helper` `git` сняты; e2e и
   contract зелёные на ubuntu и windows.
-- [ ] 6.2 10 копий `write` удалены, импорт из `helpers/synced.ts`; зависимость от байтов — строкой вызова (§6).
+- [x] 6.2 10 копий `write` удалены, импорт из `helpers/synced.ts`; зависимость от байтов — строкой вызова (§6).
   Проверка: исключения `test-helper` `write` сняты; ожидаемые значения не менялись.
 
 ## 7. Теги SCN (BL-26)

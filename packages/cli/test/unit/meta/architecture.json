@@ -77,25 +77,6 @@
     { "id": "waiver-state", "owner": "core/waivers/status.ts", "doc": "docs/02-vocabulary.md", "values": ["PROPOSED", "ACTIVE", "EXPIRED", "REVOKED"] }
   ],
   "exceptions": [
-    { "id": "A-12", "rule": "rank", "from": "adapters/check-runner.ts", "to": "core/check/interrupt.ts" },
-    { "id": "A-18", "rule": "test-helper", "from": "contract/gates/diff-prefix.test.ts", "helper": "git" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/archive.test.ts", "helper": "git" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/check.test.ts", "helper": "git" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/classify.test.ts", "helper": "git" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/exit-criterion.test.ts", "helper": "git" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/gate.test.ts", "helper": "git" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/transition.test.ts", "helper": "git" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/verify.test.ts", "helper": "git" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/versions.test.ts", "helper": "git" },
-    { "id": "A-18", "rule": "test-helper", "from": "contract/gates/diff-prefix.test.ts", "helper": "write" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/classify.test.ts", "helper": "write" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/fmt.test.ts", "helper": "write" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/id.test.ts", "helper": "write" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/resolve.test.ts", "helper": "write" },
-    { "id": "A-18", "rule": "test-helper", "from": "e2e/status.test.ts", "helper": "write" },
-    { "id": "A-18", "rule": "test-helper", "from": "unit/ids/allocate.test.ts", "helper": "write" },
-    { "id": "A-18", "rule": "test-helper", "from": "unit/ids/renumber.test.ts", "helper": "write" },
-    { "id": "A-18", "rule": "test-helper", "from": "unit/ids/scan.test.ts", "helper": "write" },
-    { "id": "A-18", "rule": "test-helper", "from": "unit/resolve/golden.test.ts", "helper": "write" }
+    { "id": "A-12", "rule": "rank", "from": "adapters/check-runner.ts", "to": "core/check/interrupt.ts" }
   ]
 }

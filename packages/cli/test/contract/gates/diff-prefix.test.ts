@@ -5,29 +5,18 @@
  * still keep every path of the project.
  */
 import { spawnSync } from "node:child_process";
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { symlinkSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { GitCli } from "../../../src/adapters/git-cli.js";
 import { changedPaths, projectPrefix, readGitFacts } from "../../../src/core/git/facts.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
+import { git } from "../../helpers/git.js";
+import { write } from "../../helpers/synced.js";
 
 const temp: string[] = [];
 afterAll(() => temp.forEach(removeDir));
-
-function git(cwd: string, ...args: string[]): void {
-  const run = spawnSync("git", ["-c", "user.name=warrant-test", "-c", "user.email=test@example.invalid", ...args], {
-    cwd,
-    encoding: "utf8"
-  });
-  if (run.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${run.stderr}`);
-}
-
-function write(root: string, rel: string, text: string): void {
-  mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
-  writeFileSync(path.join(root, rel), text, "utf8");
-}
 
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 

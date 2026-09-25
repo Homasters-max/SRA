@@ -13,16 +13,12 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { runCli, type CliRun } from "../helpers/cli.js";
+import { git } from "../helpers/git.js";
 import { PACKS, record, useSyncedProject, write } from "../helpers/synced.js";
 
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
 const REVIEW = "https://github.com/o/r/pull/7#pullrequestreview-1";
-
-function git(cwd: string, ...args: string[]): void {
-  const run = spawnSync("git", args, { cwd, encoding: "utf8" });
-  if (run.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${run.stderr}`);
-}
 
 describe.skipIf(!hasGit)("warrant transition (argv)", () => {
   it("maps <state>, --ref, --by and --commit; exit 0 when recorded, 2 when the gates refuse, 3 on an error", async () => {

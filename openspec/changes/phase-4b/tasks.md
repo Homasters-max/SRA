@@ -69,10 +69,10 @@ golden вне задач 1.1, 2.x и 6.x — остановка и строка 
 - [x] 6.2 Зонд Claude Code (maintainer, `scripts/dev/probe-hooks.js`): хук `PreToolUse` во frontmatter субагента на `Bash` —
   вызывается ли, доходит ли `deny`, чем отличается родной вход; фикстуры — `test/contract/fixtures/claude/<версия>/`. Итог —
   строка `I-N` (ADR-0034 п. 10). Проверка: фикстуры в репозитории, строка в §«Решения по ходу реализации».
-- [ ] 6.3 Цель `sync` `.claude/agents/warrant-reviewer.md` (§6, REQ-KRN-033), `validate` — побайтно. Проверка: SCN-KRN-139,
+- [x] 6.3 Цель `sync` `.claude/agents/warrant-reviewer.md` (§6, REQ-KRN-033), `validate` — побайтно. Проверка: SCN-KRN-139,
   SCN-KRN-140, SCN-KRN-134; контракт адаптера `claude` на фикстурах 6.2: `Bash` `warrant run submit` субагента — `allow`,
   иное при Run `review` — `deny`.
-- [ ] 6.4 Файл `.claude/agents/warrant-reviewer.md` репозитория, мета-тест `reviewer-agent.test.ts` (совпадение с генератором),
+- [x] 6.4 Файл `.claude/agents/warrant-reviewer.md` репозитория, мета-тест `reviewer-agent.test.ts` (совпадение с генератором),
   строка белого списка `dev-hooks.test.ts`; навык `change-spec-pr` — шаг review до `transition SPECIFIED`. Проверка: мета-тесты
   зелёные; `dev-context.test.ts`.
 

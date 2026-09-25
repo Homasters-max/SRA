@@ -24,7 +24,7 @@ import { versionSatisfies } from "../version-range.js";
 import { CLI_VERSION } from "../../version.js";
 import { CURRENT_FILE } from "../run/store.js";
 import { agentsMd, AGENTS_MD_REL } from "./agents.js";
-import { CLAUDE_FRONTEND, claudeMdTarget, claudeSettingsTarget } from "./claude.js";
+import { CLAUDE_FRONTEND, CLAUDE_REVIEWER_REL, claudeMdTarget, claudeSettingsTarget, REVIEW_SKILL, reviewerAgent } from "./claude.js";
 import { mergeRules, type OpenspecRules } from "./rules.js";
 import { driftPath, linesTarget, type SubsetTarget } from "./subset.js";
 
@@ -294,22 +294,43 @@ function inside(dir: string, absolute: string): string | undefined {
   return relative === "" ? undefined : relative;
 }
 
-/** `lock.skills` for every skill the enabled packs declare, in the project or in the bundle. */
-function planSkills(root: string, packs: LoadedPack[], errors: CliError[]): Record<string, unknown> {
-  const skills: Record<string, unknown> = {};
+/** Every skill the enabled packs declare, resolved to its file; what does not resolve goes to `errors`. */
+function resolveSkills(root: string, packs: LoadedPack[], errors: CliError[]): ResolvedSkill[] {
+  const out: ResolvedSkill[] = [];
   for (const pack of packs) {
     for (const spec of providedList(pack, "skills")) {
       const resolved = resolveSkill(pack, root, spec, errors);
-      if (resolved === undefined) continue;
-      const hash = bytesHash(readFileSync(resolved.absolute));
-      if (resolved.rel !== undefined) {
-        skills[resolved.name] = { version: resolved.version, path: resolved.rel, hash };
-      } else if (resolved.bundled !== undefined) {
-        skills[resolved.name] = { version: resolved.version, path: resolved.bundled, hash, source: "bundled" };
-      }
+      if (resolved !== undefined) out.push(resolved);
+    }
+  }
+  return out;
+}
+
+/** `lock.skills` for the resolved skills, in the project or in the bundle. */
+function planSkills(resolved: readonly ResolvedSkill[]): Record<string, unknown> {
+  const skills: Record<string, unknown> = {};
+  for (const skill of resolved) {
+    const hash = bytesHash(readFileSync(skill.absolute));
+    if (skill.rel !== undefined) {
+      skills[skill.name] = { version: skill.version, path: skill.rel, hash };
+    } else if (skill.bundled !== undefined) {
+      skills[skill.name] = { version: skill.version, path: skill.bundled, hash, source: "bundled" };
     }
   }
   return skills;
+}
+
+/**
+ * `.claude/agents/warrant-reviewer.md` with `frontends ∋ "claude"` (REQ-KRN-033):
+ * the review skill of the packs, the same file the lock records. A policy
+ * whose packs declare no review skill gets no subagent — there is nothing for
+ * it to carry; a declared skill that does not resolve is an error of the lock.
+ */
+function reviewerTarget(loaded: LoadResult, skills: readonly ResolvedSkill[]): Buffer | undefined {
+  if (!loaded.config.frontends.includes(CLAUDE_FRONTEND)) return undefined;
+  const review = skills.find((skill) => skill.name === REVIEW_SKILL);
+  if (review === undefined) return undefined;
+  return reviewerAgent({ version: review.version, text: readFileSync(review.absolute, "utf8") });
 }
 
 /** Builds the full plan. Never writes and never throws for project data. */
@@ -459,6 +480,13 @@ export function planSync(input: PlanInput): SyncPlan {
     else add(AGENTS_MD_REL, agents.bytes);
   }
 
+  // Skills of the packs: the lock records them (4); the subagent of the review Run carries one.
+  // Their errors belong to the lock: check (4) of `validate` plans without it and leaves them to check (2).
+  const skillErrors: CliError[] = [];
+  const skills = resolveSkills(root, loaded.packs, skillErrors);
+  const reviewer = reviewerTarget(loaded, skills);
+  if (reviewer !== undefined) add(CLAUDE_REVIEWER_REL, reviewer);
+
   const subsets = planSubsets(root, subsetTargets(loaded, agents !== undefined && !("error" in agents)), errors);
 
   // (4) The lock, hashing everything planned above but not itself.
@@ -473,13 +501,14 @@ export function planSync(input: PlanInput): SyncPlan {
     }
     // `skills` stays out of the lock when no enabled pack declares one: the
     // schema makes the key optional.
-    const skills = planSkills(root, loaded.packs, errors);
+    errors.push(...skillErrors);
+    const locked = planSkills(skills);
     const lock = {
       $schema: "warrant://lock/1",
       kernel: CLI_VERSION,
       openspec: openspecVersion,
       packs,
-      ...(Object.keys(skills).length > 0 ? { skills } : {}),
+      ...(Object.keys(locked).length > 0 ? { skills: locked } : {}),
       generated
     };
     add(LOCK_REL, Buffer.from(canonicalText(lock).text, "utf8"), lock);

@@ -2,17 +2,20 @@
  * Files of a frontend and `AGENTS.md` in `warrant sync` and `warrant validate`
  * (REQ-KRN-033, design phase-4a §8): the managed subset of
  * `.claude/settings.json`, the `@AGENTS.md` line of `CLAUDE.md`, the Run line of
- * `.gitignore` and the generated `AGENTS.md` (SCN-KRN-130…134).
+ * `.gitignore`, the generated `AGENTS.md` (SCN-KRN-130…134) and the subagent
+ * `.claude/agents/warrant-reviewer.md` of the review Run (SCN-KRN-139, 140;
+ * design phase-4b §6).
  */
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { parse as parseYaml } from "yaml";
 
 import { runSync, type SyncOptions } from "../../../src/commands/sync.js";
 import { AGENTS_MD_MARKER } from "../../../src/core/sync/agents.js";
-import { CLAUDE_DENY, GUARD_COMMAND } from "../../../src/core/sync/claude.js";
+import { CLAUDE_DENY, CLAUDE_REVIEWER_REL, GUARD_COMMAND } from "../../../src/core/sync/claude.js";
 import type { CommandResult } from "../../../src/io/output.js";
-import { CORE_SDD_RANGE } from "../../helpers/cli.js";
+import { CORE_SDD_RANGE, REPO_ROOT } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
 import { validate, validateErrors } from "../helpers/validate.js";
@@ -205,12 +208,70 @@ describe("warrant sync: AGENTS.md and CLAUDE.md", () => {
   });
 });
 
+describe("warrant sync: the subagent warrant-reviewer", () => {
+  const SKILL = path.join(REPO_ROOT, "sra", "skills", "specification", "adversarial-review", "SKILL.md");
+
+  /** Keys of the leading frontmatter, parsed as YAML like Claude Code does, and the body after it. */
+  function agentParts(text: string): { frontmatter: Record<string, any>; body: string } {
+    const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(text);
+    expect(match, "leading --- frontmatter").not.toBeNull();
+    return { frontmatter: parseYaml(match?.[1] ?? "") as Record<string, any>, body: match?.[2] ?? "" };
+  }
+
+  it("frontmatter with read-only tools and the guard hook on Bash, the marker, the review skill, run submit; a second sync changes no byte (SCN-KRN-139)", async () => {
+    const p = project(["claude"]);
+    const run = await sync(p);
+    expect(run.errors).toEqual([]);
+    expect(run.data["changed"]).toContain(CLAUDE_REVIEWER_REL);
+
+    const text = p.read(CLAUDE_REVIEWER_REL);
+    const { frontmatter, body } = agentParts(text);
+    expect(frontmatter["name"]).toBe("warrant-reviewer");
+    expect(frontmatter["description"]).toEqual(expect.any(String));
+    const tools = String(frontmatter["tools"]).split(",").map((t) => t.trim());
+    expect(tools).toEqual(["Read", "Grep", "Glob", "Bash"]);
+    expect(tools.filter((t) => ["Write", "Edit", "NotebookEdit"].includes(t))).toEqual([]);
+    expect(frontmatter["hooks"]).toEqual({ PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: GUARD_COMMAND }] }] });
+
+    // The marker, the text of the skill without its frontmatter, then how the result is handed in.
+    expect(body.split("\n").find((l) => l.trim() !== "")).toBe(AGENTS_MD_MARKER);
+    const skill = readFileSync(SKILL, "utf8").replace(/\r\n/g, "\n");
+    const skillBody = skill.slice(skill.indexOf("\n---\n", 4) + 5).trim();
+    expect(body).toContain(skillBody);
+    expect(body).not.toContain("version: 0.2.0");
+    const submit = body.indexOf("## Сдача результата");
+    expect(submit).toBeGreaterThan(body.indexOf(skillBody));
+    expect(body.slice(submit)).toContain("warrant run submit <<'JSON'");
+    expect(body.slice(submit)).toContain("specification/adversarial-review@0.2.0");
+
+    // Hashed by the lock like every exact target; validate is clean; a second sync writes nothing.
+    const lock = JSON.parse(p.read(".warrant/warrant.lock.json")) as { generated: Record<string, string> };
+    expect(lock.generated[CLAUDE_REVIEWER_REL]).toMatch(/^sha256:/);
+    expect(await validate(p)).toMatchObject({ ok: true });
+    expect((await sync(p)).data["changed"]).toEqual([]);
+    expect(p.read(CLAUDE_REVIEWER_REL)).toBe(text);
+  });
+
+  it("one changed line of the file: validate gives GENERATED_DRIFT with its path and the hint, code 3 (SCN-KRN-140)", async () => {
+    const p = project(["claude"]);
+    await p.synced();
+    p.write(CLAUDE_REVIEWER_REL, p.read(CLAUDE_REVIEWER_REL).replace("tools: Read, Grep, Glob, Bash", "tools: Read, Grep, Glob, Bash, Write"));
+    const run = await validate(p);
+    expect(run.exitCode).toBe(3);
+    expect(run.errors).toContainEqual(
+      expect.objectContaining({ code: "GENERATED_DRIFT", path: CLAUDE_REVIEWER_REL, hint: "run `warrant sync`" })
+    );
+    await sync(p);
+    expect(await validate(p)).toMatchObject({ ok: true });
+  });
+});
+
 describe("warrant sync: project without frontend", () => {
   it("touches no file of Claude Code, keeps .warrant/runs/current in .gitignore (SCN-KRN-134)", async () => {
     const p = project().write(".gitignore", "node_modules/");
     const run = await sync(p);
     expect(run.errors).toEqual([]);
-    for (const rel of [SETTINGS, "CLAUDE.md", "AGENTS.md"]) expect(exists(p, rel), rel).toBe(false);
+    for (const rel of [SETTINGS, CLAUDE_REVIEWER_REL, "CLAUDE.md", "AGENTS.md"]) expect(exists(p, rel), rel).toBe(false);
     expect(p.read(".gitignore")).toBe("node_modules/\n.warrant/runs/current\n");
     expect(run.data["changed"]).toContain(".gitignore");
     expect(run.data["generated"]).not.toContain(".gitignore");

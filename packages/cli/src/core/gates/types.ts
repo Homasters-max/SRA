@@ -6,6 +6,7 @@
  * command layer gathered (git, OpenSpec, ids). Nothing in `core/gates/`
  * besides `diff.ts` reads the disk or starts a process.
  */
+import type { AnalyzeResult } from "../analyze/index.js";
 import type { CliError } from "../errors.js";
 import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { EffectivePolicy } from "../resolve/types.js";
@@ -44,6 +45,10 @@ export interface Finding {
   check?: string;
   error?: string;
   paths?: string[];
+  /** A finding of `analyze` (`analyze-clean`, REQ-VER-004): the REQ or SCN id, what it misses, the file naming it. */
+  id?: string;
+  missing?: string[];
+  path?: string;
   /** How many paths `paths` leaves out (`FRONTEND_HOOKS_INACTIVE`, REQ-VER-009). */
   more?: number;
   items?: string[];
@@ -109,6 +114,11 @@ export interface GateSignals {
   checkFailures?: CheckFailure[];
   /** Contract trees of `spec-approved`; gathered only when the evaluated gates include it. */
   contract?: Availability<ContractTrees>;
+  /**
+   * Result of `analyze` on the diff of `scope-valid` (`analyze-clean`, design §5); gathered only when the
+   * evaluated gates include it, unavailable without the diff.
+   */
+  analyze?: Availability<AnalyzeResult>;
 }
 
 export interface GateEngineInput {

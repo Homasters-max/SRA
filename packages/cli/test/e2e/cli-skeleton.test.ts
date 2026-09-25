@@ -56,6 +56,16 @@ describe("cli skeleton", () => {
     expect(examples.some((line) => line.startsWith("  $ warrant validate --files "))).toBe(true);
   });
 
+  it("--help of analyze names --base and gives an example; a report writes nothing, so no --dry-run (REQ-VER-010, lens cli-contract)", async () => {
+    const r = await runCli(["analyze", "--help"], dir);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe("");
+    expect(r.stderr).toContain("--base <ref>");
+    expect(r.stderr).not.toContain("--dry-run");
+    const examples = r.stderr.split("Examples:\n")[1]?.split("\n") ?? [];
+    expect(examples.some((line) => line.startsWith("  $ warrant analyze "))).toBe(true);
+  });
+
   it("--dry-run reaches the command: a refusal carries data.dry_run (REQ-KRN-034)", async () => {
     const r = await runCli(["transition", "add-search", "SPECIFIED", "--dry-run"], dir);
     expect(r.status).toBe(3);

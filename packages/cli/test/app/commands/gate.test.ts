@@ -198,7 +198,8 @@ describe("warrant gate", () => {
       "spec-approved",
       "tests-passed"
     ]);
-    expect(run.data["gates"]["analyze-clean"]).toBe("BLOCKED");
+    // analyze-clean is computed: the Change has no finding (REQ-VER-004, I-166).
+    expect(run.data["gates"]["analyze-clean"]).toBe("PASS");
   });
 
   it("archive-PR inside its own archive directory passes scope-valid (SCN-VER-020)", async () => {
@@ -380,5 +381,49 @@ describe("warrant gate", () => {
     const merge = await gate(p, ["scope-valid", "spec-approved"], { transition: MERGE });
     expect(merge.data["gates"]).toEqual({ "scope-valid": "BLOCKED", "spec-approved": "BLOCKED" });
     expect(merge.data["findings"]).toContainEqual(expect.objectContaining({ code: "NO_INPUT", gate: "spec-approved" }));
+  });
+});
+
+describe("warrant gate: analyze-clean (REQ-VER-004)", () => {
+  /** Findings of the gate: `FRONTEND_HOOKS_INACTIVE` of the merge (REQ-VER-009) has no gate. */
+  const ofGate = (data: Data): Data[] => (data["findings"] as Data[]).filter((f) => f["gate"] === "analyze-clean");
+  const SEARCH = [{ name: "Search by text", id: "REQ-SRC-004", scenarios: [{ name: "Match", id: "SCN-SRC-010" }] }];
+
+  /** `VERIFYING` with `paths.tests: tests`, the delta adding REQ-SRC-004 / SCN-SRC-010, `tasks` and an impl branch tagging the SCN. */
+  async function analyzed(tasks: string): Promise<ProjectBuilder> {
+    const p = await repo("VERIFYING", FEATURE, (b) => {
+      const config = JSON.parse(b.read(".warrant/warrant.json")) as Record<string, unknown>;
+      b.write(".warrant/warrant.json", { ...config, paths: { tests: "tests" } });
+      b.withChange("add-search", { design: "# Design\n", tasks, specs: { search: SEARCH } });
+    });
+    branch(p, "worktree/add-search", (b) => b.write("tests/test_search.py", "# SCN-SRC-010\n"));
+    return p;
+  }
+
+  it("FAIL with UNSATISFIED for a REQ tasks.md does not mention (SCN-VER-058)", async () => {
+    const p = await analyzed("# Tasks\n\n- [ ] 1.1 Index the catalogue\n");
+    const run = await gate(p, ["analyze-clean"], { transition: MERGE });
+    expect(run.data["gates"]).toEqual({ "analyze-clean": "FAIL" });
+    expect(ofGate(run.data)).toEqual([
+      expect.objectContaining({ code: "UNSATISFIED", gate: "analyze-clean", id: "REQ-SRC-004", missing: ["task"] })
+    ]);
+  });
+
+  it("PASS without a waiver when tasks.md and a test name the REQ through its SCN (SCN-VER-059)", async () => {
+    const p = await analyzed("# Tasks\n\n- [ ] 1.1 Search by text (SCN-SRC-010)\n");
+    const run = await gate(p, ["analyze-clean"], { transition: MERGE });
+    expect(run.data["gates"]).toEqual({ "analyze-clean": "PASS" });
+    expect(ofGate(run.data)).toEqual([]);
+  });
+
+  it("BLOCKED with NO_INPUT without git", async () => {
+    const p = await project()
+      .withChange("add-search", { design: "# Design\n", tasks: "# Tasks\n", specs: { search: SEARCH } })
+      .withRecord("add-search", "VERIFYING", FEATURE)
+      .synced();
+    const run = await gate(p, ["analyze-clean"], { transition: MERGE });
+    expect(run.data["gates"]).toEqual({ "analyze-clean": "BLOCKED" });
+    expect(run.data["findings"]).toEqual([expect.objectContaining({ code: "NO_INPUT", gate: "analyze-clean" })]);
+    expect(run.data["findings"][0].message).toContain("not a git repository");
   });
 });

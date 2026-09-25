@@ -12,8 +12,9 @@
  * `archive/add-search`. `openspec validate --strict` is answered by
  * `FakeCheckRunner` (`withOpenspecValidate`: valid, or invalid for
  * SCN-VER-038); `openspec archive` by `FakeOpenSpec`, which moves the Change
- * directory and merges no delta (ADR-0025 п. 4). `analyze-clean` has no
- * producer in phase 3 and is waived, as in the repository (P-16).
+ * directory and merges no delta (ADR-0025 п. 4). `analyze-clean` is computed
+ * (REQ-VER-004) and passes on this Change: the waiver of phase 3 on it stays in
+ * the fixture, a `PASS` needs none (I-166).
  */
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -93,7 +94,7 @@ describe("warrant archive", () => {
     expect(data["transition"]).toBe("MERGED->ARCHIVED");
     expect(data["checks"]).toEqual([expect.objectContaining({ id: "openspec-validate", kind: "spec-report", evidence_status: "PROVEN" })]);
     expect(data["gates"]).toEqual({
-      "analyze-clean": "WAIVED",
+      "analyze-clean": "PASS",
       "ids-valid": "PASS",
       "required-artifacts-present": "PASS",
       "spec-valid": "PASS"

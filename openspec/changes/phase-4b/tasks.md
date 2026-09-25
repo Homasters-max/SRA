@@ -35,11 +35,11 @@ golden вне задач 1.1, 2.x и 6.x — остановка и строка 
 
 ## 3. analyze и analyze-clean (REQ-VER-010, REQ-VER-004)
 
-- [ ] 3.1 `core/analyze/` (R2, §3): разбор delta по секциям, находки `UNSATISFIED`, `CONFLICT`, `ORPHAN`, `skipped[]`;
+- [x] 3.1 `core/analyze/` (R2, §3): разбор delta по секциям, находки `UNSATISFIED`, `CONFLICT`, `ORPHAN`, `skipped[]`;
   строка `architecture.json`. Проверка: unit на SCN-VER-062…065, SCN-VER-067 без процессов.
-- [ ] 3.2 `warrant analyze <change> [--base]` (`commands/analyze.ts`, `--help` с примером — линза `cli-contract`). Проверка:
+- [x] 3.2 `warrant analyze <change> [--base]` (`commands/analyze.ts`, `--help` с примером — линза `cli-contract`). Проверка:
   SCN-VER-062, SCN-VER-066 (`app`: код 1 / 0, дерево проекта байт в байт прежнее), e2e `--help`.
-- [ ] 3.3 Калькулятор `analyze-clean` через `signals.analyze` (§5, REQ-VER-004). Проверка: SCN-VER-058, SCN-VER-059; без git —
+- [x] 3.3 Калькулятор `analyze-clean` через `signals.analyze` (§5, REQ-VER-004). Проверка: SCN-VER-058, SCN-VER-059; без git —
   `BLOCKED` `NO_INPUT`; SCN-VER-015 и SCN-VER-043 переписаны на `adversarial-review`.
 
 ## 4. Собственное состояние и пред-фильтр (REQ-VER-003, REQ-VER-004, REQ-KRN-028)

@@ -407,7 +407,8 @@ describe("warrant transition", () => {
     const ci = await verifyMerge(p, CI_ENV);
     expect(ci.errors).toEqual([]);
     expect(ci.data["gates"]).toEqual({
-      "analyze-clean": "WAIVED",
+      // Computed and clean: the waiver on it is not needed (REQ-VER-004, I-166).
+      "analyze-clean": "PASS",
       "evidence-complete": "PASS",
       "ids-valid": "PASS",
       "scope-valid": "PASS",

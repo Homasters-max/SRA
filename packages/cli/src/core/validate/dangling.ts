@@ -18,31 +18,8 @@ import path from "node:path";
 import { testFiles, type WarrantConfig } from "../config.js";
 import type { CliError } from "../errors.js";
 import { reportPath } from "../fs.js";
+import { findReferences, readSourceText } from "../ids/references.js";
 import type { FoundId } from "../ids/scan.js";
-
-/** Largest test file read by check (13). */
-export const MAX_TEXT_BYTES = 1024 * 1024;
-
-/**
- * A reference token. Ids contain `-`, so the boundaries are lookarounds over
- * the id alphabet rather than `\b` (same rule as `warrant id renumber`).
- */
-const REFERENCE_RE = /(?<![A-Za-z0-9-])(?:REQ|SCN)-[A-Z]{2,5}-\d{3}(?![A-Za-z0-9-])/g;
-
-export interface Reference {
-  id: string;
-  /** 1-based line number. */
-  line: number;
-}
-
-/** REQ/SCN references in one text, in order of appearance. */
-export function findReferences(text: string): Reference[] {
-  const out: Reference[] = [];
-  text.split("\n").forEach((line, i) => {
-    for (const m of line.matchAll(REFERENCE_RE)) out.push({ id: m[0], line: i + 1 });
-  });
-  return out;
-}
 
 /** `tasks.md` of every active Change: `openspec/changes/<change>/tasks.md`, archive excluded. */
 function activeTaskFiles(root: string): string[] {
@@ -66,19 +43,6 @@ function activeTaskFiles(root: string): string[] {
   return out;
 }
 
-/** Text of a test file, or undefined for a large or binary one. */
-function readText(absolute: string): string | undefined {
-  let buffer: Buffer;
-  try {
-    if (statSync(absolute).size > MAX_TEXT_BYTES) return undefined;
-    buffer = readFileSync(absolute);
-  } catch {
-    return undefined;
-  }
-  if (buffer.includes(0)) return undefined;
-  return buffer.toString("utf8");
-}
-
 /**
  * Check (13). `declared` are the ids scanned by check (5); only declarations
  * in `openspec/**` count (records carry UNK/ASM ids, never REQ/SCN). `only`
@@ -97,7 +61,7 @@ export function checkDangling(
   const files = only ?? [...new Set([...tasks, ...testFiles(root, config)])];
   for (const absolute of files) {
     // A tasks.md is always read; only test files may be skipped as not text.
-    const text = tasks.includes(absolute) ? readFileSync(absolute, "utf8") : readText(absolute);
+    const text = tasks.includes(absolute) ? readFileSync(absolute, "utf8") : readSourceText(absolute);
     if (text === undefined) continue;
     const reported = reportPath(absolute, root);
     for (const ref of findReferences(text)) {

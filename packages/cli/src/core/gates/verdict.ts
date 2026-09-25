@@ -105,7 +105,7 @@ export function freshest(records: readonly EvidenceInput[]): EvidenceInput | und
   return best;
 }
 
-const FINDING_KEYS = ["code", "gate", "evidence", "kind", "reason", "waiver", "check", "error", "paths", "items", "rule", "message"] as const;
+const FINDING_KEYS = ["code", "gate", "id", "missing", "path", "evidence", "kind", "reason", "waiver", "check", "error", "paths", "items", "rule", "message"] as const;
 
 /** A finding with its keys in one fixed order, so output and snapshots are stable. */
 function ordered(finding: Finding): Finding {

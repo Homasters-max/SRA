@@ -21,6 +21,7 @@ import { runStatus } from "../commands/status.js";
 import { runClassify } from "../commands/classify.js";
 import { runCheck } from "../commands/check.js";
 import { runGate } from "../commands/gate.js";
+import { runAnalyze } from "../commands/analyze.js";
 import { runVerify } from "../commands/verify.js";
 import { runTransition } from "../commands/transition.js";
 import { runArchive } from "../commands/archive.js";
@@ -295,6 +296,16 @@ register(
       .argument("[ids...]")
       .option("--transition <FROM->TO>", "transition to evaluate (default: the next forward one)")
       .option("--base <ref>", "base commit of the diff (default: merge-base of HEAD and main)")
+);
+register(
+  "analyze",
+  "check delta specs, tasks.md and tests of a change against each other by ids (UNSATISFIED, CONFLICT, ORPHAN); writes nothing",
+  (ctx, args, opts) => runAnalyze(ctx, args[0] as string, typeof opts["base"] === "string" ? { base: opts["base"] } : {}),
+  (c) =>
+    c
+      .argument("<change>")
+      .option("--base <ref>", "base commit of the diff whose test files ORPHAN reads (default: merge-base of HEAD and main)")
+      .addHelpText("after", examples(["warrant analyze add-search", "warrant analyze add-search --base origin/main"]))
 );
 register(
   "verify",

@@ -28,6 +28,9 @@ const HEAD = "c".repeat(40);
 const PREVIOUS = "p".repeat(40);
 const BASE = "b".repeat(40);
 
+/** Transition of gate `adversarial-review` (04 section 5). */
+const REVIEW_TRANSITION = "SPECIFIED->APPROVED";
+
 function policy(gates: Record<string, string[]>, extra: Partial<EffectivePolicy> = {}): EffectivePolicy {
   return {
     hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -197,27 +200,28 @@ describe("verdict algorithm (06 section 3)", () => {
   });
 
   it("WAIVED by an ACTIVE waiver of a waivable gate without a record (SCN-VER-015)", () => {
-    const result = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], { waivers: [waiver("analyze-clean")] });
-    expect(result.gates).toEqual({ "analyze-clean": "WAIVED" });
-    expect(result.findings).toContainEqual(expect.objectContaining({ code: "WAIVED_BY", gate: "analyze-clean", waiver: "WAV-2026-001" }));
+    const result = evaluate(REVIEW_TRANSITION, ["adversarial-review"], [], { waivers: [waiver("adversarial-review")] });
+    expect(result.gates).toEqual({ "adversarial-review": "WAIVED" });
+    expect(result.findings).toContainEqual(expect.objectContaining({ code: "NO_EVIDENCE", gate: "adversarial-review" }));
+    expect(result.findings).toContainEqual(expect.objectContaining({ code: "WAIVED_BY", gate: "adversarial-review", waiver: "WAV-2026-001" }));
 
     // Another Change, an expired or a revoked waiver waive nothing.
-    const other = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], { waivers: [waiver("analyze-clean", { change: "other" })] });
-    expect(other.gates["analyze-clean"]).toBe("BLOCKED");
-    const expired = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], {
-      waivers: [waiver("analyze-clean", { expires_at: "2026-09-21" })]
+    const other = evaluate(REVIEW_TRANSITION, ["adversarial-review"], [], { waivers: [waiver("adversarial-review", { change: "other" })] });
+    expect(other.gates["adversarial-review"]).toBe("BLOCKED");
+    const expired = evaluate(REVIEW_TRANSITION, ["adversarial-review"], [], {
+      waivers: [waiver("adversarial-review", { expires_at: "2026-09-21" })]
     });
-    expect(expired.gates["analyze-clean"]).toBe("BLOCKED");
+    expect(expired.gates["adversarial-review"]).toBe("BLOCKED");
     expect(expired.findings).toContainEqual(expect.objectContaining({ code: "WAIVER_IGNORED", reason: "expired" }));
-    const revoked = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], {
-      waivers: [waiver("analyze-clean", { waiver_state: "REVOKED" })]
+    const revoked = evaluate(REVIEW_TRANSITION, ["adversarial-review"], [], {
+      waivers: [waiver("adversarial-review", { waiver_state: "REVOKED" })]
     });
-    expect(revoked.gates["analyze-clean"]).toBe("BLOCKED");
+    expect(revoked.gates["adversarial-review"]).toBe("BLOCKED");
     // A waiver expiring today is still in force (UTC date, I-75).
-    const today = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], {
-      waivers: [waiver("analyze-clean", { expires_at: "2026-09-22" })]
+    const today = evaluate(REVIEW_TRANSITION, ["adversarial-review"], [], {
+      waivers: [waiver("adversarial-review", { expires_at: "2026-09-22" })]
     });
-    expect(today.gates["analyze-clean"]).toBe("WAIVED");
+    expect(today.gates["adversarial-review"]).toBe("WAIVED");
   });
 
   it("a waiver with targets[] does not waive the whole gate", () => {
@@ -259,13 +263,13 @@ describe("verdict algorithm (06 section 3)", () => {
   });
 
   it("WAIVER_IGNORED reason approver for a waiver by a login outside roles (SCN-VER-043)", () => {
-    const result = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], {
-      waivers: [waiver("analyze-clean", { approved_by: "human:bob" })],
+    const result = evaluate(REVIEW_TRANSITION, ["adversarial-review"], [], {
+      waivers: [waiver("adversarial-review", { approved_by: "human:bob" })],
       approvers: new Set(["kat"])
     });
-    expect(result.gates["analyze-clean"]).toBe("BLOCKED");
+    expect(result.gates["adversarial-review"]).toBe("BLOCKED");
     expect(result.findings).toContainEqual(
-      expect.objectContaining({ code: "WAIVER_IGNORED", gate: "analyze-clean", waiver: "WAV-2026-001", reason: "approver" })
+      expect.objectContaining({ code: "WAIVER_IGNORED", gate: "adversarial-review", waiver: "WAV-2026-001", reason: "approver" })
     );
   });
 
@@ -531,11 +535,36 @@ describe("L0 calculators (REQ-VER-004)", () => {
     }
   });
 
-  it("analyze-clean is BLOCKED/NO_INPUT until warrant analyze exists", () => {
-    const result = evaluate("VERIFYING->MERGED", ["analyze-clean"]);
-    expect(result.gates["analyze-clean"]).toBe("BLOCKED");
-    expect(result.findings[0]).toMatchObject({ code: "NO_INPUT", gate: "analyze-clean" });
-    expect(result.findings[0]?.message).toContain("warrant analyze");
+  it("analyze-clean: FAIL with the findings of analyze (SCN-VER-058), PASS without (SCN-VER-059)", () => {
+    const unsatisfied = { code: "UNSATISFIED" as const, id: "REQ-SRC-004", missing: ["task" as const] };
+    const orphan = { code: "ORPHAN" as const, id: "SCN-SRC-099", path: "tests/test_search.py" };
+    const failed = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], {
+      signals: { analyze: { ok: true, value: { findings: [orphan, unsatisfied], skipped: [] } } }
+    });
+    expect(failed.gates["analyze-clean"]).toBe("FAIL");
+    expect(failed.findings).toEqual([
+      expect.objectContaining({ ...orphan, gate: "analyze-clean" }),
+      expect.objectContaining({ ...unsatisfied, gate: "analyze-clean" })
+    ]);
+
+    const clean = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], {
+      signals: { analyze: { ok: true, value: { findings: [], skipped: [{ code: "ORPHAN", reason: "no diff" }] } } }
+    });
+    expect(clean.gates["analyze-clean"]).toBe("PASS");
+    expect(clean.findings).toEqual([]);
+  });
+
+  it("analyze-clean: BLOCKED/NO_INPUT without the diff or without the signal (REQ-VER-004)", () => {
+    const nogit = evaluate("VERIFYING->MERGED", ["analyze-clean"], [], {
+      signals: { analyze: { ok: false, reason: "diff unknown: the project is not a git repository with a commit" } }
+    });
+    expect(nogit.gates["analyze-clean"]).toBe("BLOCKED");
+    expect(nogit.findings[0]).toMatchObject({ code: "NO_INPUT", gate: "analyze-clean" });
+    expect(nogit.findings[0]?.message).toContain("not a git repository");
+
+    const unread = evaluate("VERIFYING->MERGED", ["analyze-clean"]);
+    expect(unread.gates["analyze-clean"]).toBe("BLOCKED");
+    expect(unread.findings[0]).toMatchObject({ code: "NO_INPUT", gate: "analyze-clean" });
   });
 
   it("scope-valid: BLOCKED/NO_INPUT without a diff", () => {

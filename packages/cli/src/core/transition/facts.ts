@@ -1,8 +1,12 @@
 /**
  * Facts a transition is judged on, gathered through `ctx` (design §8, §9):
  * git facts of the project, stable-id findings, waivers, the artifact
- * statuses of OpenSpec and the contract trees `spec-approved` compares.
+ * statuses of OpenSpec, the contract trees `spec-approved` compares and the
+ * findings of `analyze` `analyze-clean` judges by.
  */
+import { analyze, type AnalyzeResult } from "../analyze/index.js";
+import { readAnalyzeInput } from "../analyze/input.js";
+import type { WarrantConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
 import { NO_GIT_COMMIT } from "../evidence/record.js";
@@ -87,4 +91,25 @@ export async function contractTrees(
       evaluated: { commit: git.commit, tree: evaluated.value }
     }
   };
+}
+
+/**
+ * `analyze` of an active Change on the diff `scope-valid` judges (design §5,
+ * REQ-VER-004): unavailable without that diff or the change directory; never throws.
+ */
+export function analyzeFacts(
+  root: string,
+  change: string,
+  config: WarrantConfig,
+  diff: Availability<DiffEntry[]>
+): Availability<AnalyzeResult> {
+  if (!diff.ok) return { ok: false, reason: `diff unknown: ${diff.reason}` };
+  if (findChangeDir(root, change)?.where !== "active") {
+    return { ok: false, reason: `openspec/changes/${change}/ is not an active change directory` };
+  }
+  try {
+    return { ok: true, value: analyze(readAnalyzeInput(root, change, config, diff)) };
+  } catch (thrown) {
+    return { ok: false, reason: `the Change could not be analyzed: ${(thrown as Error).message}` };
+  }
 }

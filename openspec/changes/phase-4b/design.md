@@ -160,3 +160,4 @@ golden — как I-156). Skill `0.2.0` и `^0.2` — в группе skill (6),
 
 | # | Решение | Где |
 |---|---|---|
+| I-166 | `analyze-clean` вычисляется (REQ-VER-004): в app-тестах SCN-VER-036 (`archive`), SCN-VER-019 (`gate`) и I-96 (`transition`) ожидание `analyze-clean` — `PASS` (BREAKING из proposal); тесты `waive` SCN-KRN-121, 122, 124 и `--dry-run` — фикстура без git, `analyze-clean` `BLOCKED` `NO_INPUT`, текст сценариев kernel не меняется. Решение maintainer'а 2026-09-25 | `test/app/commands/{archive,gate,transition,waive}.test.ts`, задача 3.3 |

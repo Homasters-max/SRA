@@ -1,0 +1,16 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-2026-013",
+  "change": "phase-4a",
+  "gate": "spec-approved",
+  "reason": "delta specs уточнены в impl-PR #47 решениями maintainer'а: I-156 (REQ-SDD-001 kernel <0.6), I-159 (REQ-KRN-032 (b)), I-161 (REQ-ENF-004 policy-пути), I-163 (REQ-VER-009 без удалённых), I-165 (REQ-ENF-004/005 по зонду Claude Code 2.1.263); proposal — core-sdd 0.3.1",
+  "risk": "LOW",
+  "compensating_controls": [
+    "ревью impl-PR #47 агентом reviewer: delta specs, design и код согласованы, 🔴 исправлен и перепроверен",
+    "каждое уточнение — решение maintainer'а в чате, строка I-N design.md"
+  ],
+  "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
+  "expires_at": "2026-12-31",
+  "waiver_state": "ACTIVE"
+}

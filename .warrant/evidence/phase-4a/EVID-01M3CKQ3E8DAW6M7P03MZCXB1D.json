@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3CKQ3E8DAW6M7P03MZCXB1D",
+  "claim": {
+    "text": "Homasters-max approved phase-4a for VERIFYING->MERGED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "4addd76c5d3dee9a0e5ef87bcdf4d92a7e3a3fa3",
+    "base_commit": "668d781cd4f0b09f531017e45936396aa6bc5cfa",
+    "spec_revision": "openspec/changes/phase-4a@4addd76c5d3dee9a0e5ef87bcdf4d92a7e3a3fa3",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/36153810520"
+  },
+  "context_hash": "sha256:95de0eec932d5188176b8fc16115728282d3e3b2e5bebdc58939129f0a37f22a",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-25T15:42:33.928Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 
 import { runCli, type CliRun } from "../helpers/cli.js";
 import { git } from "../helpers/git.js";
-import { PACKS, record, useSyncedProject, write } from "../helpers/synced.js";
+import { PACKS, recordDoc, useSyncedProject, write } from "../helpers/synced.js";
 
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
@@ -24,7 +24,7 @@ describe.skipIf(!hasGit)("warrant transition (argv)", () => {
   it("maps <state>, --ref, --by and --commit; exit 0 when recorded, 2 when the gates refuse, 3 on an error", async () => {
     const root = project();
     const recordFile = path.join(root, ".warrant", "changes", "add-search.json");
-    write(root, ".warrant/changes/add-search.json", record("add-search", "VERIFYING", { classification: { profiles: ["feature"] } }));
+    write(root, ".warrant/changes/add-search.json", recordDoc("add-search", "VERIFYING", { classification: { profiles: ["feature"] } }));
     git(root, "-c", "init.defaultBranch=main", "init", "--quiet");
     git(root, "config", "user.name", "warrant-test");
     git(root, "config", "user.email", "test@example.invalid");

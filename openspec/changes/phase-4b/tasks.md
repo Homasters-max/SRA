@@ -52,12 +52,12 @@ golden вне задач 1.1, 2.x и 6.x — остановка и строка 
 
 ## 5. Review: Run, guard, run submit (REQ-ENF-002, REQ-ENF-004, REQ-ENF-007)
 
-- [ ] 5.1 `GitPort.dirty(paths)` — адаптер, `FakeGit`, контракт соответствия (§4). Проверка: `git.contract.test.ts` —
+- [x] 5.1 `GitPort.dirty(paths)` — адаптер, `FakeGit`, контракт соответствия (§4). Проверка: `git.contract.test.ts` —
   изменённый, новый и чистый файл.
-- [ ] 5.2 `run start --operation review`: `PROPOSED`, пустой `write_scope`, `spec_tree`, `SPEC_UNCOMMITTED` (REQ-ENF-002).
+- [x] 5.2 `run start --operation review`: `PROPOSED`, пустой `write_scope`, `spec_tree`, `SPEC_UNCOMMITTED` (REQ-ENF-002).
   Проверка: SCN-ENF-024, SCN-ENF-025; SCN-ENF-004…008 без правок.
-- [ ] 5.3 Guard при Run `review` (REQ-ENF-004). Проверка: SCN-ENF-026, SCN-ENF-027; SCN-ENF-011…016 без правок.
-- [ ] 5.4 `core/run/submit.ts` и `warrant run submit [--file] [--dry-run]` (REQ-ENF-007, §4); `--help` с примером; A-26:
+- [x] 5.3 Guard при Run `review` (REQ-ENF-004). Проверка: SCN-ENF-026, SCN-ENF-027; SCN-ENF-011…016 без правок.
+- [x] 5.4 `core/run/submit.ts` и `warrant run submit [--file] [--dry-run]` (REQ-ENF-007, §4); `--help` с примером; A-26:
   `started` → `test/app/helpers/run.ts`, `record` → `helpers/synced.ts`, строки `test_helpers`. Проверка: SCN-ENF-030…035;
   `cs dups --in packages/cli/test` без `started`.
 

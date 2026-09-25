@@ -14,7 +14,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { makeTempDir, removeDir, runCli } from "../helpers/cli.js";
 import { git } from "../helpers/git.js";
-import { PACKS, record, useSyncedProject, write } from "../helpers/synced.js";
+import { PACKS, recordDoc, useSyncedProject, write } from "../helpers/synced.js";
 
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
@@ -62,7 +62,7 @@ describe.skipIf(!hasGit)("warrant check (platform)", () => {
       "setTimeout(()=>{}, 60000);"
     ].join(" ");
     const root = project();
-    write(root, ".warrant/changes/add-search.json", record("add-search", "PROPOSED"));
+    write(root, ".warrant/changes/add-search.json", recordDoc("add-search", "PROPOSED"));
     write(root, ".warrant/local/checks/tests-passed.json", {
       $schema: "warrant://check/1",
       id: "tests-passed",

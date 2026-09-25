@@ -42,6 +42,11 @@ describe("writeScopeOf (F1)", () => {
     expect(writeScopeOf("specify", "add-search", config())).toEqual(["openspec/changes/add-search/**"]);
   });
 
+  it("review: empty, a review only reads — paths or not (REQ-ENF-002)", () => {
+    expect(writeScopeOf("review", "add-search", config({ src: "src", tests: "tests" }))).toEqual([]);
+    expect(writeScopeOf("review", "add-search", config())).toEqual([]);
+  });
+
   it("implement: paths.src, paths.tests and tasks.md of the Change; `./` and trailing slashes dropped", () => {
     expect(writeScopeOf("implement", "add-search", config({ src: "./src/", tests: "tests" }))).toEqual([
       "src/**",

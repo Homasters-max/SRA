@@ -11,15 +11,15 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { runCli, type CliRun } from "../helpers/cli.js";
-import { PACKS, record, useSyncedProject, write } from "../helpers/synced.js";
+import { PACKS, recordDoc, useSyncedProject, write } from "../helpers/synced.js";
 
 const project = useSyncedProject();
 
 describe("warrant link (argv)", () => {
   it("maps <change>, --amends, --supersedes and --remove; exit 0, and 3 on a refusal (SCN-KRN-118, SCN-KRN-120)", async () => {
     const root = project();
-    write(root, ".warrant/changes/add-search.json", record("add-search", "ARCHIVED"));
-    write(root, ".warrant/changes/fix-search.json", record("fix-search", "PROPOSED"));
+    write(root, ".warrant/changes/add-search.json", recordDoc("add-search", "ARCHIVED"));
+    write(root, ".warrant/changes/fix-search.json", recordDoc("fix-search", "PROPOSED"));
     const link = (...args: string[]): Promise<CliRun> => runCli(["link", "fix-search", ...args], root, { WARRANT_PACKS_DIR: PACKS });
     const amends = (): unknown =>
       (JSON.parse(readFileSync(path.join(root, ".warrant", "changes", "fix-search.json"), "utf8")) as Record<string, unknown>)["amends"];

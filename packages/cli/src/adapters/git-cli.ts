@@ -55,6 +55,28 @@ export function parseNameStatus(output: string): DiffEntry[] {
   return out;
 }
 
+/**
+ * Paths of `git status --porcelain -z` output, sorted by bytes as git lists
+ * them, without duplicates. Every entry is `XY SP <path> NUL`; a rename or
+ * copy in the index (`X` is `R` or `C`) is followed by its source path.
+ */
+export function parsePorcelainPaths(output: string): string[] {
+  const fields = output.split("\0");
+  const out = new Set<string>();
+  for (let i = 0; i < fields.length; i++) {
+    const entry = fields[i] ?? "";
+    if (entry.length < 4) continue;
+    out.add(entry.slice(3));
+    const x = entry[0];
+    if (x === "R" || x === "C") {
+      const from = fields[i + 1] ?? "";
+      if (from !== "") out.add(from);
+      i += 1;
+    }
+  }
+  return [...out].sort((a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b)));
+}
+
 export class GitCli implements GitPort {
   constructor(private readonly root: string) {}
 
@@ -135,6 +157,12 @@ export class GitCli implements GitPort {
     const run = await this.git(["ls-tree", "-r", "-z", "--name-only", "--full-name", rev, "--", ...paths]);
     if (!run.ok) return null;
     return run.stdout.split("\0").filter((p) => p !== "");
+  }
+
+  async dirty(paths: string[]): Promise<GitAnswer<string[]>> {
+    const run = await this.git(["status", "--porcelain", "-z", "--untracked-files=all", "--", ...paths]);
+    if (!run.ok) return { ok: false, detail: detailOf(run) };
+    return { ok: true, value: parsePorcelainPaths(run.stdout) };
   }
 
   /**

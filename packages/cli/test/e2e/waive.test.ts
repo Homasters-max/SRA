@@ -11,7 +11,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { runCli } from "../helpers/cli.js";
-import { PACKS, record, useSyncedProject, write } from "../helpers/synced.js";
+import { PACKS, recordDoc, useSyncedProject, write } from "../helpers/synced.js";
 
 const project = useSyncedProject();
 
@@ -21,7 +21,7 @@ const EXPIRES = `${YEAR}-12-31`;
 describe("warrant waive (argv)", () => {
   it("maps argv to a proposal, --activate and --revoke; exit 0 on success, 3 on an error", async () => {
     const root = project();
-    write(root, ".warrant/changes/add-search.json", record("add-search", "VERIFYING", { classification: { profiles: ["feature"] } }));
+    write(root, ".warrant/changes/add-search.json", recordDoc("add-search", "VERIFYING", { classification: { profiles: ["feature"] } }));
     const env = { WARRANT_PACKS_DIR: PACKS, GITHUB_ACTIONS: "" };
     const waive = (...args: string[]): ReturnType<typeof runCli> => runCli(["waive", ...args], root, env);
 

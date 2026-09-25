@@ -15,10 +15,9 @@ import { describe, expect, it } from "vitest";
 
 import { claudeFrontend } from "../../src/adapters/frontend/claude.js";
 import { runGuardFrontend } from "../../src/commands/guard.js";
-import { runStart } from "../../src/commands/run.js";
 import type { FrontendResponse } from "../../src/core/ports/frontend.js";
-import { invoke } from "../app/helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../app/helpers/project-builder.js";
+import { started } from "../app/helpers/run.js";
 import { recordedHook, recordedInputIn, recordedVersions } from "../helpers/claude-hooks.js";
 import { CORE_SDD_RANGE } from "../helpers/cli.js";
 
@@ -63,12 +62,6 @@ async function repo(src = "src"): Promise<ProjectBuilder> {
     .synced();
 }
 
-async function started(p: ProjectBuilder): Promise<string> {
-  const run = await invoke(() => runStart(p.ctx, "demo", { operation: "implement" }, ENV));
-  expect(run.errors).toEqual([]);
-  return run.data["run"] as string;
-}
-
 /** The hook answer of the recorded input `name` of `version`, moved into `p` (the file of the tool at `rel`). */
 function answer(p: ProjectBuilder, version: string, name: string, rel?: string): Promise<FrontendResponse> {
   return runGuardFrontend(p.ctx, claudeFrontend, recordedInputIn(recordedHook(version, name), p.root, rel), ENV);
@@ -104,7 +97,7 @@ describe.each(versions)("adapter claude on the recorded input of Claude Code %s"
 
   it("PreToolUse Edit outside the write_scope of the active Run: permissionDecision deny naming the path, exit 0 (SCN-ENF-017)", async () => {
     const p = await repo();
-    await started(p);
+    await started(p, "demo");
     const denied = output(await answer(p, version, "pre-edit"));
     expect(denied["hookEventName"]).toBe("PreToolUse");
     expect(denied["permissionDecision"]).toBe("deny");
@@ -114,7 +107,7 @@ describe.each(versions)("adapter claude on the recorded input of Claude Code %s"
 
   it("PostToolUse NotebookEdit of a file under a rule not yet shown: the rule text in additionalContext, no permissionDecision (SCN-ENF-018)", async () => {
     const p = await repo();
-    await started(p);
+    await started(p, "demo");
     const hinted = output(await answer(p, version, "post-notebook-edit", "src/nb.ipynb"));
     expect(hinted["hookEventName"]).toBe("PostToolUse");
     expect(hinted["additionalContext"]).toContain(`rule notebooks: ${RULE_TEXT}`);
@@ -125,7 +118,7 @@ describe.each(versions)("adapter claude on the recorded input of Claude Code %s"
 
   it("PreToolUse Write inside write_scope: no permissionDecision allow, the answer is empty (SCN-ENF-019)", async () => {
     const p = await repo("notes");
-    await started(p);
+    await started(p, "demo");
     for (const name of ["pre-write", "pre-edit", "pre-notebook-edit"]) {
       const allowed = await answer(p, version, name, name === "pre-notebook-edit" ? "notes/nb.ipynb" : undefined);
       expect(allowed, name).toEqual({ stdout: "", exit: 0 });
@@ -143,7 +136,7 @@ describe.each(versions)("adapter claude on the recorded input of Claude Code %s"
 
   it("PreToolUse Bash of the prefix of an exclusive check: deny with warrant check; PostToolUse Bash answers nothing", async () => {
     const p = await repo();
-    await started(p);
+    await started(p, "demo");
     const denied = output(await answer(p, version, "pre-bash"));
     expect(denied["permissionDecision"]).toBe("deny");
     expect(denied["permissionDecisionReason"]).toContain("warrant check demo slow");

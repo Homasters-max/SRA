@@ -23,6 +23,27 @@ export function gateDefinitions(loaded: Pick<LoadResult, "objects">): Map<string
   return out;
 }
 
+/** One entry of `provides.skills` of an enabled pack: `<namespace>/<name>@<range>`. */
+export interface PackSkill {
+  pack: string;
+  name: string;
+  /** The semver range; `*` when the entry has none. */
+  range: string;
+}
+
+/** `provides.skills` of the enabled packs, in load order. */
+export function packSkills(loaded: Pick<LoadResult, "packs">): PackSkill[] {
+  const out: PackSkill[] = [];
+  for (const pack of loaded.packs) {
+    const provides = pack.manifest["provides"];
+    for (const spec of isPlainObject(provides) ? strings(provides["skills"]) : []) {
+      const at = spec.lastIndexOf("@");
+      out.push({ pack: pack.id, name: at > 0 ? spec.slice(0, at) : spec, range: at > 0 ? spec.slice(at + 1) : "*" });
+    }
+  }
+  return out;
+}
+
 /** `match.paths` of profile `factory-change`: the policy paths of D-15. */
 export function policyPaths(loaded: Pick<LoadResult, "objects">): string[] {
   const profile = packObjects(loaded, "profile").find((o) => o.id === FACTORY_PROFILE);

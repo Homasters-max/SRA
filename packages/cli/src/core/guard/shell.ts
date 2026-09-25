@@ -30,6 +30,26 @@ function shellString(command: readonly string[]): string | undefined {
  * parsed into commands of its own, `depth` levels deep (one by default).
  */
 export function simpleCommands(words: readonly string[], depth = 1): string[][] {
+  return split(words).flatMap((command) => {
+    const script = shellString(command);
+    return script !== undefined && depth > 0 ? [command, ...simpleCommands(shellWords(script), depth - 1)] : [command];
+  });
+}
+
+/**
+ * The commands that run: as {@link simpleCommands}, but a `bash -c` whose
+ * string is parsed stands for the commands of that string, not for itself;
+ * one `depth` levels deep stays a command of its own.
+ */
+export function leafCommands(words: readonly string[], depth = 1): string[][] {
+  return split(words).flatMap((command) => {
+    const script = shellString(command);
+    return script !== undefined && depth > 0 ? leafCommands(shellWords(script), depth - 1) : [command];
+  });
+}
+
+/** `words` split at the operators into commands, without leading `VAR=…` and empty ones. */
+function split(words: readonly string[]): string[][] {
   const out: string[][] = [];
   let current: string[] = [];
   const flush = (): void => {
@@ -37,10 +57,7 @@ export function simpleCommands(words: readonly string[], depth = 1): string[][] 
     while (start < current.length && ASSIGNMENT_RE.test(current[start] as string)) start++;
     const command = current.slice(start);
     current = [];
-    if (command.length === 0) return;
-    out.push(command);
-    const script = shellString(command);
-    if (script !== undefined && depth > 0) out.push(...simpleCommands(shellWords(script), depth - 1));
+    if (command.length > 0) out.push(command);
   };
   for (const word of words) {
     if (SHELL_OPERATORS.has(word)) flush();

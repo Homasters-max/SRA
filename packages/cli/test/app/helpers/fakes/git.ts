@@ -12,9 +12,12 @@
  * Limits of the model (the contract covers what is inside them): a rename is
  * found only for identical content (git: ≥ 50 % similar); refs are `HEAD`,
  * branch names, full or abbreviated (≥ 4) commit ids, each with `^N`/`~N`
- * suffixes; `fail(method)` answers as when the git call fails.
+ * suffixes; `dirty` knows no `.gitignore` and no index; `fail(method)` answers
+ * as when the git call fails.
  */
 import { createHash } from "node:crypto";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
 
 import type { BlobTree, DiffEntry, GitAnswer, GitPort } from "../../../../src/core/ports/git.js";
 
@@ -38,6 +41,25 @@ export function blobSha(content: Buffer): string {
 const byPath = (a: string, b: string): number => Buffer.compare(Buffer.from(a), Buffer.from(b));
 
 const within = (file: string, spec: string): boolean => spec === "" || spec === "." || file === spec || file.startsWith(`${spec.replace(/\/+$/, "")}/`);
+
+/** Files under `spec` (a file or a directory, from the top) of the work tree `top`, without `.git`; paths from the top. */
+function filesOnDisk(top: string, spec: string): string[] {
+  const absolute = path.join(top, ...spec.split("/").filter((s) => s !== "" && s !== "."));
+  if (!existsSync(absolute)) return [];
+  if (!statSync(absolute).isDirectory()) return [spec];
+  const out: string[] = [];
+  const visit = (dir: string, rel: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (rel === "" && entry.name === ".git") continue;
+      const child = rel === "" ? entry.name : `${rel}/${entry.name}`;
+      if (entry.isDirectory()) visit(path.join(dir, entry.name), child);
+      else out.push(child);
+    }
+  };
+  const base = spec.replace(/\/+$/, "");
+  visit(absolute, base === "." ? "" : base);
+  return out;
+}
 
 export class FakeGit implements GitPort {
   readonly commits = new Map<string, FakeCommit>();
@@ -322,6 +344,31 @@ export class FakeGit implements GitPort {
         if (content !== undefined) out.set(p, content.toString("utf8"));
       }
       return out;
+    });
+  }
+
+  /**
+   * The files on disk under the work tree (the directory of the `.git`
+   * given) against the tree of `HEAD`: added, changed or deleted ones. There
+   * is no index: what `git add` staged is still dirty, as in git.
+   */
+  dirty(paths: string[]): Promise<GitAnswer<string[]>> {
+    const failed: GitAnswer<string[]> = { ok: false, detail: "fatal: not a git repository (or any of the parent directories): .git" };
+    return this.answer("dirty", paths, failed, () => {
+      if (!this.repo) return failed;
+      const committed = this.headCommit()?.tree ?? new Map<string, Buffer>();
+      const top = path.dirname(this.commonDirPath);
+      const specs = paths.map((p) => this.repoPath(p));
+      const onDisk = new Set(specs.flatMap((spec) => filesOnDisk(top, spec)));
+      const out = new Set<string>();
+      for (const file of onDisk) {
+        const before = committed.get(file);
+        if (before === undefined || !before.equals(readFileSync(path.join(top, ...file.split("/"))))) out.add(file);
+      }
+      for (const file of committed.keys()) {
+        if (!onDisk.has(file) && specs.some((spec) => within(file, spec))) out.add(file);
+      }
+      return { ok: true, value: [...out].sort(byPath) };
     });
   }
 

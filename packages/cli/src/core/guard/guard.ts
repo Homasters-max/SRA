@@ -25,7 +25,16 @@ import { appendGuardEvent } from "../run/lifecycle.js";
 import { readCurrent } from "../run/store.js";
 import type { GuardEventRecord, Run } from "../run/types.js";
 import { runFileChecks, validateRun } from "../validate/registry.js";
-import { editWithoutRun, editWithRun, guardedChecks, RUN_START_HINT, shellAnswer, VALIDATE_HINT, type Answer } from "./decide.js";
+import {
+  editWithoutRun,
+  editWithRun,
+  guardedChecks,
+  reviewShellAnswer,
+  RUN_START_HINT,
+  shellAnswer,
+  VALIDATE_HINT,
+  type Answer
+} from "./decide.js";
 import { parseEvent } from "./event.js";
 
 /** At most this many finding lines in `hints[]`, then one «and N more» (ADR-0019 п. 10). */
@@ -115,6 +124,7 @@ function eventRecord(event: GuardEvent, files: string[], answer: Answer, finding
 function decidePre(ctx: Ctx, event: GuardEvent, files: readonly string[], run: Run | undefined): Answer {
   try {
     if (event.action === "edit") return run !== undefined ? editWithRun(run, files) : editWithoutRun(loadPolicy(ctx.root), files);
+    if (event.action === "shell" && run?.operation === "review") return reviewShellAnswer(event.argv, run);
     if (event.action === "shell") return shellAnswer(event.argv, guardedChecks(loadPolicy(ctx.root)), run?.change);
     return { decision: "allow", hints: [] };
   } catch (thrown) {

@@ -63,9 +63,14 @@
     { "name": "packObjects", "owner": "core/packs/objects.ts" },
     { "name": "gateDefinitions", "owner": "core/packs/objects.ts" },
     { "name": "policyPaths", "owner": "core/packs/objects.ts" },
+    { "name": "packSkills", "owner": "core/packs/objects.ts" },
     { "name": "evidenceSubject", "owner": "core/evidence/record.ts" },
     { "name": "buildEvidenceRecord", "owner": "core/evidence/record.ts" },
-    { "name": "buildApprovalRecord", "owner": "core/evidence/approval.ts" }
+    { "name": "buildApprovalRecord", "owner": "core/evidence/approval.ts" },
+    { "name": "startRun", "owner": "core/run/lifecycle.ts" },
+    { "name": "finishRun", "owner": "core/run/lifecycle.ts" },
+    { "name": "requireActiveRun", "owner": "core/run/lifecycle.ts" },
+    { "name": "appendGuardEvent", "owner": "core/run/lifecycle.ts" }
   ],
   "packages": [
     { "name": "picomatch", "owner": "core/glob.ts" },
@@ -79,12 +84,14 @@
     "root": "packages/cli/test",
     "helpers": [
       { "name": "write", "owner": "helpers/synced.ts" },
+      { "name": "recordDoc", "owner": "helpers/synced.ts" },
       { "name": "git", "owner": "helpers/git.ts" },
       { "name": "validate", "owner": "app/helpers/validate.ts" },
       { "name": "validateErrors", "owner": "app/helpers/validate.ts" },
       { "name": "errorCodes", "owner": "app/helpers/validate.ts" },
       { "name": "withoutDryRun", "owner": "app/helpers/dry-run.ts" },
       { "name": "writtenBeyond", "owner": "app/helpers/dry-run.ts" },
+      { "name": "started", "owner": "app/helpers/run.ts" },
       { "name": "recordedVersions", "owner": "helpers/claude-hooks.ts" },
       { "name": "recordedHook", "owner": "helpers/claude-hooks.ts" },
       { "name": "recordedInputIn", "owner": "helpers/claude-hooks.ts" }

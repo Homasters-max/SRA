@@ -6,7 +6,9 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { defaultPrefix, simpleCommands, startsWithPrefix } from "../../../src/core/guard/shell.js";
+import { reviewShellAnswer } from "../../../src/core/guard/decide.js";
+import { defaultPrefix, leafCommands, simpleCommands, startsWithPrefix } from "../../../src/core/guard/shell.js";
+import type { Run } from "../../../src/core/run/types.js";
 import { shellWords } from "../../../src/core/shell.js";
 
 describe("shellWords", () => {
@@ -67,6 +69,35 @@ describe("simpleCommands", () => {
 
   it("a script of bash without -c is not read", () => {
     expect(simpleCommands(["bash", "run-tests.sh"])).toEqual([["bash", "run-tests.sh"]]);
+  });
+});
+
+describe("leafCommands", () => {
+  it("a parsed bash -c stands for its commands, not for itself; one level deep", () => {
+    expect(leafCommands(["bash", "-c", "cd src && pytest tests/"])).toEqual([["cd", "src"], ["pytest", "tests/"]]);
+    expect(leafCommands(shellWords("X=1 warrant run submit --file r.json"))).toEqual([["warrant", "run", "submit", "--file", "r.json"]]);
+    expect(leafCommands(["bash", "-c", `bash -c "pytest"`])).toEqual([["bash", "-c", "pytest"]]);
+    expect(leafCommands(["bash", "-c", ""])).toEqual([]);
+    expect(leafCommands(["bash", "run-tests.sh"])).toEqual([["bash", "run-tests.sh"]]);
+  });
+});
+
+describe("reviewShellAnswer (REQ-ENF-004)", () => {
+  const run = { id: "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y", change: "add-search", operation: "review" } as Run;
+
+  it("allow only when every command starts with warrant run submit (SCN-ENF-027)", () => {
+    expect(reviewShellAnswer(["bash", "-c", "warrant run submit --file result.json"], run).decision).toBe("allow");
+    expect(reviewShellAnswer(["warrant", "run", "submit"], run).decision).toBe("allow");
+    const denied = reviewShellAnswer(["bash", "-c", "cat x && warrant run submit"], run);
+    expect(denied.decision).toBe("deny");
+    expect(denied.reason).toContain("cat x");
+    expect(denied.hints.join(" ")).toContain("warrant run submit");
+  });
+
+  it("no command, no argv, a longer bash nesting and a lookalike are denied", () => {
+    for (const argv of [undefined, [], ["bash", "-c", ""], ["bash", "-c", 'bash -c "warrant run submit"'], ["warrant", "run", "finish"], ["npx", "warrant", "run", "submit"]]) {
+      expect(reviewShellAnswer(argv, run).decision, JSON.stringify(argv)).toBe("deny");
+    }
   });
 });
 

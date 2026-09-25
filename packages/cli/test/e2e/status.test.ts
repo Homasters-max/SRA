@@ -9,7 +9,7 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { CLI_ROOT, makeTempDir, removeDir, runCli } from "../helpers/cli.js";
-import { write } from "../helpers/synced.js";
+import { recordDoc, write } from "../helpers/synced.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const tempDirs: string[] = [];
@@ -28,16 +28,6 @@ function env(): NodeJS.ProcessEnv {
   return { WARRANT_PACKS_DIR: FIXTURE_PACKS, [PATH_KEY]: dir };
 }
 
-function record(change: string, state = "PROPOSED", extra: Record<string, unknown> = {}): Record<string, unknown> {
-  return {
-    $schema: "warrant://change-record/1",
-    change,
-    change_state: state,
-    transitions: [{ to: "PROPOSED", at: "2026-09-22T09:00:00Z", by: "cli:local" }],
-    ...extra
-  };
-}
-
 /** A project with the `policy` fixture pack, one record and one change directory. */
 function project(change = "add-search"): string {
   const root = makeTempDir("warrant-status-");
@@ -48,7 +38,7 @@ function project(change = "add-search"): string {
     openspec: "1.13.x",
     packs: { policy: { version: "^1.0" } }
   });
-  write(root, `.warrant/changes/${change}.json`, record(change));
+  write(root, `.warrant/changes/${change}.json`, recordDoc(change, "PROPOSED"));
   write(root, `openspec/changes/${change}/proposal.md`, "# Why\n");
   return root;
 }
@@ -68,7 +58,7 @@ describe("warrant status: large output through a pipe (B4)", () => {
       write(
         root,
         `.warrant/changes/${name}.json`,
-        record(name, "PROPOSED", {
+        recordDoc(name, "PROPOSED", {
           classification: { profiles: ["feature"], risk: { data_loss: { value: "HIGH", from: "human:kat" } } }
         })
       );

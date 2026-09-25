@@ -109,7 +109,8 @@
     { "id": "run-operation", "owner": "core/run/types.ts", "doc": "docs/04-lifecycle.md", "values": ["specify", "implement", "review"] },
     { "id": "guard-decision", "owner": "core/ports/frontend.ts", "doc": "docs/04-lifecycle.md", "values": ["allow", "deny"] },
     { "id": "evidence-status", "owner": "core/evidence/record.ts", "doc": "docs/02-vocabulary.md", "values": ["PROVEN", "NOT_PROVEN", "INCONCLUSIVE", "NOT_APPLICABLE"] },
-    { "id": "attestation-type", "owner": "core/evidence/attestation.ts", "doc": "docs/02-vocabulary.md", "values": ["ci", "human-review", "signature", "none"] }
+    { "id": "attestation-type", "owner": "core/evidence/attestation.ts", "doc": "docs/02-vocabulary.md", "values": ["ci", "human-review", "signature", "none"] },
+    { "id": "finding-severity", "owner": "core/run/submit.ts", "doc": "docs/02-vocabulary.md", "values": ["BLOCKER", "MAJOR", "MINOR", "INFO"] }
   ],
   "exceptions": []
 }

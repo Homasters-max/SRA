@@ -89,6 +89,15 @@ Change + relevant specs + relevant ADR + glossary + affected files + relevant te
 }
 ```
 
+Схема `warrant://skill-result/1` (`packages/cli/schemas/skill-result.1.schema.json`, фаза 4b): обязательные `$schema`, `skill`
+(`namespace/name@version`), `run` (`RUN-<ULID>`), `run_state` (`SUCCEEDED` | `FAILED` | `CANCELLED`), `findings[]`, `provenance`
+(`started_at`, `finished_at` — date-time; необязательные `context_hash`, `model`); необязательные `proposals[]`, `unknowns[]`,
+`assumptions[]`, `decisions_required[]`, `artifacts_to_update[]`, `recommended_operations[]`. Finding: `id`, `marker` (`FACT` |
+`INFERENCE`), `severity` ([02 §2](02-vocabulary.md)), `category`, `statement`; необязательные `targets[]`, `recommendation`.
+Неизвестный ключ верхнего уровня или finding отклоняется — в том числе `gate_verdict` и `evidence_status`. Envelope принимает
+`warrant run submit` только от Run `review` ([04 §7](04-lifecycle.md)); приём `specify` и `implement`, выдача stable ID для
+`unknowns[]` и `decisions_required[]` — позже.
+
 Правила:
 
 - `run_state` — единственный статус skill. Skill MUST NOT выносить `gate_verdict` или `evidence_status`.

@@ -114,6 +114,25 @@ Skill       ──produces──▶ Findings / Proposals — не verdict
 - `WAIVED` требует `ACTIVE` waiver, срок которого не истёк.
 - `attestation.type` записи evidence — не ось статуса, а кто ручается за её происхождение: `ci`, `human-review`,
   `signature`, `none` ([06a §3](06a-evidence.md)).
+- Evidence `review` (результат adversarial review, [06 §7](06-verification.md)) записывает `warrant run submit` из envelope
+  skill ([07 §4](07-skills.md)): `run_state: SUCCEEDED` и ни одной находки `BLOCKER` → `PROVEN`; есть `BLOCKER` →
+  `NOT_PROVEN`; `FAILED` или `CANCELLED` → `INCONCLUSIVE`; число находок по `severity` — в `metrics`
+  ([ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 4). Статус выводит CLI, не skill.
+- **`spec_tree`** — hash набора пар «путь → blob» файлов `proposal.md` и `specs/**` каталога Change на commit (тот же
+  набор, что сравнивает gate `spec-approved`). Запись evidence с `subject.spec_tree` (evidence `review`) пред-фильтр gate
+  сравнивает по дереву spec, а не по `commit` и `base_commit`: она переживает коммиты, не меняющие spec, и получает `STALE`
+  с правкой spec ([ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 3).
+
+### Severity находки skill
+
+`severity` — поле finding envelope skill ([07 §4](07-skills.md)), не ось статуса: из него CLI выводит `evidence_status`.
+
+| Значение | Смысл |
+|---|---|
+| `BLOCKER` | Без исправления реализация по spec неверна или непроверяема; делает evidence `review` `NOT_PROVEN` и MUST быть закрыт до `APPROVED` |
+| `MAJOR` | Существенный пробел, spec остаётся проверяемой; информирует maintainer'а, не блокирует |
+| `MINOR` | Локальная неточность формулировки, имени, ссылки |
+| `INFO` | Наблюдение без дефекта |
 
 ### Значения controller_action
 

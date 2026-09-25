@@ -71,4 +71,4 @@ design.md, A-N и BL-N — [docs/backlog.md](../../../docs/backlog.md).
   пакетов — из внешних импортов (ADR-0035 Consequences). Проверка: исключения храповика — только A-12;
   `dev-context.test.ts` зелёный.
 - [x] 8.2 Критерии выхода (13 §2, строка 3e). Проверка: все пункты строки выполнены; CI зелёный на ubuntu и windows.
-- [ ] 8.3 archive-PR и tag `v0.4.3` по P-2. Проверка: `warrant status` — `core-seams` `ARCHIVED`.
+- [x] 8.3 archive-PR и tag `v0.4.3` по P-2. Проверка: `warrant status` — `core-seams` `ARCHIVED`.

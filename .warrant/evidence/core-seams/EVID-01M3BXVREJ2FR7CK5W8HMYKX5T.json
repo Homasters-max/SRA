@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3BXVREJ2FR7CK5W8HMYKX5T",
+  "claim": {
+    "text": "openspec-validate passed for core-seams",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "bbbfa45b23cdf770d9839ed2bd5c83eb76fdc8fb",
+    "base_commit": "94837c63ba774d9b4937f445fca0e609881f1a95",
+    "spec_revision": "openspec/changes/core-seams@bbbfa45b23cdf770d9839ed2bd5c83eb76fdc8fb",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:94d3b77f257ab5ef795d0964b0ebda278820b3e7102f06aa9723b79dadd49e84",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-25T09:20:37.843Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/core-seams/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:501d718d065f518eed64b5e5cb6ee506513121f471b59110650263061d091496"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 1
+  }
+}

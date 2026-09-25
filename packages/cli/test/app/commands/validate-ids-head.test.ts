@@ -13,21 +13,12 @@ import { mkdirSync, renameSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { runValidate } from "../../../src/commands/validate.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import type { ModelRequirement } from "../helpers/fakes/spec-model.js";
-import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { errorCodes, validate } from "../helpers/validate.js";
 
 const project = useProjectBuilder();
-
-function validate(p: ProjectBuilder): Promise<CommandResult> {
-  return invoke(() => runValidate(p.ctx));
-}
-
-function codes(run: CommandResult): string[] {
-  return run.errors.map((e) => e.code);
-}
 
 /** Moves the Change directory into `openspec/changes/archive/<dir>`; `openspec list` no longer returns it. */
 function moveToArchive(p: ProjectBuilder, change: string, dir: string): void {
@@ -90,7 +81,7 @@ describe("warrant validate (9): stable ids against HEAD", () => {
     const early = await committed("SPECIFIED");
     early.withChange("add-search", { proposal: "Search.", specs: { search: [search(false)] } });
     const allowed = await validate(early);
-    expect(codes(allowed)).not.toContain("ID_IMMUTABLE");
+    expect(errorCodes(allowed)).not.toContain("ID_IMMUTABLE");
 
     const late = await committed("APPROVED");
     late.withChange("add-search", { proposal: "Search.", specs: { search: [search(false)] } });
@@ -113,7 +104,7 @@ describe("warrant validate (9): stable ids against HEAD", () => {
     const p = await committed("ARCHIVED");
     moveToArchive(p, "add-search", "2026-09-22-add-search");
     const run = await validate(p);
-    expect(codes(run)).not.toContain("ID_IMMUTABLE");
+    expect(errorCodes(run)).not.toContain("ID_IMMUTABLE");
   });
 
   it("ignores ABANDONED changes: abandoning deletes the directory", async () => {
@@ -121,7 +112,7 @@ describe("warrant validate (9): stable ids against HEAD", () => {
     p.remove("openspec/changes/add-search");
     p.openspec.changes.delete("add-search");
     const run = await validate(p);
-    expect(codes(run)).not.toContain("ID_IMMUTABLE");
+    expect(errorCodes(run)).not.toContain("ID_IMMUTABLE");
   });
 
   describe("I-77: a requirement removed by the delta of the archive commit", () => {

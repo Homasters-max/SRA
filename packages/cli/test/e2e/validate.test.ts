@@ -10,21 +10,21 @@
 import { describe, expect, it } from "vitest";
 
 import { runCli } from "../helpers/cli.js";
-import { PACKS, useSyncedProject, validate, write } from "../helpers/synced.js";
+import { PACKS, useSyncedProject, validateCli, write } from "../helpers/synced.js";
 
 const project = useSyncedProject();
 
 describe("warrant validate (argv)", () => {
   it("prints only the envelope, exits 0 clean and 3 on a finding; --no-generated is USAGE (SCN-KRN-005, SCN-KRN-082)", async () => {
     const root = project();
-    const clean = await validate(root);
+    const clean = await validateCli(root);
     expect(clean.json?.errors).toEqual([]);
     expect(clean.status).toBe(0);
     expect(clean.json?.command).toBe("validate");
     expect(clean.json?.data.skipped).toEqual([]);
 
     write(root, ".warrant/local/gates/x.json", { $schema: "warrant://gate/1", id: "x", version: "1.0.0" });
-    const run = await validate(root);
+    const run = await validateCli(root);
     expect(run.status).toBe(3);
     expect(run.json?.ok).toBe(false);
     const violation = run.json?.errors.find((e: { code: string }) => e.code === "SCHEMA_VIOLATION");

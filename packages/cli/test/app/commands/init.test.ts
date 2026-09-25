@@ -19,10 +19,10 @@ import { describe, expect, it } from "vitest";
 
 import { runInit, runInitChange, runInitCommand, type InitOptions } from "../../../src/commands/init.js";
 import { runSync } from "../../../src/commands/sync.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { validate } from "../helpers/validate.js";
 
 const builder = useProjectBuilder();
 
@@ -45,10 +45,6 @@ async function init(p: ProjectBuilder, opts: InitOptions = {}): Promise<Result> 
   const schema = (result.data["sync"] as Data | undefined)?.["schema"];
   if (result.ok && typeof schema === "string" && schema !== "") p.openspec.schemas.add(schema);
   return result;
-}
-
-function validate(p: ProjectBuilder): Promise<Result> {
-  return invoke(() => runValidate(p.ctx));
 }
 
 function initChange(p: ProjectBuilder, name: string): Promise<Result> {

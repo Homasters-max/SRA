@@ -13,12 +13,12 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { runGate } from "../../../src/commands/gate.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import { runWaive, type WaiveOptions } from "../../../src/commands/waive.js";
 import { canonicalText } from "../../../src/core/canon/format-json.js";
 import { FAKE_TODAY } from "../helpers/fakes/clock.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { validateErrors } from "../helpers/validate.js";
 
 const project = useProjectBuilder();
 
@@ -68,10 +68,6 @@ async function repo(): Promise<ProjectBuilder> {
 
 function waive(p: ProjectBuilder, args: string[], opts: WaiveOptions): ReturnType<typeof invoke> {
   return invoke(() => runWaive(p.ctx, args, opts));
-}
-
-async function validateErrors(p: ProjectBuilder): Promise<unknown[]> {
-  return (await invoke(() => runValidate(p.ctx))).errors;
 }
 
 async function analyzeClean(p: ProjectBuilder): Promise<string> {

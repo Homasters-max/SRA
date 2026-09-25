@@ -13,7 +13,6 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { runResolve } from "../../../src/commands/resolve.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import type { CliError } from "../../../src/core/errors.js";
 import { packContentHash } from "../../../src/core/packs/hash.js";
 import type { CommandResult } from "../../../src/io/output.js";
@@ -21,6 +20,7 @@ import { CLI_VERSION } from "../../../src/version.js";
 import { CLI_ROOT, CORE_SDD_RANGE, REPO_ROOT } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { validate } from "../helpers/validate.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const CORE_SDD = path.join(REPO_ROOT, "packs", "core-sdd");
@@ -66,10 +66,6 @@ function fixture(packs: Record<string, string>): ProjectBuilder {
         ])
       )
     });
-}
-
-function validate(p: ProjectBuilder): Promise<CommandResult> {
-  return invoke(() => runValidate(p.ctx));
 }
 
 function find(run: CommandResult, code: string): CliError | undefined {

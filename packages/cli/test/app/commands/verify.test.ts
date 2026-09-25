@@ -16,11 +16,11 @@ import { describe, expect, it } from "vitest";
 import { runCheck } from "../../../src/commands/check.js";
 import { runGate } from "../../../src/commands/gate.js";
 import { runStatus } from "../../../src/commands/status.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import { runVerify, type VerifyOptions } from "../../../src/commands/verify.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { validateErrors } from "../helpers/validate.js";
 
 const project = useProjectBuilder();
 
@@ -69,7 +69,7 @@ describe("warrant verify", () => {
     expect(data["controller_action"]).toBe("CONTINUE");
     expect(data["rule"]).toBeNull();
     expect(data["effective_policy"]).toEqual({ hash: expect.stringMatching(/^sha256:/), risk_level: expect.any(String) });
-    expect((await invoke(() => runValidate(p.ctx))).errors).toEqual([]);
+    expect(await validateErrors(p)).toEqual([]);
   });
 
   it("a check without a command leaves its gate BLOCKED, the others computed, exit 3 (SCN-VER-028)", async () => {

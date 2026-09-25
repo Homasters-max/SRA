@@ -18,12 +18,12 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { runCheck, type CheckOptions } from "../../../src/commands/check.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import { runVerify } from "../../../src/commands/verify.js";
 import { bytesHash } from "../../../src/core/canon/hash.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { validate, validateErrors } from "../helpers/validate.js";
 
 const project = useProjectBuilder();
 
@@ -49,10 +49,6 @@ type Result = CommandResult & { data: Data };
 
 function check(p: ProjectBuilder, ids: string[], opts: CheckOptions = {}, env: NodeJS.ProcessEnv = LOCAL): Promise<Result> {
   return invoke(() => runCheck(p.ctx, "add-search", ids, opts, env));
-}
-
-async function validateErrors(p: ProjectBuilder): Promise<unknown[]> {
-  return (await invoke(() => runValidate(p.ctx))).errors;
 }
 
 /** What the fake test runner reports: 3 tests, `failures` failed and `skipped` skipped; exit 1 on failures, else `exit`. */
@@ -168,7 +164,7 @@ describe("warrant check", () => {
     expect(updated.evidence).toEqual([entry.evidence, second].sort());
     expect(updated.gates).toEqual({ "spec-valid": "PASS" });
     expect(recordFiles(path.join(p.root, EVIDENCE))).toHaveLength(2);
-    const validated = await invoke(() => runValidate(p.ctx));
+    const validated = await validate(p);
     expect(validated.errors).toEqual([]);
     expect(validated.exitCode).toBe(0);
   });

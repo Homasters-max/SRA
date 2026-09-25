@@ -64,7 +64,10 @@
     "root": "packages/cli/test",
     "helpers": [
       { "name": "write", "owner": "helpers/synced.ts" },
-      { "name": "git", "owner": "helpers/git.ts" }
+      { "name": "git", "owner": "helpers/git.ts" },
+      { "name": "validate", "owner": "app/helpers/validate.ts" },
+      { "name": "validateErrors", "owner": "app/helpers/validate.ts" },
+      { "name": "errorCodes", "owner": "app/helpers/validate.ts" }
     ]
   },
   "enums": [

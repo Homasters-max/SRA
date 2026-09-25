@@ -20,12 +20,12 @@ import { runCheck } from "../../../src/commands/check.js";
 import { runGate, type GateOptions } from "../../../src/commands/gate.js";
 import { runStatus } from "../../../src/commands/status.js";
 import { runTransition, type TransitionOptions } from "../../../src/commands/transition.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import { runVerify } from "../../../src/commands/verify.js";
 import { runWaive } from "../../../src/commands/waive.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { validateErrors } from "../helpers/validate.js";
 
 const project = useProjectBuilder();
 
@@ -51,10 +51,6 @@ function check(p: ProjectBuilder, id: string): Promise<CommandResult & { data: D
 
 function transition(p: ProjectBuilder, target: string, opts: TransitionOptions = {}): Promise<CommandResult & { data: Data }> {
   return invoke(() => runTransition(p.ctx, "add-search", target, opts, LOCAL));
-}
-
-async function validateErrors(p: ProjectBuilder): Promise<unknown[]> {
-  return (await invoke(() => runValidate(p.ctx))).errors;
 }
 
 /**

@@ -7,13 +7,13 @@ golden вне групп 2 и 6 — остановка и строка I-N.
 
 ## 1. Bump и швы (A-9, A-21, A-22)
 
-- [ ] 1.1 Bump CLI `0.5.0` (`package.json`, `package-lock.json`, `.warrant/warrant.lock.json`, lock golden-фикстур — как
+- [x] 1.1 Bump CLI `0.5.0` (`package.json`, `package-lock.json`, `.warrant/warrant.lock.json`, lock golden-фикстур — как
   I-142). Проверка: `npm run versions:check` зелёный.
-- [ ] 1.2 A-22: NUL в `core/schemas/loader.ts` — экранирование в строке; мета-тест «файлы `packages/**`, `scripts/**`,
+- [x] 1.2 A-22: NUL в `core/schemas/loader.ts` — экранирование в строке; мета-тест «файлы `packages/**`, `scripts/**`,
   `docs/**` без NUL». Проверка: `git grep -I -L "" -- packages/cli/src` пуст; временный NUL роняет тест.
-- [ ] 1.3 A-9: реестр проверок `core/validate/registry.ts` (§3), `runValidate` — проход по реестру. Проверка: golden, `app`
+- [x] 1.3 A-9: реестр проверок `core/validate/registry.ts` (§3), `runValidate` — проход по реестру. Проверка: golden, `app`
   и `e2e` `validate` без правок ожидаемых значений.
-- [ ] 1.4 A-21: помощник `validate` уровня `app` в `test/app/helpers/`, 10 копий и `codes` — через него; строки
+- [x] 1.4 A-21: помощник `validate` уровня `app` в `test/app/helpers/`, 10 копий и `codes` — через него; строки
   `test_helpers`. Проверка: `cs dups --in packages/cli/test` без `validate`, `validateErrors`.
 
 ## 2. Контракт CLI: hint и --dry-run (REQ-KRN-002, REQ-KRN-034)

@@ -1,8 +1,9 @@
 /**
  * Structure of the repository (ADR-0033 п. 13): the top level holds only the white-listed tracked entries (a new
  * top-level directory is a decision — an edit of this list); ignored entries (`.gitignore`, `info/exclude`) are not
- * seen, as `git ls-files` would not see them. Names: no spaces in any path; `docs/` holds only `.md` and `.json`,
- * kebab-case latin names — normative `NN[a-z]?-<topic>.md`, ADR `WARRANT-ADR-NNNN-<slug>.md`, dated
+ * seen, as `git ls-files` would not see them. Names: no spaces in any path; no NUL byte in files of `packages/`,
+ * `scripts/`, `docs/`, `openspec/` (git would take the file for binary and hide its diff, A-22); `docs/` holds only
+ * `.md` and `.json`, kebab-case latin names — normative `NN[a-z]?-<topic>.md`, ADR `WARRANT-ADR-NNNN-<slug>.md`, dated
  * `YYYY-MM-DD-<topic>` in `docs/archive/` and `docs/process/audits/`, `README.md` anywhere. `lattice/` is not ours
  * (`CLAUDE.md`) and is not walked.
  */
@@ -35,6 +36,8 @@ const ROOT_WHITE_LIST = [
 ];
 /** Walked for spaces; `lattice/` belongs to another component. */
 const WALKED = [".claude", ".github", ".warrant", "docs", "openspec", "packages", "packs", "scripts", "sra"];
+/** Walked for NUL bytes: a NUL in a text file makes git treat it as binary (A-22); a control character is escaped. */
+const TEXT_WALKED = ["docs", "openspec", "packages", "scripts"];
 const KEBAB = /^[a-z0-9][a-z0-9.-]*$/;
 const DATED = /^\d{4}-\d{2}-\d{2}(-[a-z0-9-]+)?(\.[a-z]+)?$/;
 
@@ -89,6 +92,11 @@ describe("repository structure — ADR-0033 п. 13", () => {
 
   it("no spaces in paths", () => {
     expect(WALKED.flatMap(walk).filter((p) => /\s/.test(p))).toEqual([]);
+  });
+
+  it("no NUL bytes in files of packages/, scripts/, docs/, openspec/ — A-22", () => {
+    const files = TEXT_WALKED.flatMap(walk).filter((p) => statSync(path.join(REPO_ROOT, p)).isFile());
+    expect(files.filter((p) => readFileSync(path.join(REPO_ROOT, p)).includes(0))).toEqual([]);
   });
 
   const docs = walk("docs");

@@ -20,10 +20,10 @@ import { describe, expect, it } from "vitest";
 
 import { runArchive } from "../../../src/commands/archive.js";
 import { runStatus } from "../../../src/commands/status.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { validateErrors } from "../helpers/validate.js";
 
 const project = useProjectBuilder();
 
@@ -112,7 +112,7 @@ describe("warrant archive", () => {
 
     const status: Result = await invoke(() => runStatus(p.ctx, "add-search", LOCAL));
     expect(status.data["stale"]).toEqual([]);
-    expect((await invoke(() => runValidate(p.ctx))).errors).toEqual([]);
+    expect(await validateErrors(p)).toEqual([]);
 
     // The record is frozen from now on.
     const again = await archive(p);

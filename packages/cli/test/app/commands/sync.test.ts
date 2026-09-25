@@ -20,13 +20,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { parse, parseDocument } from "yaml";
 
 import { runSync, type SyncOptions } from "../../../src/commands/sync.js";
-import { runValidate } from "../../../src/commands/validate.js";
 import { bytesHash } from "../../../src/core/canon/hash.js";
 import { GENERATED_MARKER } from "../../../src/core/openspec/yaml-emit.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { CLI_ROOT, CORE_SDD_RANGE, REPO_ROOT } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { validate } from "../helpers/validate.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 
@@ -67,10 +67,6 @@ async function sync(p: ProjectBuilder, opts: SyncOptions = {}): Promise<Result> 
   const schema = result.data["schema"];
   if (result.ok && opts.check !== true && typeof schema === "string" && schema !== "") p.openspec.schemas.add(schema);
   return result;
-}
-
-function validate(p: ProjectBuilder): Promise<Result> {
-  return invoke(() => runValidate(p.ctx));
 }
 
 /** Byte hash of every file the run reported as generated. */

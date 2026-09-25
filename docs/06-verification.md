@@ -95,7 +95,8 @@ Gate — правило перехода; агрегирует evidence в `gate
 ### Алгоритм verdict
 
 Сначала **пред-фильтр допустимости evidence** (D-12): запись исключается из рассмотрения с finding `STALE`, если
-`subject.commit` / `subject.base_commit` отличаются от текущих; `metrics.threshold` ≠ текущий effective param
+`subject.commit` / `subject.base_commit` отличаются от текущих (у записи с `subject.spec_tree` вместо них сравнивается
+дерево spec Change на оцениваемом коммите, [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 3); `metrics.threshold` ≠ текущий effective param
 ([06a §2](06a-evidence.md)); `limitations` содержит `scoped: …` (суженный прогон, [ADR-0017](adr/WARRANT-ADR-0017-check-execution.md));
 отпечаток target частичного waiver, применённого check, не совпадает с текущим кодом ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md) п. 7).
 

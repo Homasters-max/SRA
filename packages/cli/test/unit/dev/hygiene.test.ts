@@ -154,6 +154,20 @@ describe("hygiene — ADR-0033 п. 13", () => {
     expect(stale("gone", known)).toEqual(["audit-stale:docs/process/audits/2026-09-25 → коммит снимка gone не найден: навык architecture-audit"]);
   });
 
+  it("the last audit snapshot of a day is the one with a topic: <date>-<topic>.json sorts after <date>.json", () => {
+    const AUDITS = `${ROOT}/docs/process/audits`;
+    const list = run({
+      dirs: { [AUDITS]: [file("2026-09-25.json"), file("2026-09-25-core-seams.json"), file("2026-09-25-core-seams.md")] },
+      files: {
+        [`${AUDITS}/2026-09-25.json`]: JSON.stringify({ commit: "gone", dir: "packages/cli/src" }),
+        [`${AUDITS}/2026-09-25-core-seams.json`]: JSON.stringify({ commit: "also-gone", dir: "packages/cli/src" }),
+      },
+    }).filter((f) => f.kind === "audit-stale");
+    expect(list.map((f) => `${f.item} → ${f.detail}`)).toEqual([
+      "docs/process/audits/2026-09-25-core-seams → коммит снимка also-gone не найден: навык architecture-audit",
+    ]);
+  });
+
   it("broken relative links in docs and skills; archives, code and external links are not checked", () => {
     const list = run({
       dirs: {

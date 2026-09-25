@@ -163,8 +163,9 @@ export function findings(io, state) {
     }
   }
 
+  // `<date>.json` or `<date>-<topic>.json` (a second audit of the same day); the topic one sorts after the bare date.
   const audits = (io.readDir(join(root, "docs", "process", "audits")) ?? [])
-    .map((e) => /^(\d{4}-\d{2}-\d{2})\.json$/.exec(e.name)?.[1])
+    .map((e) => /^(\d{4}-\d{2}-\d{2}(?:-[a-z0-9-]+)?)\.json$/.exec(e.name)?.[1])
     .filter(Boolean)
     .sort();
   const last = audits[audits.length - 1];

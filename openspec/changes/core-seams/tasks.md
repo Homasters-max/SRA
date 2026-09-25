@@ -38,10 +38,10 @@ design.md, A-N и BL-N — [docs/backlog.md](../../../docs/backlog.md).
 
 ## 4. Предикат «waiver в силе» (A-14)
 
-- [ ] 4.1 `countingWaiverIds` в `core/waivers/status.ts` (§4); `evaluateGates` и `ensureApproval` — через него;
+- [x] 4.1 `countingWaiverIds` в `core/waivers/status.ts` (§4); `evaluateGates` и `ensureApproval` — через него;
   `isWaiverInForce`, `activeWaiverIds` удалены. Отступление `ensureApproval` — строкой I-N. Проверка: `cs impact
   activeWaiverIds` — 0 мест; тесты `transition` (повторное использование `human-approval`) зелёные без правок.
-- [ ] 4.2 `WAIVER_MOVES` в `core/waivers/status.ts`, перечисление `waiver-state` в реестре `enums`. Проверка: сообщения
+- [x] 4.2 `WAIVER_MOVES` в `core/waivers/status.ts`, перечисление `waiver-state` в реестре `enums`. Проверка: сообщения
   `waive --activate` / `--revoke` прежние; литералов `waiver-state` вне владельца нет.
 
 ## 5. Фабрика ошибки и `findChangeDir` (A-17, A-8)

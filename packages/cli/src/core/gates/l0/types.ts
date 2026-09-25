@@ -6,7 +6,8 @@
  * `NO_INPUT` (P-7), and every `FAIL` names the paths or ids behind it.
  */
 import type { EffectivePolicy } from "../../resolve/types.js";
-import type { EvidenceInput, Finding, GateSignals, Verdict, WaiverInput } from "../types.js";
+import type { EvidenceInput, Finding, GateSignals, Verdict } from "../types.js";
+import type { WaiverInput } from "../../waivers/read.js";
 import type { WaiverContext } from "../../waivers/status.js";
 
 export interface L0Context {

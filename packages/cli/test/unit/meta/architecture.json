@@ -49,7 +49,8 @@
     { "name": "readJson", "owner": "core/fs.ts" },
     { "name": "err", "owner": "core/errors.ts" },
     { "name": "pathMatcher", "owner": "core/glob.ts" },
-    { "name": "toProjectPaths", "owner": "core/git/paths.ts" }
+    { "name": "toProjectPaths", "owner": "core/git/paths.ts" },
+    { "name": "countingWaiverIds", "owner": "core/waivers/status.ts" }
   ],
   "packages": [
     { "name": "picomatch", "owner": "core/glob.ts" },
@@ -71,7 +72,8 @@
     { "id": "verdict", "owner": "core/gates/types.ts", "doc": "docs/02-vocabulary.md", "values": ["PASS", "FAIL", "WAIVED", "NOT_APPLICABLE", "BLOCKED"] },
     { "id": "controller-action", "owner": "core/controller/evaluate.ts", "doc": "docs/02-vocabulary.md", "values": ["CONTINUE", "WAIT", "STOP", "ESCALATE"] },
     { "id": "risk-level", "owner": "core/resolve/types.ts", "doc": "docs/05-policy.md", "values": ["LOW", "MEDIUM", "HIGH"] },
-    { "id": "id-prefix", "owner": "core/ids/scan.ts", "doc": "docs/02-vocabulary.md", "values": ["REQ", "SCN", "TASK", "ADR", "DCT", "UNK", "ASM", "EVID", "RUN", "WAV"] }
+    { "id": "id-prefix", "owner": "core/ids/scan.ts", "doc": "docs/02-vocabulary.md", "values": ["REQ", "SCN", "TASK", "ADR", "DCT", "UNK", "ASM", "EVID", "RUN", "WAV"] },
+    { "id": "waiver-state", "owner": "core/waivers/status.ts", "doc": "docs/02-vocabulary.md", "values": ["PROPOSED", "ACTIVE", "EXPIRED", "REVOKED"] }
   ],
   "exceptions": [
     { "id": "A-12", "rule": "rank", "from": "adapters/check-runner.ts", "to": "core/check/interrupt.ts" },

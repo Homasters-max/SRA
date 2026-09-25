@@ -33,6 +33,7 @@ import type { Json } from "../core/schemas/loader.js";
 import { validateFile } from "../core/schemas/semantic.js";
 import { roleMembers, WAIVER_ROLE } from "../core/roles.js";
 import { WAIVERS_DIR } from "../core/waivers/read.js";
+import { WAIVER_MOVES, type WaiverMove } from "../core/waivers/status.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath } from "./context.js";
 
@@ -152,13 +153,7 @@ function create(ctx: Ctx, args: string[], opts: WaiveOptions): CommandResult {
   return success({ path: waiverRel(id), waiver }, change);
 }
 
-/** Source states of each mode; the target state and whether the approver is written. */
-const MOVES = {
-  activate: { from: ["PROPOSED"], to: "ACTIVE" },
-  revoke: { from: ["PROPOSED", "ACTIVE"], to: "REVOKED" }
-} as const;
-
-function changeState(mode: keyof typeof MOVES, id: string, by: string | undefined, root: string): CommandResult {
+function changeState(mode: WaiverMove, id: string, by: string | undefined, root: string): CommandResult {
   if (by === undefined || by === "") throw new WarrantError("USAGE", `--${mode} needs --by <login> of a maintainer`);
   if (!LOGIN_RE.test(by)) throw new WarrantError("USAGE", `--by ${JSON.stringify(by)} is not a login ([A-Za-z0-9._-]+)`);
 
@@ -193,7 +188,7 @@ function changeState(mode: keyof typeof MOVES, id: string, by: string | undefine
     });
   }
 
-  const move = MOVES[mode];
+  const move = WAIVER_MOVES[mode];
   const state = String(json["waiver_state"]);
   if (!(move.from as readonly string[]).includes(state)) {
     throw new WarrantError("STATE_INVALID", `${id} is ${state}: --${mode} moves a waiver from ${move.from.join(" or ")} to ${move.to}`, {

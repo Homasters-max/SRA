@@ -40,7 +40,7 @@ import {
   type GateEngineResult,
   type Verdict
 } from "./types.js";
-import { waiverStatus, type WaiverContext, type WaiverIgnoredReason } from "../waivers/status.js";
+import { countingWaiverIds, waiverStatus, type WaiverContext, type WaiverIgnoredReason } from "../waivers/status.js";
 
 /** The worse of two verdicts in the order `FAIL` > `BLOCKED` > `WAIVED` > `NOT_APPLICABLE` > `PASS`. */
 export function worse(a: Verdict, b: Verdict): Verdict {
@@ -204,13 +204,7 @@ export function evaluateGates(input: GateEngineInput): GateEngineResult {
   // A waiver that does not count waives nothing anywhere: not a gate (step 4),
   // not a kind of `evidence-complete`, not a record's `metrics.waivers`
   // (review of phase 3, R-2, R-8; design §1).
-  const waiverCtx = waiverContext(input);
-  const active = new Set<string>();
-  for (const waiver of input.waivers) {
-    const gate = waiver.json["gate"];
-    const status = waiverStatus(waiver.json, typeof gate === "string" ? definitions.get(gate) : undefined, waiverCtx);
-    if (status.counts && typeof waiver.json["id"] === "string") active.add(waiver.json["id"]);
-  }
+  const active = countingWaiverIds(input.waivers, definitions, waiverContext(input));
   const { admissible, excluded } = prefilter(input.records, {
     commit: signals.commit,
     base: signals.base,

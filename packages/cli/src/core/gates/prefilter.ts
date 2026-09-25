@@ -8,7 +8,7 @@
  * only evidence the verdict algorithm sees.
  */
 import { isPlainObject } from "../json.js";
-import type { EvidenceInput, Finding, WaiverInput } from "./types.js";
+import type { EvidenceInput, Finding } from "./types.js";
 
 export type StaleReason = "commit" | "base" | "threshold" | "scoped" | "waiver";
 
@@ -19,7 +19,7 @@ export interface PrefilterContext {
   base?: string | undefined;
   /** Effective threshold by evidence kind; a kind without one is not compared. */
   thresholds?: Record<string, number> | undefined;
-  /** Ids of the waivers in force (`ACTIVE`, not expired). */
+  /** Ids of the waivers that count (`countingWaiverIds` of `core/waivers/status.ts`). */
   activeWaivers: ReadonlySet<string>;
 }
 
@@ -32,21 +32,6 @@ export interface Excluded {
 export interface PrefilterResult {
   admissible: EvidenceInput[];
   excluded: Excluded[];
-}
-
-/** A waiver counts while `ACTIVE` and `expires_at >= today` (UTC date, I-75). */
-export function isWaiverInForce(waiver: Record<string, unknown>, today: string): boolean {
-  const expires = waiver["expires_at"];
-  return waiver["waiver_state"] === "ACTIVE" && typeof expires === "string" && expires >= today;
-}
-
-/** Ids of the waivers in force. */
-export function activeWaiverIds(waivers: readonly WaiverInput[], today: string): Set<string> {
-  const ids = new Set<string>();
-  for (const waiver of waivers) {
-    if (isWaiverInForce(waiver.json, today) && typeof waiver.json["id"] === "string") ids.add(waiver.json["id"]);
-  }
-  return ids;
 }
 
 /** The first reason the record is not admissible, or null. */

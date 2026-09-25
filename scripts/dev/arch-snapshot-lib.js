@@ -5,7 +5,8 @@
  *
  * What the snapshot adds to `cs`: module cohesion (internal / (internal + outgoing imports)); vertical slices of
  * entry points aggregated by module, with the share of the entry's own module; calls through ports (`ctx.git.head()`),
- * which the graph does not see (ADR-0029), attached to the slice symbols that make them.
+ * which the graph does not see (ADR-0029), attached to the slice symbols that make them; calls of a name shared with
+ * another file (a test helper), which the graph drops, restored from `cs grep` (`completeCallers`).
  *
  * Plain Node ESM, no dependencies. Dev tooling only — not in `files` of package.json.
  */
@@ -49,10 +50,88 @@ export function portCallsBySymbol(grep, ports = DEFAULT_PORTS) {
 }
 
 /**
- * One slice from a `cs callers <entry> --direction out -d all --json` answer: reached symbols of `dir` by module,
- * the share of the entry's module, and the port calls of the entry and every reached symbol.
+ * Names whose calls the graph drops (audit 2026-09-25 §3.3): a function defined in more than one file of the index
+ * (`cs dups --min 2 --json`, all of it) but exactly once in `dir` — a call from another file of `dir` means that one
+ * definition, yet Graft discards a cross-file call of a shared name even through an explicit named import.
+ * Map<name, path of the definition in `dir`>.
  */
-export function buildSlice(callers, { dir, level, portCalls = new Map() }) {
+export function blindNames(dups, dir) {
+  const prefix = `${dir.replace(/\\/g, "/")}/`;
+  const out = new Map();
+  for (const d of dups.dups ?? []) {
+    const inDir = (d.definitions ?? []).filter((x) => x.path.startsWith(prefix));
+    if (inDir.length === 1 && inDir[0].kind === "function" && inDir[0].symbol === d.name) out.set(d.name, inDir[0].path);
+  }
+  return out;
+}
+
+/** `cs grep` pattern for bare calls `name(` of `names` — not `x.name(` (a method or a port call). */
+export function bareCallPattern(names) {
+  return `(^|[^\\w$.])(${names.join("|")})\\(`;
+}
+
+/**
+ * Bare calls of `names` per enclosing symbol id from a `cs grep --json` answer: Map<symbolId, { path, names }>. A
+ * definition line (`function name(`) is not a call.
+ */
+export function bareCallsBySymbol(grep, names) {
+  const re = new RegExp(`(?:^|[^\\w$.])(?<!function\\s+)(${names.join("|")})\\(`, "g");
+  const out = new Map();
+  for (const group of grep.groups ?? []) {
+    const id = group.symbol?.id;
+    if (id === undefined) continue;
+    for (const hit of group.hits ?? []) {
+      for (const m of hit.text.matchAll(re)) {
+        if (!out.has(id)) out.set(id, { path: group.symbol.path ?? group.path, names: new Set() });
+        out.get(id).names.add(m[1]);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * A `cs callers <entry> --direction out -d all --json` answer completed with what the graph dropped: a bare call of a
+ * blind name by the entry or a reached symbol counts when the caller's file is the definition's file or imports it
+ * (`importsOf(path)` — imported paths, `cs deps <file>`; a local `resolve` of `new Promise` is not a call of
+ * `core/resolve`); then the definition and its own out-slice (`sliceOf(name)` — the same `cs callers` answer, or null)
+ * join the answer, until nothing new is reached.
+ * Returns `{ callers, recovered }` — the answer with the added hits and the sorted names that added them.
+ */
+export function completeCallers(callers, bareCalls, { defOf, importsOf, sliceOf }) {
+  const [match, ...rest] = callers.matches ?? [];
+  if (match === undefined) return { callers, recovered: [] };
+  const hits = [...(match.hits ?? [])];
+  const ids = new Set([match.symbol.id, ...hits.map((h) => h.id)]);
+  const queue = [...ids];
+  const done = new Set();
+  const recovered = new Set();
+  while (queue.length > 0) {
+    const site = bareCalls.get(queue.pop());
+    for (const name of site?.names ?? []) {
+      const def = defOf.get(name);
+      if (done.has(name) || def === undefined || (site.path !== def && !importsOf(site.path)?.has(def))) continue;
+      done.add(name);
+      const m = sliceOf(name)?.matches?.[0];
+      if (m === undefined) continue;
+      for (const h of [{ ...m.symbol, relation: "calls" }, ...(m.hits ?? [])]) {
+        if (ids.has(h.id)) continue;
+        ids.add(h.id);
+        hits.push(h);
+        queue.push(h.id);
+        recovered.add(name);
+      }
+    }
+  }
+  return { callers: { ...callers, matches: [{ ...match, hits }, ...rest] }, recovered: [...recovered].sort() };
+}
+
+/**
+ * One slice from a `cs callers <entry> --direction out -d all --json` answer: reached symbols of `dir` by module,
+ * the share of the entry's module, and the port calls of the entry and every reached symbol. `recovered` — names
+ * whose dropped calls `completeCallers` restored.
+ */
+export function buildSlice(callers, { dir, level, portCalls = new Map(), recovered = [] }) {
   const match = callers.matches?.[0];
   if (match === undefined) return { entry: callers.query, found: false };
   const entryModule = moduleOf(match.symbol.path, dir, level);
@@ -79,7 +158,8 @@ export function buildSlice(callers, { dir, level, portCalls = new Map() }) {
     entry_module: entryModule,
     entry_share: symbols === 0 ? 0 : round((modules[entryModule] ?? 0) / symbols),
     modules: Object.fromEntries(Object.entries(modules).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))),
-    ports: Object.fromEntries(Object.entries(ports).sort((a, b) => (a[0] < b[0] ? -1 : 1)))
+    ports: Object.fromEntries(Object.entries(ports).sort((a, b) => (a[0] < b[0] ? -1 : 1))),
+    recovered
   };
 }
 
@@ -176,7 +256,8 @@ export function formatSnapshot(s) {
     if (!sl.found) { lines.push(`  ${sl.entry}: not found`); continue; }
     const top = Object.entries(sl.modules).slice(0, 5).map(([m, n]) => `${m} ${n}`).join(", ");
     const ports = Object.entries(sl.ports).map(([p, n]) => `${p}×${n}`).join(" ") || "-";
-    lines.push(`  ${sl.entry}: ${sl.symbols} / ${sl.module_count} / ${sl.entry_share}; ${top}; ports: ${ports}`);
+    const recovered = sl.recovered?.length ? `; recovered: ${sl.recovered.join(", ")}` : "";
+    lines.push(`  ${sl.entry}: ${sl.symbols} / ${sl.module_count} / ${sl.entry_share}; ${top}; ports: ${ports}${recovered}`);
   }
   return lines.join("\n");
 }

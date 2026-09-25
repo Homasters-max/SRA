@@ -1,8 +1,9 @@
 /**
  * Graph audit (D-2, ADR-0028 п. 4): `scripts/dev/graph-audit-lib.js` builds ground truth with the TypeScript checker
  * (calls through a port resolve to the interface member and its implementations; a local const that shadows a
- * function is not a call of it; module-level calls belong to the file), scores a graph against it, and fails the
- * baseline gate only beyond the tolerance.
+ * function is not a call of it; module-level calls belong to the file), scores a graph against it — a call of a shared
+ * name through an explicit named import is an `ambiguous_cross_file` site — and fails the baseline gate only beyond the
+ * tolerance.
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -44,26 +45,42 @@ const FIXTURE: Record<string, string> = {
   "packages/cli/test/flow.test.ts": ['import { forward, KEY } from "../src/flow.js";', "forward();", "export const use = (): string => KEY;"].join("\n"),
 };
 
-let root = "";
-let gt: ReturnType<typeof buildGroundTruth>;
+/** Audit 2026-09-25 §3.3: `runVerify` imports `evaluate` by name; a test file has its own local `evaluate`. */
+const NAMED_IMPORT: Record<string, string> = {
+  "packages/cli/src/evaluate.ts": ["export function evaluate(): number {", "  return 1;", "}"].join("\n"),
+  "packages/cli/src/verify.ts": ['import { evaluate } from "./evaluate.js";', "export function runVerify(): number {", "  return evaluate();", "}"].join("\n"),
+  "packages/cli/test/verdict.test.ts": ["function evaluate(): number {", "  return 0;", "}", "evaluate();"].join("\n"),
+};
 
-beforeAll(() => {
-  root = mkdtempSync(path.join(tmpdir(), "graph-audit-"));
-  for (const [file, text] of Object.entries(FIXTURE)) {
+const roots: string[] = [];
+let gt: ReturnType<typeof buildGroundTruth>;
+let gtNamed: ReturnType<typeof buildGroundTruth>;
+
+function truthOf(fixture: Record<string, string>) {
+  const root = mkdtempSync(path.join(tmpdir(), "graph-audit-"));
+  roots.push(root);
+  for (const [file, text] of Object.entries(fixture)) {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     writeFileSync(path.join(root, file), `${text}\n`);
   }
   const options = { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext, strict: true, noEmit: true, types: [] };
-  gt = buildGroundTruth(ts, { root, files: Object.keys(FIXTURE).sort(), options });
+  return buildGroundTruth(ts, { root, files: Object.keys(fixture).sort(), options });
+}
+
+beforeAll(() => {
+  gt = truthOf(FIXTURE);
+  gtNamed = truthOf(NAMED_IMPORT);
 });
 
-afterAll(() => rmSync(root, { recursive: true, force: true }));
+afterAll(() => {
+  for (const root of roots) rmSync(root, { recursive: true, force: true });
+});
 
 /** A graph built from the truth nodes (same ids and spans) with the given call edges. */
-function graphWith(calls: [string, string][]) {
+function graphWith(calls: [string, string][], truth = gt, fixture = FIXTURE) {
   const nodes = [
-    ...Object.keys(FIXTURE).map((f) => ({ id: f, name: path.basename(f), kind: "file", path: f, span: "L1-L99" })),
-    ...gt.nodes.filter((n) => n.kind !== "const").map((n) => ({ id: n.id, name: n.name, kind: n.kind, path: n.path, span: `L${n.line}-L${n.endLine}` })),
+    ...Object.keys(fixture).map((f) => ({ id: f, name: path.basename(f), kind: "file", path: f, span: "L1-L99" })),
+    ...truth.nodes.filter((n) => n.kind !== "const").map((n) => ({ id: n.id, name: n.name, kind: n.kind, path: n.path, span: `L${n.line}-L${n.endLine}` })),
   ];
   const edges = calls.map(([source, target]) => ({ source, target, relation: "calls" }));
   return { nodes, edges };
@@ -103,6 +120,16 @@ describe("graph-audit comparison", () => {
     expect(metrics["sites.port_dispatch"]).toMatchObject({ n: 0, d: 1 });
     expect(metrics["calls.recall.src.dispatch"]).toMatchObject({ n: 1, d: 3 }); // runTransition→forward; missed: runCommand→its local forward, readFacts→GitCli.head
     expect(classes.port_dispatch.examples[0]).toContain("git.head");
+  });
+
+  it("scores a cross-file call of a shared name through a named import in sites.ambiguous_cross_file", () => {
+    const [VERIFY, EVALUATE] = ["packages/cli/src/verify.ts", "packages/cli/src/evaluate.ts"];
+    expect(gtNamed.calls.find((c) => c.file === VERIFY)).toMatchObject({ name: "evaluate", importFrom: EVALUATE });
+    const missed = compareWithGraph(graphWith([], gtNamed, NAMED_IMPORT), gtNamed);
+    expect(missed.metrics["sites.ambiguous_cross_file"]).toMatchObject({ n: 0, d: 1 });
+    expect(missed.classes.ambiguous_cross_file.examples).toEqual([`${VERIFY}:3 evaluate -> ${EVALUATE}#evaluate`]);
+    const found = compareWithGraph(graphWith([[`${VERIFY}#runVerify`, `${EVALUATE}#evaluate`]], gtNamed, NAMED_IMPORT), gtNamed);
+    expect(found.metrics["sites.ambiguous_cross_file"]).toMatchObject({ n: 1, d: 1 });
   });
 });
 

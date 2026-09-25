@@ -30,7 +30,8 @@ maintainer'а — одним вопросом на весь список. Име
 3. **Через hygiene-PR** (`pr`) — навык `git-start start process/hygiene-<YYYY-MM-DD>`:
    - `broken-link` — исправить ссылку на существующий путь (файл переехал — новый путь; удалён — текст без ссылки);
      в ADR меняется только путь, не решение;
-   - `audit-stale` — навык `architecture-audit` (снимок и отчёт в `docs/process/audits/`).
+   - `audit-stale` — навык `architecture-audit` (снимок и отчёт в `docs/process/audits/`): снимок старше тега, после
+     его коммита изменено больше 20 файлов `src` (`AUDIT_STALE_FILES`) или появился модуль.
    Проверки и доставка — навык `git-land`; «merge #N» — maintainer.
 4. **С подтверждением** (`confirm`) — один список, один ответ maintainer'а на весь список:
    - `merged-worktree-dirty` — показать `git -C <путь> status --short`; закоммитить или удалить — по ответу;

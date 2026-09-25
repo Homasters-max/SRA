@@ -30,8 +30,10 @@ description: Архитектурный аудит кода WARRANT (packages/cl
    git log --format= --name-only -- packages/cli/src | sort | uniq -c | sort -rn
    ```
    Разница со снимком — первое, что смотреть; кандидаты — по порогам method §1.
-3. Вертикальные срезы (method §2): входы `runX()` в `commands/`; срез целиком —
-   `node scripts/dev/cs.js callers <вход> --direction out -d all --json`. Срез заканчивается на порту.
+3. Вертикальные срезы (method §2): входы `runX()` в `commands/`; срез целиком — `slices` снимка. Вызовы имени,
+   определённого ещё и в тестах, граф теряет — снимок досчитывает их (`recovered` среза); вручную —
+   `node scripts/dev/cs.js callers <вход|имя из recovered> --in packages/cli/src --direction out -d all --json`,
+   объединение. Срез заканчивается на порту.
 4. Инвентарь понятий из словаря (method §3, обязательно): термины и перечисления `docs/02-vocabulary.md`,
    состояния `docs/04-lifecycle.md` → `cs grep '"<значение>"' --fixed`; владелец каждого понятия-сущности.
 5. Тесты облегчённо (method §4):

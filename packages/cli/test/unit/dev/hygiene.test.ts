@@ -1,13 +1,14 @@
 /**
  * Hygiene (ADR-0033 п. 13): `scripts/dev/hygiene-lib.js` finds what is superfluous — merged branches and their
- * worktrees, ignored leftovers, expiring waivers, stale drafts and audit snapshots, broken relative links, auto-memory —
+ * worktrees, ignored leftovers, expiring waivers, stale drafts and audit snapshots (older than the tag, or code moved
+ * on since the snapshot's commit), broken relative links, auto-memory —
  * and says who removes it (auto / pr / confirm). IO injected; a branch is merged only when its tip is the second
  * parent of a merge on main.
  */
 import { describe, expect, it } from "vitest";
 
 import { collectState } from "../../../../../scripts/dev/brief-lib.js";
-import { findings, formatFindings, relativeLinks } from "../../../../../scripts/dev/hygiene-lib.js";
+import { AUDIT_STALE_FILES, findings, formatFindings, relativeLinks } from "../../../../../scripts/dev/hygiene-lib.js";
 
 const ROOT = "D:/project/SRA";
 type Io = Parameters<typeof findings>[0];
@@ -21,6 +22,8 @@ interface Repo {
   status?: Record<string, string>;
   tags?: string;
   tagDate?: string;
+  diff?: Record<string, string>;
+  tree?: string;
   files?: Record<string, string>;
   dirs?: Record<string, { name: string; dir: boolean }[]>;
 }
@@ -50,6 +53,8 @@ function fakeIo(repo: Repo = {}): Io {
       if (key.startsWith("log main --merges")) return repo.merges ?? "";
       if (key.startsWith("rev-parse --verify --quiet ")) return repo.tips?.[args[3]!] ?? null;
       if (key.startsWith("log -1 --format=%cs")) return repo.tagDate ?? null;
+      if (key.startsWith("diff --name-only ")) return repo.diff?.[args[2]!] ?? null;
+      if (key.startsWith("ls-tree -r --name-only main")) return repo.tree ?? "";
       return null;
     },
     readFile: (p: string) => files[p] ?? null,
@@ -126,6 +131,27 @@ describe("hygiene — ADR-0033 п. 13", () => {
       "stale-draft:confirm:docs/drafts/2026-09-01-old",
       "audit-stale:pr:docs/process/audits/2026-09-20",
     ]);
+  });
+
+  it("an audit snapshot is stale after more than AUDIT_STALE_FILES changed files of its dir, a new module or an unknown commit", () => {
+    const AUDITS = `${ROOT}/docs/process/audits`;
+    const snapshot = (commit: string) => JSON.stringify({ commit, dir: "packages/cli/src", level: 2, modules: [{ id: "commands" }, { id: "core/gates" }, { id: "version.ts" }] });
+    const text = (paths: string[]) => paths.map((p) => `${p}\n`).join("");
+    const src = (n: number) => text(Array.from({ length: n }, (_, i) => `packages/cli/src/commands/c${i}.ts`));
+    const stale = (commit: string, tree: string) =>
+      run({
+        dirs: { [AUDITS]: [file("2026-09-25.json")] },
+        files: { [`${AUDITS}/2026-09-25.json`]: snapshot(commit) },
+        diff: { few: src(AUDIT_STALE_FILES), many: src(AUDIT_STALE_FILES + 1) },
+        tree,
+      }).map((f) => `${f.kind}:${f.item} → ${f.detail}`);
+    const known = text(["packages/cli/src/commands/a.ts", "packages/cli/src/core/gates/l0/x.ts", "packages/cli/src/version.ts", "packages/cli/src/core/gates/README.md"]);
+    expect(stale("few", known)).toEqual([]);
+    expect(stale("many", known)).toEqual([`audit-stale:docs/process/audits/2026-09-25 → ${AUDIT_STALE_FILES + 1} файлов packages/cli/src изменено после many (порог ${AUDIT_STALE_FILES}): навык architecture-audit`]);
+    expect(stale("few", known + text(["packages/cli/src/core/guard/run.ts", "packages/cli/src/core/guard/port.ts"]))).toEqual([
+      "audit-stale:docs/process/audits/2026-09-25 → новые модули: core/guard: навык architecture-audit",
+    ]);
+    expect(stale("gone", known)).toEqual(["audit-stale:docs/process/audits/2026-09-25 → коммит снимка gone не найден: навык architecture-audit"]);
   });
 
   it("broken relative links in docs and skills; archives, code and external links are not checked", () => {

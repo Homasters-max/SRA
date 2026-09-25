@@ -113,7 +113,10 @@ setx DO_NOT_TRACK 1
 - **Регрессия графа** (ADR-0029 п. 4): `node scripts/dev/graph-audit.js` — метрики графа против компилятора
   TypeScript; база — `scripts/dev/bench/graph-baseline.json` (коммит и версия в файле). Сравнение имеет смысл только
   на том же коде: worktree на коммите базы с `node_modules`, затем `graph-audit.js --root <wt> --baseline
-  scripts/dev/bench/graph-baseline.json` (код 1 — хуже базы больше допуска).
+  scripts/dev/bench/graph-baseline.json` (код 1 — хуже базы больше допуска). Вызов одноимённого имени по явному
+  именованному импорту (аудит 2026-09-25 §3.3: `runVerify` → `evaluate`) — метрика `sites.ambiguous_cross_file`
+  (все её места — такие вызовы; в базе 4 из 141): её рост — Graft разрешает вызов по пути импорта, и досчёт срезов
+  `arch-snapshot.js` (`recovered`) становится лишним.
 - **Обновление Graft:** скопировать `graft-lab/bench/` в `graft-lab/bench-<старая версия>/`; поставить новую версию,
   поднять `GRAFT_VERSION` в `scripts/dev/cs-lib.js` в ветке; (а) `graph-audit --baseline` не хуже базы; (б) субагенты
   `[A]` на всех вопросах (записи `[B]` остаются прежними); `bench-score.js report` — `accept` (отношение ≤ 0,8,

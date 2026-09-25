@@ -3,19 +3,20 @@
 ## Цель
 
 Фаза 4 — MVP frontend по нарезке [ADR-0034](../adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 6, уточнённой
-[ADR-0036](../adr/WARRANT-ADR-0036-phase-4b-producers.md): `core-seams` и `phase-4a` закрыты → Change `phase-4b`
-(producers) → Change `phase-4c` (CI) → slice в отдельном репозитории.
+[ADR-0036](../adr/WARRANT-ADR-0036-phase-4b-producers.md): `phase-4a` закрыт (v0.5.0) → Change `phase-4b` (producers) →
+Change `phase-4c` (CI) → slice в отдельном репозитории. Аудит перед 4b —
+[2026-09-25-phase-4a](../process/audits/2026-09-25-phase-4a.md); spec 4b — решения N19–N28 (design.md `phase-4b` §1).
 
 ## Готовый запрос
 
 ```text
-Change phase-4b до spec-PR. Grilling нарезки проведён (N18–N26, ADR-0036), аудит — 2026-09-25-phase-4a (A-23…A-27).
-Прочитай ADR-0036, ADR-0034 п. 10, ADR-0024, отчёт docs/process/audits/2026-09-25-phase-4a.md (§3, §3.4), 07 §4,
-06 §3–5, архив openspec/changes/archive/2026-09-25-phase-4a/ (design — I-160…I-165), backlog: BL-2, BL-3, BL-13,
-A-23…A-27. Навык openspec-propose: proposal, delta specs (verification — REQ-VER-003 и spec_tree, enforcement —
-операция review и run submit, kernel — analyze, core-sdd — kernel-диапазон pack), design.md со строками N19, N20,
-N22–N25 из ADR-0036, tasks.md (первая группа — A-24, A-23, A-25 + A-27, enums; CLI 0.6.0 первой задачей). Затем
-навык change-spec-pr в ветке spec/phase-4b (пара waivers analyze-clean / adversarial-review ещё нужна).
+Impl-PR Change phase-4b (навыки change-impl-pr → change-coordinate → group-done → review-impl, линза cli-contract).
+Условие: spec-PR phase-4b слит (SPECIFIED). Прочитай openspec/changes/phase-4b/ (proposal, specs enforcement / verification
+/ kernel / core-sdd, design — §1 решения N19–N28, §2 швы, tasks — 7 групп), ADR-0036, ADR-0034 п. 10, ADR-0024, аудит
+docs/process/audits/2026-09-25-phase-4a.md (A-19, A-23…A-27). Ветка worktree/phase-4b: первым коммитом transition APPROVED
+--ref <review spec-PR> --by <maintainer> и IMPLEMENTING; группы 1–7 по одной (субагенты — навык change-coordinate); группа 1
+— швы без правок ожидаемых значений; зонд 6.2 требует maintainer'а (сценарий с субагентом в Claude Code); последним
+коммитом — VERIFYING, затем review-impl, CI, merge по слову maintainer'а.
 ```
 
 ## Открытые вопросы
@@ -24,11 +25,11 @@ N22–N25 из ADR-0036, tasks.md (первая группа — A-24, A-23, A-2
 
 ## Не забыть
 
-- Сдача результата `warrant-reviewer` — строкой `I-N` в 4b после зонда (ADR-0034 п. 10): deny действует до
-  `PreToolUse`, `additionalContext` `PreToolUse` доходит только после результата; кандидат — хук во frontmatter
-  субагента, из Bash только `warrant run submit`. Фикстуры — `test/contract/fixtures/claude/<версия>/`, `probe-hooks.js`.
-- CLI 0.6.0 не проходит `kernel` pack'ов `>=0.1 <0.6` — как I-156 `phase-4a`: pack `core-sdd` patch и 7 fixture-packs.
-- Приёмка 4b по dogfooding — spec-PR 4c первый без пары waivers (ADR-0036 п. 1); провал — находка 4c.
+- Задача 6.2: зонд — действует ли хук `PreToolUse` во frontmatter субагента на его `Bash` и доходит ли `deny`; итог —
+  строкой `I-N` (ADR-0034 п. 10, design §6). Фикстуры — `test/contract/fixtures/claude/<версия>/`, `probe-hooks.js`.
+- `analyze-clean` 4b судит собственный CLI в impl-PR без waiver'а (N28): находку `analyze phase-4b` чинить в `tasks.md`
+  или тестах (задача 7.3).
+- Приёмка 4b по dogfooding — spec-PR 4c первый без пары waivers: review субагентом до `transition SPECIFIED` (ADR-0036 п. 1).
 - Sample-проект slice — `Homasters-max/warrant-slice` (Python + pytest), создаёт maintainer до slice.
 - Субагенты под `PreToolUse deny` (ADR-0031): grep по `packages/` отклоняется и по JSON-фикстурам — в промпте
   разрешать инструмент Grep для не-кода.

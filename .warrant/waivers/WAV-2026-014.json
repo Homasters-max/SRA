@@ -1,0 +1,16 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-2026-014",
+  "change": "phase-4b",
+  "gate": "adversarial-review",
+  "reason": "The producer of review evidence (run start --operation review / run submit, subagent warrant-reviewer) is implemented by this Change itself (ADR-0036 p. 1, N28): its spec cannot be reviewed by it before SPECIFIED->APPROVED.",
+  "risk": "HIGH",
+  "compensating_controls": [
+    "maintainer review of spec-PR",
+    "the spec-PR of phase-4c is the first reviewed by the producer (ADR-0036 p. 1)"
+  ],
+  "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
+  "expires_at": "2026-12-31",
+  "waiver_state": "ACTIVE"
+}

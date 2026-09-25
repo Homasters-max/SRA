@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "phase-4b",
+  "change_state": "SPECIFIED",
+  "classification": {
+    "profiles": [
+      "chore",
+      "factory-change"
+    ],
+    "risk": {
+      "blast_radius": {
+        "value": "SYSTEM",
+        "from": "floor:core-sdd:2"
+      }
+    }
+  },
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-09-25T17:28:38.196Z",
+      "by": "cli:local"
+    },
+    {
+      "to": "SPECIFIED",
+      "at": "2026-09-25T18:01:29.264Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+      "gates": {
+        "ids-valid": "PASS",
+        "required-artifacts-present": "PASS",
+        "spec-valid": "PASS"
+      },
+      "evidence": [
+        "EVID-01M3CVNB5TRRR7QREGD90SF1JA"
+      ]
+    }
+  ]
+}

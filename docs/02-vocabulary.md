@@ -122,6 +122,16 @@ Skill       ──produces──▶ Findings / Proposals — не verdict
 | `STOP` | Нарушено обязательное правило. Продолжение запрещено. |
 | `ESCALATE` | Высокий риск или конфликт политики требует human decision. |
 
+### Run и событие guard
+
+- **Run** — одна попытка агента выполнить операцию Change (`specify` | `implement`) в пределах `write_scope`
+  (`warrant://run/1`, [03 §4](03-architecture.md)); ось — `run_state`. **Активный Run** — Run в `RUNNING`, чей id записан
+  в `<state>/runs/current`; на worktree он один.
+- **Событие guard** — запись `guard_events[]` активного Run о вызове `warrant guard`: `phase` (`pre` — до действия,
+  `post` — после), `action` (`edit` | `shell` | `other`), `decision` (`allow` | `deny`), `findings[]` (коды),
+  `rules_shown[]` (id показанных правил). `decision` — ответ hook, не ось статуса: `deny` отменяет действие агента, а не
+  переход Change.
+
 ## 3. Идентификаторы
 
 ### Правило идентичности

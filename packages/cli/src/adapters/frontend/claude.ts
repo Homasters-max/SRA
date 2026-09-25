@@ -13,8 +13,10 @@
  * Answer: `deny` — `hookSpecificOutput.permissionDecision: "deny"` with
  * `permissionDecisionReason` of the reason and the hints; `allow` — never
  * `permissionDecision` (an `allow` would bypass the permission system of
- * Claude Code, SCN-ENF-019), the hints in `additionalContext`, stdout empty
- * without hints.
+ * Claude Code, SCN-ENF-019); the hints of `PostToolUse` in `additionalContext`,
+ * stdout empty without hints. `PreToolUse` on `allow` answers nothing: its
+ * `additionalContext` reaches the model only with the result of the tool
+ * (probe of 2.1.263, I-165) — guard gives the hint of `pre` again in `post`.
  */
 import { isPlainObject } from "../../core/json.js";
 import type { FrontendAdapter, FrontendResponse, GuardEvent, GuardPhase, GuardResult } from "../../core/ports/frontend.js";
@@ -59,7 +61,7 @@ function respond(result: GuardResult, event: GuardEvent): FrontendResponse {
   if (result.decision === "deny" && event.phase === "pre") {
     const reason = [result.reason ?? "denied by warrant guard", ...result.hints].join("\n");
     output = { hookEventName, permissionDecision: "deny", permissionDecisionReason: reason };
-  } else {
+  } else if (event.phase === "post") {
     const context = [...(result.reason === undefined ? [] : [result.reason]), ...result.hints];
     if (context.length > 0) output = { hookEventName, additionalContext: context.join("\n") };
   }

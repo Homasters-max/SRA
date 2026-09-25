@@ -112,7 +112,8 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 
 Решение `post` SHALL быть `allow`; `hints[]` — находки [`validate --files`](../kernel/spec.md) по путям события (не больше 10
 строк + «и ещё N») и текст правил `rule/1`, чьи `paths` подходят под путь и чьих id ещё нет в `rules_shown` событий Run
-([ADR-0022](../../../../docs/adr/WARRANT-ADR-0022-path-rules.md) п. 3); сбой `post` SHALL давать `allow` без hints и сообщение
+([ADR-0022](../../../../docs/adr/WARRANT-ADR-0022-path-rules.md) п. 3); без активного Run вместо текста правил — hint
+`warrant run start` `pre` для правки пути проекта (design I-165); сбой `post` SHALL давать `allow` без hints и сообщение
 в stderr. При активном Run каждый вызов SHALL дописать событие в `guard_events[]` под замком Run; замок не взят за ~2 с —
 `pre` даёт `deny` с reason `BUSY`, `post` теряет событие с сообщением в stderr.
 
@@ -153,7 +154,9 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 `PostToolUse`, `tool_name`, `tool_input`, `cwd`), переводить его в нормализованное событие — `Edit`, `Write` (`file_path`) и
 `NotebookEdit` (`notebook_path`) → `edit`, `Bash` (`command`) → `shell`, иначе `other` — и печатать родной ответ: `deny` →
 `hookSpecificOutput.permissionDecision: "deny"` с `permissionDecisionReason` из reason и hints; `allow` — без
-`permissionDecision` (решает обычный механизм разрешений Claude Code), hints — в `hookSpecificOutput.additionalContext`.
+`permissionDecision` (решает обычный механизм разрешений Claude Code), hints `PostToolUse` — в
+`hookSpecificOutput.additionalContext`; `allow` `PreToolUse` — пустой stdout (`additionalContext` `PreToolUse` доходит до
+модели только после результата инструмента — зонд Claude Code 2.1.263, design I-165).
 Код выхода SHALL быть 0; вход, который нельзя разобрать, SHALL давать код 2 и причину в stderr (Claude Code отменяет действие
 `PreToolUse`). Имя frontend SHALL встречаться только в адаптере, генераторе `sync` и значении `--frontend`
 ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 2); неизвестное значение `--frontend` — `USAGE`, код 3.

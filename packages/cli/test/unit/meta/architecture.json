@@ -73,7 +73,10 @@
       { "name": "validateErrors", "owner": "app/helpers/validate.ts" },
       { "name": "errorCodes", "owner": "app/helpers/validate.ts" },
       { "name": "withoutDryRun", "owner": "app/helpers/dry-run.ts" },
-      { "name": "writtenBeyond", "owner": "app/helpers/dry-run.ts" }
+      { "name": "writtenBeyond", "owner": "app/helpers/dry-run.ts" },
+      { "name": "recordedVersions", "owner": "helpers/claude-hooks.ts" },
+      { "name": "recordedHook", "owner": "helpers/claude-hooks.ts" },
+      { "name": "recordedInputIn", "owner": "helpers/claude-hooks.ts" }
     ]
   },
   "enums": [

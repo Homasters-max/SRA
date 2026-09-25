@@ -25,7 +25,7 @@ import { UNREADABLE_EXIT, type FrontendAdapter, type FrontendResponse, type Guar
 import { readCurrent, runFile, updateRun } from "../run/store.js";
 import type { GuardEventRecord, Run } from "../run/types.js";
 import { runFileChecks, validateRun } from "../validate/registry.js";
-import { editWithoutRun, editWithRun, guardedChecks, shellAnswer, VALIDATE_HINT, type Answer } from "./decide.js";
+import { editWithoutRun, editWithRun, guardedChecks, RUN_START_HINT, shellAnswer, VALIDATE_HINT, type Answer } from "./decide.js";
 import { parseEvent } from "./event.js";
 
 /** At most this many finding lines in `hints[]`, then one «and N more» (ADR-0019 п. 10). */
@@ -173,7 +173,12 @@ async function post(ctx: Ctx, event: GuardEvent, env: NodeJS.ProcessEnv): Promis
   const loaded = loadPacks(ctx.root);
   const errors = files.length === 0 ? [] : (await runFileChecks(validateRun(ctx, loaded), files)).errors;
   const findingsHints = findingHints(errors);
-  if (run === undefined) return { decision: "allow", hints: findingsHints };
+  // Without a Run the hint `run start` of `pre` comes again after the edit: a frontend may deliver the context of
+  // `pre` only with the result of the action, or not at all (I-165).
+  if (run === undefined) {
+    const runStart = event.action === "edit" && files.length > 0 ? [RUN_START_HINT] : [];
+    return { decision: "allow", hints: [...findingsHints, ...runStart] };
+  }
 
   const codes = [...new Set(errors.map((e) => e.code))];
   const answer: Answer = { decision: "allow", hints: [] };

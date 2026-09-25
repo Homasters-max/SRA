@@ -184,14 +184,25 @@ function scenarioCall(json) {
   }
 }
 
-/** `transcript_path` with the home directory as `~`: the fixture keeps the shape, not the profile path. */
-function redacted(json, home) {
-  const out = { ...json };
-  if (typeof out.transcript_path === "string" && home) {
-    const at = slash(out.transcript_path).toLowerCase().indexOf(slash(home).toLowerCase());
-    if (at === 0) out.transcript_path = `~${out.transcript_path.slice(home.length)}`;
-  }
-  return out;
+/**
+ * `json` with the home directory as `~` in every string value at any depth (`transcript_path`, `scratchpad_dir`, …):
+ * the fixture keeps the shape, not the profile path. The home matches with either slash and in any case (the drive
+ * letter and the profile name differ in case between the fields Claude Code writes).
+ */
+export function redacted(json, home) {
+  const parts = slash(home ?? "")
+    .replace(/\/+$/, "")
+    .split("/")
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (parts.join("") === "") return json;
+  const pattern = new RegExp(`${parts.join("[\\\\/]")}(?=$|[\\\\/])`, "gi");
+  const walk = (value) => {
+    if (typeof value === "string") return value.replace(pattern, "~");
+    if (Array.isArray(value)) return value.map(walk);
+    if (value !== null && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, walk(v)]));
+    return value;
+  };
+  return walk(json);
 }
 
 /**

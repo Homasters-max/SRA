@@ -68,7 +68,7 @@ Change 4a ([ADR-0034](../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п
 ## Impact
 
 - `packages/cli/src`: новые `commands/{run,guard}.ts`, `core/run/*` (Run, Context Pack, `write_scope`), `core/guard/*`
-  (решение, события, `guard_prefixes`, hints), `core/hooks/*` (`FRONTEND_HOOKS_INACTIVE`), `adapters/frontend/claude*`,
+  (решение, события, `guard_prefixes`, hints), `core/liveness/*` (`FRONTEND_HOOKS_INACTIVE`), `adapters/frontend/claude*`,
   порт замка; реестр проверок `core/validate/*`; правки `commands/{validate,sync,init,status,verify,gate,transition,archive,
   waive}.ts`, `core/sync/*`, `core/errors.ts` (`hint`), `core/fs.ts` (`projectPath`), `core/schemas/loader.ts`, `bin/warrant.ts`.
 - `packages/cli/schemas/`: `run.1.schema.json` (новая), `config.1.schema.json` (`frontends`) и копии в `.warrant/schemas/`.

@@ -259,12 +259,15 @@ describe("warrant guard: post", () => {
     expect(events(p, id)[1]).toMatchObject({ findings: ["NOT_CANONICAL"], rules_shown: [] });
   });
 
-  it("without a Run: the findings only, no rule text, no event", async () => {
+  it("without a Run: the findings and the hint run start of pre, no rule text, no event (I-165)", async () => {
     const p = await repo("IMPLEMENTING", jsonRule);
     p.write(".warrant/local/areas.json", NOT_CANONICAL_AREAS);
     const result = await guard(p, { phase: "post", action: "edit", paths: [".warrant/local/areas.json"] });
-    expect(result.data["hints"]).toEqual([expect.stringMatching(/^NOT_CANONICAL /)]);
+    expect(result.data["hints"]).toEqual([expect.stringMatching(/^NOT_CANONICAL /), expect.stringContaining("warrant run start <change> --operation")]);
     expect(existsSync(path.join(p.root, ".warrant", "runs"))).toBe(false);
+    // A clean file gets the hint alone; a path outside the project, none.
+    expect((await guard(p, { phase: "post", action: "edit", paths: ["docs/notes.md"] })).data["hints"]).toEqual([expect.stringContaining("warrant run start")]);
+    expect((await guard(p, { phase: "post", action: "edit", paths: [path.join(path.dirname(p.root), "elsewhere.md")] })).data["hints"]).toEqual([]);
   });
 
   it("a clean file: allow without hints", async () => {

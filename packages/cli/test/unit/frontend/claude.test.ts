@@ -5,7 +5,8 @@
  * the normalised event: `Edit` / `Write` → `file_path`, `NotebookEdit` →
  * `notebook_path`, `Bash` → the words of `command`, any other tool `other`;
  * the decision as the native answer: `deny` with the reason and the hints,
- * `allow` never with `permissionDecision`, the hints in `additionalContext`.
+ * `allow` never with `permissionDecision`, the hints of `post` in
+ * `additionalContext`, `pre` silent (I-165).
  */
 import { describe, expect, it } from "vitest";
 
@@ -105,15 +106,17 @@ describe("adapter claude: decision → native answer", () => {
     });
   });
 
-  it("allow never names permissionDecision: the hints in additionalContext, nothing without hints", () => {
+  it("allow never names permissionDecision: the hints of post in additionalContext, nothing without hints", () => {
     const hinted = respond({ decision: "allow", hints: ["NOT_CANONICAL a.json: x — run `warrant fmt`", "rule r: text"] }, post);
     expect(JSON.parse(hinted.stdout)).toEqual({
       hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: "NOT_CANONICAL a.json: x — run `warrant fmt`\nrule r: text" }
     });
-    expect(JSON.parse(respond({ decision: "allow", hints: ["start a Run first"] }, pre).stdout)).toEqual({
-      hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: "start a Run first" }
-    });
-    expect(respond({ decision: "allow", hints: [] }, pre)).toEqual({ stdout: "", exit: 0 });
+    expect(respond({ decision: "allow", hints: [] }, post)).toEqual({ stdout: "", exit: 0 });
     expect(hinted.stdout).not.toContain("permissionDecision");
+  });
+
+  it("allow of pre answers nothing, hints or not: additionalContext of PreToolUse comes only after the tool (I-165)", () => {
+    expect(respond({ decision: "allow", hints: ["start a Run first"] }, pre)).toEqual({ stdout: "", exit: 0 });
+    expect(respond({ decision: "allow", hints: [] }, pre)).toEqual({ stdout: "", exit: 0 });
   });
 });

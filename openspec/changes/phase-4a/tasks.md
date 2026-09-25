@@ -70,12 +70,12 @@ golden вне групп 2 и 6 — остановка и строка I-N.
 
 - [x] 8.1 Порт `core/ports/frontend.ts`, `adapters/frontend/claude.ts`, `--frontend` в `bin/warrant.ts` (§2, §7); мета-тест
   нейтральности (§9). Проверка: SCN-ENF-020; строка `claude` вне разрешённых мест роняет тест.
-- [ ] 8.2 `scripts/dev/probe-hooks.js` и фикстуры родного входа с версией Claude Code (§7); зонд `additionalContext`
+- [x] 8.2 `scripts/dev/probe-hooks.js` и фикстуры родного входа с версией Claude Code (§7); зонд `additionalContext`
   `PreToolUse` и якоря путей deny — итог строкой I-N. Проверка: фикстуры `Edit`, `Write`, `NotebookEdit`, `Bash` для `pre`
   и `post` в `test/contract/fixtures/claude/`.
-- [ ] 8.3 Контракт адаптера на записанном входе (ADR-0034 п. 2). Проверка: SCN-ENF-017…019, 021.
-- [ ] 8.4 e2e: `init --frontend claude` → `sync` → `run start` → `guard --frontend claude` (deny вне scope, hints после
+- [x] 8.3 Контракт адаптера на записанном входе (ADR-0034 п. 2). Проверка: SCN-ENF-017…019, 021.
+- [x] 8.4 e2e: `init --frontend claude` → `sync` → `run start` → `guard --frontend claude` (deny вне scope, hints после
   правки) → `run finish` → `verify` без `FRONTEND_HOOKS_INACTIVE`. Проверка: e2e на ubuntu и windows.
-- [ ] 8.5 Документы: 03 §4 (Run, `current`, коммит файла Run), 04 §6–7 (guard, адаптер `claude` — MVP, `run start|finish`),
+- [x] 8.5 Документы: 03 §4 (Run, `current`, коммит файла Run), 04 §6–7 (guard, адаптер `claude` — MVP, `run start|finish`),
   02 (Run, событие guard), 13 §2 (строка 4a), README CLI; `backlog.md` — закрыть BL-5, BL-7, BL-10, BL-14, BL-20, A-9, A-12,
   A-20…A-22, сузить BL-3, BL-9, BL-13. Проверка: `hygiene.js` без битых ссылок, `dev-context.test.ts` зелёный.

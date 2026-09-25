@@ -160,8 +160,8 @@ Prompt не является enforcement (INV-04). Принуждение рас
 | **CI** `warrant ci` | Заново вычисляет L0/L1, верифицирует refs, блокирует merge. Не пишет в репозиторий ([ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)) | MVP |
 | **Форж** (GitHub) | Bot-идентичность агента без права merge; branch protection на `main`; required review | MVP |
 | **ACP client** (диспетчер SEF, [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)) | Наблюдает `tool_call`, `validate --files` после правки, `session/cancel` при записи вне `write_scope`, проверка живости hooks ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)) | S1 SEF; в MVP нет |
-| **Hook** `warrant guard --frontend <name>` | `pre`: отказ вне `write_scope` активного Run и на прямой запуск тяжёлых checks (ADR-0017); `post`: hints по изменённому файлу ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)) и текст правил по путям; без активного Run — `deny` ([ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)); решение — `allow` или `deny` | MVP (`codex`); `claude`, `opencode` — later |
-| **Static deny** frontend'а | `permissions.deny` в `.claude/settings.json`, генерируется `warrant sync` | later (адаптер `claude`) |
+| **Hook** `warrant guard --frontend <name>` | `pre`: отказ вне `write_scope` (и непустого `scope`) активного Run и на прямой запуск тяжёлых checks по `guard_prefixes` ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)); без активного Run — `deny` для `paths.src`, `paths.tests`, `openspec/changes/**` и policy-путей ([ADR-0022](adr/WARRANT-ADR-0022-path-rules.md) п. 7); сбой — `deny` (fail-closed); `post` (всегда `allow`): находки `validate --files` по изменённому файлу ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)) и текст ещё не показанных в Run правил по путям, без Run — находки и подсказка `run start`; решение — `allow` или `deny`, каждое событие при активном Run — в `guard_events[]`. Без `--frontend` — нормализованное событие ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md) п. 2) и конверт, код 0 при любом решении | MVP: адаптер `claude` ([ADR-0034](adr/WARRANT-ADR-0034-phase-4-frontend.md)); `codex` — до S1 SEF; `opencode` — later |
+| **Static deny** frontend'а | `permissions.deny` в `.claude/settings.json` ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md) п. 1), генерируется `warrant sync` при `frontends ∋ claude`: `Edit(/…)` на `.warrant/changes/**`, `.warrant/evidence/**`, `.warrant/runs/**`, `openspec/specs/**`, `openspec/config.yaml`, `openspec/schemas/**` (якорь `/` — корень проекта; `Edit(…)` покрывает и `Write`, записи `Write(…)` Claude Code не применяет — зонд Claude Code 2.1.263) и `Bash(git push origin main:*)`, `Bash(gh pr merge:*)`, `Bash(openspec archive:*)` | MVP (адаптер `claude`) |
 
 WARRANT **agent-agnostic**: вся логика в CLI, который общается JSON. Frontends — адаптеры, которые переводят
 родной формат агента в нормализованное событие `warrant guard` и обратно ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)).
@@ -176,7 +176,7 @@ Hooks внутри агента — ускорение, а не гарантия
 | Capability | Spec author | Implementer | Verifier | Принуждение в MVP |
 |---|---|---|---|---|
 | `READ_REPO`, `READ_SPEC`, `READ_EVIDENCE` | ✓ | ✓ | ✓ | informative: чтение не ограничивается |
-| `WRITE_SPEC` | ✓ | — | — | `write_scope` Run + hook `warrant guard` (static deny — later, адаптер `claude`, [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)) |
+| `WRITE_SPEC` | ✓ | — | — | `write_scope` Run + hook `warrant guard`; static deny `openspec/specs/**` — адаптер `claude` ([ADR-0014](adr/WARRANT-ADR-0014-claude-code-enforcement.md) п. 1) |
 | `WRITE_CODE` | — | ✓ | — | `write_scope` Run |
 | `RUN_TEST` | — | ✓ | ✓ | — |
 | `RUN_DATA_CHECK` | — | — | ✓ | pack `data`, later |
@@ -204,14 +204,16 @@ Hooks внутри агента — ускорение, а не гарантия
 
 | Команда | Назначение | Maturity |
 |---|---|---|
-| `warrant init` | Инициализировать `.warrant/`, `.claude/`, mapping схем для редакторов. Bootstrap-Change без policy gates | MVP |
+| `warrant init [--frontend claude]` | Инициализировать `.warrant/`, mapping схем для редакторов; `--frontend claude` — `frontends: ["claude"]` в `warrant.json` и `.claude/settings.json` через `sync`. Bootstrap-Change без policy gates | MVP |
 | `warrant init change <name>` | `openspec new change --schema warrant-sdd --json` + record в `PROPOSED`; отказ при повторном имени | MVP |
 | `warrant status [change]` | Состояние Change, effective policy, verdicts, `STALE`, следующая операция | MVP |
 | `warrant classify <change> [--propose <json>] [--set <dim>=<v> … --by <login> [--ref <url>]]` | Классификация: path rules + proposal агента + human overrides; `--set … --by` — значение человека из роли approval; ниже floor — только с `--ref` и только до `APPROVED` ([05 §4](05-policy.md)) | MVP |
 | `warrant resolve <change> [--explain]` | Вычислить effective policy с происхождением каждого требования | MVP |
 | `warrant next <change>` | Отдельной команды нет: ответ controller (`controller_action`, `next`, `rule`) печатают `verify` и `status` | later |
-| `warrant run start\|submit\|finish` | Создать Run и Context Pack (с `rules[]`, пересекающими `write_scope`, [ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)), принять result envelope skill, закрыть Run | MVP |
-| `warrant guard --frontend <name>` | Адаптер frontend: `pre` — разрешить / отклонить по `write_scope` и тяжёлым checks ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)); `post` — hints ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)); нормализованный контракт — [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md) | MVP |
+| `warrant run start <change> --operation specify\|implement [--scope <globs>] [--task <label>] [--dry-run]` | Создать Run (`specify` ⇐ `PROPOSED`, `implement` ⇐ `IMPLEMENTING`), записать `current`; JSON — Context Pack: `write_scope[]`, `scope[]`, `rules[]` (пересекающие итоговый scope, [ADR-0022](adr/WARRANT-ADR-0022-path-rules.md)), `items[]`, `context_hash` ([03 §4](03-architecture.md)); второй активный — `RUN_ACTIVE` | MVP (4a) |
+| `warrant run finish [--state SUCCEEDED\|FAILED\|CANCELLED] [--dry-run]` | Закрыть активный Run (`run_state`, `finished_at`), удалить `current`; без активного — `RUN_NOT_ACTIVE` | MVP (4a) |
+| `warrant run submit` | Принять result envelope skill (`skill-result/1`) | MVP (4b) |
+| `warrant guard [--frontend <name>]` | `pre` — разрешить / отклонить по `write_scope` и тяжёлым checks ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)); `post` — hints ([ADR-0019](adr/WARRANT-ADR-0019-post-edit-hints.md)); без `--frontend` — нормализованное событие и конверт `data{decision, reason?, hints[]}` ([ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md)); `--frontend claude` — родной вход и ответ хука Claude Code (`deny` — `permissionDecision: "deny"`, hints `post` — `additionalContext`, `allow` `pre` — пустой ответ), код 0; неразборчивый вход — код 2 и stderr (§6) | MVP (адаптер `claude`) |
 | `warrant unknown add\|resolve`, `warrant assumption add` | Записать UNKNOWN / ASSUMPTION / DECISION в record | MVP |
 | `warrant check <change> [id...] [--paths …] [--base <ref>]` | Запустить check(s) gates перехода, записать evidence; `--paths` — суженный прогон ([ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)); `--wait` — ждать замок `exclusive` — later | MVP |
 | `warrant gate <change> [id...] [--transition <FROM->TO>] [--base <ref>]` | Вычислить verdict(s) по записанному evidence и ответ controller; checks не запускает | MVP |

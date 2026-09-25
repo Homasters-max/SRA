@@ -23,6 +23,7 @@ import {
   readings,
   recordHook,
   recorderSource,
+  redacted,
   scenarioPrompt
 } from "../../../../../scripts/dev/probe-hooks-lib.js";
 
@@ -114,6 +115,24 @@ describe("probe-hooks — collect", () => {
     expect(preWrite).toEqual({ ...hook("PreToolUse", "Write", { file_path: `${ROOT}\\notes\\a.txt`, content: "one" }), transcript_path: "~\\.claude\\projects\\p\\s1.jsonl" });
     const bash = JSON.parse(fixtures.find((f) => f.file === "post-bash.json")!.text);
     expect(bash.tool_input.command).toBe(BASH_COMMAND);
+  });
+
+  it("the home directory is ~ in every string value: either slash, any case of the drive and the profile, at any depth", () => {
+    const json = {
+      transcript_path: `${HOME}\\.claude\\projects\\p\\s1.jsonl`,
+      scratchpad_dir: "c:\\users\\ME\\AppData\\Local\\Temp\\s1\\scratchpad",
+      tool_input: { command: "ls C:/Users/me/x && ls C:/Users/meme", list: ["C:\\Users\\me"] },
+      effort: { level: "high" },
+      n: 1
+    };
+    expect(redacted(json, HOME)).toEqual({
+      transcript_path: "~\\.claude\\projects\\p\\s1.jsonl",
+      scratchpad_dir: "~\\AppData\\Local\\Temp\\s1\\scratchpad",
+      tool_input: { command: "ls ~/x && ls C:/Users/meme", list: ["~"] },
+      effort: { level: "high" },
+      n: 1
+    });
+    expect(redacted(json, "")).toBe(json);
   });
 
   it("names the fixtures the records lack", () => {

@@ -23,7 +23,8 @@ export const GUARD_COMMAND = "warrant guard --frontend claude";
 
 /**
  * Paths no agent edits (ADR-0014 п. 1). `/path` anchors a rule of project
- * settings at the project root, not at the cwd of the session (I-162).
+ * settings at the project root (I-162); `Edit(…)` covers `Write` too —
+ * `Write(…)` path rules do not act (probe of Claude Code 2.1.263, I-165).
  */
 const PROTECTED_PATHS = [
   ".warrant/changes/**",
@@ -37,7 +38,6 @@ const PROTECTED_PATHS = [
 /** `permissions.deny` entries of ADR-0014 п. 1, in the order `sync` appends them. */
 export const CLAUDE_DENY: readonly string[] = [
   ...PROTECTED_PATHS.map((p) => `Edit(/${p})`),
-  ...PROTECTED_PATHS.map((p) => `Write(/${p})`),
   "Bash(git push origin main:*)",
   "Bash(gh pr merge:*)",
   "Bash(openspec archive:*)"

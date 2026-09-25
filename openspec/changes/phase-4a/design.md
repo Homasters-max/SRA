@@ -52,7 +52,7 @@ D-2); замок `check` (`core/check/lock.ts`, `onInterrupt` из `core/check/i
 | F17 | Context Pack = JSON `run start`; `context_hash` — по `items` + `rules`; отдельного файла пакета нет |
 | F18 | Замок `<state>/runs/<id>.lock` (O_EXCL, повтор ~2 с) + `writeJsonFile`; не взят: `pre` → `deny BUSY`, `post` → потеря + stderr |
 | F19 | Matcher `PreToolUse` — `Edit\|Write\|NotebookEdit\|Bash`, `PostToolUse` — `Edit\|Write\|NotebookEdit`: уточнение ADR-0034 п. 3 (там `Edit\|Write\|Bash`) — `NotebookEdit` правит файл и без matcher был бы обходом `write_scope` |
-| F20 | CLI `0.4.3 → 0.5.0`; `config/1` + `frontends`; `run/1` — новая схема; pack `core-sdd` не меняется |
+| F20 | CLI `0.4.3 → 0.5.0`; `config/1` + `frontends`; `run/1` — новая схема; pack `core-sdd` — только диапазон `kernel` (`0.3.1`, `<0.6`, I-156) |
 
 ### 2. Модули и ранги
 
@@ -100,7 +100,7 @@ D-2); замок `check` (`core/check/lock.ts`, `onInterrupt` из `core/check/i
   `&&`, `||`, `;`, `|`, перевод строки; префиксы `VAR=…` пропускаются; `bash -c` / `sh -c` с одной строкой разбираются
   рекурсивно на один уровень; `$(…)`, алиасы и скрипты не раскрываются — предел INV-07 (ADR-0017 Consequences).
 - **Hints `post`:** находки `validate --files` строкой `CODE path: message — hint`, не больше 10 + «и ещё N»; затем текст
-  правил, чьих id нет в `rules_shown` событий Run. Без Run — только находки.
+  правил, чьих id нет в `rules_shown` событий Run. Без Run — находки и подсказка `run start` для `edit` пути проекта (I-165).
 - **Код выхода** `warrant guard` без `--frontend` — 0 при любом решении (решение — данные, не ошибка).
 
 ### 7. Адаптер `claude`
@@ -108,7 +108,8 @@ D-2); замок `check` (`core/check/lock.ts`, `onInterrupt` из `core/check/i
 Родной вход (`PreToolUse` / `PostToolUse`): `Edit` / `Write` → `tool_input.file_path`, `NotebookEdit` →
 `tool_input.notebook_path`, `Bash` → `tool_input.command` (argv — токенайзер §6). Ответ: `deny` →
 `{hookSpecificOutput: {hookEventName, permissionDecision: "deny", permissionDecisionReason}}`; `allow` — без
-`permissionDecision` (иначе хук обходил бы механизм разрешений Claude Code), hints — `additionalContext`. Неразборчивый вход
+`permissionDecision` (иначе хук обходил бы механизм разрешений Claude Code), hints `post` — `additionalContext`, `pre` — пустой
+stdout (I-165: `additionalContext` `PreToolUse` доходит до модели лишь после результата). Неразборчивый вход
 — код 2 и stderr: для `PreToolUse` это отмена действия (fail-closed), для `PostToolUse` — сообщение модели.
 **Фикстуры:** `test/contract/fixtures/claude/<версия>/*.json` — записанный stdin хуков; `scripts/dev/probe-hooks.js`
 (ADR-0034 п. 2) ставит временный хук-регистратор в пустой проект, maintainer выполняет сценарий в Claude Code, скрипт
@@ -120,8 +121,8 @@ D-2); замок `check` (`core/check/lock.ts`, `onInterrupt` из `core/check/i
 
 План `sync` получает второй вид цели — «подмножество»: `{ path, own(current) → записи, merge(current) → bytes,
 drift(current) → [pointer] }`. `sync` пишет `merge`, `validate` берёт `drift` из того же плана — одно место знает, какие
-записи наши (аудит §3.4). Свои записи: в `.claude/settings.json` — `permissions.deny` из ADR-0014 п. 1 (по `Edit(…)` и
-`Write(…)` на каждый путь и три `Bash(…:*)`) и группы хуков `{matcher, hooks: [{type: "command", command: "warrant guard
+записи наши (аудит §3.4). Свои записи: в `.claude/settings.json` — `permissions.deny` из ADR-0014 п. 1 (по `Edit(/…)` на
+каждый путь — `Edit` покрывает и `Write`, I-165 — и три `Bash(…:*)`) и группы хуков `{matcher, hooks: [{type: "command", command: "warrant guard
 --frontend claude"}]}`; своя группа — та, у которой команда ровно эта; `merge` заменяет свою группу с другим matcher.
 `CLAUDE.md` — строка `@AGENTS.md` в конце, если её нет; `.gitignore` — строка `.warrant/runs/current`. `AGENTS.md` — обычная
 цель «точные байты». `GENERATED_TOO_LARGE` — новый код.

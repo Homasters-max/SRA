@@ -15,8 +15,9 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
+import { testFiles, type WarrantConfig } from "../config.js";
 import type { CliError } from "../errors.js";
-import { reportPath, walkFiles } from "../fs.js";
+import { reportPath } from "../fs.js";
 import type { FoundId } from "../ids/scan.js";
 
 /** Largest test file read by check (13). */
@@ -65,25 +66,6 @@ function activeTaskFiles(root: string): string[] {
   return out;
 }
 
-/** Files under `paths.tests`, or none when it is not set. */
-function testFiles(root: string, config: Record<string, unknown>): string[] {
-  const paths = config["paths"];
-  const tests =
-    typeof paths === "object" && paths !== null && !Array.isArray(paths)
-      ? (paths as Record<string, unknown>)["tests"]
-      : undefined;
-  if (typeof tests !== "string" || tests.length === 0) return [];
-  const absolute = path.join(root, ...tests.split("/"));
-  let stat;
-  try {
-    stat = statSync(absolute);
-  } catch {
-    return [];
-  }
-  if (stat.isFile()) return [absolute];
-  return stat.isDirectory() ? walkFiles(absolute) : [];
-}
-
 /** Text of a test file, or undefined for a large or binary one. */
 function readText(absolute: string): string | undefined {
   let buffer: Buffer;
@@ -101,7 +83,7 @@ function readText(absolute: string): string | undefined {
  * Check (13). `declared` are the ids scanned by check (5); only declarations
  * in `openspec/**` count (records carry UNK/ASM ids, never REQ/SCN).
  */
-export function checkDangling(root: string, config: Record<string, unknown>, declared: readonly FoundId[]): CliError[] {
+export function checkDangling(root: string, config: WarrantConfig, declared: readonly FoundId[]): CliError[] {
   const known = new Set(declared.filter((f) => f.file.startsWith("openspec/")).map((f) => f.id));
   const errors: CliError[] = [];
   const tasks = activeTaskFiles(root);

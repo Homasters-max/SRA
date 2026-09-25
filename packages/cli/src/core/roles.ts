@@ -4,8 +4,8 @@
  * `approvals[]` at a transition, and the `--ref` of the act a role performs.
  * `classify`, `gate`, `transition`, `waive` and the waiver checks share them.
  */
+import type { WarrantConfig } from "./config.js";
 import { WarrantError } from "./errors.js";
-import { isPlainObject } from "./json.js";
 
 /** Role asked for when the policy names none at the transition (design §10). */
 export const FALLBACK_ROLE = "maintainer";
@@ -17,14 +17,11 @@ export const WAIVER_ROLE = "maintainer";
  * Logins named in `roles` of `warrant.json`: of the given roles only, or of
  * every role when `only` is omitted.
  */
-export function roleMembers(config: Record<string, unknown>, only?: readonly string[]): Set<string> {
+export function roleMembers(config: WarrantConfig, only?: readonly string[]): Set<string> {
   const members = new Set<string>();
-  const roles = config["roles"];
-  if (!isPlainObject(roles)) return members;
-  for (const [role, logins] of Object.entries(roles)) {
-    if (role === "$comment" || !Array.isArray(logins)) continue;
+  for (const [role, logins] of config.roles) {
     if (only !== undefined && !only.includes(role)) continue;
-    for (const login of logins) if (typeof login === "string") members.add(login);
+    for (const login of logins) members.add(login);
   }
   return members;
 }

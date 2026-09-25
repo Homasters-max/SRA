@@ -20,12 +20,12 @@ design.md, A-N и BL-N — [docs/backlog.md](../../../docs/backlog.md).
 
 ## 2. `WarrantConfig` (A-15)
 
-- [ ] 2.1 `core/config.ts` (§2): `CONFIG_REL`, `loadConfig` (переезд без правок сообщений), `WarrantConfig`,
+- [x] 2.1 `core/config.ts` (§2): `CONFIG_REL`, `loadConfig` (переезд без правок сообщений), `WarrantConfig`,
   `PackEntry`, `testFiles`; модуль `core/config` в `architecture.json`; `LoadResult.config` — `WarrantConfig`.
   Проверка: `cs impact loadConfig` — все места переведены.
-- [ ] 2.2 8 чтений `config["…"]` (§2) — через `WarrantConfig`; `renumber.ts` получает конфиг от вызывающего.
+- [x] 2.2 8 чтений `config["…"]` (§2) — через `WarrantConfig`; `renumber.ts` получает конфиг от вызывающего.
   Отступления `renumber` — строкой I-N. Проверка: `cs grep 'config["' --in packages/cli/src` — 0; golden байт в байт.
-- [ ] 2.3 `test/unit/config/config.test.ts`: свойства `config/1` ↔ поля `WarrantConfig`, сборка на примере 08 §3.
+- [x] 2.3 `test/unit/config/config.test.ts`: свойства `config/1` ↔ поля `WarrantConfig`, сборка на примере 08 §3.
   Проверка: новое свойство схемы без решения роняет тест (временная правка, откат).
 
 ## 3. Пути проекта и glob (A-16)

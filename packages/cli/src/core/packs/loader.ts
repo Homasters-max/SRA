@@ -17,7 +17,8 @@ import { fileURLToPath } from "node:url";
 
 import semver from "semver";
 
-import { WarrantError, type CliError } from "../errors.js";
+import { CONFIG_REL, loadConfig } from "../config.js";
+import type { CliError } from "../errors.js";
 import { readJson, reportPath, walkFiles } from "../fs.js";
 import { isPlainObject, strings } from "../json.js";
 import { validateFile } from "../schemas/semantic.js";
@@ -37,7 +38,6 @@ import {
 
 export const WARRANT_DIR = ".warrant";
 export const LOCAL_DIR = path.join(WARRANT_DIR, "local");
-export const CONFIG_REL = path.join(WARRANT_DIR, "warrant.json");
 
 /**
  * Directory holding the bundled packs.
@@ -80,45 +80,6 @@ function satisfies(version: string, range: string): boolean {
   } catch {
     return false;
   }
-}
-
-/** Reads `.warrant/warrant.json`, throwing when it is missing or unusable (SCN-KRN-007). */
-export function loadConfig(projectRoot: string): Record<string, unknown> {
-  const absolute = path.join(projectRoot, CONFIG_REL);
-  if (!existsSync(absolute)) {
-    throw new WarrantError("CONFIG_MISSING", `${CONFIG_REL} not found in ${projectRoot}`, {
-      path: CONFIG_REL.split(path.sep).join("/")
-    });
-  }
-  const reported = CONFIG_REL.split(path.sep).join("/");
-  const errors: CliError[] = [];
-  const json = readJson(absolute, reported, errors);
-  if (json === undefined) {
-    throw new WarrantError("CONFIG_INVALID", errors[0]?.message ?? "unreadable", { path: reported });
-  }
-  const result = validateFile(json, reported);
-  if (!result.ok) {
-    const first = result.errors[0] as CliError;
-    throw new WarrantError("CONFIG_INVALID", first.message, { path: first.path ?? reported });
-  }
-  return json as Record<string, unknown>;
-}
-
-interface PackRequest {
-  id: string;
-  range: string;
-}
-
-function packRequests(config: Record<string, unknown>): PackRequest[] {
-  const packs = config["packs"];
-  if (!isPlainObject(packs)) return [];
-  const out: PackRequest[] = [];
-  for (const [id, value] of Object.entries(packs)) {
-    if (id === "$comment") continue;
-    const range = isPlainObject(value) && typeof value["version"] === "string" ? value["version"] : "*";
-    out.push({ id, range });
-  }
-  return out.sort((a, b) => (a.id < b.id ? -1 : 1));
 }
 
 /** Locates one pack: bundled first, then `.warrant/local/<id>/`. */
@@ -516,7 +477,7 @@ export function loadPacks(projectRoot: string): LoadResult {
   const files: string[] = [CONFIG_REL.split(path.sep).join("/")];
   const found: LoadedPack[] = [];
 
-  for (const request of packRequests(config)) {
+  for (const request of config.packs) {
     const located = findPackDir(request.id, projectRoot);
     if (located === null) {
       errors.push(
@@ -602,7 +563,7 @@ export function loadPacks(projectRoot: string): LoadResult {
   loadLocalLayer(
     projectRoot,
     new Set(packs.map((p) => p.dir)),
-    new Set(packRequests(config).map((r) => r.id)),
+    new Set(config.packs.map((r) => r.id)),
     collected,
     files
   );

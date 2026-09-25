@@ -8,6 +8,7 @@
     { "id": "core/json", "path": "core/json.ts", "rank": 0 },
     { "id": "core/canon", "path": "core/canon", "rank": 0 },
     { "id": "core/schemas", "path": "core/schemas", "rank": 0 },
+    { "id": "core/config", "path": "core/config.ts", "rank": 0 },
     { "id": "core/packs", "path": "core/packs", "rank": 1 },
     { "id": "core/record", "path": "core/record", "rank": 1 },
     { "id": "core/openspec", "path": "core/openspec", "rank": 1 },

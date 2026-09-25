@@ -10,6 +10,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { bytesHash, canonicalHash } from "../canon/hash.js";
+import type { WarrantConfig } from "../config.js";
 import type { CliError } from "../errors.js";
 import { reportPath, walkFiles } from "../fs.js";
 import { isPlainObject } from "../json.js";
@@ -63,17 +64,9 @@ export function packContentHash(dir: string): string {
   return canonicalHash({ files });
 }
 
-/** Version range a pack was configured with, or `*` when the config says nothing. */
-function configuredRange(config: Record<string, unknown>, id: string): string {
-  const packs = config["packs"];
-  if (!isPlainObject(packs)) return "*";
-  const entry = packs[id];
-  return isPlainObject(entry) && typeof entry["version"] === "string" ? entry["version"] : "*";
-}
-
 export interface LockCheckInput {
   projectRoot: string;
-  config: Record<string, unknown>;
+  config: WarrantConfig;
   packs: LoadedPack[];
 }
 
@@ -143,7 +136,8 @@ export function checkLock(input: LockCheckInput): CliError[] {
         )
       );
     }
-    const range = configuredRange(config, pack.id);
+    // Version range the pack was configured with, or `*` when the config says nothing.
+    const range = config.packs.find((entry) => entry.id === pack.id)?.range ?? "*";
     const lockVersion = typeof entry["version"] === "string" ? entry["version"] : "";
     if (lockVersion !== "" && range !== "*" && !semver.satisfies(lockVersion, range, { includePrerelease: true })) {
       errors.push(
@@ -158,9 +152,9 @@ export function checkLock(input: LockCheckInput): CliError[] {
 
   // B3: a pack removed from `warrant.json` but still in the lock is a stale
   // lock, not a harmless leftover — `sync --check` already sees it (SCN-KRN-094).
-  const configured = isPlainObject(config["packs"]) ? config["packs"] : {};
+  const configured = new Set(config.packs.map((entry) => entry.id));
   for (const id of Object.keys(lockPacks).sort()) {
-    if (id === "$comment" || id in configured) continue;
+    if (id === "$comment" || configured.has(id)) continue;
     errors.push(
       err(
         "LOCK_MISMATCH",

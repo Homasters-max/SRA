@@ -7,7 +7,7 @@ import { CLI_VERSION } from "../../../src/version.js";
 
 function loaded(objects: PackObject[], packs = [{ id: "p", version: "1.0.0" }]): LoadResult {
   return {
-    config: {},
+    config: { kernel: "0.1", openspec: "*", packs: [], defaults: { checkTimeoutS: undefined }, paths: {}, roles: new Map() },
     packs: packs.map((p) => ({
       ...p,
       dir: `/packs/${p.id}`,

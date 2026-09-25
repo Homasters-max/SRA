@@ -6,8 +6,8 @@
 <!-- id: REQ-VER-009 -->
 
 CLI SHALL вычислять для Change finding `FRONTEND_HOOKS_INACTIVE`
-([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-frontend-adapters.md) п. 5, D-14): пути diff Change (base — как у gate
-`scope-valid`) под `paths.src` ∪ `paths.tests`, ни один Run Change (`<state>/runs/*.json` с `change` этого Change) для которых
+([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-frontend-adapters.md) п. 5, D-14): пути diff Change, кроме удалённых (base — как у gate
+`scope-valid`), под `paths.src` ∪ `paths.tests`, ни один Run Change (`<state>/runs/*.json` с `change` этого Change) для которых
 не содержит события `phase: "post"` с этим путём в `paths[]`. Finding — `{ code: "FRONTEND_HOOKS_INACTIVE", paths[], more }`:
 не больше 10 путей по порядку, `more` — число остальных. `warrant status` SHALL добавлять его в `findings[]` Change в состоянии
 `IMPLEMENTING` и дальше; `warrant verify` и `warrant gate` — в `data.findings[]` для перехода `VERIFYING->MERGED`. Finding SHALL

@@ -179,8 +179,7 @@ export function hooksFindings(
   env: NodeJS.ProcessEnv
 ): Finding[] {
   if (!evaluation.diff.ok) return [];
-  const paths = evaluation.diff.value.map((entry) => entry.path);
-  const finding = hooksInactive(paths, readChangeRuns(ctx.root, change, env), config);
+  const finding = hooksInactive(evaluation.diff.value, readChangeRuns(ctx.root, change, env), config);
   return finding === undefined ? [] : [finding];
 }
 

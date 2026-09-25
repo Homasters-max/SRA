@@ -1,16 +1,17 @@
 /**
  * Liveness of the frontend hooks (REQ-VER-009, ADR-0018 п. 5, D-14, F10): a
- * path of the Change's diff under `paths.src` ∪ `paths.tests` that no `post`
- * event of the Change's Runs names was changed without the hooks — the
+ * path of the Change's diff, removals aside, under `paths.src` ∪ `paths.tests`
+ * that no `post` event of the Change's Runs names was changed without the hooks — the
  * finding `FRONTEND_HOOKS_INACTIVE`. A signal, never a verdict: an edit by a
  * human without hooks is legitimate, so the finding changes no verdict, no
  * `controller_action` and no exit code.
  *
- * Pure: the caller gives the paths of the diff (the diff `scope-valid` judges)
+ * Pure: the caller gives the entries of the diff (the diff `scope-valid` judges)
  * and the Runs of the Change (design §2).
  */
 import type { WarrantConfig } from "../config.js";
 import { pathMatcher } from "../glob.js";
+import type { DiffEntry } from "../ports/git.js";
 import { codeScope } from "../run/scope.js";
 import type { Run } from "../run/types.js";
 
@@ -27,13 +28,15 @@ export interface HooksInactiveFinding {
 }
 
 /**
- * `FRONTEND_HOOKS_INACTIVE` for the paths of `diffPaths` (in their order) under
+ * `FRONTEND_HOOKS_INACTIVE` for the paths of `diff` (in its order) under
  * `paths.src` ∪ `paths.tests` of `config` without a `post` event naming them
  * in any of `runs`; undefined when there are none, or when `config` sets
- * neither `paths.src` nor `paths.tests`.
+ * neither `paths.src` nor `paths.tests`. A removed path is not judged: a
+ * removal goes through the shell, no `post` event could name it; a rename is
+ * judged by its target.
  */
 export function hooksInactive(
-  diffPaths: readonly string[],
+  diff: readonly DiffEntry[],
   runs: readonly Pick<Run, "guard_events">[],
   config: WarrantConfig
 ): HooksInactiveFinding | undefined {
@@ -45,7 +48,8 @@ export function hooksInactive(
   for (const run of runs) {
     for (const event of run.guard_events) if (event.phase === "post") for (const p of event.paths) seen.add(p);
   }
-  const missing = [...new Set(diffPaths)].filter((p) => code(p) && !seen.has(p));
+  const written = diff.filter((entry) => entry.status !== "D").map((entry) => entry.path);
+  const missing = [...new Set(written)].filter((p) => code(p) && !seen.has(p));
   if (missing.length === 0) return undefined;
 
   const paths = missing.slice(0, HOOKS_INACTIVE_PATHS);

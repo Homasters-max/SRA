@@ -34,8 +34,11 @@ const FEATURE = { classification: { profiles: ["feature"] } };
 type Data = Record<string, any>;
 type Result = CommandResult & { data: Data };
 
-/** The synced project with `paths.*` and `add-search` in `IMPLEMENTING` on `main`, a Run started on a branch. */
-async function implementing(paths: Record<string, string> = { src: "src", tests: "tests" }): Promise<ProjectBuilder> {
+/**
+ * The synced project with `paths.*`, the files `base` and `add-search` in
+ * `IMPLEMENTING` on `main`, a Run started on a branch.
+ */
+async function implementing(paths: Record<string, string> = { src: "src", tests: "tests" }, base: string[] = []): Promise<ProjectBuilder> {
   const code = Object.keys(paths).length > 0;
   const p = project()
     .write(".warrant/warrant.json", {
@@ -49,6 +52,7 @@ async function implementing(paths: Record<string, string> = { src: "src", tests:
     .withChange("add-search", { design: "# Design\n", tasks: "## 1. Search\n\n- [ ] 1.1 Index\n", specs: { search: [] } })
     .withRecord("add-search", "IMPLEMENTING", FEATURE)
     .withOpenspecValidate();
+  for (const file of base) p.write(file, `# ${file}\n`);
   await p.synced();
   p.commit("base");
   p.branch("worktree/add-search");
@@ -147,6 +151,17 @@ describe("FRONTEND_HOOKS_INACTIVE", () => {
 
     const finding = hooksFinding((await gate(p)).data["findings"]);
     expect(finding).toMatchObject({ paths: files.slice(0, 10), more: 3 });
+  });
+
+  it("does not judge a removed src file: no post event could name it", async () => {
+    const p = await implementing(undefined, ["src/old.py"]);
+    p.remove("src/old.py");
+    implemented(p, []);
+    // The removal is in the diff the gates judge.
+    const base = (await p.git.mergeBase("HEAD", "main")) as string;
+    const diff = await p.git.diffNameStatus(base, p.git.headCommit()?.sha as string);
+    expect(diff.ok && diff.value).toContainEqual({ status: "D", path: "src/old.py" });
+    expect(hooksFinding((await gate(p)).data["findings"])).toBeUndefined();
   });
 
   it("status names it from IMPLEMENTING on, not before", async () => {

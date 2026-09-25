@@ -8,14 +8,14 @@ design.md, A-N и BL-N — [docs/backlog.md](../../../docs/backlog.md).
 
 ## 1. Bump и храповик ADR-0035
 
-- [ ] 1.1 Bump CLI `0.4.3` (`package.json`, `package-lock.json`, `.warrant/warrant.lock.json`, `warrant.lock.json`
+- [x] 1.1 Bump CLI `0.4.3` (`package.json`, `package-lock.json`, `.warrant/warrant.lock.json`, `warrant.lock.json`
   golden-фикстур — как I-142). Проверка: `npm run versions:check` зелёный.
-- [ ] 1.2 `architecture.json`: секции `packages` и `test_helpers` (§1). `architecture.test.ts`: правила `package` и
+- [x] 1.2 `architecture.json`: секции `packages` и `test_helpers` (§1). `architecture.test.ts`: правила `package` и
   `test-helper`, храповик для обоих. Проверка: временное нарушение каждого правила и лишнее исключение роняют тест
   (способ — строкой I-N, как I-140); тест не порождает процессов.
-- [ ] 1.3 Диалект Ajv (§7): `createAjv()` в `core/schemas/loader.ts`, `core/validate/evidence.ts` — через него.
+- [x] 1.3 Диалект Ajv (§7): `createAjv()` в `core/schemas/loader.ts`, `core/validate/evidence.ts` — через него.
   Проверка: импорт `ajv` / `ajv-formats` только в `loader.ts`; исключений `package` на `ajv` нет.
-- [ ] 1.4 Стартовые исключения: `package` `picomatch` ×3 — A-16, `test-helper` `git` ×9, `write` ×10 — A-18; нарушение
+- [x] 1.4 Стартовые исключения: `package` `picomatch` ×3 — A-16, `test-helper` `git` ×9, `write` ×10 — A-18; нарушение
   без строки долга — вопрос maintainer'у. Проверка: тест зелёный; число исключений по правилам — в таблице I-N.
 
 ## 2. `WarrantConfig` (A-15)

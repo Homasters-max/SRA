@@ -10,20 +10,10 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import Ajv2020Cjs, { type ValidateFunction } from "ajv/dist/2020.js";
-import addFormatsCjs from "ajv-formats";
-
 import type { CliError } from "../errors.js";
 import { isPlainObject } from "../json.js";
 import type { EvidenceKind, LoadResult } from "../packs/types.js";
-import { messageOf, pointerOf, validateDocument } from "../schemas/loader.js";
-
-/** Same interop shim as `core/schemas/loader.ts`: CommonJS `export =` under NodeNext. */
-interface AjvLike {
-  compile(schema: object): ValidateFunction;
-}
-const Ajv2020 = Ajv2020Cjs as unknown as new (options?: Record<string, unknown>) => AjvLike;
-const addFormats = addFormatsCjs as unknown as (ajv: AjvLike, formats: string[]) => unknown;
+import { createAjv, messageOf, pointerOf, type ValidateFunction, validateDocument } from "../schemas/loader.js";
 
 export const EVIDENCE_DIR = path.join(".warrant", "evidence");
 export const MANIFEST_FILE = "manifest.json";
@@ -47,8 +37,7 @@ export function compileMetricsForms(kinds: readonly EvidenceKind[]): {
     }
     // One instance per form: pack forms carry no `$id`, and nothing may leak
     // from one pack's form into another's.
-    const ajv = new Ajv2020({ strict: true, allErrors: true, allowUnionTypes: true });
-    addFormats(ajv, ["date", "date-time", "uri"]);
+    const ajv = createAjv();
     try {
       forms.set(kind.kind, ajv.compile(json));
     } catch (cause) {

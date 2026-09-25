@@ -47,6 +47,20 @@
     { "name": "readJson", "owner": "core/fs.ts" },
     { "name": "err", "owner": "core/errors.ts" }
   ],
+  "packages": [
+    { "name": "picomatch", "owner": "core/glob.ts" },
+    { "name": "ajv", "owner": "core/schemas/loader.ts" },
+    { "name": "ajv-formats", "owner": "core/schemas/loader.ts" },
+    { "name": "canonicalize", "owner": "core/canon/hash.ts" },
+    { "name": "ulid", "owner": "core/ids/allocate.ts" }
+  ],
+  "test_helpers": {
+    "root": "packages/cli/test",
+    "helpers": [
+      { "name": "write", "owner": "helpers/synced.ts" },
+      { "name": "git", "owner": "helpers/git.ts" }
+    ]
+  },
   "enums": [
     { "id": "change-state", "owner": "core/record/lifecycle.ts", "doc": "docs/02-vocabulary.md", "values": ["PROPOSED", "SPECIFIED", "APPROVED", "IMPLEMENTING", "VERIFYING", "MERGED", "ARCHIVED", "ABANDONED"] },
     { "id": "transition", "owner": "core/record/lifecycle.ts", "doc": "docs/04-lifecycle.md", "values": ["PROPOSED->SPECIFIED", "SPECIFIED->APPROVED", "APPROVED->IMPLEMENTING", "IMPLEMENTING->VERIFYING", "VERIFYING->MERGED", "MERGED->ARCHIVED", "VERIFYING->IMPLEMENTING", "IMPLEMENTING->SPECIFIED"] },
@@ -60,6 +74,28 @@
     { "id": "A-17", "rule": "helper", "from": "core/packs/hash.ts", "helper": "err" },
     { "id": "A-17", "rule": "helper", "from": "core/packs/loader.ts", "helper": "err" },
     { "id": "A-17", "rule": "helper", "from": "core/resolve/layers.ts", "helper": "err" },
-    { "id": "A-17", "rule": "helper", "from": "core/sync/plan.ts", "helper": "err" }
+    { "id": "A-17", "rule": "helper", "from": "core/sync/plan.ts", "helper": "err" },
+    { "id": "A-16", "rule": "package", "from": "core/classify/index.ts", "package": "picomatch" },
+    { "id": "A-16", "rule": "package", "from": "core/gates/l0/scope-valid.ts", "package": "picomatch" },
+    { "id": "A-16", "rule": "package", "from": "core/gates/verdict.ts", "package": "picomatch" },
+    { "id": "A-18", "rule": "test-helper", "from": "contract/gates/diff-prefix.test.ts", "helper": "git" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/archive.test.ts", "helper": "git" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/check.test.ts", "helper": "git" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/classify.test.ts", "helper": "git" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/exit-criterion.test.ts", "helper": "git" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/gate.test.ts", "helper": "git" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/transition.test.ts", "helper": "git" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/verify.test.ts", "helper": "git" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/versions.test.ts", "helper": "git" },
+    { "id": "A-18", "rule": "test-helper", "from": "contract/gates/diff-prefix.test.ts", "helper": "write" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/classify.test.ts", "helper": "write" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/fmt.test.ts", "helper": "write" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/id.test.ts", "helper": "write" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/resolve.test.ts", "helper": "write" },
+    { "id": "A-18", "rule": "test-helper", "from": "e2e/status.test.ts", "helper": "write" },
+    { "id": "A-18", "rule": "test-helper", "from": "unit/ids/allocate.test.ts", "helper": "write" },
+    { "id": "A-18", "rule": "test-helper", "from": "unit/ids/renumber.test.ts", "helper": "write" },
+    { "id": "A-18", "rule": "test-helper", "from": "unit/ids/scan.test.ts", "helper": "write" },
+    { "id": "A-18", "rule": "test-helper", "from": "unit/resolve/golden.test.ts", "helper": "write" }
   ]
 }

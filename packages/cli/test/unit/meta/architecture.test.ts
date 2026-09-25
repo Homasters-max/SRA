@@ -5,9 +5,13 @@
  * only what its layer lists, modules form no cycle, a command imports no other
  * command but `commands/context.ts`, a registered helper is declared only by
  * its owner, and two or more values of a registered enum stand in an array
- * literal only in the owner file. Known violations are exceptions naming a
- * row A-N of the debt registry (docs/backlog.md, ADR-0032 п. 5); an exception that
- * covers nothing fails too (the ratchet only tightens).
+ * literal only in the owner file; a registered external package is imported
+ * only by its owner file of `src`, and a registered test helper is declared
+ * only by its owner file of `packages/cli/test` (ADR-0035 п. 1, 2). Known
+ * violations are exceptions naming a row A-N of the debt registry
+ * (docs/backlog.md, ADR-0032 п. 5); an exception that covers nothing fails too
+ * (the ratchet only tightens, ADR-0035 п. 3). An owner file may not exist yet:
+ * then no file may import the package or declare the helper.
  *
  * Imports come from `ts.preProcessFile` (multi-line imports, `import type`,
  * `export … from`, `import()`), not from the Graft graph: CI has none.
@@ -21,8 +25,8 @@ import { describe, expect, it } from "vitest";
 
 import { REPO_ROOT } from "../../helpers/cli.js";
 
-type Rule = "module" | "rank" | "cycle" | "sibling" | "helper" | "enum";
-const RULES: readonly Rule[] = ["module", "rank", "cycle", "sibling", "helper", "enum"];
+type Rule = "module" | "rank" | "cycle" | "sibling" | "helper" | "enum" | "package" | "test-helper";
+const RULES: readonly Rule[] = ["module", "rank", "cycle", "sibling", "helper", "enum", "package", "test-helper"];
 
 interface Module {
   id: string;
@@ -40,6 +44,13 @@ interface Exception {
   modules?: string[];
   helper?: string;
   enum?: string;
+  package?: string;
+}
+
+/** «Name → owner file»: a helper, a package or a test helper. */
+interface Owned {
+  name: string;
+  owner: string;
 }
 
 interface Architecture {
@@ -47,7 +58,9 @@ interface Architecture {
   modules: Module[];
   layers: Record<string, string[]>;
   no_sibling_imports: Record<string, string[]>;
-  helpers: { name: string; owner: string }[];
+  helpers: Owned[];
+  packages: Owned[];
+  test_helpers: { root: string; helpers: Owned[] };
   enums: { id: string; owner: string; doc: string; values: string[] }[];
   exceptions: Exception[];
 }
@@ -82,8 +95,9 @@ function tsFiles(dir: string, base: string): string[] {
   return out.sort();
 }
 
-function readSources(arch: Architecture): Source[] {
-  const root = path.join(REPO_ROOT, ...arch.root.split("/"));
+/** Every `*.ts` under a repository directory (`packages/cli/src`, `packages/cli/test`), paths relative to it. */
+function readSources(repoDir: string): Source[] {
+  const root = path.join(REPO_ROOT, ...repoDir.split("/"));
   return tsFiles(root, root).map((file) => ({ file, text: readFileSync(path.join(root, ...file.split("/")), "utf8") }));
 }
 
@@ -244,15 +258,38 @@ function topLevelFunctions(sf: ts.SourceFile): string[] {
   return names;
 }
 
-function helperViolations(arch: Architecture, sources: readonly Source[]): Violation[] {
-  const owners = new Map(arch.helpers.map((h) => [h.name, h.owner]));
+/** Top-level functions named in `registry`, declared in a file other than their owner. */
+function declarationViolations(registry: readonly Owned[], sources: readonly Source[], rule: Rule): Violation[] {
+  const owners = new Map(registry.map((h) => [h.name, h.owner]));
   const out: Violation[] = [];
   for (const s of sources) {
     for (const name of new Set(topLevelFunctions(parse(s)))) {
       const owner = owners.get(name);
       if (owner !== undefined && owner !== s.file) {
-        out.push({ key: `${s.file} :: ${name}`, text: `${s.file} :: ${name} (helper: owner ${owner})` });
+        out.push({ key: `${s.file} :: ${name}`, text: `${s.file} :: ${name} (${rule}: owner ${owner})` });
       }
+    }
+  }
+  return out;
+}
+
+const helperViolations = (arch: Architecture, sources: readonly Source[]): Violation[] =>
+  declarationViolations(arch.helpers, sources, "helper");
+
+const testHelperViolations = (arch: Architecture, testSources: readonly Source[]): Violation[] =>
+  declarationViolations(arch.test_helpers.helpers, testSources, "test-helper");
+
+/**
+ * Imports of a registered package — specifier `<name>` or `<name>/…`, `import`,
+ * `import type`, `export … from`, `import()` — in a file of `src` other than its owner.
+ */
+function packageViolations(arch: Architecture, sources: readonly Source[]): Violation[] {
+  const out: Violation[] = [];
+  for (const s of sources) {
+    const specs = ts.preProcessFile(s.text, true, true).importedFiles.map((f) => f.fileName);
+    for (const p of arch.packages) {
+      if (p.owner === s.file || !specs.some((spec) => spec === p.name || spec.startsWith(`${p.name}/`))) continue;
+      out.push({ key: `${s.file} :: ${p.name}`, text: `${s.file} :: ${p.name} (package: owner ${p.owner})` });
     }
   }
   return out;
@@ -299,9 +336,12 @@ function exceptionKey(x: Exception): string {
     case "cycle":
       return cycleKey(x.modules ?? []);
     case "helper":
+    case "test-helper":
       return `${x.from ?? ""} :: ${x.helper ?? ""}`;
     case "enum":
       return `${x.from ?? ""} :: ${x.enum ?? ""}`;
+    case "package":
+      return `${x.from ?? ""} :: ${x.package ?? ""}`;
   }
 }
 
@@ -316,8 +356,12 @@ function ratchet(arch: Architecture, rule: Rule, violations: readonly Violation[
   ];
 }
 
-/** All rules over one architecture and one source set: rule → failure lines. */
-function check(arch: Architecture, sources: readonly Source[]): Record<Rule, string[]> & { unresolved: string[] } {
+/** All rules over one architecture, the source set of `src` and that of the tests: rule → failure lines. */
+function check(
+  arch: Architecture,
+  sources: readonly Source[],
+  testSources: readonly Source[]
+): Record<Rule, string[]> & { unresolved: string[] } {
   const { edges, unresolved } = importEdges(sources);
   return {
     unresolved,
@@ -326,14 +370,17 @@ function check(arch: Architecture, sources: readonly Source[]): Record<Rule, str
     cycle: ratchet(arch, "cycle", cycleViolations(arch, edges)),
     sibling: ratchet(arch, "sibling", siblingViolations(arch, edges)),
     helper: ratchet(arch, "helper", helperViolations(arch, sources)),
-    enum: ratchet(arch, "enum", enumViolations(arch, sources))
+    enum: ratchet(arch, "enum", enumViolations(arch, sources)),
+    package: ratchet(arch, "package", packageViolations(arch, sources)),
+    "test-helper": ratchet(arch, "test-helper", testHelperViolations(arch, testSources))
   };
 }
 
 // ---------------------------------------------------------------------------
 
-const SOURCES = readSources(ARCH);
-const RESULT = check(ARCH, SOURCES);
+const SOURCES = readSources(ARCH.root);
+const TEST_SOURCES = readSources(ARCH.test_helpers.root);
+const RESULT = check(ARCH, SOURCES, TEST_SOURCES);
 const DEBT = readFileSync(path.join(REPO_ROOT, "docs", "backlog.md"), "utf8");
 
 describe("architecture.json is well-formed (ADR-0030 п. 5, 6)", () => {
@@ -350,9 +397,30 @@ describe("architecture.json is well-formed (ADR-0030 п. 5, 6)", () => {
       for (const target of allowed) if (target !== "rank:*" && !ids.has(target)) problems.push(`layers.${layer}: unknown module ${target}`);
     }
     for (const module of Object.keys(ARCH.no_sibling_imports)) if (!ids.has(module)) problems.push(`no_sibling_imports: unknown module ${module}`);
-    for (const owner of [...ARCH.helpers.map((h) => h.owner), ...ARCH.enums.map((e) => e.owner)]) {
+    const owners = [...ARCH.helpers, ...ARCH.packages].map((h) => h.owner);
+    for (const owner of [...owners, ...ARCH.enums.map((e) => e.owner)]) {
       if (moduleOf(owner, ARCH.modules) === undefined) problems.push(`owner ${owner} lies in no module`);
     }
+    expect(problems).toEqual([]);
+  });
+
+  it("packages and test_helpers: unique names, an owner as a .ts path under its root", () => {
+    const problems: string[] = [];
+    const sections = [
+      ["packages", ARCH.packages],
+      ["test_helpers", ARCH.test_helpers.helpers]
+    ] as const;
+    for (const [section, registry] of sections) {
+      const names = new Set<string>();
+      for (const { name, owner } of registry) {
+        if (names.has(name)) problems.push(`${section}: duplicate ${name}`);
+        names.add(name);
+        if (!owner.endsWith(".ts") || path.posix.isAbsolute(owner) || owner.split("/").includes("..")) {
+          problems.push(`${section}: ${name}: owner ${owner} is not a relative .ts path`);
+        }
+      }
+    }
+    if (ARCH.test_helpers.root !== "packages/cli/test") problems.push(`test_helpers.root ${ARCH.test_helpers.root}: not packages/cli/test`);
     expect(problems).toEqual([]);
   });
 
@@ -370,7 +438,9 @@ describe("architecture.json is well-formed (ADR-0030 п. 5, 6)", () => {
         cycle: ["modules"],
         sibling: ["from", "to"],
         helper: ["from", "helper"],
-        enum: ["from", "enum"]
+        enum: ["from", "enum"],
+        package: ["from", "package"],
+        "test-helper": ["from", "helper"]
       };
       for (const field of needed[x.rule]) if (x[field] === undefined) problems.push(`${x.id} (${x.rule}): no ${field}`);
       const key = `${x.rule} ${exceptionKey(x)}`;
@@ -397,9 +467,10 @@ describe("architecture.json is well-formed (ADR-0030 п. 5, 6)", () => {
   });
 });
 
-describe("module boundaries (ADR-0030 п. 1, 2, 4; ratchet п. 6)", () => {
+describe("module boundaries (ADR-0030 п. 1, 2, 4; ratchet п. 6; ADR-0035)", () => {
   it("the source set and its imports are read", () => {
     expect(SOURCES.length).toBeGreaterThan(0);
+    expect(TEST_SOURCES.length).toBeGreaterThan(0);
     expect(importEdges(SOURCES).edges.length).toBeGreaterThan(0);
     expect(RESULT.unresolved, "relative imports naming no source file").toEqual([]);
   });
@@ -426,5 +497,66 @@ describe("module boundaries (ADR-0030 п. 1, 2, 4; ratchet п. 6)", () => {
 
   it("enum: two or more values of a registered enum stand in an array literal only in the owner", () => {
     expect(RESULT.enum).toEqual([]);
+  });
+
+  it("package: a registered external package is imported only by its owner (ADR-0035 п. 1)", () => {
+    expect(RESULT.package).toEqual([]);
+  });
+
+  it("test-helper: a registered test helper is declared only by its owner (ADR-0035 п. 2)", () => {
+    expect(RESULT["test-helper"]).toEqual([]);
+  });
+});
+
+describe("the rules of ADR-0035 catch what they name (self-check)", () => {
+  const arch: Architecture = {
+    ...ARCH,
+    packages: [{ name: "pm", owner: "core/glob.ts" }],
+    test_helpers: { root: "packages/cli/test", helpers: [{ name: "git", owner: "helpers/git.ts" }] },
+    exceptions: []
+  };
+  const sources: Source[] = [
+    { file: "core/glob.ts", text: 'import pm from "pm";\n' },
+    { file: "core/a.ts", text: 'import type { Options } from "pm";\n' },
+    { file: "core/b.ts", text: 'export { scan } from "pm/lib/scan.js";\n' },
+    { file: "core/c.ts", text: 'import pmx from "pmx";\n' }
+  ];
+  const testSources: Source[] = [
+    { file: "helpers/git.ts", text: "export function git(): void {}\n" },
+    { file: "e2e/a.test.ts", text: "function git(): void {}\n" },
+    { file: "e2e/b.test.ts", text: "const git = (): void => {};\n" },
+    { file: "unit/c.test.ts", text: 'it("x", () => {\n  const git = (): void => {};\n  git();\n});\n' }
+  ];
+
+  it("a violation outside the owner fails; the owner, a longer name, a local declaration do not", () => {
+    const result = check(arch, sources, testSources);
+    expect(result.package).toEqual([
+      "core/a.ts :: pm (package: owner core/glob.ts)",
+      "core/b.ts :: pm (package: owner core/glob.ts)"
+    ]);
+    expect(result["test-helper"]).toEqual([
+      "e2e/a.test.ts :: git (test-helper: owner helpers/git.ts)",
+      "e2e/b.test.ts :: git (test-helper: owner helpers/git.ts)"
+    ]);
+  });
+
+  it("an exception covers its violation; an exception that covers nothing fails", () => {
+    const result = check(
+      {
+        ...arch,
+        exceptions: [
+          { id: "A-0", rule: "package", from: "core/a.ts", package: "pm" },
+          { id: "A-0", rule: "package", from: "core/b.ts", package: "pm" },
+          { id: "A-0", rule: "package", from: "core/c.ts", package: "pm" },
+          { id: "A-0", rule: "test-helper", from: "e2e/a.test.ts", helper: "git" },
+          { id: "A-0", rule: "test-helper", from: "e2e/b.test.ts", helper: "git" },
+          { id: "A-0", rule: "test-helper", from: "unit/c.test.ts", helper: "git" }
+        ]
+      },
+      sources,
+      testSources
+    );
+    expect(result.package).toEqual(["stale exception A-0: core/c.ts :: pm (package)"]);
+    expect(result["test-helper"]).toEqual(["stale exception A-0: unit/c.test.ts :: git (test-helper)"]);
   });
 });

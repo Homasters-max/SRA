@@ -4,12 +4,13 @@
  * transition matrix of 04 section 2 is data in `lifecycle.ts`.
  *
  * {@link appendTransition} is the one place a
- * transition reaches the disk, always through `writeJsonFile`, and never
- * without the record validating against `warrant://change-record/1` first.
+ * transition reaches the disk, always through `ctx.writes` and `writeJsonFile`,
+ * and never without the record validating against `warrant://change-record/1` first.
  */
 import path from "node:path";
 
 import { writeJsonFile } from "../canon/format-json.js";
+import type { Ctx } from "../ctx.js";
 import { WarrantError, type CliError } from "../errors.js";
 import type { Json } from "../schemas/loader.js";
 import { validateFile } from "../schemas/semantic.js";
@@ -65,9 +66,14 @@ export function withTransition(record: ChangeRecord, entry: TransitionEntry): Ch
  * only the freeze is re-asserted, so no path can write past `ARCHIVED` or
  * `ABANDONED`, and the result must match the schema.
  */
-export function appendTransition(root: string, change: string, record: ChangeRecord, entry: TransitionEntry): ChangeRecord {
+export function appendTransition(
+  ctx: Pick<Ctx, "root" | "writes">,
+  change: string,
+  record: ChangeRecord,
+  entry: TransitionEntry
+): ChangeRecord {
   assertNotFrozen(record, change);
-  return writeRecord(root, change, record, withTransition(record, entry));
+  return writeRecord(ctx, change, record, withTransition(record, entry));
 }
 
 /**
@@ -76,7 +82,12 @@ export function appendTransition(root: string, change: string, record: ChangeRec
  * never a record that does not match `warrant://change-record/1`. The one
  * writer of records other than `classify` (`transition`, `link`).
  */
-export function writeRecord(root: string, change: string, current: ChangeRecord, updated: ChangeRecord): ChangeRecord {
+export function writeRecord(
+  ctx: Pick<Ctx, "root" | "writes">,
+  change: string,
+  current: ChangeRecord,
+  updated: ChangeRecord
+): ChangeRecord {
   assertNotFrozen(current, change);
   const checked = validateFile(updated, recordPath(change));
   if (!checked.ok) {
@@ -85,6 +96,6 @@ export function writeRecord(root: string, change: string, current: ChangeRecord,
       path: first.path ?? recordPath(change)
     });
   }
-  writeJsonFile(path.join(root, ".warrant", "changes", `${change}.json`), updated as Json);
+  ctx.writes.write(recordPath(change), () => writeJsonFile(path.join(ctx.root, ".warrant", "changes", `${change}.json`), updated as Json));
   return updated;
 }

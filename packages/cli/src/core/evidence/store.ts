@@ -60,6 +60,15 @@ export function listRecordIds(dir: string): string[] {
   return names.sort();
 }
 
+/**
+ * A record built by this run — written already, or under `--dry-run` only
+ * collected — that the gates judge beside those on disk (REQ-KRN-034).
+ */
+export interface PendingRecord {
+  id: string;
+  json: Record<string, unknown>;
+}
+
 /** One record as found on disk. */
 export interface StoredRecord {
   id: string;

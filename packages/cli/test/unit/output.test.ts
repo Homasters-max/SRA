@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXIT, WarrantError } from "../../src/core/errors.js";
+import { cliError, EXIT, WarrantError } from "../../src/core/errors.js";
 import { emit, failure, success, toEnvelope, type Printer } from "../../src/io/output.js";
 
 function capture(): Printer & { out: string[]; err: string[] } {
@@ -37,5 +37,16 @@ describe("envelope", () => {
   it("carries path when the error has one", () => {
     const err = new WarrantError("SCHEMA_VIOLATION", "bad", { path: ".warrant/warrant.json" });
     expect(err.toCliError()).toEqual({ code: "SCHEMA_VIOLATION", message: "bad", path: ".warrant/warrant.json" });
+  });
+
+  it("prints hint after path, and neither key when absent (REQ-KRN-002)", () => {
+    const printer = capture();
+    const err = new WarrantError("LOCK_MISMATCH", "lock file is missing", { path: "l.json", hint: "run `warrant sync`" });
+    emit("validate", failure(err), printer);
+    const entry = JSON.parse(printer.out[0]!).errors[0];
+    expect(Object.keys(entry)).toEqual(["code", "message", "path", "hint"]);
+    expect(entry.hint).toBe("run `warrant sync`");
+    expect(Object.keys(cliError("USAGE", "x", { hint: "pass --y" }))).toEqual(["code", "message", "hint"]);
+    expect(Object.keys(new WarrantError("USAGE", "x").toCliError())).toEqual(["code", "message"]);
   });
 });

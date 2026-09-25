@@ -14,12 +14,15 @@ import { WarrantError } from "../errors.js";
 import { isPlainObject } from "../json.js";
 import { LOCK_REL } from "../packs/hash.js";
 import { validateFile } from "../schemas/semantic.js";
+import type { Writes } from "../writes.js";
 import { CLI_VERSION } from "../../version.js";
 import { buildManifest, type ManifestVersions } from "./manifest.js";
 import { evidenceDir, listRecordIds, MANIFEST_FILE, projectUri, readManifest } from "./store.js";
 
 export interface StoreParams {
   root: string;
+  /** `ctx.writes`: under `--dry-run` the record and the manifest are only collected. */
+  writes: Writes;
   change: string;
   env: NodeJS.ProcessEnv;
   /** The record, already built; its `id` names the file. */
@@ -45,16 +48,21 @@ export function storeRecord(params: StoreParams): string {
   if (!checked.ok) {
     throw new WarrantError("INTERNAL", `the record of ${params.what} does not match its schema: ${checked.errors[0]?.message ?? ""}`);
   }
-  mkdirSync(dir, { recursive: true });
-  writeJsonFile(file, params.record);
-  writeJsonFile(
-    path.join(dir, MANIFEST_FILE),
-    buildManifest(readManifest(dir), {
-      change: params.change,
-      commit: params.commit,
-      versions: params.versions,
-      evidence: listRecordIds(dir)
-    })
+  params.writes.write(reported, () => {
+    mkdirSync(dir, { recursive: true });
+    writeJsonFile(file, params.record);
+  });
+  const manifest = path.join(dir, MANIFEST_FILE);
+  params.writes.write(projectUri(params.root, manifest), () =>
+    writeJsonFile(
+      manifest,
+      buildManifest(readManifest(dir), {
+        change: params.change,
+        commit: params.commit,
+        versions: params.versions,
+        evidence: listRecordIds(dir)
+      })
+    )
   );
   return reported;
 }

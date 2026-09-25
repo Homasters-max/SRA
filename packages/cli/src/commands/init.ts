@@ -71,8 +71,9 @@ export async function runInit(ctx: Ctx, opts: InitOptions = {}): Promise<Command
   // Checked first, and without touching `openspec`: a second `init` must fail
   // the same way whether or not the binary is installed (SCN-KRN-053).
   if (existsSync(configAbs) && !force) {
-    throw new WarrantError("ALREADY_INITIALIZED", `${CONFIG_REL} already exists; rerun with --force to rewrite it`, {
-      path: CONFIG_REL
+    throw new WarrantError("ALREADY_INITIALIZED", `${CONFIG_REL} already exists`, {
+      path: CONFIG_REL,
+      hint: "rerun with --force to rewrite it"
     });
   }
 
@@ -82,8 +83,8 @@ export async function runInit(ctx: Ctx, opts: InitOptions = {}): Promise<Command
   if (version === null) {
     throw new WarrantError(
       "OPENSPEC_FAILED",
-      "`openspec` is required but was not found on PATH; install it and rerun `warrant init`",
-      { path: CONFIG_REL }
+      "`openspec` is required but was not found on PATH",
+      { path: CONFIG_REL, hint: "install it and rerun `warrant init`" }
     );
   }
   const packVersion = bundledPackVersion(DEFAULT_PACK);
@@ -133,8 +134,9 @@ export async function runInitChange(ctx: Ctx, name: string | undefined): Promise
 
   const configYaml = path.join(root, "openspec", "config.yaml");
   if (!existsSync(configYaml)) {
-    throw new WarrantError("CONFIG_INVALID", "openspec/config.yaml not found; run `warrant sync` first", {
-      path: "openspec/config.yaml"
+    throw new WarrantError("CONFIG_INVALID", "openspec/config.yaml not found", {
+      path: "openspec/config.yaml",
+      hint: "run `warrant sync` first"
     });
   }
   const schema = schemaFromConfigYaml(readFileSync(configYaml, "utf8"));

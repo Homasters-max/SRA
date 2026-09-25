@@ -9,6 +9,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { WarrantError } from "../../../src/core/errors.js";
 import { CHANGE_STATES, transitionKind } from "../../../src/core/record/lifecycle.js";
 import { appendTransition, assertNotFrozen, withTransition } from "../../../src/core/record/write.js";
+import { createWrites } from "../../../src/core/writes.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 
 const tempDirs: string[] = [];
@@ -93,7 +94,7 @@ describe("appendTransition", () => {
       gates: { "spec-valid": "PASS" },
       evidence: ["EVID-01J8ZQ7Y3N4M5P6Q7R8S9T0V1W"]
     };
-    const updated = appendTransition(root, "add-search", record("PROPOSED"), entry);
+    const updated = appendTransition({ root, writes: createWrites(false) }, "add-search", record("PROPOSED"), entry);
     expect(updated).toEqual(withTransition(record("PROPOSED"), entry));
     const stored = JSON.parse(readFileSync(path.join(root, ".warrant", "changes", "add-search.json"), "utf8"));
     expect(stored.change_state).toBe("SPECIFIED");
@@ -103,7 +104,11 @@ describe("appendTransition", () => {
 
   it("refuses to write past a frozen state", () => {
     expect(() =>
-      appendTransition("unused", "add-search", record("ABANDONED"), { to: "PROPOSED", at: "2026-09-23T10:00:00Z", by: "cli:local" })
+      appendTransition({ root: "unused", writes: createWrites(false) }, "add-search", record("ABANDONED"), {
+        to: "PROPOSED",
+        at: "2026-09-23T10:00:00Z",
+        by: "cli:local"
+      })
     ).toThrow(/ABANDONED/);
   });
 });

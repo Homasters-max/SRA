@@ -7,7 +7,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import type { CliError } from "../errors.js";
+import { cliError, FMT_HINT, type CliError } from "../errors.js";
 import { reportPath, walkFiles } from "../fs.js";
 import { canonicalText } from "./format-json.js";
 
@@ -80,11 +80,7 @@ export function checkCanonical(root: string): CliError[] {
   for (const absolute of canonicalTargets(root)) {
     const result = checkFile(absolute);
     if (result.status !== "differs") continue;
-    errors.push({
-      code: "NOT_CANONICAL",
-      message: "file is not in canonical form; run `warrant fmt`",
-      path: reportPath(absolute, root)
-    });
+    errors.push(cliError("NOT_CANONICAL", "file is not in canonical form", { path: reportPath(absolute, root), hint: FMT_HINT }));
   }
   return errors;
 }

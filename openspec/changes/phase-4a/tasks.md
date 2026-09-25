@@ -18,11 +18,11 @@ golden вне групп 2 и 6 — остановка и строка I-N.
 
 ## 2. Контракт CLI: hint и --dry-run (REQ-KRN-002, REQ-KRN-034)
 
-- [ ] 2.1 `hint` в `CliError`, `WarrantError`, `cliError` (§10); перенос готового текста исправления (~20 мест). Проверка:
+- [x] 2.1 `hint` в `CliError`, `WarrantError`, `cliError` (§10); перенос готового текста исправления (~20 мест). Проверка:
   SCN-KRN-125; `grep "; run \`" packages/cli/src` пуст; golden ошибок обновлён одним коммитом.
-- [ ] 2.2 `ctx.writes` и `--dry-run` у `transition`, `archive`, `waive` (§10). Проверка: SCN-KRN-135…137; `app`-тест: после
+- [x] 2.2 `ctx.writes` и `--dry-run` у `transition`, `archive`, `waive` (§10). Проверка: SCN-KRN-135…137; `app`-тест: после
   dry-run каждой команды дерево проекта байт в байт прежнее.
-- [ ] 2.3 `--help` `transition`, `archive`, `waive` — пример с `--dry-run` (линза `cli-contract`). Проверка: e2e `--help`.
+- [x] 2.3 `--help` `transition`, `archive`, `waive` — пример с `--dry-run` (линза `cli-contract`). Проверка: e2e `--help`.
 
 ## 3. validate --files и путь проекта (REQ-KRN-032, A-20)
 

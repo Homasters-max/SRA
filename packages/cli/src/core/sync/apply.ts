@@ -10,7 +10,7 @@ import path from "node:path";
 import { writeJsonFile } from "../canon/format-json.js";
 import { loadConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
-import { EXIT, type CliError, type ExitCode } from "../errors.js";
+import { cliError, EXIT, SYNC_HINT, type CliError, type ExitCode } from "../errors.js";
 import { requireOpenspec } from "../openspec/version.js";
 import { LOCK_REL } from "../packs/hash.js";
 import { loadPacks } from "../packs/loader.js";
@@ -75,11 +75,9 @@ export async function applySync(ctx: Ctx, check: boolean): Promise<SyncOutcome> 
 
   if (check) {
     if (changed.length === 0) return syncDone(payload(plan, changed));
-    const errors: CliError[] = changed.map((rel) => ({
-      code: driftCode(rel),
-      message: "file differs from what `warrant sync` would generate; run `warrant sync`",
-      path: rel
-    }));
+    const errors: CliError[] = changed.map((rel) =>
+      cliError(driftCode(rel), "file differs from what `warrant sync` would generate", { path: rel, hint: SYNC_HINT })
+    );
     return syncFailed(errors, EXIT.FAIL, payload(plan, changed));
   }
 

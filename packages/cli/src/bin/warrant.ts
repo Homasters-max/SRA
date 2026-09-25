@@ -6,6 +6,7 @@ import { OpenSpecCli } from "../adapters/openspec-cli.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError } from "../core/errors.js";
 import { systemClock } from "../core/ports/clock.js";
+import { createWrites } from "../core/writes.js";
 import { emitToProcess, failure, resultFromThrown, writeStdout, type CommandResult } from "../io/output.js";
 import { CLI_VERSION } from "../version.js";
 import { projectRoot, requireConfigPath } from "../commands/context.js";
@@ -27,8 +28,11 @@ import { runWaive } from "../commands/waive.js";
 
 export type Runner = (ctx: Ctx, args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
-/** The production `ctx` (ADR-0025 п. 2): the adapters over `openspec`, `git` and the check runner, rooted at the cwd. */
-function productionCtx(): Ctx {
+/**
+ * The production `ctx` (ADR-0025 п. 2): the adapters over `openspec`, `git` and
+ * the check runner, rooted at the cwd; `--dry-run` makes `writes` collect instead of write.
+ */
+function productionCtx(dryRun: boolean): Ctx {
   const root = projectRoot();
   return {
     root,
@@ -36,6 +40,7 @@ function productionCtx(): Ctx {
     git: new GitCli(root),
     checks: new CheckRunner(),
     clock: systemClock,
+    writes: createWrites(dryRun),
     warn: (text) => void process.stderr.write(text)
   };
 }
@@ -54,13 +59,21 @@ const program = new Command("warrant")
 async function run(name: string, runner: Runner, args: string[], opts: Record<string, unknown>): Promise<void> {
   let result: CommandResult;
   try {
-    result = await runner(productionCtx(), args, opts);
+    result = await runner(productionCtx(opts["dryRun"] === true), args, opts);
   } catch (thrown) {
     result = resultFromThrown(thrown);
   }
   // No `process.exit`: the exit code is set after stdout accepted the whole
   // envelope, and Node ends the process once the pipe has drained (B4).
   await emitToProcess(name, result);
+}
+
+/** `--dry-run` of the commands that change state (REQ-KRN-034). */
+const DRY_RUN = "run every check and print the same JSON with data.dry_run and data.would_write[]; write nothing";
+
+/** The `Examples:` section of `--help` (lens `cli-contract`): one command per line. */
+function examples(lines: string[]): string {
+  return `\nExamples:\n${lines.map((line) => `  $ ${line}\n`).join("")}`;
 }
 
 /** Commander collector of a repeatable option. */
@@ -186,9 +199,17 @@ register(
       .option("--control <text>", "a compensating control (repeatable, at least one)", collect, [])
       .option("--owner <human:login>", "the person accountable for the accepted risk")
       .option("--expires <YYYY-MM-DD>", "last day of the waiver (not before today, UTC)")
-      .option("--activate <WAV>", "PROPOSED -> ACTIVE; needs --by of a maintainer")
-      .option("--revoke <WAV>", "PROPOSED or ACTIVE -> REVOKED; needs --by of a maintainer")
-      .option("--by <login>", "the maintainer activating or revoking the waiver")
+      .option("--activate <WAV>", "PROPOSED -> ACTIVE; needs --by of a maintainer (a human act)")
+      .option("--revoke <WAV>", "PROPOSED or ACTIVE -> REVOKED; needs --by of a maintainer (a human act)")
+      .option("--by <login>", "the maintainer activating or revoking the waiver (a human)")
+      .option("--dry-run", DRY_RUN)
+      .addHelpText(
+        "after",
+        examples([
+          'warrant waive add-search spec-approved --reason "clarified in I-12" --risk LOW --control "review of the spec diff" --owner human:kat --expires 2026-12-31 --dry-run',
+          "warrant waive --activate WAV-2026-001 --by kat"
+        ])
+      )
 );
 register(
   "status",
@@ -258,14 +279,26 @@ register(
       .argument("<change>")
       .argument("<state>")
       .option("--ref <url>", "URL of the act on the forge (review, CI run); required for APPROVED and MERGED")
-      .option("--by <login>", "the approving human, when the transition has gate human-approval")
+      .option("--by <login>", "the approving human, when the transition has gate human-approval (a human act)")
       .option("--commit <sha>", "MERGED: the commit of the evidence (default: that of the freshest record)")
+      .option("--dry-run", DRY_RUN)
+      .addHelpText(
+        "after",
+        examples([
+          "warrant transition add-search SPECIFIED --dry-run",
+          "warrant transition add-search APPROVED --ref https://github.com/o/r/pull/7 --by kat"
+        ])
+      )
 );
 register(
   "archive",
   "validate, gate and archive a MERGED change, then record ARCHIVED",
   (ctx, args) => runArchive(ctx, args[0] as string),
-  (c) => c.argument("<change>")
+  (c) =>
+    c
+      .argument("<change>")
+      .option("--dry-run", `${DRY_RUN}; openspec archive is not called`)
+      .addHelpText("after", examples(["warrant archive add-search --dry-run", "warrant archive add-search"]))
 );
 
 async function main(): Promise<void> {

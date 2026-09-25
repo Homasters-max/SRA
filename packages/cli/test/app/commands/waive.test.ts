@@ -18,6 +18,7 @@ import { canonicalText } from "../../../src/core/canon/format-json.js";
 import { FAKE_TODAY } from "../helpers/fakes/clock.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { withoutDryRun, writtenBeyond } from "../helpers/dry-run.js";
 import { validateErrors } from "../helpers/validate.js";
 
 const project = useProjectBuilder();
@@ -197,5 +198,37 @@ describe("warrant waive", () => {
     p.withRecord("add-search", "ARCHIVED");
     const frozen = await waive(p, TARGET, PROPOSE);
     expect(frozen.errors[0]?.code).toBe("RECORD_FROZEN");
+  });
+});
+
+describe("warrant waive --dry-run (REQ-KRN-034)", () => {
+  function dry(p: ProjectBuilder, args: string[], opts: WaiveOptions): ReturnType<typeof invoke> {
+    return invoke(() => runWaive(p.dryRun(), args, opts));
+  }
+
+  it("proposes and activates on paper: the same JSON, the waiver in would_write[], no file written", async () => {
+    const p = await repo();
+    const before = p.tree();
+    const proposed = await dry(p, TARGET, PROPOSE);
+    expect(proposed.errors).toEqual([]);
+    expect(proposed.exitCode).toBe(0);
+    expect(proposed.data["would_write"]).toEqual([`.warrant/waivers/${wav(5)}.json`]);
+    expect(p.tree()).toEqual(before);
+
+    const real = await waive(p, TARGET, PROPOSE);
+    expect(withoutDryRun(proposed.data)).toEqual(withoutDryRun(real.data));
+    expect(writtenBeyond(before, p.tree(), proposed.data["would_write"] as string[])).toEqual([]);
+
+    const proposedTree = p.tree();
+    const activated = await dry(p, [], { activate: wav(5), by: "kat" });
+    expect(activated.data).toMatchObject({ dry_run: true, would_write: [`.warrant/waivers/${wav(5)}.json`] });
+    expect(activated.data["waiver"]).toMatchObject({ waiver_state: "ACTIVE", approved_by: "human:kat" });
+    expect(p.tree()).toEqual(proposedTree);
+    expect(await analyzeClean(p)).toBe("BLOCKED");
+
+    const bob = await dry(p, [], { activate: wav(5), by: "bob" });
+    expect(bob.errors[0]?.code).toBe("ROLE_REQUIRED");
+    expect(bob.exitCode).toBe(3);
+    expect(bob.data).toEqual({ dry_run: true, would_write: [] });
   });
 });

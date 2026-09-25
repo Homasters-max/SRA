@@ -9,6 +9,7 @@ import type { CheckRunnerPort } from "./ports/checks.js";
 import type { ClockPort } from "./ports/clock.js";
 import type { GitPort } from "./ports/git.js";
 import type { OpenSpecPort } from "./ports/openspec.js";
+import type { Writes } from "./writes.js";
 
 export interface Ctx {
   /** Project root; every path the CLI reports is relative to it. */
@@ -17,6 +18,8 @@ export interface Ctx {
   readonly git: GitPort;
   readonly checks: CheckRunnerPort;
   readonly clock: ClockPort;
+  /** Every write of a command that changes state: performed, or only collected under `--dry-run` (REQ-KRN-034). */
+  readonly writes: Writes;
   /** Diagnostics: stderr in production, so stdout stays exactly one envelope. */
   readonly warn: (text: string) => void;
 }

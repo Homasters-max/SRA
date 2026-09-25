@@ -14,8 +14,10 @@
  *
  * For 2 and 3 the login must be in `roles.maintainer` (`ROLE_REQUIRED`); like
  * `transition --by`, it is a claim until `warrant ci` (phase 4). Everything is
- * checked before the one write, through `writeJsonFile`; the written file must
- * match `warrant://waiver/1`.
+ * checked before the one write, through `ctx.writes` and `writeJsonFile`; the
+ * written file must match `warrant://waiver/1`. `--dry-run` (REQ-KRN-034): the
+ * same checks and JSON, with `data.dry_run` and `data.would_write[]`, and the
+ * waiver is not written.
  */
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -35,7 +37,7 @@ import { roleMembers, WAIVER_ROLE } from "../core/roles.js";
 import { WAIVERS_DIR } from "../core/waivers/read.js";
 import { WAIVER_MOVES, type WaiverMove } from "../core/waivers/status.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { requireConfigPath } from "./context.js";
+import { requireConfigPath, withDryRun } from "./context.js";
 
 export interface WaiveOptions {
   reason?: string | undefined;
@@ -68,18 +70,25 @@ function isCalendarDate(value: string): boolean {
 }
 
 /** Writes a waiver after checking it against its schema: a command never writes an invalid file. */
-function writeWaiver(root: string, waiver: Record<string, unknown>): void {
+function writeWaiver(ctx: Pick<Ctx, "root" | "writes">, waiver: Record<string, unknown>): void {
+  const { root } = ctx;
   const rel = waiverRel(String(waiver["id"]));
   const checked = validateFile(waiver as Json, rel);
   if (!checked.ok) {
     const first = checked.errors[0] as CliError;
     throw new WarrantError("INTERNAL", `the waiver would not match its schema: ${first.message}`, { path: first.path ?? rel });
   }
-  mkdirSync(path.join(root, WAIVERS_DIR), { recursive: true });
-  writeJsonFile(path.join(root, WAIVERS_DIR, `${String(waiver["id"])}.json`), waiver as Json);
+  ctx.writes.write(rel, () => {
+    mkdirSync(path.join(root, WAIVERS_DIR), { recursive: true });
+    writeJsonFile(path.join(root, WAIVERS_DIR, `${String(waiver["id"])}.json`), waiver as Json);
+  });
 }
 
-export function runWaive(ctx: Ctx, args: string[], opts: WaiveOptions = {}): CommandResult {
+export function runWaive(ctx: Ctx, args: string[], opts: WaiveOptions = {}): Promise<CommandResult> {
+  return withDryRun(ctx, () => waive(ctx, args, opts));
+}
+
+function waive(ctx: Ctx, args: string[], opts: WaiveOptions): CommandResult {
   const { root } = ctx;
   requireConfigPath(root);
   const modes = (["activate", "revoke"] as const).filter((m) => opts[m] !== undefined);
@@ -92,7 +101,7 @@ export function runWaive(ctx: Ctx, args: string[], opts: WaiveOptions = {}): Com
     const extra = [...args, ...createFlags.map((f) => `--${f}`)].join(", ");
     throw new WarrantError("USAGE", `--${mode} <WAV> --by <login> takes nothing else (got ${extra})`);
   }
-  return changeState(mode, opts[mode] as string, opts.by, root);
+  return changeState(ctx, mode, opts[mode] as string, opts.by);
 }
 
 function create(ctx: Ctx, args: string[], opts: WaiveOptions): CommandResult {
@@ -149,11 +158,12 @@ function create(ctx: Ctx, args: string[], opts: WaiveOptions): CommandResult {
     expires_at: opts.expires,
     waiver_state: "PROPOSED"
   };
-  writeWaiver(root, waiver);
+  writeWaiver(ctx, waiver);
   return success({ path: waiverRel(id), waiver }, change);
 }
 
-function changeState(mode: WaiverMove, id: string, by: string | undefined, root: string): CommandResult {
+function changeState(ctx: Pick<Ctx, "root" | "writes">, mode: WaiverMove, id: string, by: string | undefined): CommandResult {
+  const { root } = ctx;
   if (by === undefined || by === "") throw new WarrantError("USAGE", `--${mode} needs --by <login> of a maintainer`);
   if (!LOGIN_RE.test(by)) throw new WarrantError("USAGE", `--by ${JSON.stringify(by)} is not a login ([A-Za-z0-9._-]+)`);
 
@@ -174,7 +184,10 @@ function changeState(mode: WaiverMove, id: string, by: string | undefined, root:
   const checked = validateFile(json as Json, rel);
   if (!checked.ok) {
     const first = checked.errors[0] as CliError;
-    throw new WarrantError("WAIVER_INVALID", `${id}: ${first.message}; fix it before changing its state`, { path: first.path ?? rel });
+    throw new WarrantError("WAIVER_INVALID", `${id}: ${first.message}`, {
+      path: first.path ?? rel,
+      hint: "fix it before changing its state"
+    });
   }
   if (json["id"] !== id) {
     throw new WarrantError("WAIVER_INVALID", `${rel} holds id ${JSON.stringify(json["id"])}, not ${id}`, { path: `${rel}#/id` });
@@ -200,6 +213,6 @@ function changeState(mode: WaiverMove, id: string, by: string | undefined, root:
   // ACTIVE names its approver; a PROPOSED waiver revoked before approval
   // names the maintainer who closed it (the schema wants approved_by outside PROPOSED).
   if (mode === "activate" || waiver["approved_by"] === undefined) waiver["approved_by"] = `human:${by}`;
-  writeWaiver(root, waiver);
+  writeWaiver(ctx, waiver);
   return success({ path: rel, waiver }, String(json["change"]));
 }

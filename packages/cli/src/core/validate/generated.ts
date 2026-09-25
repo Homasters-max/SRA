@@ -9,7 +9,7 @@
  * `openspec schema validate` are skipped when the binary is absent.
  */
 import type { Ctx } from "../ctx.js";
-import { WarrantError, type CliError } from "../errors.js";
+import { cliError, SYNC_HINT, WarrantError, type CliError } from "../errors.js";
 import { openspecAvailable, requireOpenspec } from "../openspec/version.js";
 import type { LoadResult } from "../packs/types.js";
 import { planSync } from "../sync/plan.js";
@@ -39,11 +39,9 @@ export async function checkGenerated(ctx: Ctx, loaded: LoadResult, skipped: stri
 
   for (const file of plan.files) {
     if (!file.changed) continue;
-    errors.push({
-      code: "GENERATED_DRIFT",
-      message: "file differs from what `warrant sync` would generate; run `warrant sync`",
-      path: file.path
-    });
+    errors.push(
+      cliError("GENERATED_DRIFT", "file differs from what `warrant sync` would generate", { path: file.path, hint: SYNC_HINT })
+    );
   }
 
   const artifacts = new Set(plan.artifacts);

@@ -4,7 +4,8 @@
  * the `exclusive` lock, the timeout, the parser, one evidence record per check.
  * Shared by `check`, `verify` and `archive`.
  */
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import type { Ctx } from "../ctx.js";
@@ -13,13 +14,14 @@ import { attestationFromEnv } from "../evidence/attestation.js";
 import type { ManifestVersions } from "../evidence/manifest.js";
 import { findParser, parserNames } from "../evidence/parsers/index.js";
 import { buildCheckRecord, collectArtifacts, type EvidenceStatus } from "../evidence/record.js";
-import { rawDir } from "../evidence/store.js";
+import { projectUri, rawDir } from "../evidence/store.js";
 import { manifestVersions, storeRecord } from "../evidence/write.js";
 import type { GitFacts } from "../git/facts.js";
 import { allocateUlid } from "../ids/allocate.js";
 import { isPlainObject, strings } from "../json.js";
 import type { LoadResult, PackObject } from "../packs/types.js";
 import type { EffectivePolicy } from "../resolve/index.js";
+import type { PendingRecord } from "../evidence/store.js";
 import { acquireLock, lockPath } from "./lock.js";
 import { expandArgv } from "./placeholders.js";
 
@@ -64,6 +66,7 @@ export function checksForTransition(loaded: LoadResult, policy: EffectivePolicy,
 interface Context {
   root: string;
   checks: Ctx["checks"];
+  writes: Ctx["writes"];
   change: string;
   loaded: LoadResult;
   policyHash: string;
@@ -76,22 +79,40 @@ interface Context {
 }
 
 type CheckOutcome =
-  | { ok: true; entry: Record<string, unknown> }
+  | { ok: true; entry: Record<string, unknown>; record: PendingRecord }
   | { ok: false; entry: Record<string, unknown>; error: WarrantError; holder?: unknown };
 
-function notConfigured(object: PackObject, message: string): CheckOutcome {
-  const error = new WarrantError("CHECK_NOT_CONFIGURED", `check ${object.id}: ${message}`, { path: object.path });
+function notConfigured(object: PackObject, message: string, hint?: string): CheckOutcome {
+  const error = new WarrantError("CHECK_NOT_CONFIGURED", `check ${object.id}: ${message}`, {
+    path: object.path,
+    ...(hint === undefined ? {} : { hint })
+  });
   return { ok: false, entry: { id: object.id, error: error.code }, error };
 }
 
-/** Runs one check and writes its record; never throws for a check-level failure. */
+/**
+ * Runs one check and writes its record; never throws for a check-level
+ * failure. Under `--dry-run` the check still runs, but `{out}` is a temporary
+ * directory outside the project, removed afterwards, and the raw directory,
+ * the record and the manifest are only collected in `ctx.writes` (REQ-KRN-034).
+ */
 async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
+  if (!ctx.writes.dryRun) return runOneIn(ctx, object, undefined);
+  const scratch = mkdtempSync(path.join(tmpdir(), "warrant-dry-run-"));
+  try {
+    return await runOneIn(ctx, object, scratch);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+async function runOneIn(ctx: Context, object: PackObject, scratch: string | undefined): Promise<CheckOutcome> {
   const check = effectiveCheck(object);
   const run = isPlainObject(check["run"]) ? check["run"] : {};
   const command = strings(run["command"]);
   const scoped = strings(run["scoped_command"]);
   if (command.length === 0) {
-    return notConfigured(object, "has no run.command; supply one with an override in .warrant/local/checks/");
+    return notConfigured(object, "has no run.command", "supply one with an override in .warrant/local/checks/");
   }
 
   const parser = findParser(check["parser"]);
@@ -108,12 +129,18 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
   // --paths, and also without run.scoped_command to narrow with (I-116).
   const execution = isPlainObject(check["execution"]) ? check["execution"] : {};
   if (execution["local"] === "scoped-only" && (ctx.paths === undefined || scoped.length === 0) && attestationFromEnv(ctx.env).type === "none") {
-    const hint = ctx.paths === undefined ? "pass --paths <a,b>" : "it has no run.scoped_command to narrow with";
-    const error = new WarrantError(
-      "CHECK_LOCAL_FORBIDDEN",
-      `check ${object.id}: execution.local is "scoped-only": outside CI it runs only narrowed; ${hint}`,
-      { path: object.path }
-    );
+    // Without --paths the fix is to pass them; with --paths the check itself cannot narrow — a reason, not a fix.
+    const error =
+      ctx.paths === undefined
+        ? new WarrantError("CHECK_LOCAL_FORBIDDEN", `check ${object.id}: execution.local is "scoped-only": outside CI it runs only narrowed`, {
+            path: object.path,
+            hint: "pass --paths <a,b>"
+          })
+        : new WarrantError(
+            "CHECK_LOCAL_FORBIDDEN",
+            `check ${object.id}: execution.local is "scoped-only": outside CI it runs only narrowed; it has no run.scoped_command to narrow with`,
+            { path: object.path }
+          );
     return { ok: false, entry: { id: object.id, error: error.code }, error };
   }
 
@@ -124,7 +151,8 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
     ctx.warn(`check: ${object.id} has no run.scoped_command; running run.command in full\n`);
   }
 
-  const outDir = rawDir(ctx.root, ctx.change, object.id, ctx.env);
+  const raw = rawDir(ctx.root, ctx.change, object.id, ctx.env);
+  const outDir = scratch ?? raw;
   const outRel = path.relative(ctx.root, outDir);
   const outArg = outRel.startsWith("..") || path.isAbsolute(outRel) ? outDir : outRel.split(path.sep).join("/");
   let argv: string[];
@@ -136,7 +164,10 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
     });
   } catch (thrown) {
     if (!(thrown instanceof WarrantError)) throw thrown;
-    const error = new WarrantError(thrown.code, `check ${object.id}: ${thrown.message}`, { path: object.path });
+    const error = new WarrantError(thrown.code, `check ${object.id}: ${thrown.message}`, {
+      path: object.path,
+      ...(thrown.hint === undefined ? {} : { hint: thrown.hint })
+    });
     return { ok: false, entry: { id: object.id, error: error.code }, error };
   }
 
@@ -159,8 +190,8 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
       const pid = isPlainObject(lock.holder) ? lock.holder["pid"] : undefined;
       const error = new WarrantError(
         "BUSY",
-        `check ${object.id}: the exclusive check lock is held${pid === undefined ? "" : ` by pid ${String(pid)}`}; if that process is gone, delete ${where.file}`,
-        { path: where.file, exitCode: EXIT.WAIT }
+        `check ${object.id}: the exclusive check lock is held${pid === undefined ? "" : ` by pid ${String(pid)}`}`,
+        { path: where.file, hint: `if that process is gone, delete ${where.file}`, exitCode: EXIT.WAIT }
       );
       return { ok: false, entry: { id: object.id, error: error.code }, error, holder: lock.holder };
     }
@@ -170,8 +201,10 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
   let outcome;
   try {
     // `{out}` starts empty: nothing of an earlier run may pass for this one's output.
-    rmSync(outDir, { recursive: true, force: true });
-    mkdirSync(outDir, { recursive: true });
+    ctx.writes.write(projectUri(ctx.root, raw), () => {
+      rmSync(outDir, { recursive: true, force: true });
+      mkdirSync(outDir, { recursive: true });
+    });
     outcome = await ctx.checks.run({ argv, cwd: ctx.root, timeoutMs: timeoutS * 1000, captureStdout: parser.readsStdout });
   } finally {
     release?.();
@@ -226,6 +259,7 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
 
   const reported = storeRecord({
     root: ctx.root,
+    writes: ctx.writes,
     change: ctx.change,
     env: ctx.env,
     record,
@@ -243,7 +277,7 @@ async function runOne(ctx: Context, object: PackObject): Promise<CheckOutcome> {
   };
   if (parsed.metrics !== undefined) entry["metrics"] = parsed.metrics;
   entry["limitations"] = limitations;
-  return { ok: true, entry };
+  return { ok: true, entry, record: { id, json: record } };
 }
 
 /** What a batch of checks left behind: one entry per check and the failures among them. */
@@ -256,6 +290,8 @@ export interface ChecksRun {
   exitCode: ExitCode;
   /** Holder of the exclusive lock, when a check found it taken. */
   holder?: unknown;
+  /** The records of this run — written, or under `--dry-run` only built — for the gates that judge them. */
+  records: PendingRecord[];
 }
 
 export interface ChecksParams {
@@ -279,6 +315,7 @@ export async function executeChecks(params: ChecksParams): Promise<ChecksRun> {
   const ctx: Context = {
     root: params.ctx.root,
     checks: params.ctx.checks,
+    writes: params.ctx.writes,
     change: params.change,
     loaded,
     policyHash: policy.hash,
@@ -289,11 +326,14 @@ export async function executeChecks(params: ChecksParams): Promise<ChecksRun> {
     versions: () => (versions ??= manifestVersions(params.ctx, policy.hash))
   };
 
-  const run: ChecksRun = { entries: [], errors: [], failures: [], exitCode: EXIT.OK };
+  const run: ChecksRun = { entries: [], errors: [], failures: [], exitCode: EXIT.OK, records: [] };
   for (const object of params.selected) {
     const outcome = await runOne(ctx, object);
     run.entries.push(outcome.entry);
-    if (outcome.ok) continue;
+    if (outcome.ok) {
+      run.records.push(outcome.record);
+      continue;
+    }
     run.errors.push(outcome.error.toCliError());
     run.failures.push({ check: object.id, code: outcome.error.code, kinds: strings(effectiveCheck(object)["produces"]) });
     run.exitCode = Math.max(run.exitCode, outcome.error.exitCode) as ExitCode;

@@ -11,7 +11,7 @@ import { writeJsonFile } from "../canon/format-json.js";
 import { controllerInputs } from "../controller/inputs.js";
 import { controllerRules, evaluateController, type ControllerDecision } from "../controller/evaluate.js";
 import type { Ctx } from "../ctx.js";
-import { evidenceDir, MANIFEST_FILE, readManifest, readRecords } from "../evidence/store.js";
+import { evidenceDir, MANIFEST_FILE, projectUri, readManifest, readRecords, type PendingRecord } from "../evidence/store.js";
 import type { Availability } from "../git/facts.js";
 import { FACTORY_PROFILE } from "../gates/l0/scope-valid.js";
 import { SPEC_APPROVED } from "../gates/l0/spec-approved.js";
@@ -59,6 +59,11 @@ export interface EvaluateParams {
   env: NodeJS.ProcessEnv;
   only?: string[] | undefined;
   checkFailures?: CheckFailure[] | undefined;
+  /**
+   * Records of this run beside those on disk: written already, or only
+   * collected under `--dry-run` — the gates judge them the same way (REQ-KRN-034).
+   */
+  pending?: PendingRecord[] | undefined;
 }
 
 /** Gate engine and controller for one Change and transition. Reads, never writes. */
@@ -81,7 +86,11 @@ export async function evaluateTransition(params: EvaluateParams): Promise<Evalua
   if (facts.git.baseCommit !== undefined) signals.base = facts.git.baseCommit;
   if (params.checkFailures !== undefined) signals.checkFailures = params.checkFailures;
 
-  const records = readRecords(evidenceDir(params.ctx.root, params.change, params.env)).map((r) => ({ id: r.id, json: r.json }));
+  const stored = readRecords(evidenceDir(params.ctx.root, params.change, params.env)).map((r) => ({ id: r.id, json: r.json }));
+  const ids = new Set(stored.map((r) => r.id));
+  const records = [...stored, ...(params.pending ?? []).filter((r) => !ids.has(r.id))].sort((a, b) =>
+    a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+  );
   const evaluated = policy.gates[params.transition] ?? [];
   if (evaluated.includes(SPEC_APPROVED) && (params.only === undefined || params.only.includes(SPEC_APPROVED))) {
     signals.contract = await contractTrees(params.ctx, params.change, record, records, facts.git);
@@ -123,8 +132,13 @@ export function decisionFields(decision: ControllerDecision): Record<string, unk
  * manifest's gates belong to `gate`/`verify`). Only an existing manifest is
  * updated — without a record there is nothing a manifest could list.
  */
-export function recordVerdicts(root: string, change: string, env: NodeJS.ProcessEnv, gates: Record<string, Verdict>): void {
-  const dir = evidenceDir(root, change, env);
+export function recordVerdicts(
+  ctx: Pick<Ctx, "root" | "writes">,
+  change: string,
+  env: NodeJS.ProcessEnv,
+  gates: Record<string, Verdict>
+): void {
+  const dir = evidenceDir(ctx.root, change, env);
   if (!existsSync(path.join(dir, MANIFEST_FILE))) return;
   const manifest = readManifest(dir);
   if (manifest === undefined) return;
@@ -132,7 +146,8 @@ export function recordVerdicts(root: string, change: string, env: NodeJS.Process
   const merged: Record<string, unknown> = { ...previous, ...gates };
   const sorted: Record<string, unknown> = {};
   for (const key of Object.keys(merged).sort()) sorted[key] = merged[key];
-  writeJsonFile(path.join(dir, MANIFEST_FILE), { ...manifest, gates: sorted });
+  const file = path.join(dir, MANIFEST_FILE);
+  ctx.writes.write(projectUri(ctx.root, file), () => writeJsonFile(file, { ...manifest, gates: sorted }));
 }
 
 /** `data.findings[]`: the gate engine's, then the controller's (R-13). */

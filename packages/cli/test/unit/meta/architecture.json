@@ -67,7 +67,9 @@
       { "name": "git", "owner": "helpers/git.ts" },
       { "name": "validate", "owner": "app/helpers/validate.ts" },
       { "name": "validateErrors", "owner": "app/helpers/validate.ts" },
-      { "name": "errorCodes", "owner": "app/helpers/validate.ts" }
+      { "name": "errorCodes", "owner": "app/helpers/validate.ts" },
+      { "name": "withoutDryRun", "owner": "app/helpers/dry-run.ts" },
+      { "name": "writtenBeyond", "owner": "app/helpers/dry-run.ts" }
     ]
   },
   "enums": [

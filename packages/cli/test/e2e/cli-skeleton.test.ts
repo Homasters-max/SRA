@@ -1,7 +1,8 @@
 // e2e: argv
 /**
  * The binary itself: an unknown command of argv (SCN-KRN-006), a command run
- * outside a project (SCN-KRN-007) and `--version` — the parse of argv, the
+ * outside a project (SCN-KRN-007), `--version`, `--help` and `--dry-run` of
+ * the commands that change state (REQ-KRN-034) — the parse of argv, the
  * exit code and stdout of the process, which no command of the test process
  * sees (ADR-0025, task 5.4: the file stays in e2e whole).
  */
@@ -34,5 +35,23 @@ describe("cli skeleton", () => {
     const r = await runCli(["--version"], dir);
     expect(r.status).toBe(0);
     expect(r.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it("--help of transition, archive and waive names --dry-run and gives an example with it (lens cli-contract)", async () => {
+    for (const command of ["transition", "archive", "waive"]) {
+      const r = await runCli([command, "--help"], dir);
+      expect(r.status).toBe(0);
+      expect(r.stdout).toBe("");
+      expect(r.stderr).toContain("--dry-run");
+      const examples = r.stderr.split("Examples:\n")[1]?.split("\n") ?? [];
+      expect(examples.some((line) => line.startsWith(`  $ warrant ${command} `) && line.endsWith(" --dry-run"))).toBe(true);
+    }
+  });
+
+  it("--dry-run reaches the command: a refusal carries data.dry_run (REQ-KRN-034)", async () => {
+    const r = await runCli(["transition", "add-search", "SPECIFIED", "--dry-run"], dir);
+    expect(r.status).toBe(3);
+    expect(r.json.errors[0].code).toBe("CONFIG_MISSING");
+    expect(r.json.data).toEqual({ dry_run: true, would_write: [] });
   });
 });

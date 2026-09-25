@@ -18,11 +18,16 @@
  *    `openspec archive <change> --yes --json`, then the transition `ARCHIVED`
  *    (`by: "cli:local"`, `gates{}`, `evidence[]`). On `GATES_NOT_PASSED`
  *    OpenSpec is not called, nothing moves and the record is unchanged.
+ *
+ * `--dry-run` (REQ-KRN-034): steps 1–3 as they are — the checks run, their
+ * records are judged but not written — and `openspec archive` is not called;
+ * `data.would_write[]` lists the records, the manifest, the moved directory,
+ * the main specs the deltas merge into and the Change record.
  */
 import { checksForTransition } from "../core/check/execute.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type ExitCode } from "../core/errors.js";
-import { findChangeDir } from "../core/openspec/changes.js";
+import { archivePlan, findChangeDir } from "../core/openspec/changes.js";
 import type { LoadResult, PackObject } from "../core/packs/types.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { appendTransition, assertNotFrozen, recordPath, stateOfRecord } from "../core/record/write.js";
@@ -31,7 +36,7 @@ import { evaluate } from "../core/transition/evaluate.js";
 import { decisionFields, evaluationFindings } from "../core/transition/gates.js";
 import { forwardEntry, gatesNotPassed, gatesNotPassedRefusal } from "../core/transition/outcome.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { requireConfigPath } from "./context.js";
+import { requireConfigPath, withDryRun } from "./context.js";
 
 export const ARCHIVE_TRANSITION = "MERGED->ARCHIVED";
 
@@ -48,6 +53,10 @@ function archiveChecks(loaded: LoadResult, policy: EffectivePolicy, transition: 
 }
 
 export async function runArchive(ctx: Ctx, change: string, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
+  return withDryRun(ctx, () => archive(ctx, change, env));
+}
+
+async function archive(ctx: Ctx, change: string, env: NodeJS.ProcessEnv): Promise<CommandResult> {
   const { root, warn } = ctx;
   requireConfigPath(root);
   const record = readChangeRecord(root, change);
@@ -88,11 +97,13 @@ export async function runArchive(ctx: Ctx, change: string, env: NodeJS.ProcessEn
   }
   for (const error of run.errors) warn(`archive: ${error.code}: ${error.message}\n`);
 
-  const archived = await ctx.openspec.archive(change);
-  const location = findChangeDir(root, change);
+  // Under --dry-run `openspec archive` is not called: the move is the one it would make.
+  const plan = archivePlan(root, change, ctx.clock.today());
+  const archived = await ctx.writes.write(plan.targets, () => ctx.openspec.archive(change));
+  const location = archived === undefined ? { where: "archive", path: plan.archive } : findChangeDir(root, change);
   // The move is the act: once the directory is in archive/, the transition is written.
   if (location?.where !== "archive") {
-    const detail = archived.output.trim().split("\n")[0] ?? "";
+    const detail = archived?.output.trim().split("\n")[0] ?? "";
     return failures(
       [
         {
@@ -107,9 +118,9 @@ export async function runArchive(ctx: Ctx, change: string, env: NodeJS.ProcessEn
     );
   }
 
-  if (!archived.ok) warn(`archive: openspec archive exited with an error, but ${location.path} exists; recording ARCHIVED\n`);
+  if (archived !== undefined && !archived.ok) warn(`archive: openspec archive exited with an error, but ${location.path} exists; recording ARCHIVED\n`);
 
   const entry = forwardEntry("ARCHIVED", policy, evaluation, undefined);
-  appendTransition(root, change, record, entry);
+  appendTransition(ctx, change, record, entry);
   return success({ ...data, archive: location.path, change_state: "ARCHIVED", recorded: entry }, change);
 }

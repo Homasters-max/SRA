@@ -362,8 +362,8 @@ function loadLocalLayer(
     collected.errors.push(
       cliError(
         "CONFIG_INVALID",
-        `${reportPath(dir, projectRoot)}/ holds a pack manifest, but pack "${name}" is not enabled in ${CONFIG_REL.split(path.sep).join("/")}; enable it or move the files out of ${LOCAL_DIR.split(path.sep).join("/")}/`,
-        { path: reportPath(manifest, projectRoot) }
+        `${reportPath(dir, projectRoot)}/ holds a pack manifest, but pack "${name}" is not enabled in ${CONFIG_REL.split(path.sep).join("/")}`,
+        { path: reportPath(manifest, projectRoot), hint: `enable it or move the files out of ${LOCAL_DIR.split(path.sep).join("/")}/` }
       )
     );
   }

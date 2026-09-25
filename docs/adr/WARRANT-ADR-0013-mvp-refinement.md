@@ -5,8 +5,12 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: [WARRANT-ADR-0007]
-amended_by: [WARRANT-ADR-0018, WARRANT-ADR-0020]
+amended_by: [WARRANT-ADR-0018, WARRANT-ADR-0020, WARRANT-ADR-0034]
 ---
+
+> Уточнено [ADR-0034](WARRANT-ADR-0034-phase-4-frontend.md): slice ведёт Claude Code под hooks в ручном режиме (адаптер `claude`, локальный режим) —
+> критерий выхода MVP снова «агент (Claude Code) проходит slice», как в исходном решении; заметка ADR-0018 / ADR-0020
+> о Codex заменена. Sample-проект — отдельный репозиторий GitHub (п. 7).
 
 > Уточнено [ADR-0018](WARRANT-ADR-0018-frontend-adapters.md) и [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md):
 > slice ведёт Codex (в ручном режиме под hooks и CI; слой ACP — со срезом S1 SEF), а не Claude Code;

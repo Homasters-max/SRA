@@ -4,8 +4,12 @@ title: Топология PR — два PR на Change, archive отдельно
 adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
-amended_by: [WARRANT-ADR-0020, WARRANT-ADR-0033]
+amended_by: [WARRANT-ADR-0020, WARRANT-ADR-0033, WARRANT-ADR-0034]
 ---
+
+> Уточнено [ADR-0034](WARRANT-ADR-0034-phase-4-frontend.md): `warrant ci` выводит Change и переход из diff record, а не из имени ветки; правка
+> `openspec/specs/**` допустима только вместе с переходом `MERGED → ARCHIVED` (п. 13, R-16). Evidence impl-PR
+> считается на merge ref и привязан к дереву результата merge `subject.tree` (п. 12, R-12).
 
 > Уточнено [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md): этот ADR — транспорт `github` абстрактной топологии Change;
 > второй транспорт — `sef-hub` (proposed). MVP — `github` без изменений.

@@ -4,8 +4,12 @@ title: Enforcement в frontend Claude Code — два слоя, review как su
 adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
-amended_by: [WARRANT-ADR-0017, WARRANT-ADR-0018, WARRANT-ADR-0020]
+amended_by: [WARRANT-ADR-0017, WARRANT-ADR-0018, WARRANT-ADR-0020, WARRANT-ADR-0034]
 ---
+
+> Уточнено [ADR-0034](WARRANT-ADR-0034-phase-4-frontend.md): решения этого ADR — адаптер `claude` фазы 4 (локальный режим), а не later. П. 4:
+> `.claude/settings.json` генерируется не целиком — `sync` владеет только своими deny и хуками, `validate` сверяет
+> это подмножество (п. 3). Review-субагент п. 3 — producer `adversarial-review` в MVP (п. 10).
 
 > Уточнено [ADR-0018](WARRANT-ADR-0018-frontend-adapters.md) и [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md):
 > решения этого ADR становятся адаптером `claude` (later); MVP ведёт Codex в ручном режиме под hooks и CI

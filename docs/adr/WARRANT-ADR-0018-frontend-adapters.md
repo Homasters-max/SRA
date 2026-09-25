@@ -5,8 +5,12 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: [WARRANT-ADR-0013, WARRANT-ADR-0014]
-amended_by: [WARRANT-ADR-0020, WARRANT-ADR-0022, WARRANT-ADR-0023]
+amended_by: [WARRANT-ADR-0020, WARRANT-ADR-0022, WARRANT-ADR-0023, WARRANT-ADR-0034]
 ---
+
+> Уточнено [ADR-0034](WARRANT-ADR-0034-phase-4-frontend.md): п. 7 — MVP-адаптер `claude` (локальный режим); адаптер `codex` — до среза S1 SEF после
+> spike S8, вместе с `codex --version ≥ MIN`; фаза 7 — `opencode`. Контракт адаптера — сценарий `contract` на
+> записанном родном входе (п. 2).
 
 > Уточнено [ADR-0023](WARRANT-ADR-0023-warrant-dev-frontend.md): п. 7 относится к проектам под WARRANT и к slice MVP; код
 > самого репозитория WARRANT в MVP пишут сессии Claude Code без guard под топологией PR, review и CI.

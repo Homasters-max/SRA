@@ -2,57 +2,37 @@
 
 ## Цель
 
-Фаза 4 — MVP frontend ([13 §2](../13-roadmap.md), строка 4): `sync`, `run`, `guard`, `validate --files`, `analyze`,
-`warrant ci`, первый адаптер frontend. Предложение maintainer'а (2026-09-25): первым — адаптер `claude` (ADR-0023
-п. 4), `codex` и `opencode` — позже тем же контрактом `guard`. Первый шаг — аудит и grilling нарезки; процесс —
-навыки ADR-0033 (`git-start`, `git-land`, `change-*`, `review-impl`, `cli-contract`).
+Фаза 4 — MVP frontend по нарезке [ADR-0034](../adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 6: process-PR
+инструментов аудита → Change `core-seams` (3e) → 4a (Run, guard, адаптер `claude`) → 4b (producers, `warrant ci`) →
+slice в отдельном репозитории. Grilling нарезки закрыт 2026-09-25 (N1–N17), ADR-0034 и ADR-0035 приняты.
 
 ## Готовый запрос
 
 ```text
-Гигиена и аудит сделаны 2026-09-25: docs/process/audits/2026-09-25.md (снимок .json рядом). Открытые A-N из
-backlog.md — вход grilling'а: P1 — A-14 (предикат waiver в 2 копиях), A-15 (warrant.json без типа; paths.tests,
-диапазон pack), A-16 (git-префикс и glob в копиях — guard добавит ещё); P2 — A-5, A-9 (реестр проверок до
-validate --files), A-17 (фабрика CliError), A-18 (помощники тестов); P3 — A-8, A-12. План исправления и
-улучшения аудита — §5 отчёта: вход вопроса (7). Grilling по нарезке фазы 4 (MVP frontend). Прочитай: строки docs/backlog.md с «Куда: фаза 4»,
-docs/13-roadmap.md (§2 строка 4, §3 S8), ADR-0017…0020, ADR-0022, ADR-0025 (новые команды — сразу с тестами app
-через Ctx; новый внешний вызов — метод порта + адаптер + фейк + сценарий контракта), ADR-0029 и ADR-0031 (поиск по
-коду субагентов — cs impact / cs deps; нарушение по входу вызова — deny). Факты о хуках Claude Code, проверенные
-зондом (субагенты, additionalContext, SubagentStart, PreToolUse deny), — docs/process/graft-audit.md §4: вход к
-решению об адаптере claude (ADR-0023 п. 4, ADR-0014, backlog BL-20). Вопросы раунда 1:
-(0) первый frontend MVP — адаптер claude вместо codex (рекомендация: да — hooks проверены зондом, S5 закрыт,
-codex не установлен): новый ADR меняет ADR-0018 п. 7 и критерий выхода ADR-0013 («slice проходит frontend под
-hooks»), реализует ADR-0023 п. 4; правки 13 §2 строки 4 и 7, §3 S8; BL-8 / BL-15 — за S8, BL-20 — в фазу 4.
-Переход на codex / opencode держать открытым: логика только в guard (нормализованное событие ADR-0018 п. 2),
-адаптер — перевод родного JSON, у каждого адаптера — сценарий контракта на записанном родном входе;
-FRONTEND_HOOKS_INACTIVE, guard_events[] и sync — без имени frontend вне генератора адаптера;
-(1) spike S8 (hooks Codex под codex-acp и codex exec) — при (0) = claude откладывается до адаптера codex;
-иначе — отдельной сессией до spec фазы 4 (codex на машине maintainer'а не установлен);
-(2) нарезка: 4a без привязки к frontend (run/1, skill-result/1, run start/submit, guard pre/post, guard_prefixes,
-validate --files, analyze, warrant ci) и 4b — первый адаптер (claude: .claude/settings.json, AGENTS.md,
-FRONTEND_HOOKS_INACTIVE, slice; или codex после S8: .codex/hooks.json, codex --version) — или один Change;
-(3) warrant ci ходит в GitHub API — ForgePort и как держать его контракт (настоящий GitHub в CI с токеном или
-записанные ответы, которые ADR-0025 отверг для OpenSpec);
-(4) где живёт sample-проект slice (Python + pytest, ADR-0013);
-(5) producers analyze-clean / adversarial-review — до 2026-12-31 (срок waivers WAV-2026-001…008); при (0) =
-claude — независимость review (Q7: spec пишет Claude, проверяет Codex): unattested review тем же семейством в MVP,
-review через opencode с моделью другого семейства или codex exec только для review (без hooks, без S8); headless
-claude -p с JSON по схеме — проверить зондом;
-(6) контракт CLI новых команд — линза cli-contract (ADR-0033 п. 8): --dry-run у transition / archive / waive, поле
-подсказки у WarrantError (с фабрикой A-17 — одна правка);
-(7) находки аудита (§5 отчёта): отдельный Change core-seams строкой 3e (рекомендация; A-15, A-16, A-14, A-17, A-8,
-A-18 — все S) или первая группа 4a; улучшения храповика и инструментов (реестр внешних пакетов, helpers тестов,
---in в arch-snapshot, audit-stale в hygiene) — в тот же Change или process-PR.
-После раунда — сводка решений, затем ADR / нарезка в 13 §2 и этот файл на отдельной ветке.
+Шаг 1 — process-PR (ветка process/audit-tools, навыки git-start / git-land), ADR-0034 п. 6, §5 п. 3–4 отчёта
+docs/process/audits/2026-09-25.md: (a) scripts/dev/arch-snapshot.js зовёт `cs callers` с `--in <dir>` — срезы
+перестают терять `evaluate`; случай — в регрессию Graft (scripts/dev/graph-audit.js); (b) scripts/dev/hygiene.js —
+находка `audit-stale`: снимок аудита устарел при > N изменённых файлов packages/cli/src после коммита снимка или новом
+модуле (N — предложить maintainer'у). Тесты скриптов — по образцу соседних.
+Шаг 2 — Change core-seams (строка 3e 13 §2; навык change-spec-pr, образец — архив arch-boundaries): skip_specs,
+CLI 0.4.2 → 0.4.3 первой задачей, пара waivers analyze-clean / adversarial-review (образец WAV-2026-007 / 008, срок
+2026-12-31) в теле spec-PR. Группы: A-15 (WarrantConfig), A-16 (toProjectPaths, pathMatcher, core/glob.ts), A-14
+(countingWaiverIds), A-17 + A-8 (cliError, findChangeDir), A-18 (test/helpers/git.ts), ADR-0035 (секции packages и
+test_helpers в architecture.json), BL-26 (теги SCN). Отступления A-14 / A-15 — строками I-N. Прочитай: ADR-0034,
+ADR-0035, ADR-0030, строки A-N в docs/backlog.md, §5 отчёта аудита.
 ```
 
 ## Открытые вопросы
 
-- Вопросы (0)–(7) раунда 1 — в готовом запросе.
+- Порог N для `audit-stale` в `hygiene.js` (шаг 1).
 
 ## Не забыть
 
+- Sample-проект slice — отдельный репозиторий (`Homasters-max/warrant-slice`, Python + pytest), создаёт maintainer
+  до slice (ADR-0034 п. 7).
+- 4b: сдача результата `warrant-reviewer` — строкой `I-N` после зонда; `SubagentStop` последний ответ не даёт,
+  кандидат — хук `PreToolUse` во frontmatter субагента, из Bash только `warrant run submit` (ADR-0034 п. 10).
+- 4a: dev-скрипт `scripts/dev/probe-hooks.js` перезаписывает фикстуры родного входа Claude Code (ADR-0034 п. 2).
 - Субагенты работают под `PreToolUse deny` (ADR-0031): отказ хука, мешавший законной работе, — в `notes` карточки
   группы и maintainer'у.
-- Пока нет producer'ов `analyze-clean` / `adversarial-review` (backlog BL-2), каждый Change получает пару waivers в
-  spec-PR — образец `WAV-2026-007` / `008` (`arch-boundaries`), срок 2026-12-31.
+- Пока нет producer'ов (BL-2, до 4b), каждый Change получает пару waivers в spec-PR, срок 2026-12-31.

@@ -7,6 +7,7 @@
  * `VERIFYING->MERGED` that local evidence cannot close (`gates_awaiting_attestation`),
  * and everything else (`unevaluated_gates`).
  */
+import { HUMAN_APPROVAL } from "../evidence/approval.js";
 import { openBlockingUnknowns } from "../gates/l0/blocking-unknowns-resolved.js";
 import { missingArtifacts } from "../gates/l0/required-artifacts-present.js";
 import { requirementsOf, worstVerdict } from "../gates/verdict.js";
@@ -26,8 +27,6 @@ export interface ControllerInputs {
   unevaluated_gates: number;
   missing_required_artifacts: number;
 }
-
-export const HUMAN_APPROVAL_KIND = "human-approval";
 
 export interface InputsSource {
   transition: string;
@@ -75,7 +74,7 @@ export function controllerInputs(source: InputsSource): ControllerInputs {
     if (source.gates[id] !== "BLOCKED") continue;
     const definition = source.definitions.get(id);
     const requirements = requirementsOf(definition);
-    if (requirements.some((r) => r.kind === HUMAN_APPROVAL_KIND)) {
+    if (requirements.some((r) => r.kind === HUMAN_APPROVAL)) {
       pending += 1;
     } else if (
       attestationFindings.has(id) ||

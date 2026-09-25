@@ -30,9 +30,9 @@ design.md, A-N и BL-N — [docs/backlog.md](../../../docs/backlog.md).
 
 ## 3. Пути проекта и glob (A-16)
 
-- [ ] 3.1 `core/glob.ts` `pathMatcher` (§3); `classify/index.ts`, `gates/l0/scope-valid.ts`, `gates/verdict.ts` — через
+- [x] 3.1 `core/glob.ts` `pathMatcher` (§3); `classify/index.ts`, `gates/l0/scope-valid.ts`, `gates/verdict.ts` — через
   него; модуль `core/glob`, помощник `pathMatcher` в реестре. Проверка: исключения `package` A-16 сняты.
-- [ ] 3.2 `core/git/paths.ts`: `toProjectPaths`, `changedFromGit` из `commands/classify.ts`; `relativeToProject` — через
+- [x] 3.2 `core/git/paths.ts`: `toProjectPaths`, `changedFromGit` из `commands/classify.ts`; `relativeToProject` — через
   `toProjectPaths`; помощник `toProjectPaths` в реестре. Проверка: `cs grep 'prefix.length + 1' --fixed` — одно место;
   `contract/gates/diff-prefix` зелёный на ubuntu и windows (I-100).
 

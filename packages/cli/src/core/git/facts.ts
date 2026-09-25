@@ -15,6 +15,7 @@ import type { Ctx } from "../ctx.js";
 import { WarrantError } from "../errors.js";
 import { NO_GIT_COMMIT, NO_GIT_LIMITATION } from "../evidence/record.js";
 import type { BlobTree, DiffEntry, DiffStatus } from "../ports/git.js";
+import { toProjectPaths } from "./paths.js";
 
 export type { BlobTree, DiffEntry, DiffStatus };
 
@@ -70,7 +71,7 @@ export async function readGitFacts(ctx: GitCtx, baseRef: string | undefined): Pr
  */
 export function relativeToProject(entries: DiffEntry[], prefix: string): DiffEntry[] {
   if (prefix === "") return entries;
-  const inside = (p: string): string | undefined => (p.startsWith(`${prefix}/`) ? p.slice(prefix.length + 1) : undefined);
+  const inside = (p: string): string | undefined => toProjectPaths(prefix, [p])[0];
   const out: DiffEntry[] = [];
   for (const entry of entries) {
     const to = inside(entry.path);

@@ -27,8 +27,7 @@
  * Step 4 applies to `BLOCKED` as well as to `FAIL`: a waiver is how a gate
  * without a producer passes (SCN-VER-015, P-16).
  */
-import picomatch from "picomatch";
-
+import { pathMatcher } from "../glob.js";
 import { isPlainObject, strings } from "../json.js";
 import { CALCULATORS, type L0Result } from "./l0/index.js";
 import { prefilter } from "./prefilter.js";
@@ -281,10 +280,8 @@ function baseOutcome(
         evidence: []
       };
     }
-    const matchers = patterns.map((p) => globToMatcher(p));
-    const hit = signals.diff.value.some((entry) =>
-      [entry.path, entry.from].some((p) => p !== undefined && matchers.some((m) => m(p)))
-    );
+    const matches = pathMatcher(patterns);
+    const hit = signals.diff.value.some((entry) => [entry.path, entry.from].some((p) => p !== undefined && matches(p)));
     if (!hit) return { verdict: "NOT_APPLICABLE", findings: [], evidence: [] };
   }
 
@@ -382,8 +379,4 @@ function applyWaivers(id: string, definition: Record<string, unknown>, base: Gat
     return { verdict: "WAIVED", findings, evidence: base.evidence };
   }
   return { verdict: base.verdict, findings, evidence: base.evidence };
-}
-
-function globToMatcher(pattern: string): (p: string) => boolean {
-  return picomatch(pattern, { dot: true });
 }

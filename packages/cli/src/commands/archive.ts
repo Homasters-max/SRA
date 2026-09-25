@@ -28,6 +28,7 @@ import { checksForTransition } from "../core/check/execute.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type ExitCode } from "../core/errors.js";
 import { archivePlan, findChangeDir } from "../core/openspec/changes.js";
+import { packObjects } from "../core/packs/objects.js";
 import type { LoadResult, PackObject } from "../core/packs/types.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { appendTransition, assertNotFrozen, recordPath, stateOfRecord } from "../core/record/write.js";
@@ -46,7 +47,7 @@ export const OPENSPEC_VALIDATE_CHECK = "openspec-validate";
 /** Checks of the transition, and always the strict OpenSpec validation (REQ-VER-008). */
 function archiveChecks(loaded: LoadResult, policy: EffectivePolicy, transition: string): PackObject[] {
   const selected: PackObject[] = checksForTransition(loaded, policy, transition);
-  const validateCheck = loaded.objects.find((o) => o.kind === "check" && o.id === OPENSPEC_VALIDATE_CHECK);
+  const validateCheck = packObjects(loaded, "check").find((o) => o.id === OPENSPEC_VALIDATE_CHECK);
   if (validateCheck !== undefined && !selected.some((o) => o.id === OPENSPEC_VALIDATE_CHECK)) selected.push(validateCheck);
   selected.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return selected;

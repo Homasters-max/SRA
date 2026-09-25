@@ -12,14 +12,15 @@ import { controllerInputs } from "../controller/inputs.js";
 import type { WarrantConfig } from "../config.js";
 import { controllerRules, evaluateController, type ControllerDecision } from "../controller/evaluate.js";
 import type { Ctx } from "../ctx.js";
-import { evidenceDir, MANIFEST_FILE, projectUri, readManifest, readRecords, type PendingRecord } from "../evidence/store.js";
+import { evidenceDir, MANIFEST_FILE, readManifest, readRecords, type PendingRecord } from "../evidence/store.js";
+import { projectUri } from "../fs.js";
 import type { Availability, DiffEntry } from "../git/facts.js";
-import { FACTORY_PROFILE } from "../gates/l0/scope-valid.js";
 import { SPEC_APPROVED } from "../gates/l0/spec-approved.js";
 import type { CheckFailure, Finding, GateEngineResult, GateSignals, Verdict } from "../gates/types.js";
 import { evaluateGates } from "../gates/verdict.js";
 import { isPlainObject, strings } from "../json.js";
 import { hooksInactive } from "../liveness/index.js";
+import { gateDefinitions, policyPaths } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { ChangeRecord } from "../record/read.js";
@@ -27,22 +28,6 @@ import type { EffectivePolicy } from "../resolve/index.js";
 import { roleMembers } from "../roles.js";
 import { readChangeRuns } from "../run/store.js";
 import { contractTrees, type ProjectFacts } from "./facts.js";
-
-/** Gate documents by id, override in force. */
-export function gateDefinitions(loaded: LoadResult): Map<string, Record<string, unknown>> {
-  const out = new Map<string, Record<string, unknown>>();
-  for (const object of loaded.objects) {
-    if (object.kind === "gate" && isPlainObject(object.json)) out.set(object.id, object.json);
-  }
-  return out;
-}
-
-/** `match.paths` of profile `factory-change`: the policy paths of D-15. */
-export function policyPaths(loaded: LoadResult): string[] {
-  const profile = loaded.objects.find((o) => o.kind === "profile" && o.id === FACTORY_PROFILE);
-  const match = isPlainObject(profile?.json) ? profile.json["match"] : undefined;
-  return isPlainObject(match) ? strings(match["paths"]) : [];
-}
 
 export interface Evaluation {
   transition: string;

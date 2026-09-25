@@ -14,12 +14,13 @@ import { attestationFromEnv } from "../evidence/attestation.js";
 import type { ManifestVersions } from "../evidence/manifest.js";
 import { findParser, parserNames } from "../evidence/parsers/index.js";
 import { buildCheckRecord, collectArtifacts, type EvidenceStatus } from "../evidence/record.js";
-import { projectUri, rawDir } from "../evidence/store.js";
+import { rawDir } from "../evidence/store.js";
 import { manifestVersions, storeRecord } from "../evidence/write.js";
-import { projectPath } from "../fs.js";
+import { projectPath, projectUri } from "../fs.js";
 import type { GitFacts } from "../git/facts.js";
 import { allocateUlid } from "../ids/allocate.js";
 import { isPlainObject, strings } from "../json.js";
+import { gateDefinitions, packObjects } from "../packs/objects.js";
 import type { LoadResult, PackObject } from "../packs/types.js";
 import type { EffectivePolicy } from "../resolve/index.js";
 import type { PendingRecord } from "../evidence/store.js";
@@ -48,18 +49,17 @@ export function effectiveCheck(object: PackObject): Record<string, unknown> {
  * kind of the transition's gates in the effective policy, sorted by id.
  */
 export function checksForTransition(loaded: LoadResult, policy: EffectivePolicy, transition: string): PackObject[] {
-  const gates = new Map(loaded.objects.filter((o) => o.kind === "gate").map((o) => [o.id, o]));
+  const gates = gateDefinitions(loaded);
   const kinds = new Set<string>();
   for (const gateId of policy.gates[transition] ?? []) {
-    const gate = gates.get(gateId);
-    const required = isPlainObject(gate?.json) ? gate.json["requires_evidence"] : undefined;
+    const required = gates.get(gateId)?.["requires_evidence"];
     if (!Array.isArray(required)) continue;
     for (const entry of required) {
       if (isPlainObject(entry) && typeof entry["kind"] === "string") kinds.add(entry["kind"]);
     }
   }
-  return loaded.objects
-    .filter((o) => o.kind === "check" && strings(effectiveCheck(o)["produces"]).some((kind) => kinds.has(kind)))
+  return packObjects(loaded, "check")
+    .filter((o) => strings(effectiveCheck(o)["produces"]).some((kind) => kinds.has(kind)))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 

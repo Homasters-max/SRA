@@ -15,14 +15,13 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import semver from "semver";
-
 import { CONFIG_REL, loadConfig } from "../config.js";
 import { cliError, type CliError } from "../errors.js";
 import { readJson, reportPath, walkFiles } from "../fs.js";
 import { isPlainObject, strings } from "../json.js";
 import { validateFile } from "../schemas/semantic.js";
 import { parseSchemaUri } from "../schemas/registry.js";
+import { versionSatisfies } from "../version-range.js";
 import { KERNEL_VERSION } from "../../version.js";
 import { weakenings } from "./overrides.js";
 import {
@@ -63,19 +62,9 @@ function validateInto(json: unknown, reported: string, errors: CliError[]): bool
   return false;
 }
 
-/** `major.minor` kernel line compared as a full semver version (`0.1` -> `0.1.0`). */
-function kernelAsVersion(): string {
-  return semver.valid(KERNEL_VERSION) ?? `${KERNEL_VERSION}.0`;
-}
-
+/** Pack versions and the `major.minor` kernel line (`0.1` -> `0.1.0`) are coerced to full semver. */
 function satisfies(version: string, range: string): boolean {
-  const coerced = semver.valid(version) ?? semver.coerce(version)?.version;
-  if (coerced === null || coerced === undefined) return false;
-  try {
-    return semver.satisfies(coerced, range, { includePrerelease: true });
-  } catch {
-    return false;
-  }
+  return versionSatisfies(version, range, { coerce: true });
 }
 
 /** Locates one pack: bundled first, then `.warrant/local/<id>/`. */
@@ -514,7 +503,7 @@ export function loadPacks(projectRoot: string): LoadResult {
       );
     }
     const kernelRange = typeof obj["kernel"] === "string" ? obj["kernel"] : "*";
-    if (!satisfies(kernelAsVersion(), kernelRange)) {
+    if (!satisfies(KERNEL_VERSION, kernelRange)) {
       errors.push(
         cliError(
           "CONFIG_INVALID",

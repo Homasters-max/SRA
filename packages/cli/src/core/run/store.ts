@@ -16,7 +16,7 @@ import path from "node:path";
 
 import { writeJsonFile } from "../canon/format-json.js";
 import { cliError, EXIT, WarrantError, type CliError } from "../errors.js";
-import { projectUri, stateDir } from "../evidence/store.js";
+import { projectUri, stateDir } from "../fs.js";
 import { waitForLock, lockHolder } from "../lock.js";
 import type { SignalsPort } from "../ports/signals.js";
 import type { Json } from "../schemas/loader.js";

@@ -7,19 +7,19 @@ golden вне задач 1.1, 2.x и 6.x — остановка и строка 
 
 ## 1. Bump и швы (A-19, A-23, A-24, A-25, A-27)
 
-- [ ] 1.1 Bump CLI `0.6.0`, pack `core-sdd` `0.3.2` с `kernel: ">=0.1 <0.7"` (7 fixture-packs, `.warrant/warrant.json`,
+- [x] 1.1 Bump CLI `0.6.0`, pack `core-sdd` `0.3.2` с `kernel: ">=0.1 <0.7"` (7 fixture-packs, `.warrant/warrant.json`,
   `warrant.lock.json` репозитория и golden-фикстур — как I-156; REQ-SDD-001 в части диапазона). Проверка: `npm run versions:check`
   зелёный; `core-sdd-catalog.test.ts` — под новый диапазон.
-- [ ] 1.2 A-24: `core/packs/objects.ts` — `packObjects`, `gateDefinitions`, `policyPaths` (§2), строки `helpers`; 5 мест — через
+- [x] 1.2 A-24: `core/packs/objects.ts` — `packObjects`, `gateDefinitions`, `policyPaths` (§2), строки `helpers`; 5 мест — через
   них. Проверка: `grep "objects\.\(find\|filter\)(" packages/cli/src` — только владелец и `core/resolve/layers.ts`; нет ребра
   `core/guard → core/transition` в `cs deps`; golden, `app`, `e2e` без правок ожидаемых значений.
-- [ ] 1.3 A-23: `evidenceSubject`, `buildEvidenceRecord` в `core/evidence/record.ts`, сборка `human-approval` —
+- [x] 1.3 A-23: `evidenceSubject`, `buildEvidenceRecord` в `core/evidence/record.ts`, сборка `human-approval` —
   `core/evidence/approval.ts` (§2), строки `helpers`. Проверка: `git grep spec_revision -- packages/cli/src` — один владелец;
   тесты `transition` и `check` без правок ожидаемых значений.
-- [ ] 1.4 A-25, A-27: `core/run/lifecycle.ts` (`startRun`, `finishRun`, `appendGuardEvent`), `stateDir` и `projectUri` — в
+- [x] 1.4 A-25, A-27: `core/run/lifecycle.ts` (`startRun`, `finishRun`, `appendGuardEvent`), `stateDir` и `projectUri` — в
   `core/fs.ts` (§2). Проверка: `ctx.writes.write(` над Run — только в `core/run`; нет ребра `core/run → core/evidence`; тесты
   `run` и `guard` (SCN-ENF-004…016) без правок ожидаемых значений.
-- [ ] 1.5 A-19: `versionSatisfies` в `core/version-range.ts`, `semver` — в реестр `packages` (§2); 4 копии — через него.
+- [x] 1.5 A-19: `versionSatisfies` в `core/version-range.ts`, `semver` — в реестр `packages` (§2); 4 копии — через него.
   Проверка: `architecture.test.ts` роняет импорт `semver` вне владельца; тесты `openspec version`, lock, `sync` без правок.
 
 ## 2. Схемы и реестры (REQ-ENF-001, REQ-ENF-006, REQ-SDD-001)

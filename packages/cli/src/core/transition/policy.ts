@@ -7,11 +7,11 @@
 import { conflictInputs } from "../controller/inputs.js";
 import { controllerRules, evaluateController, type ControllerDecision } from "../controller/evaluate.js";
 import { WarrantError, type CliError } from "../errors.js";
+import { gateDefinitions } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import { FORWARD_TRANSITIONS, nextForwardTransition } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
 import { resolveForProject, type Classification, type EffectivePolicy } from "../resolve/index.js";
-import { gateDefinitions } from "./gates.js";
 
 /** `--transition`, else the next forward transition; USAGE when there is none. */
 export function transitionOf(record: ChangeRecord, requested: string | undefined): string {

@@ -11,13 +11,14 @@ import { writeJsonFile } from "../canon/format-json.js";
 import { canonicalHash } from "../canon/hash.js";
 import type { Ctx } from "../ctx.js";
 import { WarrantError } from "../errors.js";
+import { projectUri } from "../fs.js";
 import { isPlainObject } from "../json.js";
 import { LOCK_REL } from "../packs/hash.js";
 import { validateFile } from "../schemas/semantic.js";
 import type { Writes } from "../writes.js";
 import { CLI_VERSION } from "../../version.js";
 import { buildManifest, type ManifestVersions } from "./manifest.js";
-import { evidenceDir, listRecordIds, MANIFEST_FILE, projectUri, readManifest } from "./store.js";
+import { evidenceDir, listRecordIds, MANIFEST_FILE, readManifest } from "./store.js";
 
 export interface StoreParams {
   root: string;

@@ -35,9 +35,9 @@
 import { rmSync } from "node:fs";
 import path from "node:path";
 
-import { canonicalHash } from "../core/canon/hash.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError } from "../core/errors.js";
+import { buildApprovalRecord, HUMAN_APPROVAL, isApprovalBy } from "../core/evidence/approval.js";
 import { evidenceDir, readRecords } from "../core/evidence/store.js";
 import { manifestVersions, storeRecord } from "../core/evidence/write.js";
 import {
@@ -53,6 +53,7 @@ import { freshest } from "../core/gates/verdict.js";
 import { allocateUlid } from "../core/ids/allocate.js";
 import { findChangeDir } from "../core/openspec/changes.js";
 import { isPlainObject } from "../core/json.js";
+import { gateDefinitions } from "../core/packs/objects.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
 import { isChangeState, REF_REQUIRED_STATES, transitionKind } from "../core/record/lifecycle.js";
@@ -60,7 +61,7 @@ import { appendTransition, assertNotFrozen, recordPath, stateOfRecord, type Tran
 import type { EffectivePolicy } from "../core/resolve/index.js";
 import { approvalRoles, checkRef, roleMembers } from "../core/roles.js";
 import { judgeGates, prepare } from "../core/transition/evaluate.js";
-import { decisionFields, evaluationFindings, gateDefinitions, type Evaluation } from "../core/transition/gates.js";
+import { decisionFields, evaluationFindings, type Evaluation } from "../core/transition/gates.js";
 import { evidenceOf, forwardEntry, gatesNotPassed, gatesNotPassedRefusal, RECORDED_BY } from "../core/transition/outcome.js";
 import { readWaivers } from "../core/waivers/read.js";
 import { countingWaiverIds } from "../core/waivers/status.js";
@@ -76,15 +77,6 @@ export interface TransitionOptions {
   /** `--commit <sha>`: the commit of the evidence of `MERGED`. */
   commit?: string | undefined;
 }
-
-export const HUMAN_APPROVAL = "human-approval";
-
-/**
- * Limitation of every `human-approval` record: `--ref` is only checked to be
- * an http(s) URL and `--by` is a claim; `warrant ci` of phase 4 verifies them
- * through the forge (ADR-0010 point 2, R-10).
- */
-export const REF_NOT_VERIFIED = "ref not verified (phase 4: warrant ci)";
 
 /** `data` of a failed forward transition and of a passed one, before the record entry. */
 function gateFields(evaluation: Evaluation): Record<string, unknown> {
@@ -164,54 +156,26 @@ async function ensureApproval(params: ApprovalParams): Promise<{ evidence: strin
     activeWaivers: countingWaiverIds(readWaivers(root), definitions, { today: ctx.clock.today(), approvers })
   };
   for (const record of readRecords(evidenceDir(root, change, env))) {
-    const json = record.json;
-    const producedBy = isPlainObject(json["produced_by"]) ? json["produced_by"] : {};
-    const attestation = isPlainObject(json["attestation"]) ? json["attestation"] : {};
-    if (
-      json["kind"] === HUMAN_APPROVAL &&
-      json["evidence_status"] === "PROVEN" &&
-      producedBy["type"] === "human" &&
-      producedBy["id"] === login &&
-      attestation["type"] === "human-review" &&
-      attestation["ref"] === ref &&
-      staleReason(json, admit) === null
-    ) {
+    if (isApprovalBy(record.json, login, ref) && staleReason(record.json, admit) === null) {
       return { evidence: record.id, reused: true };
     }
   }
 
   const gate = definitions.get(HUMAN_APPROVAL);
-  const level = typeof gate?.["level"] === "string" ? gate["level"] : "L0";
-  const subject: Record<string, unknown> = {
-    commit: git.commit,
-    spec_revision: `openspec/changes/${change}@${git.commit}`,
-    dataset_snapshot: null
-  };
-  if (git.baseCommit !== undefined) subject["base_commit"] = git.baseCommit;
   const id = allocateUlid("EVID");
-  const record: Record<string, unknown> = {
-    $schema: "warrant://evidence/1",
+  const record = buildApprovalRecord({
     id,
-    claim: { text: `${login} approved ${change} for ${params.transition}`, targets: [] },
-    kind: HUMAN_APPROVAL,
-    level,
-    evidence_status: "PROVEN",
-    subject,
-    produced_by: { type: "human", id: login },
-    attestation: { type: "human-review", ref },
-    context_hash: canonicalHash({
-      change,
-      commit: git.commit,
-      transition: params.transition,
-      by: login,
-      ref,
-      effective_policy_hash: params.policy.hash
-    }),
-    effective_policy_hash: params.policy.hash,
-    created_at: new Date().toISOString(),
-    artifacts: [],
-    limitations: [...git.limitations, REF_NOT_VERIFIED]
-  };
+    change,
+    transition: params.transition,
+    login,
+    ref,
+    commit: git.commit,
+    baseCommit: git.baseCommit,
+    level: typeof gate?.["level"] === "string" ? gate["level"] : "L0",
+    limitations: git.limitations,
+    effectivePolicyHash: params.policy.hash,
+    createdAt: new Date().toISOString()
+  });
   storeRecord({
     root,
     writes: ctx.writes,

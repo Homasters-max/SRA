@@ -13,11 +13,11 @@
 import { effectiveCheck } from "../check/execute.js";
 import { pathMatcher } from "../glob.js";
 import { isPlainObject, strings } from "../json.js";
+import { policyPaths } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import { codeScope, scopeMatcher } from "../run/scope.js";
 import type { GuardResult } from "../ports/frontend.js";
 import type { Run } from "../run/types.js";
-import { policyPaths } from "../transition/gates.js";
 import { defaultPrefix, simpleCommands, startsWithPrefix } from "./shell.js";
 
 /** What guard answers, and the `argv` its event keeps (only a `deny` by a prefix, F16). */

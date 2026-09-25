@@ -41,6 +41,7 @@ import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { changedFromGit } from "../core/git/paths.js";
 import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
+import { packObjects } from "../core/packs/objects.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { BELOW_FLOOR_APPROVABLE_STATES } from "../core/record/lifecycle.js";
 import { readChangeRecord } from "../core/record/read.js";
@@ -117,7 +118,7 @@ function humanValues(loaded: LoadResult, sets: ReturnType<typeof parseSets>, log
       path: ".warrant/warrant.json"
     });
   }
-  const declared = new Set(loaded.objects.filter((o) => o.kind === "profile").map((o) => o.id));
+  const declared = new Set(packObjects(loaded, "profile").map((o) => o.id));
   for (const id of sets.profiles) {
     if (!declared.has(id)) throw new WarrantError("USAGE", `--set profile=${id}: no profile "${id}" in the enabled packs or .warrant/local/`);
   }

@@ -7,11 +7,10 @@
  * worse than a refusal. The version itself comes from the port, which asks
  * the binary once per CLI call.
  */
-import semver from "semver";
-
 import type { WarrantConfig } from "../config.js";
 import { WarrantError } from "../errors.js";
 import type { OpenSpecPort } from "../ports/openspec.js";
+import { versionSatisfies } from "../version-range.js";
 
 /** True when `openspec --version` answers with a version. */
 export async function openspecAvailable(openspec: OpenSpecPort): Promise<boolean> {
@@ -32,7 +31,7 @@ export async function requireOpenspec(openspec: OpenSpecPort, config: WarrantCon
     );
   }
   const range = config.openspec;
-  if (range !== "*" && !semver.satisfies(version, range, { includePrerelease: true })) {
+  if (range !== "*" && !versionSatisfies(version, range)) {
     throw new WarrantError(
       "OPENSPEC_VERSION",
       `openspec ${version} on PATH does not satisfy the configured range "${range}"`,

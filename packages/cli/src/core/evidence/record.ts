@@ -1,5 +1,6 @@
 /**
- * Building one evidence record of a check (REQ-VER-001, design §6, 06a §2).
+ * Building one evidence record (REQ-VER-001, design §6, 06a §2): `subject` and
+ * the record of any producer (A-23), and the record of a check over them.
  *
  * Everything the record says is computed by the CLI: the id is a ULID, the
  * hashes are SHA-256, the commit comes from git (06a section 3). The record
@@ -8,9 +9,8 @@
 import { readFileSync } from "node:fs";
 
 import { bytesHash, canonicalHash } from "../canon/hash.js";
-import { walkFiles } from "../fs.js";
+import { projectUri, walkFiles } from "../fs.js";
 import type { Attestation } from "./attestation.js";
-import { projectUri } from "./store.js";
 
 export type EvidenceStatus = "PROVEN" | "NOT_PROVEN" | "INCONCLUSIVE" | "NOT_APPLICABLE";
 
@@ -56,36 +56,59 @@ export interface CheckRecordInput {
   createdAt: string;
 }
 
-/**
- * The record as it is stored. `claim.targets` stays empty: linking evidence to
- * REQ/SCN is `analyze`'s job (phase 4); `produced_by.run` is absent because
- * there is no Run yet (REQ-VER-001).
- */
-export function buildCheckRecord(input: CheckRecordInput): Record<string, unknown> {
+/** What `subject` of a record names (06a §2): the commit judged, its base, the spec tree. */
+export interface SubjectInput {
+  change: string;
+  /** HEAD, or {@link NO_GIT_COMMIT}. */
+  commit: string;
+  baseCommit?: string | undefined;
+  specTree?: string | undefined;
+}
+
+/** `subject` of every evidence record: one owner of `spec_revision` (A-23). */
+export function evidenceSubject(input: SubjectInput): Record<string, unknown> {
   const subject: Record<string, unknown> = {
     commit: input.commit,
     spec_revision: `openspec/changes/${input.change}@${input.commit}`,
     dataset_snapshot: null
   };
   if (input.baseCommit !== undefined) subject["base_commit"] = input.baseCommit;
+  if (input.specTree !== undefined) subject["spec_tree"] = input.specTree;
+  return subject;
+}
 
+/** One evidence record, whoever produced it (A-23): the producer supplies its own fields. */
+export interface EvidenceRecordInput {
+  id: string;
+  kind: string;
+  level: string;
+  status: EvidenceStatus;
+  subject: Record<string, unknown>;
+  /** `claim.text`; `claim.targets` stays empty (linking to REQ/SCN is later). */
+  claim: string;
+  producedBy: Record<string, unknown>;
+  attestation: Readonly<Record<string, unknown>>;
+  contextHash: string;
+  effectivePolicyHash: string;
+  createdAt: string;
+  artifacts: Artifact[];
+  limitations: string[];
+  metrics?: Record<string, unknown> | undefined;
+}
+
+/** The record as it is stored, `warrant://evidence/1`. */
+export function buildEvidenceRecord(input: EvidenceRecordInput): Record<string, unknown> {
   const record: Record<string, unknown> = {
     $schema: "warrant://evidence/1",
     id: input.id,
-    claim: { text: `${input.check.id} passed for ${input.change}`, targets: [] },
+    claim: { text: input.claim, targets: [] },
     kind: input.kind,
-    level: input.check.level,
+    level: input.level,
     evidence_status: input.status,
-    subject,
-    produced_by: { type: "check", id: input.check.id, version: input.check.version },
+    subject: input.subject,
+    produced_by: input.producedBy,
     attestation: input.attestation,
-    context_hash: contextHash({
-      change: input.change,
-      commit: input.commit,
-      check: `${input.check.id}@${input.check.version}`,
-      effective_policy_hash: input.effectivePolicyHash,
-      argv: input.argv
-    }),
+    context_hash: input.contextHash,
     effective_policy_hash: input.effectivePolicyHash,
     created_at: input.createdAt,
     artifacts: input.artifacts,
@@ -93,6 +116,36 @@ export function buildCheckRecord(input: CheckRecordInput): Record<string, unknow
   };
   if (input.metrics !== undefined) record["metrics"] = input.metrics;
   return record;
+}
+
+/**
+ * The record of a check. `claim.targets` stays empty: linking evidence to
+ * REQ/SCN is `analyze`'s job (phase 4); `produced_by.run` is absent because
+ * there is no Run yet (REQ-VER-001).
+ */
+export function buildCheckRecord(input: CheckRecordInput): Record<string, unknown> {
+  return buildEvidenceRecord({
+    id: input.id,
+    kind: input.kind,
+    level: input.check.level,
+    status: input.status,
+    subject: evidenceSubject({ change: input.change, commit: input.commit, baseCommit: input.baseCommit }),
+    claim: `${input.check.id} passed for ${input.change}`,
+    producedBy: { type: "check", id: input.check.id, version: input.check.version },
+    attestation: input.attestation,
+    contextHash: contextHash({
+      change: input.change,
+      commit: input.commit,
+      check: `${input.check.id}@${input.check.version}`,
+      effective_policy_hash: input.effectivePolicyHash,
+      argv: input.argv
+    }),
+    effectivePolicyHash: input.effectivePolicyHash,
+    createdAt: input.createdAt,
+    artifacts: input.artifacts,
+    limitations: input.limitations,
+    metrics: input.metrics
+  });
 }
 
 /** Every file under `{out}`, sorted, referenced by uri and content hash (REQ-VER-001). */

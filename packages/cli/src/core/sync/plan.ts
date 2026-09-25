@@ -10,8 +10,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
-import semver from "semver";
-
 import { bytesHash } from "../canon/hash.js";
 import { canonicalText } from "../canon/format-json.js";
 import { cliError, SYNC_HINT, type CliError } from "../errors.js";
@@ -22,6 +20,7 @@ import { bundleRoot, packContentHash, LOCK_REL } from "../packs/hash.js";
 import type { LoadResult, LoadedPack } from "../packs/types.js";
 import { ALL_SCHEMAS, KERNEL_MAJOR, schemaFileName } from "../schemas/registry.js";
 import { SCHEMAS_DIR } from "../schemas/loader.js";
+import { versionSatisfies } from "../version-range.js";
 import { CLI_VERSION } from "../../version.js";
 import { CURRENT_FILE } from "../run/store.js";
 import { agentsMd, AGENTS_MD_REL } from "./agents.js";
@@ -275,7 +274,7 @@ function resolveSkill(pack: LoadedPack, root: string, spec: string, errors: CliE
     );
     return undefined;
   }
-  if (!semver.satisfies(version, range, { includePrerelease: true })) {
+  if (!versionSatisfies(version, range)) {
     errors.push(
       cliError(
         "CONFIG_INVALID",

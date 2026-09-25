@@ -1,11 +1,12 @@
 /**
  * Paths and file-system walking shared by every module (ADR-0030 point 1, A-3):
- * the one owner of `posix`, `projectPath`, `reportPath`, `walkFiles` and `readJson`. A local
- * copy of any of them is an error of `test/unit/meta/architecture.test.ts`
- * (`helper` rule).
+ * the one owner of `posix`, `projectPath`, `reportPath`, `walkFiles`, `readJson`,
+ * `stateDir` and `projectUri` (A-27). A local copy of any of them is an error
+ * of `test/unit/meta/architecture.test.ts` (`helper` rule).
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import type { CliError } from "./errors.js";
 
@@ -81,4 +82,24 @@ export function readJson(absolute: string, reported: string, errors: CliError[])
     errors.push({ code: "CONFIG_INVALID", message: `invalid JSON: ${(cause as Error).message}`, path: reported });
     return undefined;
   }
+}
+
+/** Environment variable that moves `<state>` out of the project (D-2). */
+export const STATE_ENV = "WARRANT_STATE_DIR";
+
+/** Absolute `<state>` directory; a relative `WARRANT_STATE_DIR` is taken from the project root. */
+export function stateDir(root: string, env: NodeJS.ProcessEnv = process.env): string {
+  const override = env[STATE_ENV];
+  if (override !== undefined && override !== "") return path.resolve(root, override);
+  return path.join(root, ".warrant");
+}
+
+/**
+ * How a file is referenced from a record or the CLI output: POSIX path
+ * relative to the project root when it lies inside it, a `file://` URI
+ * otherwise (a `WARRANT_STATE_DIR` outside the project, SCN-VER-003).
+ */
+export function projectUri(root: string, absolute: string): string {
+  const rel = projectPath(root, absolute);
+  return rel === undefined || rel === "" ? pathToFileURL(absolute).href : rel;
 }

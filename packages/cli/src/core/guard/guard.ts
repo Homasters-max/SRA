@@ -16,13 +16,13 @@ import path from "node:path";
 
 import type { Ctx } from "../ctx.js";
 import { WarrantError, type CliError } from "../errors.js";
-import { projectUri } from "../evidence/store.js";
 import { projectPath } from "../fs.js";
 import { pathMatcher } from "../glob.js";
 import { loadPacks } from "../packs/loader.js";
 import type { LoadedRule, LoadResult } from "../packs/types.js";
 import { UNREADABLE_EXIT, type FrontendAdapter, type FrontendResponse, type GuardEvent, type GuardResult } from "../ports/frontend.js";
-import { readCurrent, runFile, updateRun } from "../run/store.js";
+import { appendGuardEvent } from "../run/lifecycle.js";
+import { readCurrent } from "../run/store.js";
 import type { GuardEventRecord, Run } from "../run/types.js";
 import { runFileChecks, validateRun } from "../validate/registry.js";
 import { editWithoutRun, editWithRun, guardedChecks, RUN_START_HINT, shellAnswer, VALIDATE_HINT, type Answer } from "./decide.js";
@@ -111,33 +111,6 @@ function eventRecord(event: GuardEvent, files: string[], answer: Answer, finding
   };
 }
 
-/**
- * Appends the event `build` makes of the Run re-read under its lock to
- * `guard_events[]` (F18); returns what `build` picked from that Run.
- */
-async function appendEvent<T>(
-  ctx: Ctx,
-  run: Run,
-  env: NodeJS.ProcessEnv,
-  build: (now: Run) => { record: GuardEventRecord; picked: T }
-): Promise<T> {
-  let picked: T | undefined;
-  await ctx.writes.write(projectUri(ctx.root, runFile(ctx.root, run.id, env)), () =>
-    updateRun(
-      ctx,
-      run.id,
-      "guard",
-      (now) => {
-        const built = build(now);
-        picked = built.picked;
-        return { ...now, guard_events: [...now.guard_events, built.record] };
-      },
-      env
-    )
-  );
-  return picked as T;
-}
-
 /** The answer before the action; what fails in it is a refusal (F9). */
 function decidePre(ctx: Ctx, event: GuardEvent, files: readonly string[], run: Run | undefined): Answer {
   try {
@@ -154,7 +127,7 @@ async function pre(ctx: Ctx, event: GuardEvent, env: NodeJS.ProcessEnv): Promise
   const run = activeRun(ctx.root, env);
   const answer = decidePre(ctx, event, files, run);
   // A lock not taken is a refusal too: `deny` BUSY, the event lost (F18).
-  if (run !== undefined) await appendEvent(ctx, run, env, () => ({ record: eventRecord(event, files, answer, [], []), picked: undefined }));
+  if (run !== undefined) await appendGuardEvent(ctx, run, env, () => ({ record: eventRecord(event, files, answer, [], []), picked: undefined }));
   return result(answer);
 }
 
@@ -184,7 +157,7 @@ async function post(ctx: Ctx, event: GuardEvent, env: NodeJS.ProcessEnv): Promis
   const answer: Answer = { decision: "allow", hints: [] };
   let rules: LoadedRule[];
   try {
-    rules = await appendEvent(ctx, run, env, (now) => {
+    rules = await appendGuardEvent(ctx, run, env, (now) => {
       const fresh = rulesToShow(loaded.rules, files, now);
       return { record: eventRecord(event, files, answer, codes, fresh.map((r) => r.id)), picked: fresh };
     });

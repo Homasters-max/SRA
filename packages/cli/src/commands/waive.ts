@@ -28,6 +28,7 @@ import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { allocateWaiver } from "../core/ids/allocate.js";
 import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
+import { packObjects } from "../core/packs/objects.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { assertNotFrozen } from "../core/record/write.js";
 import { RISK_LEVELS } from "../core/resolve/types.js";
@@ -137,7 +138,7 @@ function create(ctx: Ctx, args: string[], opts: WaiveOptions): CommandResult {
 
   const loaded = loadPacks(root);
   if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
-  const gate = loaded.objects.find((o) => o.kind === "gate" && o.id === gateId);
+  const gate = packObjects(loaded, "gate").find((o) => o.id === gateId);
   if (gate === undefined) {
     throw new WarrantError("WAIVER_INVALID", `gate "${gateId}" is not declared by any enabled pack or by .warrant/local/`);
   }

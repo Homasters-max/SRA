@@ -18,9 +18,8 @@
  */
 import type { DiffEntry } from "../../git/facts.js";
 import { pathMatcher } from "../../glob.js";
+import { FACTORY_PROFILE } from "../../packs/objects.js";
 import { noInput, pass, type Calculator } from "./types.js";
-
-export const FACTORY_PROFILE = "factory-change";
 
 /** A path touched by the diff and how. */
 interface Touch {

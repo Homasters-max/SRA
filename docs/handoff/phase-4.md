@@ -9,11 +9,11 @@ slice в отдельном репозитории. Grilling нарезки за
 ## Готовый запрос
 
 ```text
-Шаг 2 — impl-PR Change core-seams (навык change-impl-pr; spec-PR — `gh pr list --state all --head spec/core-seams`;
-раздача групп — change-coordinate). 8 групп tasks.md: 1 — bump 0.4.3, храповик ADR-0035 (packages, test_helpers),
-диалект Ajv; 2 — A-15 WarrantConfig; 3 — A-16 pathMatcher, toProjectPaths; 4 — A-14 countingWaiverIds, waiver-state;
-5 — A-17 cliError + A-8 findChangeDir; 6 — A-18 test/helpers/git.ts, write; 7 — BL-26 теги SCN; 8 — выход.
-Решения по ходу — I-N с I-148. Прочитай: openspec/changes/core-seams/{proposal,design,tasks}.md, ADR-0035, ADR-0030.
+Шаг 2 — archive-PR Change core-seams (навык change-archive-pr; impl-PR — `gh pr list --state all --head
+worktree/core-seams`), тег v0.4.3. Затем шаг 3 — Change 4a (ADR-0034 п. 6): spec-PR с delta specs (Run, guard,
+validate --files, sync → .claude/settings.json и AGENTS.md, hint и --dry-run; адаптер claude последней группой);
+реестр проверок validate (A-9) первой группой; линза cli-contract. Аудит перед spec-PR 4a — по hygiene.js
+(audit-stale после core-seams вероятен).
 ```
 
 ## Открытые вопросы

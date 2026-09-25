@@ -44,10 +44,10 @@ golden вне задач 1.1, 2.x и 6.x — остановка и строка 
 
 ## 4. Собственное состояние и пред-фильтр (REQ-VER-003, REQ-VER-004, REQ-KRN-028)
 
-- [ ] 4.1 `core/run/state.ts` — `ownState`, `otherState` (§3, §7); `scope-valid` — на трёх переходах. Проверка: SCN-VER-060,
+- [x] 4.1 `core/run/state.ts` — `ownState`, `otherState` (§3, §7); `scope-valid` — на трёх переходах. Проверка: SCN-VER-060,
   SCN-VER-061; SCN-VER-019…021 без правок ожидаемых значений.
-- [ ] 4.2 `classify` без собственного состояния (REQ-KRN-028). Проверка: SCN-KRN-138; SCN-KRN-073 без правок.
-- [ ] 4.3 Пред-фильтр: `specTree` в `PrefilterContext`, `StaleReason` `spec_tree` (§5, REQ-VER-003). Проверка: SCN-VER-056,
+- [x] 4.2 `classify` без собственного состояния (REQ-KRN-028). Проверка: SCN-KRN-138; SCN-KRN-073 без правок.
+- [x] 4.3 Пред-фильтр: `specTree` в `PrefilterContext`, `StaleReason` `spec_tree` (§5, REQ-VER-003). Проверка: SCN-VER-056,
   SCN-VER-057; SCN-VER-012…018 без правок ожидаемых значений.
 
 ## 5. Review: Run, guard, run submit (REQ-ENF-002, REQ-ENF-004, REQ-ENF-007)

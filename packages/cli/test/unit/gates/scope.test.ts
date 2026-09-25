@@ -2,16 +2,23 @@
  * `scope-valid` path sets by transition (REQ-VER-004, D-15) and the parsing of
  * `git diff --name-status -z` (design §9).
  */
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { parseNameStatus } from "../../../src/adapters/git-cli.js";
 import { relativeToProject, type DiffEntry } from "../../../src/core/git/facts.js";
 import { scopeViolations } from "../../../src/core/gates/l0/scope-valid.js";
+import { otherState, ownState } from "../../../src/core/run/state.js";
+import { REPO_ROOT } from "../../helpers/cli.js";
 
 const POLICY_PATHS = [".warrant/**", "openspec/schemas/**", "openspec/config.yaml", "packs/**", "packages/cli/schemas/**", "sra/skills/**"];
 
+/** A project without Runs: the own state is the record and the evidence (Runs — `test/app/commands/gate.test.ts`). */
+const NO_RUNS = path.join(REPO_ROOT, "packages", "cli", "test", "unit", "gates", "no-project");
+const STATE = { own: ownState(NO_RUNS, "add-search", {}), other: otherState(NO_RUNS, {}) };
+
 function violations(transition: string, entries: DiffEntry[], profiles: string[] = ["feature"]): string[] | null {
-  return scopeViolations(entries, { transition, change: "add-search", profiles, policyPaths: POLICY_PATHS });
+  return scopeViolations(entries, { transition, change: "add-search", profiles, policyPaths: POLICY_PATHS, state: STATE });
 }
 
 describe("git diff --name-status -z", () => {

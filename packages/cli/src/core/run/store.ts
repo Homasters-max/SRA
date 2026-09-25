@@ -28,7 +28,10 @@ export const CURRENT_FILE = "current";
 /** How long a writer of a Run file waits for its lock (F18). */
 export const RUN_LOCK_WAIT_MS = 2_000;
 
-const RUN_ID_RE = /^RUN-[0-9A-HJKMNP-TV-Z]{26}$/;
+export const RUN_ID_RE = /^RUN-[0-9A-HJKMNP-TV-Z]{26}$/;
+
+/** Suffix of the envelope a Run leaves beside its file: `<state>/runs/<id>.result.json` (REQ-ENF-006). */
+export const RESULT_SUFFIX = ".result.json";
 
 /** Absolute `<state>/runs/`. */
 export function runsDir(root: string, env: NodeJS.ProcessEnv = process.env): string {

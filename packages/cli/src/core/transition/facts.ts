@@ -1,8 +1,9 @@
 /**
  * Facts a transition is judged on, gathered through `ctx` (design §8, §9):
  * git facts of the project, stable-id findings, waivers, the artifact
- * statuses of OpenSpec, the contract trees `spec-approved` compares and the
- * findings of `analyze` `analyze-clean` judges by.
+ * statuses of OpenSpec, the contract trees `spec-approved` compares, the spec
+ * tree the pre-filter compares `subject.spec_tree` with and the findings of
+ * `analyze` `analyze-clean` judges by.
  */
 import { analyze, type AnalyzeResult } from "../analyze/index.js";
 import { readAnalyzeInput } from "../analyze/input.js";
@@ -10,10 +11,19 @@ import type { WarrantConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
 import { NO_GIT_COMMIT } from "../evidence/record.js";
-import { changedPaths, contractTree, currentBranch, type Availability, type DiffEntry, type GitFacts } from "../git/facts.js";
+import {
+  changedPaths,
+  contractTree,
+  currentBranch,
+  specTreeHash,
+  type Availability,
+  type DiffEntry,
+  type GitFacts
+} from "../git/facts.js";
 import { approvalOf } from "../gates/l0/spec-approved.js";
 import type { ContractTrees, EvidenceInput } from "../gates/types.js";
 import { checkAreas, checkDuplicates, loadAreas, scanIds } from "../ids/scan.js";
+import { isPlainObject } from "../json.js";
 import { findChangeDir } from "../openspec/changes.js";
 import { openspecAvailable } from "../openspec/version.js";
 import type { ArtifactStatuses } from "../ports/openspec.js";
@@ -91,6 +101,25 @@ export async function contractTrees(
       evaluated: { commit: git.commit, tree: evaluated.value }
     }
   };
+}
+
+/**
+ * The spec tree of the Change on the evaluated commit (design §5, REQ-VER-003),
+ * when some record carries `subject.spec_tree`; undefined when none does —
+ * git is not asked for nothing. Never throws.
+ */
+export async function specTreeFacts(
+  ctx: Ctx,
+  change: string,
+  records: readonly EvidenceInput[],
+  git: GitFacts
+): Promise<Availability<string> | undefined> {
+  const bound = records.some((r) => isPlainObject(r.json["subject"]) && typeof r.json["subject"]["spec_tree"] === "string");
+  if (!bound) return undefined;
+  if (git.commonDir === null || git.commit === NO_GIT_COMMIT) {
+    return { ok: false, reason: "the project is not a git repository with a commit" };
+  }
+  return specTreeHash(ctx, git.commit, change);
 }
 
 /**

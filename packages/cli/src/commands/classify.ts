@@ -5,7 +5,8 @@
  * Команда — только сбор входов: изменённые пути (git diff или `--paths`),
  * floor rules и `match.paths` подключённых packs, предложение proposer'а и
  * ранее записанная classification. Решение принимает чистая функция
- * `core/classify` — та же, что проверяют unit-тесты.
+ * `core/classify` — та же, что проверяют unit-тесты. Собственное состояние
+ * Change (`ownState`, N27) в сверку с floor rules и `match.paths` не входит.
  *
  * Запись идёт через `writeJsonFile`, `transitions[]` не трогается: classify —
  * не переход (04 §9). Если изменённые пути получить нечем, ничего не пишется
@@ -46,6 +47,7 @@ import type { LoadResult } from "../core/packs/types.js";
 import { BELOW_FLOOR_APPROVABLE_STATES } from "../core/record/lifecycle.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { assertNotFrozen } from "../core/record/write.js";
+import { ownState } from "../core/run/state.js";
 import { resolveForProject, RISK_DIMENSIONS, type Classification, type RiskDimension } from "../core/resolve/index.js";
 import { approvalRoles, checkRef, FALLBACK_ROLE, roleMembers } from "../core/roles.js";
 import { failures, success, type CommandResult } from "../io/output.js";
@@ -271,6 +273,7 @@ export async function runClassify(ctx: Ctx, change: string, opts: ClassifyOption
 
   const result = classify({
     changed,
+    own: ownState(root, change),
     floors: collectFloors(loaded.objects),
     profiles: collectProfileMatches(loaded.objects),
     ...(proposal === undefined ? {} : { propose: proposal }),

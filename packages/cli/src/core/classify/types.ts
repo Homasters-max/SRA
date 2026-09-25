@@ -43,6 +43,11 @@ export interface HumanValues {
 export interface ClassifyInput {
   /** Изменённые пути, POSIX, относительно корня проекта. */
   changed: string[];
+  /**
+   * Собственное состояние Change (`ownState` из `core/run/state.ts`, N27): такие пути из `changed`
+   * не сверяются ни с floor rules, ни с `match.paths` (REQ-KRN-028). Без него — никакие.
+   */
+  own?: (path: string) => boolean;
   floors: FloorRule[];
   profiles: ProfileMatch[];
   propose?: Proposal;

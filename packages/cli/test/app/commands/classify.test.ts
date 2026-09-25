@@ -1,6 +1,7 @@
 /**
  * `warrant classify` in the test process (REQ-KRN-027, REQ-KRN-028): floors
  * from the diff of `FakeGit` or from `--paths` (SCN-KRN-073, 074, 076, 077),
+ * without the own state of the Change (SCN-KRN-138),
  * monotonic runs (SCN-KRN-075), values set by a human (SCN-KRN-105, 106, 107)
  * and values below the floor with approval (SCN-KRN-116, 117). Moved from e2e
  * (ADR-0025, task 5.4); the parse of argv (`--base`, `--paths`, `--propose`,
@@ -81,6 +82,46 @@ describe("warrant classify", () => {
     expect(stored["classification"]).toEqual(classification);
     expect(stored["transitions"]).toHaveLength(1);
     expect(run.data["effective_policy"].risk_level).toBe("HIGH");
+  });
+
+  it("leaves the own state of the Change out of floors and match.paths (SCN-KRN-138)", async () => {
+    const run = "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y";
+    const p = project("add-search");
+    p.commit("base");
+    p.branch("work");
+    p.write("src/search.py", "print('search')\n");
+    p.write(".warrant/changes/add-search.json", { ...record(p, "add-search"), unknowns: [] });
+    p.write(".warrant/evidence/add-search/EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1A3.json", { id: "EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1A3" });
+    p.write(`.warrant/runs/${run}.json`, {
+      $schema: "warrant://run/1",
+      id: run,
+      change: "add-search",
+      operation: "implement",
+      write_scope: ["src/**"],
+      scope: [],
+      branch: "work",
+      started_at: "2026-09-25T10:00:00Z",
+      finished_at: "2026-09-25T10:12:00Z",
+      run_state: "SUCCEEDED",
+      context_hash: `sha256:${"1".repeat(64)}`,
+      effective_policy_hash: `sha256:${"2".repeat(64)}`,
+      guard_events: []
+    });
+    p.commit("work");
+
+    const own = await classify(p, "add-search", { base: "main" });
+    expect(own.errors).toEqual([]);
+    expect(own.data["changed"]).toContain(`.warrant/runs/${run}.json`);
+    const froms = (c: Data): string[] => Object.values((c["risk"] ?? {}) as Record<string, { from: string }>).map((v) => v.from);
+    expect(own.data["classification"].profiles ?? []).not.toContain("factory-change");
+    expect(froms(own.data["classification"])).not.toContain("floor:core-sdd:2");
+
+    // Configuration under .warrant/** still makes the Change factory-change, as in SCN-KRN-073.
+    p.write(".warrant/local/areas.json", { $schema: "warrant://areas/1", KRN: { capability: "kernel" } });
+    p.commit("areas");
+    const areas = await classify(p, "add-search", { base: "main" });
+    expect(areas.data["classification"].profiles).toContain("factory-change");
+    expect(areas.data["classification"].risk.blast_radius).toEqual({ value: "SYSTEM", from: "floor:core-sdd:2" });
   });
 
   it("reports USAGE and touches nothing without git and without --paths (SCN-KRN-076)", async () => {

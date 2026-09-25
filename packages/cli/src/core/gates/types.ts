@@ -85,6 +85,14 @@ export interface ContractTrees {
   evaluated: { commit: string; tree: BlobTree };
 }
 
+/** Matchers over diff paths (POSIX, relative to the project root). */
+export interface StateMatchers {
+  /** Record, evidence, Run files and envelopes of the Change under evaluation. */
+  own: (path: string) => boolean;
+  /** The same of any Change. */
+  other: (path: string) => boolean;
+}
+
 /** Facts about the project the calculators and the pre-filter read (design §8). */
 export interface GateSignals {
   change: string;
@@ -108,6 +116,13 @@ export interface GateSignals {
   profiles: string[];
   /** Policy paths: `match.paths` of profile `factory-change`, when a pack declares it (D-15). */
   policyPaths: string[];
+  /** Own state of the Change and state of any Change (`core/run/state.ts`, N27): what `scope-valid` sets apart. */
+  state: StateMatchers;
+  /**
+   * Hash of the spec tree of the Change on `commit` (ADR-0036 п. 3, design §5): what a record with
+   * `subject.spec_tree` is compared with; gathered only when such a record is among those judged.
+   */
+  specTree?: Availability<string>;
   /** Effective thresholds by evidence kind; phase 3 has none (D-12). */
   thresholds?: Record<string, number>;
   /** Checks of this `verify` that failed (REQ-VER-006). */

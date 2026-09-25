@@ -59,6 +59,7 @@ function signals(extra: Partial<GateSignals> = {}): GateSignals {
     unknowns: [],
     profiles: ["feature"],
     policyPaths: ["packs/**", ".warrant/**"],
+    state: { own: () => false, other: () => false },
     ...extra
   };
 }
@@ -157,6 +158,38 @@ describe("pre-filter (D-12)", () => {
     const result = evaluate("PROPOSED->SPECIFIED", ["spec-valid"], [nogit]);
     expect(result.gates["spec-valid"]).toBe("BLOCKED");
     expect(result.findings[0]).toMatchObject({ code: "STALE", evidence: nogit.id, reason: "commit" });
+  });
+
+  it("compares a record with subject.spec_tree by the spec tree instead of commit and base (ADR-0036 п. 3, SCN-VER-056, 057)", () => {
+    const TREE = `sha256:${"3".repeat(64)}`;
+    // Made on an older commit against another base: admissible while the spec tree is the same.
+    const review = record("review", "PROVEN", { subject: { commit: PREVIOUS, base_commit: undefined, spec_tree: TREE } });
+    const same = evaluate(REVIEW_TRANSITION, ["adversarial-review"], [review], { signals: { specTree: { ok: true, value: TREE } } });
+    expect(same.gates).toEqual({ "adversarial-review": "PASS" });
+    expect(same.findings).toEqual([]);
+
+    const changed = evaluate(REVIEW_TRANSITION, ["adversarial-review"], [review], {
+      signals: { specTree: { ok: true, value: `sha256:${"4".repeat(64)}` } }
+    });
+    expect(changed.gates["adversarial-review"]).toBe("BLOCKED");
+    expect(changed.findings).toEqual([
+      expect.objectContaining({ code: "STALE", evidence: review.id, reason: "spec_tree", kind: "review" }),
+      expect.objectContaining({ code: "NO_EVIDENCE", gate: "adversarial-review", kind: "review" })
+    ]);
+
+    // The tree of the evaluated commit is unknown, or was not gathered: STALE with the reason.
+    const unknown = evaluate(REVIEW_TRANSITION, ["adversarial-review"], [review], {
+      signals: { specTree: { ok: false, reason: "the project is not a git repository with a commit" } }
+    });
+    expect(unknown.findings[0]).toMatchObject({ code: "STALE", reason: "spec_tree" });
+    expect(unknown.findings[0]?.message).toContain("not a git repository");
+    const absent = prefilter([review], { commit: HEAD, base: BASE, activeWaivers: new Set() });
+    expect(absent.excluded.map((e) => e.finding.reason)).toEqual(["spec_tree"]);
+
+    // The other checks still apply to such a record.
+    const scoped = record("review", "PROVEN", { subject: { spec_tree: TREE }, limitations: ["scoped: src/a.py"] });
+    const rest = prefilter([scoped], { commit: HEAD, base: BASE, activeWaivers: new Set(), specTree: { ok: true, value: TREE } });
+    expect(rest.excluded.map((e) => e.finding.reason)).toEqual(["scoped"]);
   });
 });
 

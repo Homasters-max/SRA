@@ -27,8 +27,9 @@ import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { ChangeRecord } from "../record/read.js";
 import type { EffectivePolicy } from "../resolve/index.js";
 import { roleMembers } from "../roles.js";
+import { otherState, ownState } from "../run/state.js";
 import { readChangeRuns } from "../run/store.js";
-import { analyzeFacts, contractTrees, type ProjectFacts } from "./facts.js";
+import { analyzeFacts, contractTrees, specTreeFacts, type ProjectFacts } from "./facts.js";
 
 export interface Evaluation {
   transition: string;
@@ -72,7 +73,8 @@ export async function evaluateTransition(params: EvaluateParams): Promise<Evalua
     ids: facts.ids,
     unknowns,
     profiles: strings(classification["profiles"]),
-    policyPaths: policyPaths(loaded)
+    policyPaths: policyPaths(loaded),
+    state: { own: ownState(params.ctx.root, params.change, params.env), other: otherState(params.ctx.root, params.env) }
   };
   if (facts.git.baseCommit !== undefined) signals.base = facts.git.baseCommit;
   if (params.checkFailures !== undefined) signals.checkFailures = params.checkFailures;
@@ -82,6 +84,8 @@ export async function evaluateTransition(params: EvaluateParams): Promise<Evalua
   const records = [...stored, ...(params.pending ?? []).filter((r) => !ids.has(r.id))].sort((a, b) =>
     a.id < b.id ? -1 : a.id > b.id ? 1 : 0
   );
+  const specTree = await specTreeFacts(params.ctx, params.change, records, facts.git);
+  if (specTree !== undefined) signals.specTree = specTree;
   const evaluated = policy.gates[params.transition] ?? [];
   const judged = (gate: string): boolean => evaluated.includes(gate) && (params.only === undefined || params.only.includes(gate));
   if (judged(SPEC_APPROVED)) {

@@ -27,6 +27,19 @@ describe("classify", () => {
     ]);
   });
 
+  it("matches the own state of the Change neither with floors nor with match.paths (SCN-KRN-138)", () => {
+    const own = (p: string): boolean => p === ".warrant/changes/add-search.json" || p.startsWith(".warrant/evidence/add-search/");
+    const profiles = [{ pack: "core-sdd", id: "factory-change", paths: [".warrant/**", "packs/**"] }];
+    const changed = ["src/search.py", ".warrant/changes/add-search.json", ".warrant\\evidence\\add-search\\manifest.json"];
+    const result = classify({ changed, floors: [FLOOR_SYSTEM], profiles, own });
+    expect(result.classification.risk).toBeUndefined();
+    expect(result.profiles).toEqual([]);
+
+    const config = classify({ changed: [...changed, ".warrant/local/areas.json"], floors: [FLOOR_SYSTEM], profiles, own });
+    expect(config.classification.risk?.blast_radius).toEqual({ value: "SYSTEM", from: "floor:core-sdd:2" });
+    expect(config.classification.profiles).toEqual(["factory-change"]);
+  });
+
   it("keeps a previously recorded value when nothing raises it (SCN-KRN-075)", () => {
     const result = classify({
       changed: ["packages/cli/src/index.ts"],

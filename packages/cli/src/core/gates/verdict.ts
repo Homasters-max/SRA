@@ -209,7 +209,8 @@ export function evaluateGates(input: GateEngineInput): GateEngineResult {
     commit: signals.commit,
     base: signals.base,
     thresholds: signals.thresholds,
-    activeWaivers: active
+    activeWaivers: active,
+    specTree: signals.specTree
   });
 
   // STALE is reported for the kinds this evaluation reads, not for every old record;

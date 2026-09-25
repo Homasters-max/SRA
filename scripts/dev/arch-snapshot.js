@@ -1,7 +1,9 @@
 /**
  * Снимок архитектуры для навыка `architecture-audit` (`.claude/skills/architecture-audit/SKILL.md`): модули с
  * Ca / Ce / нестабильностью и сцепленностью, циклы, одноимённые определения, вертикальные срезы входов с вызовами
- * через порты — из ответов `cs` (`--json`), без собственного разбора кода. Сравнение со снимком прошлого аудита — тренд.
+ * через порты — из ответов `cs` (`--json`), без собственного разбора кода. Вызовы имени, определённого ещё и в другом
+ * файле индекса (тест, скрипт), граф теряет (аудит 2026-09-25 §3.3) — срез досчитывается через `cs grep` и срез
+ * определения (`completeCallers`), досчитанные имена — в `recovered` среза. Сравнение со снимком прошлого аудита — тренд.
  *
  *   node scripts/dev/arch-snapshot.js [--dir packages/cli/src] [--level 2] [--entries runA,runB] [--ports git,openspec,checks,clock]
  *                                     [--out <файл.json>] [--against <файл.json>] [--json]
@@ -16,7 +18,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DEFAULT_PORTS, buildSlice, buildSnapshot, diffSnapshots, formatDiff, formatSnapshot, portCallsBySymbol, portPattern } from "./arch-snapshot-lib.js";
+import { DEFAULT_PORTS, bareCallPattern, bareCallsBySymbol, blindNames, buildSlice, buildSnapshot, completeCallers, diffSnapshots, formatDiff, formatSnapshot, portCallsBySymbol, portPattern } from "./arch-snapshot-lib.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..");
@@ -73,9 +75,27 @@ const runtimeCycles = cs(["deps", o.dir, "--level", String(o.level), "--cycles",
 const dups = cs(["dups", "--in", o.dir, "--min", "3"]) ?? { dups: [] };
 const portGrep = cs(["grep", portPattern(o.ports), "--in", o.dir]) ?? { groups: [] };
 const portCalls = portCallsBySymbol(portGrep, o.ports);
+// `--in`: the entry resolves to its definition in `dir`, not to a same-named test helper
+const outSlice = (name, dir) => cs(["callers", name, "--direction", "out", "-d", "all", "--in", dir]);
+const blind = blindNames(cs(["dups", "--min", "2"]) ?? { dups: [] }, o.dir);
+const blindCalls = blind.size === 0 ? new Map() : bareCallsBySymbol(cs(["grep", bareCallPattern([...blind.keys()]), "--in", o.dir]) ?? { groups: [] }, [...blind.keys()]);
+const memo = (fn) => {
+  const cache = new Map();
+  return (key) => {
+    if (!cache.has(key)) cache.set(key, fn(key));
+    return cache.get(key);
+  };
+};
+const completion = {
+  defOf: blind,
+  importsOf: memo((file) => new Set((cs(["deps", file])?.imports ?? []).map((i) => i.path))),
+  sliceOf: memo((name) => outSlice(name, blind.get(name))),
+};
 const slices = (o.entries ?? defaultEntries(o.dir)).map((entry) => {
-  const callers = cs(["callers", entry, "--direction", "out", "-d", "all"]);
-  return callers === null ? { entry, found: false } : buildSlice(callers, { dir: o.dir, level: o.level, portCalls });
+  const answer = outSlice(entry, o.dir);
+  if (answer === null) return { entry, found: false };
+  const { callers, recovered } = completeCallers(answer, blindCalls, completion);
+  return buildSlice(callers, { dir: o.dir, level: o.level, portCalls, recovered });
 });
 
 const snapshot = buildSnapshot({ commit: head, dir: o.dir, level: o.level, deps, cycles, runtimeCycles, dups, slices });

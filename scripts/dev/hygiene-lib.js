@@ -7,16 +7,20 @@
  * Every finding has an `action` (ADR-0033 п. 1, 13):
  *   auto     reversible — the skill does it without asking (merged branches, clean worktrees of merged branches,
  *            prunable worktrees, ignored leftovers);
- *   pr       tracked in git — fixed in a hygiene-PR, whose merge is the review (broken links, stale audit snapshot);
+ *   pr       tracked in git — fixed in a hygiene-PR, whose merge is the review (broken links, stale audit snapshot:
+ *            older than the last tag, `AUDIT_STALE_FILES` changed files of its dir or a new module since its commit);
  *   confirm  irreversible or the maintainer's decision — listed and asked in one answer (a worktree with changes,
  *            an expiring waiver, a draft without movement, auto-memory).
  */
+import { moduleOf } from "./arch-snapshot-lib.js";
 import { join, lines, posix } from "./brief-lib.js";
 
 /** A waiver expiring within this many days is a finding. */
 export const WAIVER_WARN_DAYS = 30;
 /** A draft folder older than this many days (by its date) is a finding. */
 export const DRAFT_STALE_DAYS = 14;
+/** More files of the audited dir changed on main since the snapshot's commit than this — the snapshot is stale. */
+export const AUDIT_STALE_FILES = 20;
 /** Markdown trees checked for broken relative links; archives are history and are not checked. */
 export const LINK_ROOTS = ["docs", ".claude/skills", "CLAUDE.md", "packages/cli/CLAUDE.md", "README.md"];
 const LINK_SKIP = [/^docs\/archive\//, /^openspec\/changes\/archive\//];
@@ -69,6 +73,31 @@ function normal(p) {
     else if (part !== "." && part !== "") out.push(part);
   }
   return (/^[a-zA-Z]:/.test(p) ? "" : p.startsWith("/") ? "/" : "") + out.join("/");
+}
+
+/**
+ * Why the audit snapshot `docs/process/audits/<file>` no longer describes main: more than `AUDIT_STALE_FILES` files of
+ * its `dir` changed after its `commit`, a module (`moduleOf` at its `level`) it does not list, or a commit git does not
+ * know. Empty — still current or not a snapshot.
+ */
+function snapshotDrift(io, root, file) {
+  let snap;
+  try {
+    snap = JSON.parse(io.readFile(join(root, "docs", "process", "audits", file)) ?? "null");
+  } catch {
+    snap = null;
+  }
+  if (typeof snap?.commit !== "string" || typeof snap.dir !== "string") return [];
+  const changed = io.git(["diff", "--name-only", snap.commit, "main", "--", snap.dir], root);
+  if (changed == null) return [`коммит снимка ${snap.commit} не найден`];
+  const out = [];
+  const n = lines(changed).filter((l) => l.trim()).length;
+  if (n > AUDIT_STALE_FILES) out.push(`${n} файлов ${snap.dir} изменено после ${snap.commit} (порог ${AUDIT_STALE_FILES})`);
+  const known = new Set((snap.modules ?? []).map((m) => m.id));
+  const code = lines(io.git(["ls-tree", "-r", "--name-only", "main", "--", snap.dir], root) ?? "").filter((f) => /\.[cm]?[jt]s$/.test(f));
+  const fresh = [...new Set(code.map((f) => moduleOf(f, snap.dir, snap.level ?? 2)))].filter((m) => !known.has(m)).sort();
+  if (fresh.length > 0) out.push(`новые модули: ${fresh.join(", ")}`);
+  return out;
 }
 
 /** Findings `[{ kind, action, item, detail }]` for the state `collectState(io)` returned. */
@@ -138,13 +167,13 @@ export function findings(io, state) {
     .map((e) => /^(\d{4}-\d{2}-\d{2})\.json$/.exec(e.name)?.[1])
     .filter(Boolean)
     .sort();
+  const last = audits[audits.length - 1];
+  const stale = last ? snapshotDrift(io, root, `${last}.json`) : [];
   if (state.tag) {
     const tagDate = (io.git(["log", "-1", "--format=%cs", state.tag], root) ?? "").trim();
-    const last = audits[audits.length - 1];
-    if (tagDate && (!last || last < tagDate)) {
-      add("audit-stale", "pr", `docs/process/audits/${last ?? "—"}`, `снимок старше ${state.tag} (${tagDate}): навык architecture-audit`);
-    }
+    if (tagDate && (!last || last < tagDate)) stale.unshift(`снимок старше ${state.tag} (${tagDate})`);
   }
+  if (stale.length > 0) add("audit-stale", "pr", `docs/process/audits/${last ?? "—"}`, `${stale.join("; ")}: навык architecture-audit`);
 
   for (const rel of LINK_ROOTS.flatMap((r) => markdownFiles(io, root, r))) {
     const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";

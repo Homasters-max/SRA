@@ -15,9 +15,11 @@
 - `cs map`, `cs deps`, `cs dups`, `cs callers`, `cs impact`, `cs skeleton`, `cs grep` — `node scripts/dev/cs.js <команда>`;
 - `snapshot` — `node scripts/dev/arch-snapshot.js`: собирает ответы `cs --json` в снимок аудита и досчитывает то,
   чего в `cs` нет — сцепленность модулей, срезы по модулям с долей входного модуля, вызовы через порты в срезах
-  (граф их не видит, [ADR-0029](../../../docs/adr/WARRANT-ADR-0029-graft-audit-dev-hooks.md)), разницу с прошлым
-  снимком. `--dir` (по умолчанию `packages/cli/src`), `--level N` (глубина модуля, 2: `core/gates` ≠ `core/packs`),
-  `--entries` (по умолчанию все `run<X>` в `<dir>/commands`), `--out`, `--against`, `--json`. ~20 с.
+  (граф их не видит, [ADR-0029](../../../docs/adr/WARRANT-ADR-0029-graft-audit-dev-hooks.md)), вызовы имени,
+  определённого ещё и в тестах (граф их теряет; досчёт — `cs grep` в файлах, импортирующих определение, поле
+  `recovered` среза), разницу с прошлым снимком. `--dir` (по умолчанию `packages/cli/src`), `--level N` (глубина
+  модуля, 2: `core/gates` ≠ `core/packs`), `--entries` (по умолчанию все `run<X>` в `<dir>/commands`), `--out`,
+  `--against`, `--json`. ~1 мин.
 
 ## Порядок
 

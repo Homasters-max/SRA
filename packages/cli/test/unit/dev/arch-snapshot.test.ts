@@ -1,11 +1,12 @@
 /**
  * Architecture snapshot (skill `architecture-audit`): `scripts/dev/arch-snapshot-lib.js` turns `cs --json` answers
  * into one snapshot — cohesion per module, slices by module with the entry's share, calls through ports attached to
- * the slice symbols that make them — and diffs two snapshots.
+ * the slice symbols that make them, calls the graph drops (a name shared with a test helper) restored from `cs grep` —
+ * and diffs two snapshots.
  */
 import { describe, expect, it } from "vitest";
 
-import { buildSlice, buildSnapshot, diffSnapshots, formatDiff, moduleOf, portCallsBySymbol, portPattern } from "../../../../../scripts/dev/arch-snapshot-lib.js";
+import { bareCallPattern, bareCallsBySymbol, blindNames, buildSlice, buildSnapshot, completeCallers, diffSnapshots, formatDiff, moduleOf, portCallsBySymbol, portPattern } from "../../../../../scripts/dev/arch-snapshot-lib.js";
 
 const DIR = "packages/cli/src";
 const sym = (file: string, name: string) => ({ id: `${DIR}/${file}#${name}`, name, kind: "function", path: `${DIR}/${file}`, span: "L1-L2" });
@@ -78,6 +79,74 @@ describe("buildSlice", () => {
 
   it("marks an entry the graph does not know", () => {
     expect(buildSlice({ query: "runNope", matches: [] }, { dir: DIR, level: 2 })).toEqual({ entry: "runNope", found: false });
+  });
+});
+
+describe("calls the graph drops (audit 2026-09-25 §3.3)", () => {
+  const def = (path: string, symbol: string, kind = "function") => ({ path, line: 1, symbol, kind, exported: true });
+  const blind = blindNames(
+    {
+      dups: [
+        { name: "evaluate", definitions: [def(`${DIR}/core/transition/evaluate.ts`, "evaluate"), def("packages/cli/test/unit/gates/verdict.test.ts", "evaluate")] },
+        { name: "resolve", definitions: [def(`${DIR}/core/resolve/merge.ts`, "resolve"), def("packages/cli/test/app/x.ts", "resolve")] },
+        { name: "visit", definitions: [def(`${DIR}/core/a.ts`, "visit"), def(`${DIR}/core/b.ts`, "visit")] },
+        { name: "head", definitions: [def(`${DIR}/adapters/git.ts`, "GitCli.head", "method"), def("packages/cli/test/app/y.ts", "head")] }
+      ]
+    },
+    DIR
+  );
+
+  it("a blind name is a function defined once in the dir and elsewhere too; twice in the dir or a method — not", () => {
+    expect([...blind]).toEqual([
+      ["evaluate", `${DIR}/core/transition/evaluate.ts`],
+      ["resolve", `${DIR}/core/resolve/merge.ts`]
+    ]);
+  });
+
+  const GREP_BLIND = {
+    groups: [
+      { symbol: sym("commands/verify.ts", "runVerify"), path: `${DIR}/commands/verify.ts`, hits: [{ line: 30, text: "const evaluated = await evaluate(ctx, change, {" }] },
+      { symbol: sym("core/transition/evaluate.ts", "evaluate"), path: `${DIR}/core/transition/evaluate.ts`, hits: [{ line: 129, text: "export async function evaluate(ctx: Ctx) {" }, { line: 140, text: "const r = resolve(x); path.resolve(y);" }] },
+      { symbol: sym("adapters/exec.ts", "exec"), path: `${DIR}/adapters/exec.ts`, hits: [{ line: 30, text: "resolve(outcome);" }] }
+    ]
+  };
+  const names = [...blind.keys()];
+  const calls = bareCallsBySymbol(GREP_BLIND, names);
+
+  it("finds bare calls per symbol — not a definition line, not `x.name(`", () => {
+    expect(new RegExp(bareCallPattern(names)).test("await evaluate(ctx)")).toBe(true);
+    expect(new RegExp(bareCallPattern(names)).test("path.resolve(y)")).toBe(false);
+    expect([...calls].map(([id, c]) => `${id} ${[...c.names].join(",")}`)).toEqual([
+      `${DIR}/commands/verify.ts#runVerify evaluate`,
+      `${DIR}/core/transition/evaluate.ts#evaluate resolve`,
+      `${DIR}/adapters/exec.ts#exec resolve`
+    ]);
+  });
+
+  const slices: Record<string, unknown> = {
+    evaluate: { query: "evaluate", matches: [{ symbol: sym("core/transition/evaluate.ts", "evaluate"), hits: [{ ...sym("core/gates/diff.ts", "readGitFacts"), relation: "calls", depth: 1 }] }] },
+    resolve: { query: "resolve", matches: [{ symbol: sym("core/resolve/merge.ts", "resolve"), hits: [{ ...sym("core/resolve/merge.ts", "mergeLayers"), relation: "calls", depth: 1 }] }] }
+  };
+  const imports: Record<string, string[]> = {
+    [`${DIR}/commands/verify.ts`]: [`${DIR}/core/transition/evaluate.ts`],
+    [`${DIR}/core/transition/evaluate.ts`]: [`${DIR}/core/resolve/merge.ts`],
+    [`${DIR}/core/gates/diff.ts`]: []
+  };
+  const completion = { defOf: blind, importsOf: (p: string) => new Set(imports[p] ?? []), sliceOf: (n: string) => slices[n] ?? null };
+
+  it("adds the definition and its slice when the caller's file imports it, transitively, and names what it recovered", () => {
+    const entry = { query: "runVerify", matches: [{ symbol: sym("commands/verify.ts", "runVerify"), hits: [] }] };
+    const { callers, recovered } = completeCallers(entry, calls, completion);
+    expect(callers.matches[0].hits.map((h: { name: string }) => h.name)).toEqual(["evaluate", "readGitFacts", "resolve", "mergeLayers"]);
+    expect(recovered).toEqual(["evaluate", "resolve"]);
+    expect(buildSlice(callers, { dir: DIR, level: 2, recovered }).recovered).toEqual(["evaluate", "resolve"]);
+  });
+
+  it("does not take a local `resolve` (new Promise) for the blind definition — the file does not import it", () => {
+    const entry = { query: "run", matches: [{ symbol: sym("commands/run.ts", "run"), hits: [{ ...sym("adapters/exec.ts", "exec"), relation: "calls", depth: 1 }] }] };
+    const { callers, recovered } = completeCallers(entry, calls, completion);
+    expect(callers.matches[0].hits).toHaveLength(1);
+    expect(recovered).toEqual([]);
   });
 });
 

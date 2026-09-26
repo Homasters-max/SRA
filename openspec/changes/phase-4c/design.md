@@ -63,6 +63,8 @@
 | N45 | `owner/repo` — `GITHUB_REPOSITORY` или URL `origin`; токен — `gh`; ключа `forge` в `warrant.json` нет |
 | N46 | ADR-0037 едет в spec-PR 4c |
 | N47 | spec-PR не трогает `paths.src`, `paths.tests`, `openspec/specs/**`, чужие Changes и их состояние, policy-пути; документы разрешены |
+| N48 | (review 2, F-3) Waivers своего Change (`change` = этот Change) разрешены в spec-PR, где процесс их активирует (ADR-0033 п. 4); в других PR — как прежде |
+| N49 | (review 2, F-7) `.github/workflows/**` — policy-путь `factory-change` (REQ-SDD-005); run `workflow_dispatch` принимается только с ветки по умолчанию |
 
 ### 2. Первая группа — швы (без изменения поведения)
 
@@ -192,7 +194,8 @@
 
 - **`core/ports/forge.ts`** (R0, седьмой порт `Ctx`):
   - `pullRequest(number) → { number, url, author, merged, mergedAt, mergedBy, mergeCommit, headSha }`;
-  - `workflowRun(id) → { id, url, repository, event, headSha, conclusion, createdAt }`;
+  - `workflowRun(id, attempt?) → { id, attempt, url, repository, event, headBranch, headSha, conclusion, createdAt }` —
+    `…/actions/runs/{id}/attempts/{n}`;
   - `listRuns({ headSha?, event?, createdAfter? }) → WorkflowRun[]`;
   - `downloadArtifact(runId, name) → Map<path, Buffer> | null`.
   Сбой авторизации или сети — `FORGE_UNAVAILABLE` с `hint`.
@@ -233,8 +236,9 @@ Job `warrant` (ubuntu) вместо `evidence`:
      (конфликт — exit 3); на dispatch — `git checkout <merge_commit>`;
   3. `npm ci`, OpenSpec, `npm i -g .`;
   4. `warrant ci > ci.json`;
-  5. `data.change` → upload artifact `evidence-<change>`: `manifest.json`, `EVID-*.json`, `raw/`, `if: always()` при
-     непустом `change`.
+  5. `data.artifact` → upload artifact с именем `data.artifact.name` (`evidence-<change>-<attempt>`): `manifest.json`,
+     `EVID-*.json`, `raw/`, `if: always()` при непустом `change`. Имя с попыткой: artifacts v4 неизменяемы, а Re-run —
+     новая попытка того же run.
 - **Permissions:** `contents: read`, `actions: read`, `pull-requests: read`; `GH_TOKEN: ${{ github.token }}`.
 - **Удаляются** шаги «Change of the branch» и «Main specs only through an archive-PR». `pr-form.js` остаётся в job `test`
   (форма разработки, ADR-0033 п. 10).
@@ -294,7 +298,7 @@ Job `warrant` (ubuntu) вместо `evidence`:
 ## Review spec
 
 Первый review (`RUN-01M3DS3AZG69WQW4VWPW78GY7D`, `FAILED`: envelope не сдан — `warrant` на PATH без `run submit`) дал 7
-BLOCKER, 12 MAJOR, 8 MINOR, 2 INFO; spec исправлена до повторного review:
+BLOCKER, 12 MAJOR, 8 MINOR, 2 INFO; spec исправлена до второго review:
 - F-1…F-7 (BLOCKER) — `branch-isolated` вне `replay`, дерево M для `replay` и `gate`, пересчёт `ARCHIVED` только в `replay`,
   собственное состояние в правиле spec-PR, run восстановления по содержимому artifact'а, `merged_by ∈ roles.maintainer`,
   общее правило `openspec/specs/**` и пути abandon-PR;
@@ -304,6 +308,19 @@ BLOCKER, 12 MAJOR, 8 MINOR, 2 INFO; spec исправлена до повтор�
 - F-20…F-29 (MINOR, INFO) — proposal и ADR-0037 согласованы со spec, `kind` перечислен, octopus — `USAGE`, выбор каталога
   архива, риск в SCN-VER-075, пути `.warrant/…`, `ci --dry-run` — только план. F-27 (заголовок REQ-SDD-001 «0.1») — не
   правится: переименование требования — `RENAMED` в отдельном Change.
+
+Второй review (`RUN-01M3DTBR7FXPV041QX21RXT957`, `EVID-01M3DV6JN0X1K9ZEBJSKY13A82`, `NOT_PROVEN`) дал 3 BLOCKER, 6 MAJOR,
+9 MINOR, 1 INFO; envelope сокращён (heredoc длиннее ~8 тыс. символов падает в bash до запуска `warrant`, BL-46). Исправлено
+до третьего review:
+- F-1 — `replay`: файлы проекта из оцениваемого commit, evidence, waivers и Runs — из HEAD;
+- F-2 — impl-PR судит L1 только по записям текущей попытки run (ADR-0010 п. 3);
+- F-3 — N48; F-7 — N49;
+- F-4 — правило путей archive-PR; F-5 — `replay` пересчитывает все gates и сверяет `effective_policy_hash`, `evidence[]`;
+- F-6 — `attestation.ref` и artifact с номером попытки; F-8 — оцениваемый commit `MERGED` — head из `ref`;
+- F-9 — first-parent путь; F-10 — `produced_by.id` записи `human-approval` = `merged_by`; F-11 — `GATE_NOT_PASSED`;
+- F-12 — checks при любом `change_state`; F-13 — `spec_tree` и `tree` не вместе; F-14 — проверка версии OpenSpec при
+  повторе; F-15 — SCN-VER-072; F-16 — задача 5.2; F-17 — репозиторий форжа в REQ-VER-011; F-18 — `PR_NOT_IMPL`;
+  F-19 — CI-записи `MERGED` обязаны нести `tree`.
 
 ## Решения по ходу реализации
 

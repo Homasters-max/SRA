@@ -44,3 +44,28 @@ Profiles `bugfix`, `refactor`, `experiment` SHALL NOT входить в 0.3 (ADR
 <!-- id: SCN-SDD-024 -->
 - **WHEN** запись `review` содержит `metrics: { "BLOCKER": "one" }`
 - **THEN** `warrant validate` даёт `SCHEMA_VIOLATION` по `evidence/review.metrics.schema.json`; запись `run submit` с числами проходит
+
+### Requirement: Profile factory-change
+<!-- id: REQ-SDD-005 -->
+
+Profile `factory-change@1.1.0` SHALL иметь `extends: ["feature"]`, дополнительно gate `factory-golden-passed` на `VERIFYING->MERGED`,
+`capabilities.forbidden: ["PRODUCTION_WRITE"]`, `match.paths`: `.warrant/**`, `openspec/schemas/**`, `openspec/config.yaml`, `packs/**`,
+`packages/cli/schemas/**`, `sra/skills/**`, `.github/workflows/**`. Workflows CI — часть фабрики: run `pull_request` исполняет
+workflow из самого PR, и его правка в обычном Change подменила бы producer evidence CI
+([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md), review spec `phase-4c`).
+
+#### Scenario: Golden factory-change
+<!-- id: SCN-SDD-007 -->
+- **WHEN** `warrant resolve --explain` на golden `factory-change` (profiles `["factory-change"]`, `blast_radius` `SYSTEM`)
+- **THEN** `risk_level` равен `HIGH`; `gates["VERIFYING->MERGED"]` содержит `factory-golden-passed`; `capabilities.forbidden` равен `["PRODUCTION_WRITE"]`;
+  `explain[]` относит `tests-passed` к `profile/feature` (через `extends`) и `human-approval` на `VERIFYING->MERGED` к `overlay/risk-high`
+
+#### Scenario: Репозиторий WARRANT — сам себе golden
+<!-- id: SCN-SDD-008 -->
+- **WHEN** `warrant classify phase-2-core-sdd --base main` выполнен на этой ветке
+- **THEN** `profiles` содержит `factory-change`, `risk.blast_radius` равен `SYSTEM` от floor, `warrant resolve phase-2-core-sdd` показывает `risk_level: HIGH`, а `warrant status` — `stale: []` и `overlay/risk-high` в `sources`
+
+#### Scenario: Правка CI — factory-change
+<!-- id: SCN-SDD-026 -->
+- **WHEN** diff Change профиля `feature` содержит `.github/workflows/ci.yml`
+- **THEN** `warrant classify` добавляет `factory-change` в `profiles`; без переклассификации gate `scope-valid` на `VERIFYING->MERGED` даёт `FAIL` с `SCOPE_VIOLATION` и этим путём

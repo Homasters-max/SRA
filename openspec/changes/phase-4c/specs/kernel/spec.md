@@ -12,8 +12,8 @@
 pack для kind, [REQ-KRN-001](#requirement-адресация-и-форма-json-schema-kernel), [ADR-0016](../../../../docs/adr/WARRANT-ADR-0016-mutation-diff-scope.md)).
 `subject.spec_tree` — hash дерева spec Change ([ADR-0036](../../../../docs/adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 3);
 `subject.tree` — id объекта дерева git результата merge, на котором сделана запись, 40 или 64 шестнадцатеричных символа в нижнем
-регистре ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 2). Оба поля необязательны; схема остаётся
-`major = 1`.
+регистре ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 2). Оба поля необязательны, но запись SHALL NOT
+нести оба сразу: у них разные правила пред-фильтра. Схема остаётся `major = 1`.
 
 #### Scenario: Запись с ULID
 <!-- id: SCN-KRN-024 -->
@@ -33,7 +33,7 @@ pack для kind, [REQ-KRN-001](#requirement-адресация-и-форма-js
 #### Scenario: Дерево merge в subject
 <!-- id: SCN-KRN-141 -->
 - **WHEN** запись содержит `subject.tree` из 40 шестнадцатеричных символов в нижнем регистре
-- **THEN** файл валиден; `subject.tree: "HEAD^{tree}"` — невалиден с указанием `/subject/tree`
+- **THEN** файл валиден; `subject.tree: "HEAD^{tree}"` — невалиден с указанием `/subject/tree`; запись с `subject.tree` и `subject.spec_tree` одновременно — невалидна с указанием `/subject`
 
 ### Requirement: Файлы frontend и AGENTS.md
 <!-- id: REQ-KRN-033 -->

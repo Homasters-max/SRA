@@ -37,12 +37,12 @@
 
   Проверка: SCN-KRN-141; SCN-KRN-024, SCN-KRN-025, SCN-KRN-092 без правок.
 - [ ] 2.2 Писатель и пред-фильтр (§3, REQ-VER-001, REQ-VER-003):
-  - `evidenceSubject` с `tree`;
+  - `evidenceSubject` с `tree`; `attestation.ref` с `/attempts/<GITHUB_RUN_ATTEMPT>`;
   - `PrefilterContext.mergeTree`;
   - `StaleReason` `tree`.
 
   Проверка:
-  - unit на SCN-VER-069, SCN-VER-070;
+  - unit на SCN-VER-069, SCN-VER-070; app на SCN-VER-002;
   - запись без `tree` и SCN-VER-012…018, SCN-VER-056, SCN-VER-057 — без правок ожидаемых значений.
 - [ ] 2.3 `transition MERGED` и `APPROVED` (§3, REQ-VER-007):
   - `--ref` — URL pull request;
@@ -86,10 +86,11 @@
   - gates без evidence — в `GitPort.worktreeAt(commit)`;
   - допуск записей `evidence[]`;
   - `RECORD_MISMATCH`;
-  - `branch-isolated` не пересчитывается.
+  - `branch-isolated` не пересчитывается;
+  - файлы проекта — из оцениваемого commit, evidence и waivers — из HEAD.
 
   Проверка:
-  - app на SCN-VER-078, SCN-VER-090;
+  - app на SCN-VER-078, SCN-VER-090, SCN-VER-101;
   - `worktreeAt` — контракт соответствия, `dispose` при ошибке.
 - [ ] 4.3 `core/ci/refs.ts` — `ref` новых переходов через `ForgePort.pullRequest`: `REF_NOT_VERIFIED`, `APPROVER_IS_AUTHOR`.
 
@@ -97,12 +98,12 @@
 - [ ] 4.4 Правила путей: общее для `openspec/specs/**`, виды `spec`, `abandon`, `none` (N47), gates `SPECIFIED->APPROVED`
   информационно.
 
-  Проверка: app на SCN-VER-073, SCN-VER-074, SCN-VER-092, SCN-VER-094.
+  Проверка: app на SCN-VER-073, SCN-VER-074, SCN-VER-092, SCN-VER-094, SCN-VER-099, SCN-VER-100.
 - [ ] 4.5 Вид `impl`: `runVerify` на HEAD с `mergeTree`, `deferred[]`, `CHANGE_NOT_VERIFYING`, `FRONTEND_HOOKS_INACTIVE` в
   отчёте.
 
-  Проверка: app на SCN-VER-068, SCN-VER-075, SCN-VER-076, SCN-VER-082, SCN-VER-095 (`GITHUB_*` в окружении, ни одного
-  нового коммита).
+  Проверка: app на SCN-VER-068, SCN-VER-075, SCN-VER-076, SCN-VER-082, SCN-VER-095, SCN-VER-098 (`GITHUB_*` в окружении,
+  ни одного нового коммита).
 - [ ] 4.6 `commands/ci.ts`, `warrant ci [--dry-run]` в `bin/warrant.ts`, `--help` с примером (линза `cli-contract`), коды
   0/1/3.
 
@@ -119,9 +120,9 @@
 - [ ] 5.1 `core/ci/archive.ts` — проверка CI-записей `MERGED` (run, head sha, `conclusion`, побайтовое сравнение с artifact),
   `EVIDENCE_NOT_VERIFIED` (§5).
 
-  Проверка: app на SCN-VER-079 с `FakeForge`.
+  Проверка: app на SCN-VER-079, SCN-VER-102 с `FakeForge`.
 - [ ] 5.2 R-16: повтор `openspec archive` в `worktreeAt(HEAD^1)` и сравнение `openspec/specs/**`, `SPECS_NOT_ARCHIVED`;
-  gates `MERGED->ARCHIVED` на HEAD.
+  правило путей archive-PR. Переход `ARCHIVED` пересчитывает `replay` (4.2), отдельного пересчёта на HEAD нет.
 
   Проверка: app на SCN-VER-080, SCN-VER-091.
 - [ ] 5.3 `core/ci/fetch.ts` и `warrant ci fetch <pr> [--dry-run]`:
@@ -129,7 +130,7 @@
   - `importRecords` в `core/evidence/store.ts`;
   - ошибки `PR_NOT_MERGED`, `NO_CI_EVIDENCE` с `hint`, `EVIDENCE_CONFLICT`.
 
-  Проверка: app на SCN-VER-086…089, SCN-VER-096, SCN-VER-097 с `FakeForge`.
+  Проверка: app на SCN-VER-086…089, SCN-VER-096, SCN-VER-097, SCN-VER-103, SCN-VER-104 с `FakeForge`.
 
 ## 6. Мелкие строки (REQ-VER-010, REQ-KRN-033, REQ-SDD-001; R-20)
 
@@ -148,13 +149,17 @@
 - [ ] 6.4 BL-26: тег SCN-SDD-001 в `core-sdd-catalog.test.ts` — форма lock по THEN delta (REQ-SDD-001).
 
   Проверка: `node scripts/dev/scn-coverage.js --main` на ветке не теряет SCN-SDD-001.
+- [ ] 6.5 Profile `factory-change` `1.1.0`: `.github/workflows/**` в `match.paths` (REQ-SDD-005); golden и lock — `sync`,
+  `golden:update`.
+
+  Проверка: app `classify` на SCN-SDD-026; SCN-SDD-007, SCN-SDD-008 без правок.
 
 ## 7. CI, навыки, документы, сквозная проверка
 
 - [ ] 7.1 `.github/workflows/ci.yml` (§8):
   - job `warrant` на `pull_request` и `workflow_dispatch` (`merge_commit`);
   - merge в job;
-  - `warrant ci`, artifact `evidence-<change>`;
+  - `warrant ci`, artifact `data.artifact.name` (`evidence-<change>-<attempt>`);
   - `permissions`;
   - удалить job `evidence` и шаг «Main specs only through an archive-PR».
 

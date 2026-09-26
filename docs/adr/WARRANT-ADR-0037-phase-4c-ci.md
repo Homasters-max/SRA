@@ -68,6 +68,9 @@ design.md Change `phase-4c`.
   `verification` (пред-фильтр, `transition MERGED` — BREAKING форма `--ref` и смысл `REF_MISMATCH`, `warrant ci`, `ci fetch`),
   `kernel` (`subject.tree`, REQ-KRN-033 — BL-40), `core-sdd` (SCN-SDD-001 — BL-26). Схема `evidence/1` — `subject.tree` (минорная
   правка).
+- Review spec `phase-4c` (N48, N49): `attestation.ref` CI — URL попытки run (`…/actions/runs/<id>/attempts/<n>`, формат ref
+  ADR-0010 Consequences дополняется попыткой): Re-run — отдельная попытка со своим artifact; pack `core-sdd` — `.github/workflows/**`
+  в `match.paths` profile `factory-change` (run `pull_request` исполняет workflow из PR); waivers своего Change разрешены в spec-PR.
 - `ci.yml`: job `warrant` на всех PR вместо `evidence` на `worktree/*`; шаги «Change of the branch» и «Main specs only
   through an archive-PR» удаляются; `permissions: actions: read`; `workflow_dispatch` со входом `merge_commit`.
 - Навык `change-archive-pr`: шаг `warrant ci fetch <pr>` вместо ручного переноса artifact'а.

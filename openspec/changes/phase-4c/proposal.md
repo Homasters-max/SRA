@@ -51,6 +51,9 @@ design.md).
   - шаг «specs только через archive-PR» по имени ветки удаляется;
   - `workflow_dispatch` со входом `merge_commit`;
   - навык `change-archive-pr` — шаг `ci fetch`.
+- **Pack `core-sdd`**: profile `factory-change` `1.1.0` — `.github/workflows/**` в `match.paths`. Run `pull_request`
+  исполняет workflow из самого PR, поэтому правка CI — правка фабрики. Waivers своего Change разрешены в spec-PR.
+- **Attestation CI** — URL попытки run (`…/actions/runs/<id>/attempts/<n>`): Re-run даёт отдельную попытку со своим artifact'ом.
 - **Версии**: CLI `0.6.0 → 0.7.0`; pack `core-sdd` `0.3.2 → 0.3.3` — диапазон `kernel: ">=0.1 <0.8"`. Схема `evidence/1`
   получает `subject.tree` (минорная правка).
 
@@ -71,7 +74,9 @@ design.md).
 - `kernel`:
   - REQ-KRN-012 — `subject.tree` в схеме `evidence`;
   - REQ-KRN-033 — находка `REVIEWER_SKILL_MISSING`.
-- `core-sdd`: REQ-SDD-001 — диапазон `kernel` `<0.8`, SCN-SDD-001 переписан под lock с одним hash на pack (BL-26).
+- `core-sdd`:
+  - REQ-SDD-001 — диапазон `kernel` `<0.8`, SCN-SDD-001 переписан под lock с одним hash на pack (BL-26);
+  - REQ-SDD-005 — `.github/workflows/**` в `factory-change`.
 
 ## Non-Goals
 

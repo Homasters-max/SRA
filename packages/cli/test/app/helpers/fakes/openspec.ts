@@ -10,9 +10,13 @@
  * `openspec` argv), counts calls in flight, can delay answers and can be told
  * to fail a method (`fail`). `archive` and `newChange` act on the model and on
  * the Change directory on disk, since the CLI looks for the directory after
- * them; `archive` does not merge deltas into the specs — that is OpenSpec's job.
+ * them. `archive` does not merge deltas as OpenSpec does: it copies each delta
+ * `specs/<capability>/spec.md` of the Change over the main spec of that
+ * capability — a deterministic stand-in, the same in the project and in a
+ * checkout, which `warrant ci` compares with a repeated archive (R-16); the
+ * contract holds only which main specs change.
  */
-import { mkdirSync, renameSync, writeFileSync, existsSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, renameSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 
 import type { OpenspecStatusResult, ArtifactStatuses } from "../../../../src/core/ports/openspec.js";
@@ -55,6 +59,18 @@ export interface ModelSpec {
 type Method = keyof OpenSpecPort;
 
 const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
+/** Capabilities (`area/ranking`) of the delta specs under `dir`: every directory holding a `spec.md`. */
+function capabilities(dir: string, prefix = ""): string[] {
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) => {
+      const name = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+      const sub = path.join(dir, entry.name);
+      return [...(existsSync(path.join(sub, "spec.md")) ? [name] : []), ...capabilities(sub, name)];
+    })
+    .sort(byName);
+}
 
 /** Each text once, in the order first seen — the answer of the port (I-129). */
 const unique = (texts: string[]): string[] => [...new Set(texts)];
@@ -160,19 +176,32 @@ export class FakeOpenSpec implements OpenSpecPort {
     }, failed);
   }
 
-  archive(change: string): Promise<OpenspecAct> {
+  /**
+   * In the project the model decides whether the Change exists and forgets it;
+   * in another `root` (a checkout) only its directory there decides.
+   */
+  archive(change: string, root: string = this.root): Promise<OpenspecAct> {
     const failed: OpenspecAct = { ok: false, output: `Change '${change}' not found` };
     return this.answer(`archive ${change} --yes`, "archive", () => {
-      if (!this.changes.has(change)) return failed;
+      const own = root === this.root;
       const target = `${this.clock.today()}-${change}`;
-      const from = path.join(this.root, "openspec", "changes", change);
-      const to = path.join(this.root, "openspec", "changes", "archive", target);
+      const from = path.join(root, "openspec", "changes", change);
+      const to = path.join(root, "openspec", "changes", "archive", target);
+      if (own ? !this.changes.has(change) : !existsSync(from)) return failed;
       if (existsSync(from)) {
+        const deltas = path.join(from, "specs");
+        for (const capability of existsSync(deltas) ? capabilities(deltas) : []) {
+          const main = path.join(root, "openspec", "specs", ...capability.split("/"), "spec.md");
+          mkdirSync(path.dirname(main), { recursive: true });
+          cpSync(path.join(deltas, ...capability.split("/"), "spec.md"), main);
+        }
         mkdirSync(path.dirname(to), { recursive: true });
         renameSync(from, to);
       }
-      this.changes.delete(change);
-      this.archived.push(target);
+      if (own) {
+        this.changes.delete(change);
+        this.archived.push(target);
+      }
       return { ok: true, output: JSON.stringify({ archive: { change, archivedAs: target } }) };
     }, failed);
   }

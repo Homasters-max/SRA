@@ -12,14 +12,17 @@
  *
  * `--dry-run` is a plan only: the kind, the Change, the checks and
  * `data.would_write[]`, without running checks or asking the forge.
+ *
+ * `warrant ci fetch <pr>` — the local step of an archive-PR (`core/ci/fetch.ts`).
  */
 import { withBase } from "../core/ci/base.js";
+import { fetchCiEvidence } from "../core/ci/fetch.js";
 import { judgePullRequest, planPullRequest } from "../core/ci/judge.js";
 import { readCiSubject } from "../core/ci/kind.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError } from "../core/errors.js";
 import { failures, success, type CommandResult } from "../io/output.js";
-import { requireConfigPath } from "./context.js";
+import { requireConfigPath, withDryRun } from "./context.js";
 
 export interface CiOptions {
   dryRun?: boolean | undefined;
@@ -47,5 +50,19 @@ export async function runCi(ctx: Ctx, opts: CiOptions = {}, env: NodeJS.ProcessE
     return verdict.exitCode === EXIT.OK && verdict.errors.length === 0
       ? success(verdict.data, change)
       : failures(verdict.errors, verdict.exitCode, verdict.data, change);
+  });
+}
+
+/**
+ * `warrant ci fetch <pr> [--dry-run]` (REQ-VER-012): the CI evidence of the
+ * merged impl-PR `<pr>` into `.warrant/evidence/<change>/` for the archive-PR.
+ * Exit codes: 0 — imported (or already present); 3 — any error, nothing written.
+ * `--dry-run` chooses the run and prints `data.would_write[]` without writing.
+ */
+export async function runCiFetch(ctx: Ctx, pr: string, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
+  requireConfigPath(ctx.root);
+  return withDryRun(ctx, async () => {
+    const verdict = await fetchCiEvidence(ctx, pr, env);
+    return verdict.errors.length === 0 ? success(verdict.data, verdict.change) : failures(verdict.errors, verdict.exitCode, verdict.data, verdict.change);
   });
 }

@@ -24,7 +24,7 @@ const PR_53 = {
   merged_at: "2026-09-26T00:32:25Z",
   merge_commit_sha: "051b91a8394bbfa7b36f83d5201b079d0e4b3371",
   head: { label: "Homasters-max:worktree/phase-4b", ref: "worktree/phase-4b", sha: "c3b6033ce3af943c7b515cd3e79acf1b79125e18" },
-  base: { ref: "main", sha: "5170ed0b81e48007717a61c9b5f9657ddca5194e" },
+  base: { ref: "main", sha: "5170ed0b81e48007717a61c9b5f9657ddca5194e", repo: { full_name: "Homasters-max/SRA", default_branch: "main" } },
   merged: true,
   mergeable: null,
   merged_by: USER
@@ -112,7 +112,8 @@ describe("parsePullRequest: the body of pulls/{n}", () => {
       mergedAt: "2026-09-26T00:32:25Z",
       mergedBy: "Homasters-max",
       mergeCommit: "051b91a8394bbfa7b36f83d5201b079d0e4b3371",
-      headSha: "c3b6033ce3af943c7b515cd3e79acf1b79125e18"
+      headSha: "c3b6033ce3af943c7b515cd3e79acf1b79125e18",
+      defaultBranch: "main"
     });
   });
 

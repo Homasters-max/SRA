@@ -3,22 +3,26 @@
  * structure of the record — SCN-VER-078, 090, 105, 107, 108 — refs through the
  * forge — SCN-VER-081, 093 — path rules by kind — SCN-VER-073, 074, 092, 094,
  * 099, 100 — the merge verdict of an impl-PR — SCN-VER-068, 075, 076, 082, 095,
- * 098 — the forge unavailable and `--dry-run` — SCN-VER-084, 085.
+ * 098 — the forge unavailable and `--dry-run` — SCN-VER-084, 085 — the CI
+ * evidence and the repeated archive of an archive-PR (group 5) — SCN-VER-079,
+ * 080, 091, 096, 102, 106.
  *
  * Each case builds the synced core-sdd project on `main` of `FakeGit`, opens a
  * pull request on a branch and merges it into `main` with a merge commit: HEAD
  * is the result of the merge, as the job `warrant` makes it. `tests-passed` is
  * overridden with a fake command writing junit into `{out}`.
  */
-import { writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { runArchive } from "../../../src/commands/archive.js";
 import { runCheck } from "../../../src/commands/check.js";
 import { runCi, type CiOptions } from "../../../src/commands/ci.js";
 import { runTransition } from "../../../src/commands/transition.js";
+import type { WorkflowRun } from "../../../src/core/ports/forge.js";
 import type { CommandResult } from "../../../src/io/output.js";
-import { FAKE_REPOSITORY, fakePull } from "../helpers/fakes/forge.js";
+import { FAKE_REPOSITORY, fakePull, fakeRun } from "../helpers/fakes/forge.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
 import { started } from "../helpers/run.js";
@@ -318,10 +322,21 @@ describe("warrant ci: refs through the forge", () => {
 /**
  * The whole way to an archive-PR: `main` with the record in `IMPLEMENTING`; the
  * impl-PR records `VERIFYING` and is merged by M; `warrant ci` on M writes the
- * CI records; the archive branch commits them with `transition MERGED --ref`
- * of the impl-PR (pull 9); `main` merges the archive branch: HEAD.
+ * CI records — run 42, attempt 1, whose artifact `evidence-add-search-1` the
+ * fake forge holds (`artifact: false` — expired); the archive branch commits
+ * them with `transition MERGED --ref` of the impl-PR (pull 9) and, with
+ * `archive`, `warrant archive`; `main` merges the archive branch: HEAD.
  */
-async function archivePr(options: { pull?: Record<string, unknown>; work?: (p: ProjectBuilder) => void; record?: (record: Data) => void } = {}): Promise<{ p: ProjectBuilder; m: string; head: string }> {
+async function archivePr(
+  options: {
+    pull?: Record<string, unknown>;
+    run?: Partial<WorkflowRun>;
+    artifact?: boolean;
+    archive?: boolean;
+    work?: (p: ProjectBuilder, evidence: string[]) => void;
+    record?: (record: Data) => void;
+  } = {}
+): Promise<{ p: ProjectBuilder; m: string; head: string; evidence: string[] }> {
   const p = await changeRepo("IMPLEMENTING", CHORE, (b) => b.write(".warrant/warrant.json", { ...b.json(".warrant/warrant.json"), paths: { src: "src" } }));
   const impl = pullRequest(p, "worktree/add-search", (b) => {
     b.write("src/search.ts", "export const search = 1;\n");
@@ -329,21 +344,41 @@ async function archivePr(options: { pull?: Record<string, unknown>; work?: (p: P
   });
   const run = await ci(p, CI_ENV);
   expect(run.errors).toEqual([]);
-  p.withForge({ pulls: [fakePull(9, { mergeCommit: impl.merge, headSha: impl.head, ...options.pull })] });
+  const evidence = run.data["evidence"] as string[];
+  p.withForge({
+    pulls: [fakePull(9, { mergeCommit: impl.merge, headSha: impl.head, ...options.pull })],
+    runs: [fakeRun(42, { headSha: impl.head, ...options.run })],
+    artifacts: options.artifact === false ? [] : [{ runId: 42, name: run.data["artifact"].name, files: artifactOf(p, run.data["artifact"].path) }]
+  });
 
   p.branch("archive/add-search", "main");
   const merged = await invoke(() => runTransition(p.ctx, "add-search", "MERGED", { ref: IMPL_PR }, LOCAL));
   expect(merged.errors).toEqual([]);
+  if (options.archive === true) {
+    const archived = await invoke(() => runArchive(p.ctx, "add-search", LOCAL));
+    expect(archived.errors).toEqual([]);
+  }
   if (options.record !== undefined) {
     const record = p.json(RECORD);
     options.record(record);
     p.write(RECORD, record);
   }
-  options.work?.(p);
+  options.work?.(p, evidence);
   p.commit("archive: MERGED");
   p.checkout("main", { force: true });
   p.merge("archive/add-search", { label: "Merge archive" });
-  return { p, m: impl.merge, head: impl.head };
+  return { p, m: impl.merge, head: impl.head, evidence };
+}
+
+/** The files of the directory `rel` as `actions/upload-artifact` uploads it: POSIX path → bytes. */
+function artifactOf(p: ProjectBuilder, rel: string): Record<string, Buffer> {
+  const dir = path.join(p.root, rel);
+  const out: Record<string, Buffer> = {};
+  for (const entry of readdirSync(dir, { recursive: true }) as string[]) {
+    const file = path.join(dir, entry);
+    if (statSync(file).isFile()) out[entry.split(path.sep).join("/")] = readFileSync(file);
+  }
+  return out;
 }
 
 describe("warrant ci: archive-PR", () => {
@@ -391,6 +426,94 @@ describe("warrant ci: archive-PR", () => {
     expect(result.errors[0]?.hint).toContain("gh auth login");
     expect(result.errors[0]?.hint).toContain("GH_TOKEN");
     expect(result.exitCode).toBe(3);
+  });
+});
+
+const SPEC = "openspec/specs/search/spec.md";
+
+/** `EVIDENCE_NOT_VERIFIED` errors: `<id>: <reason>`. */
+function unverified(result: Result): string[] {
+  return result.errors.filter((e) => e.code === "EVIDENCE_NOT_VERIFIED").map((e) => e.message.split(": ").slice(0, 2).join(": "));
+}
+
+describe("warrant ci: CI evidence and the repeated archive of an archive-PR", () => {
+  it("an honest archive-PR: MERGED and ARCHIVED, records of the run on the tree of M, specs of the repeat (SCN-VER-091)", async () => {
+    const { p, evidence } = await archivePr({ archive: true });
+    const result = await ci(p);
+    expect(result.data["kind"]).toBe("archive");
+    expect(result.data["transitions"].map((t: Data) => t["to"])).toEqual(["MERGED", "ARCHIVED"]);
+    expect(result.errors).toEqual([]);
+    expect(result.exitCode).toBe(0);
+    expect(result.data["evidence"]).toEqual(evidence);
+    expect(p.forge.calls).toEqual(expect.arrayContaining(["pullRequest 9", "workflowRun 42 1", "downloadArtifact 42 evidence-add-search-1"]));
+    expect(p.forge.calls.filter((c) => c.startsWith("downloadArtifact"))).toHaveLength(1);
+    expect(p.openspec.calls.filter((c) => c === "archive add-search --yes")).toHaveLength(2);
+    expect(p.git.checkouts.every((c) => c.disposed)).toBe(true);
+  });
+
+  it("an archive-PR with MERGED alone: no repeat of the archive, no SPECS_NOT_ARCHIVED (SCN-VER-106)", async () => {
+    const { p } = await archivePr();
+    const result = await ci(p);
+    expect(result.data["kind"]).toBe("archive");
+    expect(result.errors).toEqual([]);
+    expect(result.exitCode).toBe(0);
+    expect(p.openspec.calls.filter((c) => c.startsWith("archive"))).toEqual([]);
+  });
+
+  it("main specs with a line the repeated archive does not write: SPECS_NOT_ARCHIVED with the path (SCN-VER-080)", async () => {
+    const { p } = await archivePr({ archive: true, work: (b) => b.write(SPEC, `${readFileSync(path.join(b.root, SPEC), "utf8")}Extra line.\n`) });
+    const result = await ci(p);
+    expect(codes(result)).toEqual(["SPECS_NOT_ARCHIVED"]);
+    expect(result.errors[0]?.path).toBe(SPEC);
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("openspec on PATH out of the range of the base: the repeat fails with exit 3", async () => {
+    const { p } = await archivePr({ archive: true });
+    p.openspec.installedVersion = "0.1.0";
+    const result = await ci(p);
+    expect(codes(result)).toEqual(["OPENSPEC_VERSION"]);
+    expect(result.exitCode).toBe(3);
+  });
+
+  it("a CI record differing from the artifact by evidence_status: EVIDENCE_NOT_VERIFIED content with its id (SCN-VER-079)", async () => {
+    let changed = "";
+    const { p } = await archivePr({
+      work: (b, evidence) => {
+        changed = evidence[0] as string;
+        const rel = `${EVIDENCE}/${changed}.json`;
+        const record = b.json(rel);
+        record.evidence_status = record.evidence_status === "PROVEN" ? "NOT_PROVEN" : "PROVEN";
+        b.write(rel, record);
+      }
+    });
+    const result = await ci(p);
+    expect(unverified(result)).toEqual([`${changed}: content`]);
+    expect(result.errors.find((e) => e.code === "EVIDENCE_NOT_VERIFIED")?.path).toBe(`${EVIDENCE}/${changed}.json`);
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("a workflow_dispatch attempt from feature/x: EVIDENCE_NOT_VERIFIED branch (SCN-VER-102); from main it is verified without head sha (SCN-VER-096)", async () => {
+    const feature = await archivePr({ run: { event: "workflow_dispatch", headBranch: "feature/x", headSha: "d".repeat(40) } });
+    const refused = await ci(feature.p);
+    expect(unverified(refused)).toEqual(feature.evidence.map((id) => `${id}: branch`));
+    expect(refused.exitCode).toBe(1);
+
+    const main = await archivePr({ run: { event: "workflow_dispatch", headBranch: "main", headSha: "d".repeat(40) } });
+    const accepted = await ci(main.p);
+    expect(accepted.errors).toEqual([]);
+    expect(accepted.data["evidence"]).toEqual(main.evidence);
+  });
+
+  it("an attempt that failed, of a pull_request run on another head, or without its artifact: EVIDENCE_NOT_VERIFIED with the reason", async () => {
+    const failed = await archivePr({ run: { conclusion: "failure" } });
+    expect(unverified(await ci(failed.p))).toEqual(failed.evidence.map((id) => `${id}: conclusion`));
+    const other = await archivePr({ run: { headSha: "e".repeat(40) } });
+    expect(unverified(await ci(other.p))).toEqual(other.evidence.map((id) => `${id}: head_sha`));
+    const expired = await archivePr({ artifact: false });
+    const result = await ci(expired.p);
+    expect(unverified(result)).toEqual(expired.evidence.map((id) => `${id}: artifact`));
+    expect(result.errors[0]?.hint).toContain("gh workflow run ci.yml -f merge_commit=");
   });
 });
 

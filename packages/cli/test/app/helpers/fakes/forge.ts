@@ -21,6 +21,7 @@ export function fakePull(number: number, fields: Partial<PullRequest> = {}, repo
     mergedBy: "kat",
     mergeCommit: "a".repeat(40),
     headSha: "b".repeat(40),
+    defaultBranch: "main",
     ...fields
   };
 }

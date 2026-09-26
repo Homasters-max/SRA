@@ -114,15 +114,15 @@
 
 ## 5. archive-PR и ci fetch (REQ-VER-011, REQ-VER-012)
 
-- [ ] 5.1 `core/ci/archive.ts` — проверка CI-записей `MERGED` (run, head sha, `conclusion`, побайтовое сравнение с artifact),
+- [x] 5.1 `core/ci/archive.ts` — проверка CI-записей `MERGED` (run, head sha, `conclusion`, побайтовое сравнение с artifact),
   `EVIDENCE_NOT_VERIFIED` (§5).
 
   Проверка: app на SCN-VER-079, SCN-VER-102 с `FakeForge`.
-- [ ] 5.2 R-16: повтор `openspec archive` в `worktreeAt(HEAD^1)` и сравнение `openspec/specs/**`, `SPECS_NOT_ARCHIVED`;
+- [x] 5.2 R-16: повтор `openspec archive` в `worktreeAt(HEAD^1)` и сравнение `openspec/specs/**`, `SPECS_NOT_ARCHIVED`;
   правило путей archive-PR; `worktreeAt` — из задачи 4.1 (I-171).
 
   Проверка: app на SCN-VER-080, SCN-VER-091, SCN-VER-106.
-- [ ] 5.3 `core/ci/fetch.ts` и `warrant ci fetch <pr> [--dry-run]`:
+- [x] 5.3 `core/ci/fetch.ts` и `warrant ci fetch <pr> [--dry-run]`:
   - выбор run по дереву M;
   - `importRecords` в `core/evidence/store.ts`;
   - ошибки `PR_NOT_MERGED`, `NO_CI_EVIDENCE` с `hint`, `EVIDENCE_CONFLICT`;

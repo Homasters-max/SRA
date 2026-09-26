@@ -2,8 +2,9 @@
  * The scenario of `warrant ci` (REQ-VER-011, design §4 of phase-4c) over the
  * subject (`kind.ts`) and the base of requirements (`base.ts`): the structure
  * of the record (`record.ts`), refs through the forge (`refs.ts`), path rules
- * (`paths.ts`), the informational gates of a spec-PR and the merge verdict of
- * an impl-PR (`impl.ts`); or, under `--dry-run`, only the plan.
+ * (`paths.ts`), the informational gates of a spec-PR, the merge verdict of an
+ * impl-PR (`impl.ts`), the CI evidence and the repeated archive of an
+ * archive-PR (`archive.ts`); or, under `--dry-run`, only the plan.
  */
 import { checksForTransition } from "../check/execute.js";
 import type { Ctx } from "../ctx.js";
@@ -14,6 +15,7 @@ import { MERGE_TRANSITION, type Finding } from "../gates/types.js";
 import type { ChangeRecord } from "../record/read.js";
 import { evaluate, prepare } from "../transition/evaluate.js";
 import { createWrites } from "../writes.js";
+import { replayArchive, verifyCiEvidence } from "./archive.js";
 import type { BaseContext } from "./base.js";
 import { judgeImpl, mergeFacts } from "./impl.js";
 import type { CiSubject } from "./kind.js";
@@ -90,9 +92,11 @@ export async function judgePullRequest(ctx: Ctx, subject: CiSubject, base: BaseC
   const change = subject.change;
 
   let transitions: NewTransition[] = [];
+  let evidence: ReadonlyMap<string, Record<string, unknown>> = new Map();
   if (change !== undefined) {
     const record = await judgeRecord(ctx, subject, base, env);
     transitions = record.transitions;
+    evidence = record.evidence;
     errors.push(...record.errors);
     const refs = await judgeRefs(ctx, subject, base, record.transitions, record.evidence);
     errors.push(...refs.errors);
@@ -102,7 +106,21 @@ export async function judgePullRequest(ctx: Ctx, subject: CiSubject, base: BaseC
   const paths = await judgePaths(ctx, subject, base, transitions, env);
   errors.push(...paths.errors);
   skipped.push(...paths.skipped);
-  let exitCode: ExitCode = errors.length > 0 ? EXIT.FAIL : EXIT.OK;
+
+  let configExit: ExitCode = EXIT.OK;
+  let verified: string[] | undefined;
+  if (subject.kind === "archive" && change !== undefined) {
+    const ci = await verifyCiEvidence(ctx, subject, transitions, evidence);
+    errors.push(...ci.errors);
+    verified = ci.verified;
+    // R-16: only a new ARCHIVED repeats the archive; an archive-PR with MERGED alone has no main specs to compare (SCN-VER-106).
+    if (transitions.some((t) => t.to === "ARCHIVED")) {
+      const replay = await replayArchive(ctx, subject, base);
+      errors.push(...replay.errors);
+      if (replay.exitCode === EXIT.CONFIG) configExit = EXIT.CONFIG;
+    }
+  }
+  let exitCode: ExitCode = configExit === EXIT.CONFIG ? EXIT.CONFIG : errors.length > 0 ? EXIT.FAIL : EXIT.OK;
 
   if (subject.kind === "spec" && change !== undefined) {
     const gates = await specGates(ctx, subject, base, env, skipped);
@@ -125,5 +143,6 @@ export async function judgePullRequest(ctx: Ctx, subject: CiSubject, base: BaseC
     data["evidence"] = impl.evidence;
     data["artifact"] = impl.artifact;
   }
+  if (verified !== undefined) data["evidence"] = verified;
   return { data, errors, exitCode };
 }

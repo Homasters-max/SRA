@@ -34,3 +34,33 @@ export function attestationFromEnv(env: NodeJS.ProcessEnv = process.env): Attest
   }
   return { type: "none" };
 }
+
+/** The run attempt an `attestation.ref` of `ci` names. */
+export interface CiRunRef {
+  /** `<owner>/<repo>`, lower case. */
+  repository: string;
+  id: number;
+  /** `/attempts/<n>` of the ref; a ref without it names attempt 1 (REQ-VER-011). */
+  attempt: number;
+}
+
+/**
+ * The inverse of {@link attestationFromEnv}: the repository, run and attempt
+ * of `…/<owner>/<repo>/actions/runs/<id>[/attempts/<n>]`, or null when `ref`
+ * is not such a URL.
+ */
+export function parseCiRef(ref: string): CiRunRef | null {
+  let url: URL;
+  try {
+    url = new URL(ref);
+  } catch {
+    return null;
+  }
+  const match = /^\/([^/]+)\/([^/]+)\/actions\/runs\/([1-9][0-9]*)(?:\/attempts\/([1-9][0-9]*))?\/?$/.exec(url.pathname);
+  if (match === null) return null;
+  return {
+    repository: `${match[1] as string}/${match[2] as string}`.toLowerCase(),
+    id: Number.parseInt(match[3] as string, 10),
+    attempt: match[4] === undefined ? 1 : Number.parseInt(match[4], 10)
+  };
+}

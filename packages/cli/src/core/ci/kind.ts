@@ -102,7 +102,14 @@ function changedRecords(diff: readonly DiffEntry[]): { names: string[]; deleted:
  * a record, is reported in `errors` with the kind `none`.
  */
 export async function readCiSubject(ctx: Pick<Ctx, "git">): Promise<CiSubject> {
-  const heads = await readMergeHead(ctx);
+  return readSubjectOf(ctx, await readMergeHead(ctx));
+}
+
+/**
+ * The subject of the merge `heads` — HEAD for `warrant ci`, the merge commit
+ * M of a merged impl-PR for `ci fetch` (REQ-VER-012: the Change of `M^1..M`).
+ */
+export async function readSubjectOf(ctx: Pick<Ctx, "git">, heads: MergeHead): Promise<CiSubject> {
   const commonDir = await ctx.git.commonDir();
   const diff = await changedPaths(ctx, { commonDir, commit: heads.merge, baseCommit: heads.base, limitations: [] });
   if (!diff.ok) throw new WarrantError("USAGE", `the diff of the pull request is unknown: ${diff.reason}`);

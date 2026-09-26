@@ -24,7 +24,7 @@ import { runCheck } from "../commands/check.js";
 import { runGate } from "../commands/gate.js";
 import { runAnalyze } from "../commands/analyze.js";
 import { runVerify } from "../commands/verify.js";
-import { runCi } from "../commands/ci.js";
+import { runCi, runCiFetch } from "../commands/ci.js";
 import { runTransition } from "../commands/transition.js";
 import { runArchive } from "../commands/archive.js";
 import { runLink } from "../commands/link.js";
@@ -108,7 +108,9 @@ function register(
   const envelopeName = parent === program ? name : `${parent.name()} ${name}`;
   cmd.action(async (...actionArgs: unknown[]) => {
     const command = actionArgs[actionArgs.length - 1] as Command;
-    await run(envelopeName, runner, command.args, command.opts());
+    // Commander gives an option the parent also declares (`ci --dry-run`) to the parent, wherever it stands: `ci fetch 9 --dry-run`.
+    const opts = parent === program ? command.opts() : { ...parent.opts(), ...command.opts() };
+    await run(envelopeName, runner, command.args, opts);
   });
   return cmd;
 }
@@ -328,7 +330,7 @@ register(
       .option("--paths <a,b>", "run run.scoped_command of the checks over these comma-separated paths")
 );
 
-register(
+const ciCommand = register(
   "ci",
   "judge the pull request whose merge is HEAD: kind by the record in the diff, rules of the base, merge verdict of an impl-PR",
   (ctx, _args, opts) => runCi(ctx, { dryRun: opts["dryRun"] === true }),
@@ -344,6 +346,22 @@ register(
           "\nHEAD must be the result of a merge: the first parent the tip of the base, the second the head of the PR.\n" +
           "Exit codes: 0 no violation; 1 a violation of the PR (errors[]); 3 configuration, USAGE, a failed check, FORGE_UNAVAILABLE.\n"
       )
+);
+register(
+  "fetch",
+  "put the CI evidence of a merged impl-PR — the run whose records are on the tree of its merge commit — into .warrant/evidence/<change>/",
+  (ctx, args) => runCiFetch(ctx, args[0] as string),
+  (c) =>
+    c
+      .argument("<pr>", "number or URL of the merged impl-PR of this repository")
+      .option("--dry-run", "choose the run and print data.would_write[]; write nothing")
+      .addHelpText(
+        "after",
+        examples(["warrant ci fetch 57", "warrant ci fetch https://github.com/<owner>/<repo>/pull/57 --dry-run"]) +
+          "\nNo run on the tree of the merge commit M (main moved before the merge): gh workflow run ci.yml -f merge_commit=<M>, then fetch again.\n" +
+          "Exit codes: 0 imported or already present; 3 USAGE, PR_NOT_FOUND, PR_NOT_MERGED, PR_NOT_IMPL, NO_CI_EVIDENCE, EVIDENCE_CONFLICT, BUSY, FORGE_UNAVAILABLE — nothing written.\n"
+      ),
+  ciCommand
 );
 
 register(

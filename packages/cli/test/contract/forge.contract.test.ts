@@ -33,7 +33,8 @@ const PR_53: PullRequest = {
   mergedAt: "2026-09-26T00:32:25Z",
   mergedBy: "Homasters-max",
   mergeCommit: "051b91a8394bbfa7b36f83d5201b079d0e4b3371",
-  headSha: "c3b6033ce3af943c7b515cd3e79acf1b79125e18"
+  headSha: "c3b6033ce3af943c7b515cd3e79acf1b79125e18",
+  defaultBranch: "main"
 };
 
 const RUN: WorkflowRun = {

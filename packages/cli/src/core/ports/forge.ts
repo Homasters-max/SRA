@@ -24,6 +24,11 @@ export interface PullRequest {
   /** `merge_commit_sha` of a merged PR (a merge, squash or rebase commit); null when not merged. */
   mergeCommit: string | null;
   headSha: string;
+  /**
+   * `base.repo.default_branch`: the default branch of the repository, the only
+   * branch a recovery run `workflow_dispatch` is accepted from (N49).
+   */
+  defaultBranch: string;
 }
 
 /** One attempt of a workflow run (`GET …/actions/runs/{id}[/attempts/{n}]`). */

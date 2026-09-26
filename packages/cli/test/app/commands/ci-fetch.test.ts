@@ -1,0 +1,347 @@
+/**
+ * `warrant ci fetch <pr>` in the test process (REQ-VER-012, task 5.3 of
+ * phase-4c): the run on the tree of M — SCN-VER-086, 087, 096, 103 — input
+ * errors — SCN-VER-088, 104, 109 — `--dry-run` and a repeated fetch —
+ * SCN-VER-089, 097 — and the import: conflict, lock, an interrupted import.
+ *
+ * Each case merges the impl-PR of `add-search` into `main` of `FakeGit` by M,
+ * runs `warrant ci` on M as the job does (run 42, attempt 1), keeps its
+ * evidence directory aside as the artifact the fake forge serves and cleans
+ * the working copy: the local archive branch before `ci fetch`.
+ */
+import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+import { runCi, runCiFetch } from "../../../src/commands/ci.js";
+import { canonicalText } from "../../../src/core/canon/format-json.js";
+import { acquireLock, lockPath } from "../../../src/core/check/lock.js";
+import type { Ctx } from "../../../src/core/ctx.js";
+import type { Json } from "../../../src/core/schemas/loader.js";
+import type { CommandResult } from "../../../src/io/output.js";
+import { FAKE_REPOSITORY, fakePull, fakeRun, type FakeArtifact } from "../helpers/fakes/forge.js";
+import { invoke } from "../helpers/invoke.js";
+import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+
+const project = useProjectBuilder();
+
+type Data = Record<string, any>;
+type Result = CommandResult & { data: Data };
+
+const RECORD = ".warrant/changes/add-search.json";
+const EVIDENCE = ".warrant/evidence/add-search";
+const HASH = `sha256:${"0".repeat(64)}`;
+const AT = "2026-09-25T10:00:00Z";
+const RUNS = `https://github.com/${FAKE_REPOSITORY}/actions/runs`;
+const CI_ENV: NodeJS.ProcessEnv = {
+  GITHUB_ACTIONS: "true",
+  GITHUB_SERVER_URL: "https://github.com",
+  GITHUB_REPOSITORY: FAKE_REPOSITORY,
+  GITHUB_RUN_ID: "42"
+};
+const OTHER_TREE = "f".repeat(40);
+
+const junit =
+  '<?xml version="1.0" encoding="UTF-8" ?>\n<testsuites tests="1" failures="0">\n' +
+  '  <testsuite name="fake" tests="1" failures="0" errors="0" skipped="0">\n  </testsuite>\n</testsuites>\n';
+
+function fetch(p: ProjectBuilder, pr = "9", env: NodeJS.ProcessEnv = {}, ctx: Ctx = p.ctx): Promise<Result> {
+  return invoke(() => runCiFetch(ctx, pr, env)) as Promise<Result>;
+}
+
+/** Appends a transition to the record of `add-search` in the working tree. */
+function advance(p: ProjectBuilder, to: string, fields: Record<string, unknown> = {}): void {
+  const record = p.json(RECORD);
+  record.transitions.push({ to, at: AT, by: "cli:local", effective_policy_hash: HASH, gates: {}, ...fields });
+  record.change_state = to;
+  p.write(RECORD, record);
+}
+
+/** Branch `name` from `main`, `work` on it, one commit; `main` merges it with a merge commit. */
+function pullRequest(p: ProjectBuilder, name: string, work: (p: ProjectBuilder) => void): { head: string; merge: string } {
+  p.branch(name, "main");
+  work(p);
+  const head = p.commit(`${name}: head`);
+  p.checkout("main", { force: true });
+  return { head, merge: p.merge(name, { label: `Merge ${name}` }) };
+}
+
+/** Files of the directory `rel`, as `actions/upload-artifact` uploads them. */
+function artifactOf(p: ProjectBuilder, rel: string): Record<string, Buffer> {
+  const dir = path.join(p.root, rel);
+  const out: Record<string, Buffer> = {};
+  for (const entry of readdirSync(dir, { recursive: true }) as string[]) {
+    const file = path.join(dir, entry);
+    if (statSync(file).isFile()) out[entry.split(path.sep).join("/")] = readFileSync(file);
+  }
+  return out;
+}
+
+interface Merged {
+  p: ProjectBuilder;
+  m: string;
+  head: string;
+  tree: string;
+  /** The artifact `evidence-add-search-1` of run 42: records with the ref `…/runs/42` (attempt 1). */
+  files: Record<string, Buffer>;
+  evidence: string[];
+}
+
+/** `add-search` in `state` on `main`: an impl-PR brings `to` and is merged by M; the job's evidence is the artifact. */
+async function merged(state = "IMPLEMENTING", to = "VERIFYING"): Promise<Merged> {
+  const p = project().withOpenspecValidate();
+  p.withChange("add-search", { design: "# Design\n", tasks: "# Tasks\n", specs: { search: [] } }).withRecord("add-search", state, {
+    classification: { profiles: ["chore"] }
+  });
+  p.withWaiver({
+    id: "WAV-2026-001",
+    change: "add-search",
+    gate: "spec-approved",
+    reason: "no producer in the fixture",
+    owner: "kat",
+    approved_by: "human:kat",
+    expires_at: "2099-12-31",
+    waiver_state: "ACTIVE"
+  });
+  p.withCheck(
+    "fake-tests",
+    { effect: (spec) => writeFileSync(path.resolve(spec.cwd, spec.argv[1] as string, "junit.xml"), junit, "utf8") },
+    { id: "tests-passed", args: ["{out}"] }
+  );
+  await p.synced();
+  p.commit("base");
+  const { head, merge } = pullRequest(p, "worktree/add-search", (b) => {
+    b.write("src/search.ts", "export const search = 1;\n");
+    advance(b, to, { gates: { "tests-passed": "PASS" } });
+  });
+  const run = (await invoke(() => runCi(p.ctx, {}, CI_ENV))) as Result;
+  const files = to === "VERIFYING" ? artifactOf(p, run.data["artifact"].path) : {};
+  p.remove(EVIDENCE);
+  return { p, m: merge, head, tree: (await p.git.treeId(merge)) as string, files, evidence: (run.data["evidence"] as string[] | undefined) ?? [] };
+}
+
+/** The artifact `files` as another attempt made it: every record with `ref`, and `tree` when given. */
+function remade(files: Record<string, Buffer>, ref: string, tree?: string): Record<string, Buffer> {
+  const out: Record<string, Buffer> = {};
+  for (const [file, bytes] of Object.entries(files)) {
+    if (!/^EVID-[^/]+\.json$/.test(file)) {
+      out[file] = bytes;
+      continue;
+    }
+    const json = JSON.parse(bytes.toString("utf8"));
+    json.attestation = { type: "ci", ref };
+    if (tree !== undefined) json.subject.tree = tree;
+    out[file] = Buffer.from(canonicalText(json as Json).text, "utf8");
+  }
+  return out;
+}
+
+function artifact(runId: number, attempt: number, files: Record<string, Buffer>): FakeArtifact {
+  return { runId, name: `evidence-add-search-${attempt}`, files };
+}
+
+/** Records of the working copy, by file name, as bytes. */
+function imported(p: ProjectBuilder): Record<string, Buffer> {
+  const dir = path.join(p.root, EVIDENCE);
+  const out: Record<string, Buffer> = {};
+  for (const name of readdirSync(dir).filter((n) => n.startsWith("EVID-"))) out[name] = readFileSync(path.join(dir, name));
+  return out;
+}
+
+const recordsOf = (files: Record<string, Buffer>): Record<string, Buffer> =>
+  Object.fromEntries(Object.entries(files).filter(([file]) => /^EVID-[^/]+\.json$/.test(file)));
+
+describe("warrant ci fetch: the run on the tree of M", () => {
+  it("of two successful runs of the head, the older one on the tree of M, not the latest (SCN-VER-086)", async () => {
+    const { p, m, head, tree, files, evidence } = await merged();
+    p.withForge({
+      pulls: [fakePull(9, { mergeCommit: m, headSha: head })],
+      runs: [fakeRun(42, { headSha: head }), fakeRun(43, { headSha: head, createdAt: "2026-09-24T09:30:00Z" })],
+      artifacts: [artifact(42, 1, files), artifact(43, 1, remade(files, `${RUNS}/43/attempts/1`, OTHER_TREE))]
+    });
+    const result = await fetch(p);
+    expect(result.errors).toEqual([]);
+    expect(result.exitCode).toBe(0);
+    expect(result.data).toMatchObject({ pr: 9, change: "add-search", merge_commit: m, tree, run: `${RUNS}/42/attempts/1`, evidence });
+    expect(result.data["skipped"]).toEqual([{ run: `${RUNS}/43/attempts/1`, reason: expect.stringContaining(tree) }]);
+    expect(imported(p)).toEqual(recordsOf(files));
+    const manifest = p.json(`${EVIDENCE}/manifest.json`);
+    expect(manifest.evidence).toEqual(evidence);
+    expect(manifest.commit).toBe(await p.git.head());
+  });
+
+  it("no run on the tree of M: NO_CI_EVIDENCE with the hint of the recovery run, nothing written (SCN-VER-087)", async () => {
+    const { p, m, head, files } = await merged();
+    p.withForge({
+      pulls: [fakePull(9, { mergeCommit: m, headSha: head })],
+      runs: [fakeRun(43, { headSha: head })],
+      artifacts: [artifact(43, 1, remade(files, `${RUNS}/43/attempts/1`, OTHER_TREE))]
+    });
+    const before = p.tree();
+    const result = await fetch(p);
+    expect(result.errors[0]?.code).toBe("NO_CI_EVIDENCE");
+    expect(result.errors[0]?.hint).toContain(`gh workflow run ci.yml -f merge_commit=${m}`);
+    expect(result.exitCode).toBe(3);
+    expect(p.tree()).toEqual(before);
+  });
+
+  it("a recovery workflow_dispatch run from main after the merge, head sha the tip of main (SCN-VER-096)", async () => {
+    const { p, m, head, tree, files } = await merged();
+    p.withForge({
+      pulls: [fakePull(9, { mergeCommit: m, headSha: head })],
+      runs: [
+        fakeRun(42, { headSha: head }),
+        fakeRun(50, { event: "workflow_dispatch", headBranch: "feature/x", headSha: "d".repeat(40), createdAt: "2026-09-24T11:00:00Z" }),
+        fakeRun(51, { event: "workflow_dispatch", headBranch: "main", headSha: "d".repeat(40), createdAt: "2026-09-24T12:00:00Z" })
+      ],
+      artifacts: [
+        artifact(42, 1, remade(files, `${RUNS}/42`, OTHER_TREE)),
+        artifact(50, 1, remade(files, `${RUNS}/50/attempts/1`)),
+        artifact(51, 1, remade(files, `${RUNS}/51/attempts/1`))
+      ]
+    });
+    const result = await fetch(p);
+    expect(result.errors).toEqual([]);
+    expect(result.data["run"]).toBe(`${RUNS}/51/attempts/1`);
+    expect(result.data["tree"]).toBe(tree);
+    // Run 50 was dispatched from feature/x: not a candidate at all.
+    expect(p.forge.calls.some((c) => c.startsWith("downloadArtifact 50"))).toBe(false);
+  });
+
+  it("attempt 2 of a run (Re-run before the merge) on the tree of M, attempt 1 not (SCN-VER-103)", async () => {
+    const { p, m, head, files } = await merged();
+    const second = remade(files, `${RUNS}/42/attempts/2`);
+    p.withForge({
+      pulls: [fakePull(9, { mergeCommit: m, headSha: head })],
+      runs: [fakeRun(42, { headSha: head }), fakeRun(42, { headSha: head, attempt: 2, createdAt: "2026-09-24T09:40:00Z" })],
+      artifacts: [artifact(42, 1, remade(files, `${RUNS}/42`, OTHER_TREE)), artifact(42, 2, second)]
+    });
+    const result = await fetch(p);
+    expect(result.errors).toEqual([]);
+    expect(result.data["run"]).toBe(`${RUNS}/42/attempts/2`);
+    expect(imported(p)).toEqual(recordsOf(second));
+    expect(p.forge.calls.filter((c) => c.startsWith("workflowRun"))).toEqual(["workflowRun 42 2"]);
+  });
+});
+
+describe("warrant ci fetch: input errors, nothing written", () => {
+  it("a PR merged by squash, a PR not merged, a PR of another repository (SCN-VER-088)", async () => {
+    const { p, head } = await merged();
+    const squash = (await p.git.parents(head))[0] as string;
+    p.withForge({ pulls: [fakePull(9, { mergeCommit: squash, headSha: head }), fakePull(10, { merged: false, mergedAt: null, mergedBy: null, mergeCommit: null })] });
+    const before = p.tree();
+    const squashed = await fetch(p);
+    expect([squashed.errors[0]?.code, squashed.exitCode]).toEqual(["PR_NOT_MERGED", 3]);
+    expect((await fetch(p, "10")).errors[0]?.code).toBe("PR_NOT_MERGED");
+    const other = await fetch(p, "https://github.com/other/repo/pull/9");
+    expect([other.errors[0]?.code, other.exitCode]).toEqual(["USAGE", 3]);
+    expect(p.tree()).toEqual(before);
+  });
+
+  it("no such PR, M not fetched, a word that is not a PR: PR_NOT_FOUND, COMMIT_NOT_FOUND with git fetch, USAGE", async () => {
+    const { p, head } = await merged();
+    p.withForge({ pulls: [fakePull(9, { mergeCommit: "9".repeat(40), headSha: head })] });
+    expect((await fetch(p, "99")).errors[0]?.code).toBe("PR_NOT_FOUND");
+    const missing = await fetch(p);
+    expect(missing.errors[0]?.code).toBe("COMMIT_NOT_FOUND");
+    expect(missing.errors[0]?.hint).toContain("git fetch");
+    expect((await fetch(p, "latest")).errors[0]?.code).toBe("USAGE");
+  });
+
+  it("the spec-PR of the Change, its record SPECIFIED on M: PR_NOT_IMPL with the hint (SCN-VER-104)", async () => {
+    const { p, m, head } = await merged("PROPOSED", "SPECIFIED");
+    p.withForge({ pulls: [fakePull(7, { mergeCommit: m, headSha: head })] });
+    const result = await fetch(p, "7");
+    expect(result.errors[0]?.code).toBe("PR_NOT_IMPL");
+    expect(result.errors[0]?.hint).toContain("impl-PR");
+    expect(result.exitCode).toBe(3);
+  });
+
+  it("WARRANT_STATE_DIR: USAGE with the hint, no call to the forge (SCN-VER-109)", async () => {
+    const { p } = await merged();
+    const before = p.tree();
+    const result = await fetch(p, "9", { WARRANT_STATE_DIR: "state" });
+    expect(result.errors[0]?.code).toBe("USAGE");
+    expect(result.errors[0]?.hint).toContain("WARRANT_STATE_DIR");
+    expect(result.exitCode).toBe(3);
+    expect(p.forge.calls).toEqual([]);
+    expect(p.tree()).toEqual(before);
+  });
+});
+
+describe("warrant ci fetch: the import", () => {
+  async function ready(): Promise<Merged> {
+    const merge = await merged();
+    merge.p.withForge({
+      pulls: [fakePull(9, { mergeCommit: merge.m, headSha: merge.head })],
+      runs: [fakeRun(42, { headSha: merge.head })],
+      artifacts: [artifact(42, 1, merge.files)]
+    });
+    return merge;
+  }
+
+  it("--dry-run chooses the run and lists the records and the manifest; nothing written (SCN-VER-089)", async () => {
+    const { p, evidence } = await ready();
+    const before = p.tree();
+    const result = await fetch(p, "9", {}, p.dryRun());
+    expect(result.errors).toEqual([]);
+    expect(result.data["dry_run"]).toBe(true);
+    expect(result.data["run"]).toBe(`${RUNS}/42/attempts/1`);
+    expect(result.data["would_write"]).toEqual([...evidence.map((id) => `${EVIDENCE}/${id}.json`), `${EVIDENCE}/manifest.json`].sort());
+    expect(p.tree()).toEqual(before);
+  });
+
+  it("a second fetch changes no file and names the same ids (SCN-VER-097); a lost manifest is written again", async () => {
+    const { p, evidence } = await ready();
+    expect((await fetch(p)).errors).toEqual([]);
+    const after = p.tree();
+    const again = await fetch(p);
+    expect(again.errors).toEqual([]);
+    expect(again.data["evidence"]).toEqual(evidence);
+    expect(p.tree()).toEqual(after);
+
+    // An import interrupted after the records: the next one completes the manifest.
+    p.remove(`${EVIDENCE}/manifest.json`);
+    expect((await fetch(p)).errors).toEqual([]);
+    expect(p.json(`${EVIDENCE}/manifest.json`).evidence).toEqual(evidence);
+  });
+
+  it("a local record of the same id with other bytes: EVIDENCE_CONFLICT, nothing written", async () => {
+    const { p, evidence } = await ready();
+    const id = evidence[0] as string;
+    p.write(`${EVIDENCE}/${id}.json`, "{}\n");
+    const before = p.tree();
+    const result = await fetch(p);
+    expect(result.errors.map((e) => e.code)).toEqual(["EVIDENCE_CONFLICT"]);
+    expect(result.errors[0]?.path).toBe(`${EVIDENCE}/${id}.json`);
+    expect(result.exitCode).toBe(3);
+    expect(p.tree()).toEqual(before);
+  });
+
+  it("a record file not named by its id: SCHEMA_VIOLATION, nothing written", async () => {
+    const { p, m, head, files, evidence } = await merged();
+    const id = evidence[0] as string;
+    const renamed = { ...files, [`EVID-${"0".repeat(26)}.json`]: files[`${id}.json`] as Buffer };
+    delete renamed[`${id}.json`];
+    p.withForge({ pulls: [fakePull(9, { mergeCommit: m, headSha: head })], runs: [fakeRun(42, { headSha: head })], artifacts: [artifact(42, 1, renamed)] });
+    const before = p.tree();
+    const result = await fetch(p);
+    expect(result.errors.map((e) => e.code)).toEqual(["SCHEMA_VIOLATION"]);
+    expect(result.exitCode).toBe(3);
+    expect(p.tree()).toEqual(before);
+  });
+
+  it("the lock of check held: BUSY, exit 3, nothing written", async () => {
+    const { p } = await ready();
+    const held = acquireLock(lockPath(p.root, await p.git.commonDir()).file, { pid: 1, check: "tests-passed", started_at: AT, cwd: p.root }, p.ctx.signals);
+    expect(held.ok).toBe(true);
+    try {
+      const before = p.tree();
+      const result = await fetch(p);
+      expect([result.errors[0]?.code, result.exitCode]).toEqual(["BUSY", 3]);
+      expect(p.tree()).toEqual(before);
+    } finally {
+      if (held.ok) held.release();
+    }
+  });
+});

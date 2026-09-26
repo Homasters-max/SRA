@@ -3,7 +3,7 @@
  * N48): they judge the pull request as a whole, whatever gate `scope-valid`
  * says of its transition. The own state of the Change is allowed everywhere;
  * `openspec/specs/**` only in an archive-PR with a new `ARCHIVED` (equality with
- * a repeated archive — task 5.2). The law — `paths.*` and policy paths — is the
+ * a repeated archive — `archive.ts`). The law — `paths.*` and policy paths — is the
  * base's (I-171).
  */
 import type { Ctx } from "../ctx.js";

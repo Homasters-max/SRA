@@ -35,8 +35,8 @@ export interface RefJudgement {
   findings: Finding[];
 }
 
-/** `<owner>/<repo>` and the number of a pull request URL, or null. */
-function parsePullUrl(ref: string): { repository: string; number: number } | null {
+/** `<owner>/<repo>` (lower case) and the number of a pull request URL, or null. */
+export function parsePullUrl(ref: string): { repository: string; number: number } | null {
   let url: URL;
   try {
     url = new URL(ref);

@@ -65,7 +65,8 @@ export function parsePullRequest(body: unknown): PullRequest {
     mergedAt: merged ? field(pr.merged_at, isString, "merged_at") : null,
     mergedBy: merged ? loginOf(pr.merged_by, "merged_by") : null,
     mergeCommit: merged ? field(pr.merge_commit_sha, isString, "merge_commit_sha") : null,
-    headSha: field(objectOf(pr.head, "head").sha, isString, "head.sha")
+    headSha: field(objectOf(pr.head, "head").sha, isString, "head.sha"),
+    defaultBranch: field(objectOf(objectOf(pr.base, "base").repo, "base.repo").default_branch, isString, "base.repo.default_branch")
   };
 }
 

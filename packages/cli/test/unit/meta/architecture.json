@@ -32,7 +32,7 @@
     { "id": "core/status", "path": "core/status", "rank": 3 },
     { "id": "core/transition", "path": "core/transition", "rank": 4 },
     { "id": "core/guard", "path": "core/guard", "rank": 4 },
-    { "id": "core/ci", "path": "core/ci", "rank": 5 },
+    { "id": "core/ci", "path": "core/ci", "rank": 4 },
     { "id": "commands", "path": "commands", "layer": "commands" },
     { "id": "io", "path": "io", "layer": "io" },
     { "id": "bin", "path": "bin", "layer": "bin" },
@@ -116,7 +116,10 @@
     { "id": "guard-decision", "owner": "core/ports/frontend.ts", "doc": "docs/04-lifecycle.md", "values": ["allow", "deny"] },
     { "id": "evidence-status", "owner": "core/evidence/record.ts", "doc": "docs/02-vocabulary.md", "values": ["PROVEN", "NOT_PROVEN", "INCONCLUSIVE", "NOT_APPLICABLE"] },
     { "id": "attestation-type", "owner": "core/evidence/attestation.ts", "doc": "docs/02-vocabulary.md", "values": ["ci", "human-review", "signature", "none"] },
-    { "id": "finding-severity", "owner": "core/run/submit.ts", "doc": "docs/02-vocabulary.md", "values": ["BLOCKER", "MAJOR", "MINOR", "INFO"] }
+    { "id": "finding-severity", "owner": "core/run/submit.ts", "doc": "docs/02-vocabulary.md", "values": ["BLOCKER", "MAJOR", "MINOR", "INFO"] },
+    { "id": "pr-kind", "owner": "core/record/lifecycle.ts", "doc": "docs/04-lifecycle.md", "values": ["spec", "impl", "archive", "abandon", "none"] }
   ],
-  "exceptions": []
+  "exceptions": [
+    { "id": "A-36", "rule": "enum", "from": "core/ci/record.ts", "enum": "pr-kind" }
+  ]
 }

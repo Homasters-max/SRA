@@ -21,10 +21,14 @@
   в другие места SEF и в другие проекты, независимо от доли повторов.
 - **Архитектура — модульная, гибкая и простая сразу** (maintainer): концепции перетекут в другие проекты (08).
 - **Вопрос с ID нормы** (`REQ-…`, `SCN-…`, `ADR-…`, `I-`, `BL-`, `A-`) — прямой поиск по якорям, без Jev.
+- **Раунд 1 grilling (2026-09-26)** — [10-accepted-round-1](10-accepted-round-1.md): 08 и три открытых вопроса
+  (Q1–Q8); домен ≠ context LATTICE, домен — projection.
+- **Раунд 2 (2026-09-26)** — [lattice-first](../2026-09-26-lattice-first/01-accepted-round-2.md): LATTICE — отдельный
+  проект после фазы 4; 02–07 — после его vertical slice, 02 заменяется read model LATTICE (Q13).
 
 ## Порядок grilling
 
-0. [08-architecture](08-architecture.md) — модули и конвейер поиска, порты (Jev, хранилище, LATTICE); рамка для 01–07.
+0. ~~[08-architecture](08-architecture.md)~~ — решено в раунде 1 (файл 10).
 0a. [09-assessment-records](09-assessment-records.md) — записи оценок (assessment) над снимками (snapshot): ID, связь
    с хэшем, устаревание при изменении группы объектов, цепочка аудита.
 1. [01-storage](01-storage.md) — где живут домены, компоненты SEF, `docs/integrations` (LATTICE), кто обновляет.

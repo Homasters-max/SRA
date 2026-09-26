@@ -119,7 +119,9 @@ Check с `execution.exclusive: true` SHALL брать file lock `<git-common-dir
 `warrant gate <change> [id...] [--transition <FROM->TO>] [--base <ref>]` SHALL вычислить `gate_verdict` каждого gate перехода
 (по умолчанию — следующий вперёд из `change_state`) из effective policy. Сначала пред-фильтр допустимости (D-12): запись evidence
 исключается с finding `STALE` (`data.findings[]`, `{ code: "STALE", evidence, reason }`), если `subject.commit` ≠ оцениваемый commit,
-`subject.base_commit` ≠ текущий base, `metrics.threshold` ≠ effective param, `limitations` содержит `scoped:` или waiver `ACTIVE`,
+`subject.base_commit` ≠ текущий base (у записи с `subject.spec_tree` вместо этих двух сравнений — `spec_tree` ≠ hash дерева
+`{proposal.md, specs/**}` каталога Change на оцениваемом commit, тот же набор, что у `spec-approved`, с `reason: "spec_tree"`;
+[ADR-0036](../../../../docs/adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 3), `metrics.threshold` ≠ effective param, `limitations` содержит `scoped:` или waiver `ACTIVE`,
 на который ссылается `metrics.waivers[]`, отсутствует. Из допустимых записей по kind SHALL браться самая свежая по `created_at`.
 Затем по порядку [06 §3](../../../../docs/06-verification.md): `applies_when.changed_paths` не пересекает diff, или все
 `requires_evidence` имеют `NOT_APPLICABLE` от check → `NOT_APPLICABLE`; нет входа (не git-репозиторий, нет `openspec`, нет ни одной
@@ -152,7 +154,7 @@ Waiver на этот gate и Change SHALL превращать `BLOCKED` и `FAI
 
 #### Scenario: WAIVED
 <!-- id: SCN-VER-015 -->
-- **WHEN** gate `analyze-clean` (`waivable: true`) не имеет записи, а `.warrant/waivers/WAV-2026-001.json` `ACTIVE` ссылается на этот gate и Change
+- **WHEN** gate `adversarial-review` (`waivable: true`) не имеет записи, а `.warrant/waivers/WAV-2026-001.json` `ACTIVE` ссылается на этот gate и Change
 - **THEN** verdict `WAIVED`, `findings[]` содержит `WAIVED_BY` с `WAV-2026-001`
 
 #### Scenario: Waiver на невэйвабельный gate
@@ -172,13 +174,23 @@ Waiver на этот gate и Change SHALL превращать `BLOCKED` и `FAI
 
 #### Scenario: Waiver от логина вне ролей
 <!-- id: SCN-VER-043 -->
-- **WHEN** gate `analyze-clean` не имеет записи, а `ACTIVE` waiver на него несёт `approved_by: "human:bob"`, `bob` нет ни в одной роли `roles`
-- **THEN** `gates["analyze-clean"]` равен `BLOCKED`, `findings[]` содержит `WAIVER_IGNORED` с `reason: "approver"`
+- **WHEN** gate `adversarial-review` не имеет записи, а `ACTIVE` waiver на него несёт `approved_by: "human:bob"`, `bob` нет ни в одной роли `roles`
+- **THEN** `gates["adversarial-review"]` равен `BLOCKED`, `findings[]` содержит `WAIVER_IGNORED` с `reason: "approver"`
 
 #### Scenario: NOT_APPLICABLE не от check
 <!-- id: SCN-VER-044 -->
 - **WHEN** единственная допустимая запись `test-report` имеет `evidence_status: "NOT_APPLICABLE"` и `produced_by.type: "human"`
 - **THEN** `gates["tests-passed"]` равен `FAIL`, `findings[]` содержит `NOT_APPLICABLE_UNTRUSTED` с id записи
+
+#### Scenario: Review переживает коммиты
+<!-- id: SCN-VER-056 -->
+- **WHEN** запись `review` `PROVEN` сделана `run submit` на commit A в spec-PR, а `warrant gate add-search --transition SPECIFIED->APPROVED` вычисляется на commit B после merge spec-PR, где `proposal.md` и `specs/**` Change не менялись
+- **THEN** запись допустима, `gates["adversarial-review"]` равен `PASS`, `STALE` по ней нет
+
+#### Scenario: Review устарел с правкой spec
+<!-- id: SCN-VER-057 -->
+- **WHEN** после той же записи изменён `openspec/changes/add-search/specs/search/spec.md`
+- **THEN** `findings[]` содержит `STALE` с этой записью и `reason: "spec_tree"`, `gates["adversarial-review"]` равен `BLOCKED` с `NO_EVIDENCE`; правка только `design.md` запись не исключает
 
 ### Requirement: Вычисляемые L0 gates core-sdd
 <!-- id: REQ-VER-004 -->
@@ -195,12 +207,16 @@ Gates без `requires_evidence` SHALL вычисляться CLI из сост�
 которой перечислен в `evidence[]` последнего перехода `APPROVED` record, равен hash того же дерева на оцениваемом commit; `design.md` и
 `tasks.md` не входят (V-9, ADR-0024); нет перехода `APPROVED`, такой записи или git → `BLOCKED` с finding `NO_INPUT`; расхождение →
 `FAIL` с finding `SPEC_CHANGED_AFTER_APPROVAL` и списком изменённых путей; `scope-valid` — пути diff `base...HEAD` входят в множество, разрешённое
-переходу ([ADR-0011](../../../../docs/adr/WARRANT-ADR-0011-pr-topology.md), D-15): для `SPECIFIED->APPROVED` — `openspec/changes/<change>/**`
-и `.warrant/changes/<change>.json`; для `VERIFYING->MERGED` — всё, кроме `openspec/specs/**`, `openspec/changes/archive/**`,
-records и evidence других Changes, и кроме policy-путей (`match.paths` profile `factory-change`), если `factory-change` не в profiles;
-для `MERGED->ARCHIVED` — `openspec/changes/archive/<date>-<change>/**`, `openspec/specs/**`, `openspec/changes/<change>/**` (удаление),
-record и evidence этого Change. Каждый FAIL SHALL сопровождаться finding с путями или именами, вызвавшими его. `analyze-clean` SHALL
-давать `BLOCKED` с finding `NO_INPUT` («`warrant analyze` не реализован»), пока `analyze` не существует.
+переходу ([ADR-0011](../../../../docs/adr/WARRANT-ADR-0011-pr-topology.md), D-15). Собственное состояние Change — record
+`.warrant/changes/<change>.json`, каталог evidence `<state>/evidence/<change>/**`, файлы Run `<state>/runs/<id>.json` с `change`
+этого Change и их `<id>.result.json` — SHALL быть разрешено на каждом из трёх переходов и SHALL NOT считаться policy-путём;
+состояние других Changes (records, evidence, Runs) SHALL быть запрещено. Сверх собственного состояния: для `SPECIFIED->APPROVED` —
+`openspec/changes/<change>/**`; для `VERIFYING->MERGED` — всё, кроме `openspec/specs/**`, `openspec/changes/archive/**` и policy-путей
+(`match.paths` profile `factory-change`), если `factory-change` не в profiles; для `MERGED->ARCHIVED` —
+`openspec/changes/archive/<date>-<change>/**`, `openspec/specs/**`, `openspec/changes/<change>/**` (удаление). Каждый FAIL SHALL сопровождаться finding с путями или именами, вызвавшими его. `analyze-clean` — находки
+[`warrant analyze`](#requirement-команда-analyze) на оцениваемом commit с base перехода: хотя бы одна находка `UNSATISFIED`,
+`CONFLICT` или `ORPHAN` → `FAIL` с этими находками; нет находок → `PASS`; diff недоступен (нет git, base не разрешается) → `BLOCKED`
+с `NO_INPUT` ([ADR-0036](../../../../docs/adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 2).
 
 #### Scenario: Impl-PR трогает specs
 <!-- id: SCN-VER-019 -->
@@ -246,6 +262,26 @@ record и evidence этого Change. Каждый FAIL SHALL сопровожд
 <!-- id: SCN-VER-048 -->
 - **WHEN** record не содержит перехода `APPROVED` с записью `human-approval` в `evidence[]`
 - **THEN** `gates["spec-approved"]` равен `BLOCKED`, `findings[]` содержит `NO_INPUT`
+
+#### Scenario: analyze-clean с находкой
+<!-- id: SCN-VER-058 -->
+- **WHEN** delta spec Change содержит `REQ-SRC-004`, который не упомянут в `tasks.md` ни сам, ни через свои SCN, gate `analyze-clean` на `VERIFYING->MERGED`
+- **THEN** `gates["analyze-clean"]` равен `FAIL`, `findings[]` содержит `UNSATISFIED` с `id: "REQ-SRC-004"`
+
+#### Scenario: analyze-clean без находок
+<!-- id: SCN-VER-059 -->
+- **WHEN** каждый REQ delta упомянут в `tasks.md` и хотя бы один его SCN встречается в файле под `paths.tests`, а тесты diff ссылаются только на определённые SCN
+- **THEN** `gates["analyze-clean"]` равен `PASS` без waiver
+
+#### Scenario: Review в spec-PR
+<!-- id: SCN-VER-060 -->
+- **WHEN** diff spec-PR содержит `openspec/changes/add-search/proposal.md`, запись `.warrant/evidence/add-search/EVID-….json`, файл Run `.warrant/runs/RUN-….json` с `change: "add-search"` и его `.result.json`, gate `scope-valid` на `SPECIFIED->APPROVED`, profiles `["feature"]`
+- **THEN** `gates["scope-valid"]` равен `PASS`; файл Run с `change: "other"` в том же diff даёт `FAIL` с `SCOPE_VIOLATION`
+
+#### Scenario: Runs в impl-PR не factory
+<!-- id: SCN-VER-061 -->
+- **WHEN** diff impl-PR содержит `src/app.py` и файлы Run Change `add-search`, profiles `["feature"]` без `factory-change`, gate `scope-valid` на `VERIFYING->MERGED`
+- **THEN** `gates["scope-valid"]` равен `PASS`: файлы Run своего Change не считаются policy-путём `.warrant/**`
 
 ### Requirement: Controller
 <!-- id: REQ-VER-005 -->
@@ -424,3 +460,53 @@ finding не вычисляется.
 <!-- id: SCN-VER-055 -->
 - **WHEN** без событий guard изменено 13 файлов под `paths.src`
 - **THEN** finding содержит 10 путей и `more: 3`
+
+### Requirement: Команда analyze
+<!-- id: REQ-VER-010 -->
+
+`warrant analyze <change> [--base <ref>]` SHALL детерминированно сверить delta specs, `tasks.md` и тесты Change по ID и ссылкам
+([06 §5](../../../../docs/06-verification.md), [ADR-0036](../../../../docs/adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 2) и SHALL NOT ничего записывать. Входы: требования delta specs Change
+по секциям `ADDED`, `MODIFIED`, `REMOVED`, `RENAMED` с их REQ и SCN; REQ и SCN main specs `openspec/specs/**`; текст
+`openspec/changes/<change>/tasks.md`; файлы под `paths.tests`; пути diff `base...HEAD` (base — как у gate `scope-valid`).
+ID «определён», если он объявлен в main specs или в `ADDED` / `MODIFIED` delta и не объявлен в `REMOVED` delta. Находки:
+- `UNSATISFIED` `{ id, missing[] }` — REQ из `ADDED` или `MODIFIED`, если `tasks.md` не упоминает ни его, ни один его SCN
+  (`missing` ∋ `task`), или ни один его SCN не встречается ни в одном файле под `paths.tests` (`missing` ∋ `test`; REQ без SCN —
+  тоже `test`);
+- `CONFLICT` `{ id, path }` — `tasks.md` упоминает REQ или SCN, который не определён;
+- `ORPHAN` `{ id, path }` — файл под `paths.tests`, изменённый в diff и не удалённый, упоминает SCN, который не определён.
+
+Без `paths.tests` проверка тестов в `UNSATISFIED` и `ORPHAN` не выполняется; без diff (нет git, base не разрешается) не
+выполняется `ORPHAN`; каждый пропуск SHALL попадать в `data.skipped[]` с причиной. Вывод —
+`data{ change, findings[], counts{ UNSATISFIED, CONFLICT, ORPHAN }, skipped[] }`, находки отсортированы по коду и id; код выхода 1
+при хотя бы одной находке, иначе 0; Change нет → `CHANGE_NOT_FOUND` с `hint`, код 3. Находки `MISSING`, `AMBIGUOUS`, `STALE`
+SHALL NOT выдаваться этой версией команды.
+
+#### Scenario: REQ без задачи
+<!-- id: SCN-VER-062 -->
+- **WHEN** delta `ADDED` содержит `REQ-SRC-004` со `SCN-SRC-010`, `tests/test_search.py` упоминает `SCN-SRC-010`, а `tasks.md` не упоминает ни одного из них
+- **THEN** `warrant analyze add-search` даёт `UNSATISFIED` с `id: "REQ-SRC-004"` и `missing: ["task"]`, код 1, ни один файл не изменён
+
+#### Scenario: REQ без теста
+<!-- id: SCN-VER-063 -->
+- **WHEN** `tasks.md` упоминает `REQ-SRC-004`, но `SCN-SRC-010` нет ни в одном файле под `paths.tests`
+- **THEN** находка `UNSATISFIED` с `missing: ["test"]`
+
+#### Scenario: Задача на удалённое требование
+<!-- id: SCN-VER-064 -->
+- **WHEN** delta `REMOVED` содержит `REQ-SRC-002`, а `tasks.md` упоминает `REQ-SRC-002`
+- **THEN** находка `CONFLICT` с `id: "REQ-SRC-002"` и `path: "openspec/changes/add-search/tasks.md"`
+
+#### Scenario: Тег неизвестного сценария
+<!-- id: SCN-VER-065 -->
+- **WHEN** `tests/test_search.py` изменён в diff и упоминает `SCN-SRC-099`, которого нет ни в main specs, ни в delta; неизменённый `tests/test_old.py` упоминает `SCN-SRC-098`
+- **THEN** одна находка `ORPHAN` с `id: "SCN-SRC-099"` и `path: "tests/test_search.py"`
+
+#### Scenario: Согласованный Change
+<!-- id: SCN-VER-066 -->
+- **WHEN** каждый REQ delta упомянут в `tasks.md` и покрыт тестом через SCN, тесты diff ссылаются только на определённые SCN
+- **THEN** `data.findings` пуст, все `counts` равны 0, код 0
+
+#### Scenario: Без git
+<!-- id: SCN-VER-067 -->
+- **WHEN** `warrant analyze add-search` в каталоге, который не является git-репозиторием
+- **THEN** `data.skipped[]` содержит `ORPHAN` с причиной, `UNSATISFIED` и `CONFLICT` вычислены

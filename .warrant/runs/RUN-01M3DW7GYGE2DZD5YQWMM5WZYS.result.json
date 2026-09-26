@@ -1,0 +1,151 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3DW7GYGE2DZD5YQWMM5WZYS",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "Replay takes project files from tree C, but warrant archive computes MERGED->ARCHIVED gates before openspec archive and records ARCHIVED after it (REQ-VER-008): tree C always has the Change dir moved. required-artifacts-present (openspec status) differs from recorded PASS: RECORD_MISMATCH on honest SCN-VER-091. Round 3 F-7 (edits committed with the transition) is the same gap, not closed.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-008",
+        "SCN-VER-091"
+      ],
+      "recommendation": "Replay files and policy from the tree the gates saw (C^1 plus own writes of the command) or require a clean tree; add an ARCHIVED replay scenario."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "Replay of MERGED takes the evaluated commit by REQ-VER-007 from C^1: --commit is not recorded, so it is the freshest Change record of tree C. With ARCHIVED in the same C (SCN-VER-091) that is the spec-report on C^1, giving COMMIT_NOT_MERGED. SCN-VER-093 instead finds M from CI records of evidence[].",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-007",
+        "SCN-VER-093",
+        "SCN-VER-091"
+      ],
+      "recommendation": "For replay of MERGED the evaluated commit = common subject.commit of the transition evidence[]; state it in REQ-VER-011."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "BLOCKER",
+      "category": "hidden-assumption",
+      "statement": "Replay runs the HEAD CLI on policy of tree C. After a CLI minor bump the pack kernel range of older trees rejects it (CONFIG_INVALID, I-156): APPROVED/IMPLEMENTING of the 4c impl-PR (bump in group 1, after them) and any PR crossing a bump on main get code 3. Gate logic changed by the PR itself also diverges.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-SDD-001"
+      ],
+      "recommendation": "State the CLI-version rule of replay (kernel range not enforced in replay, or record CLI version and report drift as finding); add scenario."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Base of replayed non-MERGED transitions is by REQ-VER-007 from C^1, which defines base only for MERGED; default merge-base(HEAD, main) needs a local main, absent in the CI checkout (ci.yml). base_commit STALE and scope-valid then diverge.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-007"
+      ],
+      "recommendation": "Define replay base for non-MERGED transitions as merge-base(C^1, HEAD^1)."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Every new transition is replayed, but PROPOSED (no gates, no effective_policy_hash in record), backward transitions and ABANDONED have no gates to recompute; comparing hash or gate set gives RECORD_MISMATCH on each new record of a spec-PR.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-073"
+      ],
+      "recommendation": "State which transitions are replayed and which fields are compared for transitions without gates."
+    },
+    {
+      "id": "F-6",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "SCN-VER-105 expects warrant ci on an archive-PR to recompute APPROVED, but only transitions absent from the base record are replayed; APPROVED is in the base record, so the THEN is unobservable.",
+      "targets": [
+        "SCN-VER-105",
+        "REQ-VER-011"
+      ],
+      "recommendation": "Move the scenario to an impl-PR whose new APPROVED is checked after expires_at."
+    },
+    {
+      "id": "F-7",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-VER-003 finds M for replay on the first-parent line of HEAD^1; REQ-VER-011 sets replay HEAD = C^1.",
+      "targets": [
+        "REQ-VER-003",
+        "REQ-VER-011"
+      ]
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Local warrant ci on impl (design: debug via git merge --no-ff) writes attestation none records and has no current attempt, so every L1 gate fails; not stated.",
+      "targets": [
+        "REQ-VER-011"
+      ]
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Ref check needs produced_by.id of human-approval = merged_by, but MERGED without human-approval gate (below HIGH) has no such record: pass or reason by?",
+      "targets": [
+        "REQ-VER-011"
+      ]
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Replay repeats transition, which writes human-approval before gates; not said that replay reuses the recorded one (a new one would displace the evidence[] id).",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-007"
+      ]
+    },
+    {
+      "id": "F-11",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Waiver expiry in replay trusts at of the transition, a hand-editable field; a backdated at hides an expired waiver.",
+      "targets": [
+        "REQ-VER-011"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "required-artifacts-present calls openspec status for the Change, which fails once it is archived."
+    },
+    {
+      "id": "A-2",
+      "statement": "Pack kernel range is checked against the running CLI version (I-156, phase-4a)."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:7cf999cc0c22a306aaa005041b76249d6adaddffa5781300fb28b0c0caa77119",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-26T13:00:00Z",
+    "finished_at": "2026-09-26T13:50:00Z"
+  }
+}

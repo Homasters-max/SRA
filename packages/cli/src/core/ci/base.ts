@@ -5,14 +5,23 @@
  * classification by the paths of the diff — is read from one context: the
  * packs and `warrant.json` of the checkout of HEAD^1, not from the pull request.
  * The pull request presents only what is judged: the record, evidence, code.
+ *
+ * A bundled pack comes with the CLI, which the job installs from the checkout
+ * of the pull request, so it cannot be read from the tree of HEAD^1 (I-179):
+ * the pack of the base is recognised by its `hash` in the lock of HEAD^1. A
+ * bundled pack the lock of the base does not hold is the law changed by the
+ * pull request itself.
  */
+import path from "node:path";
 import { classify } from "../classify/index.js";
 import { collectFloors, collectProfileMatches } from "../classify/packs.js";
 import type { Ctx } from "../ctx.js";
-import { WarrantError } from "../errors.js";
+import { WarrantError, type CliError } from "../errors.js";
+import { readJson } from "../fs.js";
 import { isPlainObject } from "../json.js";
+import { LOCK_REL, packContentHash } from "../packs/hash.js";
 import { loadPacks } from "../packs/loader.js";
-import { policyPaths } from "../packs/objects.js";
+import { FACTORY_PROFILE, policyPaths } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import type { ChangeRecord } from "../record/read.js";
 import type { Classification } from "../resolve/index.js";
@@ -62,9 +71,30 @@ export function basePolicyPaths(base: BaseContext): string[] {
 }
 
 /**
+ * Ids of the bundled packs whose content is not the one the lock of the base
+ * holds (I-179): the pull request changes the law it is judged by. No lock in
+ * the base, or no entry for the pack, counts as changed.
+ */
+export function changedBundledPacks(base: BaseContext): string[] {
+  const errors: CliError[] = [];
+  const lock = readJson(path.join(base.root, ...LOCK_REL.split("/")), LOCK_REL, errors);
+  const locked = isPlainObject(lock) && isPlainObject(lock["packs"]) ? lock["packs"] : {};
+  return base.loaded.packs
+    .filter((pack) => pack.source === "bundled")
+    .filter((pack) => {
+      const entry = locked[pack.id];
+      return !isPlainObject(entry) || entry["hash"] !== packContentHash(pack.dir);
+    })
+    .map((pack) => pack.id)
+    .sort();
+}
+
+/**
  * The profiles the record on HEAD must hold (SCN-VER-107): those of the record
  * of the base and those `classify` with the packs of the base derives from the
- * paths of the diff; the own state of the Change takes no part (N27).
+ * paths of the diff; the own state of the Change takes no part (N27). A
+ * bundled pack changed against the lock of the base adds `factory-change`
+ * (I-179).
  */
 export function requiredProfiles(
   base: BaseContext,
@@ -80,5 +110,7 @@ export function requiredProfiles(
     profiles: collectProfileMatches(base.loaded.objects),
     ...(previous === undefined ? {} : { previous: { profiles: previous.profiles ?? [] } })
   });
-  return result.classification.profiles ?? [];
+  const profiles = result.classification.profiles ?? [];
+  if (changedBundledPacks(base).length > 0 && !profiles.includes(FACTORY_PROFILE)) return [...profiles, FACTORY_PROFILE];
+  return profiles;
 }

@@ -245,6 +245,29 @@ describe("warrant ci: the structure of the record", () => {
     expect(mismatch.map((e) => e.message.includes("classification") && e.message.includes("factory-change"))).toEqual([true]);
     expect(result.exitCode).toBe(1);
   });
+
+  it("a bundled pack not held by the lock of the base is the law changed: factory-change required in impl, SCOPE_VIOLATION elsewhere (I-179)", async () => {
+    const stale = (b: ProjectBuilder): void => {
+      const lock = b.json(".warrant/warrant.lock.json");
+      lock.packs["core-sdd"].hash = HASH;
+      b.write(".warrant/warrant.lock.json", lock);
+    };
+    const impl = await changeRepo("IMPLEMENTING");
+    stale(impl);
+    impl.commit("base: a lock of another core-sdd");
+    pullRequest(impl, "worktree/add-search", (b) => advance(b, "VERIFYING"));
+    const judged = await ci(impl, CI_ENV);
+    const mismatch = judged.errors.filter((e) => e.code === "RECORD_MISMATCH");
+    expect(mismatch.map((e) => e.message.includes("classification") && e.message.includes("factory-change"))).toEqual([true]);
+
+    const none = await repo();
+    stale(none);
+    none.commit("base: a lock of another core-sdd");
+    pullRequest(none, "docs/readme", (b) => b.write("docs/readme.md", "# Readme\n"));
+    const result = await ci(none);
+    expect(scope(result)).toEqual([".warrant/warrant.lock.json"]);
+    expect(result.exitCode).toBe(1);
+  });
 });
 
 /**

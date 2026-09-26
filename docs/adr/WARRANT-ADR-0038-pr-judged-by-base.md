@@ -33,7 +33,10 @@ Profile `factory-change` уже держит пути фабрики этого 
    (tip базы, уже принятого в `main`), одним контекстом базы: policy-пути (`match.paths` profiles), `paths.src`,
    `paths.tests`, `roles`, `approvals[]`, effective policy и классификация по путям diff. PR предъявляет только предмет
    суждения — record, evidence, код, документы. Прежние частные правила (`roles` из HEAD^1, классификация не слабее
-   базы) — случаи этого пункта.
+   базы) — случаи этого пункта. Встроенный pack (`source: bundled`) приходит с CLI и из дерева HEAD^1 не берётся
+   (полная загрузка packs базы ломала бы каждый bump по диапазону `kernel`): pack базы опознаётся по `hash` в
+   `warrant.lock.json` HEAD^1. Совпал — встроенный pack и есть pack базы; разошёлся или его нет в lock базы — PR меняет
+   закон: в impl-PR классификация обязана содержать `factory-change`, в остальных PR это нарушение.
 2. **Требования к новому `MERGED` — из политики базы, а не из record.** В archive-PR база — `main` после merge impl-PR,
    то есть закон, по которому вычислен `MERGED`: `effective_policy_hash` перехода равен hash effective policy базы для
    его классификации, а каждый gate `PASS`, чьи evidence производят checks, опирается на запись `ci`. Verdicts

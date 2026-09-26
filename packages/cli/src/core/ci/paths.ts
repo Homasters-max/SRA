@@ -10,9 +10,10 @@ import type { Ctx } from "../ctx.js";
 import { cliError, type CliError } from "../errors.js";
 import { pathMatcher } from "../glob.js";
 import { isPlainObject } from "../json.js";
+import { LOCK_REL } from "../packs/hash.js";
 import { codeScope } from "../run/scope.js";
 import { otherState, ownState } from "../run/state.js";
-import { basePolicyPaths, type BaseContext } from "./base.js";
+import { basePolicyPaths, changedBundledPacks, type BaseContext } from "./base.js";
 import { jsonAt, type CiSubject } from "./kind.js";
 import type { NewTransition } from "./record.js";
 
@@ -79,6 +80,13 @@ export async function judgePaths(
     }
   }
   const rest = paths.filter((p) => !judged.has(p) && !p.startsWith(SPECS));
+
+  // The law itself: a bundled pack the lock of the base does not hold (I-179); an impl-PR answers by its classification.
+  if (subject.kind !== "impl") {
+    for (const id of changedBundledPacks(base)) {
+      out.errors.push(violation(LOCK_REL, `bundled pack ${id} differs from the lock of the base: the law changes only in the impl-PR of a factory-change Change (ADR-0038, I-179)`));
+    }
+  }
 
   if (subject.kind === "none") {
     const state = pathMatcher(CHANGE_STATE_PATHS);

@@ -155,7 +155,7 @@
 
 ## 7. CI, навыки, документы, сквозная проверка
 
-- [ ] 7.1 `.github/workflows/ci.yml` (§8):
+- [x] 7.1 `.github/workflows/ci.yml` (§8):
   - job `warrant` на `pull_request` и `workflow_dispatch` (`merge_commit`);
   - merge в job;
   - `warrant ci`, artifact `data.artifact.name` (`evidence-<change>-<attempt>`);
@@ -163,18 +163,18 @@
   - удалить job `evidence` и шаг «Main specs only through an archive-PR».
 
   Проверка: CI impl-PR 4c зелёный, `warrant ci` дал `kind: impl` и artifact.
-- [ ] 7.2 Навыки `change-archive-pr` (`ci fetch`, `--ref` — URL impl-PR), `change-impl-pr` (job `warrant`) и `change-spec-pr`
+- [x] 7.2 Навыки `change-archive-pr` (`ci fetch`, `--ref` — URL impl-PR), `change-impl-pr` (job `warrant`) и `change-spec-pr`
   (review `PROVEN` с MAJOR — решение в impl-PR по ADR-0024 п. 4, I-176).
 
   Проверка: `dev-context.test.ts`.
-- [ ] 7.3 e2e критерия 4c на фикстуре с `FakeForge` и git:
+- [x] 7.3 e2e критерия 4c на фикстуре с `FakeForge` и git:
   - impl-PR: результат merge → `warrant ci` → evidence с `tree`;
   - merge-коммит M → `ci fetch` → `transition MERGED --ref <URL impl-PR>` → `archive`;
   - `warrant ci` archive-PR — код 0;
   - сдвиг `main` до merge — `STALE` `tree` и `NO_CI_EVIDENCE`.
 
-  Проверка: e2e зелёный на ubuntu и windows.
-- [ ] 7.4 Документы:
+  Проверка: e2e зелёный на ubuntu и windows. Уровни — I-185: e2e без форжа, шаги с форжем — app с `FakeForge`.
+- [x] 7.4 Документы:
   - 01 — INV-03, `merged_by`;
   - 04 §6–7 — `warrant ci` по record, `ci fetch`;
   - 06 §3 — `tree`;
@@ -184,6 +184,6 @@
     SDD-001.
 
   Проверка: `dev-context.test.ts`, `hygiene.js` без битых ссылок.
-- [ ] 7.5 `warrant analyze phase-4c` на ветке impl-PR — без находок.
+- [x] 7.5 `warrant analyze phase-4c` на ветке impl-PR — без находок.
 
   Проверка: код 0; иначе правка `tasks.md` или тестов, а не waiver.

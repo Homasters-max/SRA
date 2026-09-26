@@ -10,7 +10,7 @@
   `success` / `failure` / `failures` из `src/io/output.ts`; коды выхода 0/1/2/3 (04 §7).
 - Команда регистрируется в `src/bin/warrant.ts` через `register` и получает `Ctx`: `runX(ctx, …)`. Команда не
   импортирует другую команду, кроме `commands/context.ts`; сценарий оценки перехода — `core/transition`.
-- Процессы (`git`, `openspec`, checks) — только в `src/adapters/**` через порты `src/core/ports/**`
+- Процессы (`git`, `openspec`, `gh`, checks) — только в `src/adapters/**` через порты `src/core/ports/**`
   ([ADR-0025](../../docs/adr/WARRANT-ADR-0025-test-levels.md)). Новый внешний вызов = метод порта + адаптер + фейк +
   сценарий контракта.
 - Модули и ранги — `test/unit/meta/architecture.json` ([ADR-0030](../../docs/adr/WARRANT-ADR-0030-module-boundaries.md)):

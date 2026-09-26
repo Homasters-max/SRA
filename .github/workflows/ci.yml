@@ -6,28 +6,40 @@
 # PR; OpenSpec 1.13.1 is installed first because `contract` and `e2e` fail
 # without it (globalSetup), they are not skipped. `timeout-minutes` stops a hung
 # run instead of GitHub's 6 h default (test-levels, task 6.1, I-139).
-# Job `evidence` (impl-PRs from worktree/*, task 6.2): see below.
+# Job `warrant` (phase-4c, design §8, ADR-0037): the verdict of every PR — see below.
 name: ci
 
 on:
   push:
     branches: [main]
   pull_request:
+  # Recovery run of an impl-PR after its merge (ADR-0037 п. 4): the evidence of
+  # its runs is STALE (main moved before the merge) or the artifact expired.
+  # `warrant ci fetch` names this command in its hint.
+  workflow_dispatch:
+    inputs:
+      merge_commit:
+        description: "Merge commit M of the impl-PR on the default branch"
+        required: true
+        type: string
 
-# actions and pull-requests: the contract of ForgePort reads PRs, runs and
-# artifacts of this repository through gh (phase-4c, design §6, §8).
+# actions and pull-requests: the contract of ForgePort and `warrant ci` read
+# PRs, runs and artifacts of this repository through gh (phase-4c, design §6, §8).
 permissions:
   contents: read
   actions: read
   pull-requests: read
 
+# A recovery run has its own group: it neither cancels nor is cancelled by a
+# push to main or another recovery run.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.merge_commit || 'run' }}
   cancel-in-progress: true
 
 jobs:
   test:
     name: test (${{ matrix.os }})
+    if: github.event_name != 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -55,25 +67,9 @@ jobs:
       - name: Install OpenSpec
         run: npm i -g @fission-ai/openspec@1.13.1
 
-      # ADR-0011, D-15: openspec/specs/** changes only as the result of
-      # `warrant archive`, i.e. in an archive-PR from archive/<change>. Inside a
-      # Change `scope-valid` holds it; this step covers every other PR (R-16).
-      # Interim: `warrant ci` (phase 4) takes it over.
-      - name: Main specs only through an archive-PR
-        if: github.event_name == 'pull_request' && matrix.os == 'ubuntu-latest'
-        env:
-          HEAD_REF: ${{ github.head_ref }}
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          changed="$(git diff --name-only "origin/$BASE_REF...HEAD" -- openspec/specs)"
-          if [ -n "$changed" ] && [[ "$HEAD_REF" != archive/* ]]; then
-            echo "::error::openspec/specs/** changed outside an archive-PR (branch $HEAD_REF): $changed"
-            exit 1
-          fi
-
       # ADR-0033 п. 10: branch prefix and commit subjects of the PR (a
-      # development check — not `warrant ci`, which takes the Change's topology
-      # in phase 4). HEAD is GitHub's merge commit; --no-merges leaves the PR's own.
+      # development check — not `warrant ci`, which judges the Change by its
+      # record). HEAD is GitHub's merge commit; --no-merges leaves the PR's own.
       - name: PR form (branch prefix, commit subjects)
         if: github.event_name == 'pull_request' && matrix.os == 'ubuntu-latest'
         env:
@@ -105,32 +101,52 @@ jobs:
           cd "$fixture"
           warrant validate
 
-  # Evidence of an impl-PR (P-15, design §17, task 6.2): only on pull requests
-  # from `worktree/<change>`. The job produces records with
-  # `attestation.type: "ci"` and uploads them; the maintainer lays
-  # `manifest.json` and `EVID-*.json` from the artifact into the archive-PR and
-  # records `MERGED` there. It judges nothing itself (the verdict job is
-  # `warrant ci`, phase 4): WAIT or STOP of the controller does not fail it,
-  # a configuration error (exit 3: unknown change, check not configured or
-  # timed out) does, because then no usable evidence was produced.
-  # No `needs: test`: a failing suite is itself evidence (test-report
-  # NOT_PROVEN), and the two jobs run in parallel.
-  evidence:
-    name: evidence
-    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'worktree/')
+  # The verdict of a PR (phase-4c, design §8, REQ-VER-011): `warrant ci` on the
+  # result of the merge. The kind of the PR and its Change come from the record
+  # in the diff, not from the branch name (ADR-0034 п. 13): a spec-PR is judged
+  # by its paths, an impl-PR by the checks of VERIFYING->MERGED on the merge
+  # result (CI evidence with subject.tree, uploaded as the artifact
+  # `evidence-<change>-<attempt>`), an archive-PR by the CI evidence it refers
+  # to and the replay of `openspec archive` (R-16). It commits nothing
+  # (ADR-0010 п. 1). A red job is the maintainer's signal not to merge.
+  # No `needs: test`: a failing suite is itself evidence (tests-passed FAIL).
+  warrant:
+    name: warrant
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
       run:
         shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
-      # The PR head, not the synthetic merge commit: subject.commit must be a
-      # commit that becomes an ancestor of main when the PR is merged (I-97).
-      # Full history, so that origin/main and the fork point are known.
+      # The PR head (or M of a recovery run) with full history: the merge below
+      # needs the base branch, `warrant ci` the parents of HEAD and the base tree.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.merge_commit || github.event.pull_request.head.sha }}
           fetch-depth: 0
+
+      # The job computes the merge itself (ADR-0037 п. 3): the tip of the base
+      # branch at the start of the job, not of the event, so a Re-run before the
+      # merge judges the current main and heals STALE `tree`. HEAD^1 — the base,
+      # HEAD^2 — the PR head (subject.commit, I-97). A recovery run judges M itself.
+      - name: Merge the PR into the tip of its base
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+          git checkout --quiet --detach "origin/$BASE_REF"
+          if ! git -c user.name=warrant-ci -c user.email=warrant-ci@users.noreply.github.com \
+              merge --no-ff --no-edit "$HEAD_SHA"; then
+            git merge --abort || true
+            echo "::error::the PR head $HEAD_SHA does not merge into $BASE_REF without conflicts: update the branch"
+            exit 3
+          fi
+          echo "merge result $(git rev-parse HEAD): base $(git rev-parse HEAD^1), head $(git rev-parse HEAD^2)"
 
       - uses: actions/setup-node@v4
         with:
@@ -146,46 +162,42 @@ jobs:
       - name: Install warrant from the checkout
         run: npm i -g .
 
-      - name: Change of the branch
-        id: change
-        env:
-          HEAD_REF: ${{ github.head_ref }}
+      # The output goes outside the checkout: the checks of VERIFYING->MERGED
+      # run on the working tree (structure.test.ts lists the root). The step
+      # fails with the exit code of `warrant ci`; the artifact is named by it.
+      - name: warrant ci
+        id: ci
         run: |
-          change="${HEAD_REF#worktree/}"
-          if ! [[ "$change" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
-            echo "::error::branch $HEAD_REF does not name a Change (worktree/<kebab-id>)"
-            exit 3
-          fi
-          echo "name=$change" >> "$GITHUB_OUTPUT"
-
-      - name: warrant verify (VERIFYING->MERGED)
-        env:
-          CHANGE: ${{ steps.change.outputs.name }}
-        run: |
-          # Base: the fork point of the PR head from main (I-97); there is no local main in CI.
-          base="$(git merge-base origin/main HEAD)"
           set +e
-          warrant verify "$CHANGE" --transition 'VERIFYING->MERGED' --base "$base" > "$RUNNER_TEMP/verify.json"
+          warrant ci > "$RUNNER_TEMP/ci.json"
           code=$?
           set -e
-          cat "$RUNNER_TEMP/verify.json"
-          action="$(node -e 'const j=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(String(j.data?.controller_action ?? "none"))' "$RUNNER_TEMP/verify.json" || echo unknown)"
-          echo "warrant verify $CHANGE: exit $code, controller_action $action (commit $(git rev-parse HEAD), base $base)" >> "$GITHUB_STEP_SUMMARY"
-          if [ "$code" -ge 3 ]; then
-            echo "::error::warrant verify exited with $code: configuration error, the evidence is not usable"
-            exit "$code"
-          fi
-          if [ "$code" -ne 0 ]; then
-            echo "::warning::controller_action $action (exit $code): the evidence is recorded, the merge verdict is the maintainer's"
-          fi
+          cat "$RUNNER_TEMP/ci.json"
+          node -e '
+            const fs = require("fs");
+            let j = {};
+            try { j = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); } catch {}
+            const d = j.data ?? {};
+            const a = d.artifact ?? {};
+            const out = [`change=${j.change ?? ""}`, `artifact_name=${a.name ?? ""}`, `artifact_path=${a.path ?? ""}`];
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, out.join("\n") + "\n");
+            const errors = (j.errors ?? []).map((e) => e.code).join(", ");
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+              `warrant ci: exit ${process.argv[2]}, kind ${d.kind ?? "?"}, change ${j.change ?? "none"}` +
+              (errors ? `, errors ${errors}` : "") + "\n");
+          ' "$RUNNER_TEMP/ci.json" "$code"
+          exit "$code"
 
-      # The whole directory, raw/ included (junit and stdout behind artifacts[].sha256);
-      # only manifest.json and EVID-*.json go into the archive-PR (P-19).
+      # The whole directory, raw/ included (junit and stdout behind
+      # artifacts[].sha256); `warrant ci fetch` imports only the EVID-*.json of
+      # the chosen run. The name carries the attempt: artifacts v4 are
+      # immutable, and a Re-run is a new attempt of the same run. Only an
+      # impl-PR (and a recovery run) has `data.artifact`.
       - name: Upload evidence
-        if: always() && steps.change.outputs.name != ''
+        if: always() && steps.ci.outputs.change != '' && steps.ci.outputs.artifact_name != ''
         uses: actions/upload-artifact@v4
         with:
-          name: evidence-${{ steps.change.outputs.name }}
-          path: .warrant/evidence/${{ steps.change.outputs.name }}/
+          name: ${{ steps.ci.outputs.artifact_name }}
+          path: ${{ steps.ci.outputs.artifact_path }}/
           include-hidden-files: true
           if-no-files-found: warn

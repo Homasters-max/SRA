@@ -8,12 +8,19 @@
  * runs `warrant ci` on M as the job does (run 42, attempt 1), keeps its
  * evidence directory aside as the artifact the fake forge serves and cleans
  * the working copy: the local archive branch before `ci fetch`.
+ *
+ * «criterion 4c» (task 7.3): the whole chain with the forge — the job's merge
+ * R apart from M, `ci fetch`, `transition MERGED --ref <URL impl-PR>`,
+ * `archive`, `warrant ci` of the archive-PR; the binary on the real git —
+ * `test/e2e/ci-lifecycle.test.ts` (I-185).
  */
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { runArchive } from "../../../src/commands/archive.js";
 import { runCi, runCiFetch } from "../../../src/commands/ci.js";
+import { runTransition } from "../../../src/commands/transition.js";
 import { canonicalText } from "../../../src/core/canon/format-json.js";
 import { acquireLock, lockPath } from "../../../src/core/check/lock.js";
 import type { Ctx } from "../../../src/core/ctx.js";
@@ -87,8 +94,8 @@ interface Merged {
   evidence: string[];
 }
 
-/** `add-search` in `state` on `main`: an impl-PR brings `to` and is merged by M; the job's evidence is the artifact. */
-async function merged(state = "IMPLEMENTING", to = "VERIFYING"): Promise<Merged> {
+/** `add-search` (chore) in `state` on `main`: `tests-passed` fake, `spec-approved` waived; one commit. */
+async function baseRepo(state: string): Promise<ProjectBuilder> {
   const p = project().withOpenspecValidate();
   p.withChange("add-search", { design: "# Design\n", tasks: "# Tasks\n", specs: { search: [] } }).withRecord("add-search", state, {
     classification: { profiles: ["chore"] }
@@ -110,6 +117,12 @@ async function merged(state = "IMPLEMENTING", to = "VERIFYING"): Promise<Merged>
   );
   await p.synced();
   p.commit("base");
+  return p;
+}
+
+/** `add-search` in `state` on `main`: an impl-PR brings `to` and is merged by M; the job's evidence is the artifact. */
+async function merged(state = "IMPLEMENTING", to = "VERIFYING"): Promise<Merged> {
+  const p = await baseRepo(state);
   const { head, merge } = pullRequest(p, "worktree/add-search", (b) => {
     b.write("src/search.ts", "export const search = 1;\n");
     advance(b, to, { gates: { "tests-passed": "PASS" } });
@@ -343,5 +356,79 @@ describe("warrant ci fetch: the import", () => {
     } finally {
       if (held.ok) held.release();
     }
+  });
+});
+
+const IMPL_PR = `https://github.com/${FAKE_REPOSITORY}/pull/9`;
+
+/**
+ * The chain of criterion 4c: the impl-PR (head H) of `add-search`; the job
+ * merges H into the tip of `main` on its own checkout (R), `warrant ci` writes
+ * the artifact of run 42; `main` merges H by M — after `shift`, another commit
+ * lands on `main` first; the archive branch starts at M.
+ */
+async function chain(shift = false): Promise<{ p: ProjectBuilder; r: string; m: string; files: Record<string, Buffer>; evidence: string[] }> {
+  const p = await baseRepo("IMPLEMENTING");
+  p.branch("worktree/add-search", "main");
+  p.write("src/search.ts", "export const search = 1;\n");
+  advance(p, "VERIFYING", { gates: { "tests-passed": "PASS" } });
+  const head = p.commit("worktree/add-search: head");
+  p.branch("ci/job", "main");
+  const r = p.merge("worktree/add-search", { label: "job: merge" });
+  const run = (await invoke(() => runCi(p.ctx, {}, CI_ENV))) as Result;
+  expect(run.errors).toEqual([]);
+  const files = artifactOf(p, run.data["artifact"].path);
+  p.remove(EVIDENCE);
+  p.checkout("main", { force: true });
+  if (shift) {
+    p.write("docs/note.md", "# Note\n");
+    p.commit("docs: note");
+  }
+  const m = p.merge("worktree/add-search", { label: "Merge worktree/add-search" });
+  p.withForge({
+    pulls: [fakePull(9, { mergeCommit: m, headSha: head })],
+    runs: [fakeRun(42, { headSha: head })],
+    artifacts: [artifact(42, 1, files)]
+  });
+  p.branch("archive/add-search", "main");
+  return { p, r, m, files, evidence: run.data["evidence"] as string[] };
+}
+
+describe("criterion 4c: impl-PR → ci fetch → MERGED → archive → warrant ci of the archive-PR", () => {
+  it("the job's merge R has the tree of M: ci fetch, transition MERGED --ref <impl-PR>, archive; warrant ci — exit 0", async () => {
+    const { p, r, m, files, evidence } = await chain();
+    expect(await p.git.treeId(r)).toBe(await p.git.treeId(m));
+
+    const fetched = await fetch(p);
+    expect(fetched.errors).toEqual([]);
+    expect(fetched.data).toMatchObject({ pr: 9, change: "add-search", merge_commit: m, run: `${RUNS}/42/attempts/1`, evidence });
+    expect(imported(p)).toEqual(recordsOf(files));
+
+    const merged = await invoke(() => runTransition(p.ctx, "add-search", "MERGED", { ref: IMPL_PR }, {}));
+    expect(merged.errors).toEqual([]);
+    expect(p.json(RECORD).transitions.at(-1)).toMatchObject({ to: "MERGED", ref: IMPL_PR, evidence });
+    const archived = await invoke(() => runArchive(p.ctx, "add-search", {}));
+    expect(archived.errors).toEqual([]);
+    p.commit("archive/add-search: MERGED, ARCHIVED");
+    p.checkout("main", { force: true });
+    p.merge("archive/add-search", { label: "Merge archive/add-search" });
+
+    const verdict = (await invoke(() => runCi(p.ctx, {}, {}))) as Result;
+    expect(verdict.errors).toEqual([]);
+    expect(verdict.exitCode).toBe(0);
+    expect(verdict.data["kind"]).toBe("archive");
+    expect(verdict.data["transitions"].map((t: Data) => t["to"])).toEqual(["MERGED", "ARCHIVED"]);
+    expect(verdict.data["evidence"]).toEqual(evidence);
+  });
+
+  it("main moved before the merge: no run on the tree of M — NO_CI_EVIDENCE with the recovery hint, nothing written", async () => {
+    const { p, r, m } = await chain(true);
+    expect(await p.git.treeId(r)).not.toBe(await p.git.treeId(m));
+    const before = p.tree();
+    const fetched = await fetch(p);
+    expect(fetched.errors[0]?.code).toBe("NO_CI_EVIDENCE");
+    expect(fetched.errors[0]?.hint).toContain(`gh workflow run ci.yml -f merge_commit=${m}`);
+    expect(fetched.exitCode).toBe(3);
+    expect(p.tree()).toEqual(before);
   });
 });

@@ -51,6 +51,7 @@ Evidence:  claim "customer_id остаётся уникальным после �
 | `kind` | Из каталога kinds, объявленных packs (`test-report`, `schema-diff`, `review`, `human-approval`, …) |
 | `level` | L0 / L1 / L2 по источнику |
 | `subject.spec_tree` | Только у `review`: hash `{proposal.md, specs/**}` каталога Change, как у `spec-approved`; запись устаревает с правкой spec, а не с новым коммитом ([ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 3) |
+| `subject.tree` | Только у записи, которую пишет `warrant ci` на результате merge: id объекта дерева git результата merge (`^[0-9a-f]{40}([0-9a-f]{24})?$`); `subject.commit` — head PR, `subject.base_commit` — tip базы. Пред-фильтр сравнивает дерево вместо `base_commit`: запись судит то, что вливается в `main`, и устаревает (`STALE` `tree`) со сдвигом `main` до merge ([ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 1–2). Локальные `check` и `verify` его не пишут; вместе со `spec_tree` не встречается |
 | `produced_by.type` | `check` (L0/L1), `skill` (L2), `human` |
 | `attestation` | Кто ручается за происхождение записи (§3) |
 | `limitations` | Что evidence **не** доказывает (scope, выборка, окружение) |
@@ -78,17 +79,20 @@ finding `STALE`, evidence исключается.
 
 | `attestation.type` | Кто ручается | `ref` |
 |---|---|---|
-| `ci` | Запись создана CLI внутри CI-запуска | id запуска |
-| `human-review` | Человек через PR review / approval API | URL review |
+| `ci` | Запись создана CLI внутри CI-запуска | URL попытки run |
+| `human-review` | Человек через PR review / approval API | URL слитого PR (`APPROVED` — spec-PR, `MERGED` — impl-PR; `merged_by` проверяет `warrant ci`) |
 | `signature` | Подпись зарегистрированного ключа (`warrant.json` → `trusted_signers`) | id подписи |
 | `sef-approval` | Владелец через `sef work approve` (транспорт `sef-hub`, proposed, [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)) | `sef://<project>/approval/<work>-r<N>@<commit>` |
 | `sef-gate` | Гейт SEF в контейнере гейтов (транспорт `sef-hub`, proposed) | `sef://<project>/attempt/<id>/gate/<gate-id>` |
 | `none` | Локальный запуск CLI | — |
 
 - `attestation` check-записи CLI выводит из окружения, а не из аргументов (P-15): `GITHUB_ACTIONS=true` вместе с
-  `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`, `GITHUB_RUN_ID` → `{ "type": "ci", "ref": "<server>/<repo>/actions/runs/<id>" }`;
-  иначе `{ "type": "none" }`. Другие CI — later. Записи CI-прогона impl-PR выгружаются artifact'ом; человек кладёт их в
-  archive-PR и пишет `transition MERGED --ref <URL run>` (CI не пишет в репозиторий, [ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)).
+  `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`, `GITHUB_RUN_ID` → `{ "type": "ci", "ref": "<server>/<repo>/actions/runs/<id>/attempts/<n>" }`
+  (`<n>` — `GITHUB_RUN_ATTEMPT`; без него — URL run, попытка 1: Re-run — отдельная попытка со своим artifact'ом,
+  [ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md)); иначе `{ "type": "none" }`. Другие CI — later. Записи `warrant ci`
+  impl-PR выгружаются artifact'ом `evidence-<change>-<attempt>`; archive-PR получает их командой `warrant ci fetch <pr>`
+  (попытка run на дереве merge-коммита, побайтно) и пишет `transition MERGED --ref <URL impl-PR>`; `warrant ci` archive-PR
+  повторно скачивает artifact и сверяет записи (CI не пишет в репозиторий, [ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)).
 - Gate объявляет допустимые типы: `"accepts_attestation": ["ci", "human-review"]`. По умолчанию `none` не засчитывается
   для gates перехода `VERIFYING → MERGED` (INV-10).
 - L2 review для risk `HIGH` MUST выполняться отдельным Run в CI (attestation `ci`); для `MEDIUM` MAY выполняться локально

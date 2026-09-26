@@ -1,12 +1,17 @@
 /**
  * The `human-approval` record (P-17, design §10 of phase 3, A-23): which record
- * of a login and ref counts as the same approval, and the record itself,
- * assembled through {@link buildEvidenceRecord}. `transition` decides when to
- * reuse one and writes it.
+ * of a login and ref counts as the same approval, the record itself,
+ * assembled through {@link buildEvidenceRecord}, and {@link ensureApproval},
+ * which reuses one or writes it (A-29).
  */
 import { canonicalHash } from "../canon/hash.js";
+import type { Ctx } from "../ctx.js";
 import { isPlainObject } from "../json.js";
+import { gateDefinitions } from "../packs/objects.js";
+import type { LoadResult } from "../packs/types.js";
 import { buildEvidenceRecord, evidenceSubject } from "./record.js";
+import { evidenceDir, readRecords, type PendingRecord } from "./store.js";
+import { manifestVersions, storeRecord } from "./write.js";
 
 export const HUMAN_APPROVAL = "human-approval";
 
@@ -71,4 +76,69 @@ export function buildApprovalRecord(input: ApprovalRecordInput): Record<string, 
     artifacts: [],
     limitations: [...input.limitations, REF_NOT_VERIFIED]
   });
+}
+
+export interface EnsureApprovalParams {
+  ctx: Ctx;
+  change: string;
+  env: NodeJS.ProcessEnv;
+  loaded: LoadResult;
+  policyHash: string;
+  transition: string;
+  /** The commit and base the approval is given on, and the limitations of the git facts. */
+  git: { commit: string; baseCommit?: string | undefined; limitations: readonly string[] };
+  login: string;
+  ref: string;
+  /**
+   * Whether the pre-filter still admits an existing record — same commit and
+   * base, the "waiver counts" of the gate engine (A-14). The pre-filter and
+   * the waivers rank above this module, so the caller supplies it
+   * (`core/transition/approval.ts`).
+   */
+  admits: (json: Record<string, unknown>) => boolean;
+  /** The id of a new record (`allocateUlid("EVID")`, which cannot be imported here: a module cycle); called only when none is reused. */
+  newId: () => string;
+}
+
+/**
+ * The `human-approval` record of `login` for this transition (P-17, design
+ * §10 of phase 3, A-29): an existing one the pre-filter still admits — same
+ * commit and base, same login and ref — is reused; otherwise a new one is
+ * written.
+ */
+export async function ensureApproval(params: EnsureApprovalParams): Promise<{ evidence: string; reused: boolean; record?: PendingRecord }> {
+  const { ctx, change, env, git, login, ref } = params;
+  const { root } = ctx;
+  for (const record of readRecords(evidenceDir(root, change, env))) {
+    if (isApprovalBy(record.json, login, ref) && params.admits(record.json)) {
+      return { evidence: record.id, reused: true };
+    }
+  }
+
+  const gate = gateDefinitions(params.loaded).get(HUMAN_APPROVAL);
+  const id = params.newId();
+  const record = buildApprovalRecord({
+    id,
+    change,
+    transition: params.transition,
+    login,
+    ref,
+    commit: git.commit,
+    baseCommit: git.baseCommit,
+    level: typeof gate?.["level"] === "string" ? gate["level"] : "L0",
+    limitations: git.limitations,
+    effectivePolicyHash: params.policyHash,
+    createdAt: new Date().toISOString()
+  });
+  storeRecord({
+    root,
+    writes: ctx.writes,
+    change,
+    env,
+    record,
+    commit: git.commit,
+    versions: await manifestVersions(ctx, params.policyHash),
+    what: `${HUMAN_APPROVAL} by ${login}`
+  });
+  return { evidence: id, reused: false, record: { id, json: record } };
 }

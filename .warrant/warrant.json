@@ -1,6 +1,6 @@
 {
   "$schema": "warrant://config/1",
-  "kernel": "0.6",
+  "kernel": "0.7",
   "openspec": "1.13.x",
   "packs": {
     "core-sdd": {

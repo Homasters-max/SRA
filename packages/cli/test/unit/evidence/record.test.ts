@@ -13,6 +13,8 @@ import {
   buildCheckRecord,
   collectArtifacts,
   contextHash,
+  evidenceSubject,
+  subjectOf,
   type CheckRecordInput
 } from "../../../src/core/evidence/record.js";
 import { evidenceDir, listRecordIds, rawDir } from "../../../src/core/evidence/store.js";
@@ -25,6 +27,7 @@ afterAll(() => {
   for (const dir of tempDirs) removeDir(dir);
 });
 
+const TREE = `sha256:${"b".repeat(64)}`;
 const POLICY_HASH = `sha256:${"a".repeat(64)}`;
 
 function input(extra: Partial<CheckRecordInput> = {}): CheckRecordInput {
@@ -96,6 +99,30 @@ describe("buildCheckRecord", () => {
     expect(buildCheckRecord(input({ commit: "fff0000" }))["context_hash"]).not.toBe(expected);
     // created_at and the id are not part of the context.
     expect(buildCheckRecord(input({ createdAt: "2026-09-23T00:00:00.000Z" }))["context_hash"]).toBe(expected);
+  });
+});
+
+describe("subjectOf (A-28)", () => {
+  it("reads back what evidenceSubject wrote", () => {
+    const subject = evidenceSubject({ change: "add-search", commit: "abc1234", baseCommit: "0001111", specTree: TREE });
+    expect(subjectOf({ subject })).toEqual({
+      commit: "abc1234",
+      baseCommit: "0001111",
+      specRevision: "openspec/changes/add-search@abc1234",
+      specTree: TREE
+    });
+    expect(subjectOf({ subject: evidenceSubject({ change: "add-search", commit: "nogit" }) })).toEqual({
+      commit: "nogit",
+      specRevision: "openspec/changes/add-search@nogit"
+    });
+  });
+
+  it("is undefined without an object naming a commit; fields of another type are left out", () => {
+    expect(subjectOf({})).toBeUndefined();
+    expect(subjectOf({ subject: [] })).toBeUndefined();
+    expect(subjectOf({ subject: { spec_tree: TREE } })).toBeUndefined();
+    expect(subjectOf({ subject: { commit: "" } })).toBeUndefined();
+    expect(subjectOf({ subject: { commit: "abc1234", base_commit: 7, spec_tree: null } })).toEqual({ commit: "abc1234" });
   });
 });
 

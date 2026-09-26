@@ -15,6 +15,7 @@
  * `FAIL` into `WAIVED` by step 4 of the verdict, the finding stays.
  */
 import { HUMAN_APPROVAL } from "../../evidence/approval.js";
+import { subjectOf } from "../../evidence/record.js";
 import { isPlainObject } from "../../json.js";
 import type { Availability, BlobTree, EvidenceInput } from "../types.js";
 import { noInput, pass, type Calculator } from "./types.js";
@@ -50,9 +51,8 @@ export function approvalOf(record: Record<string, unknown>, records: readonly Ev
       reason: `no ${HUMAN_APPROVAL} record among the evidence of the last transition to APPROVED (${[...listed].sort().join(", ")}) is in the evidence store`
     };
   }
-  const subject = isPlainObject(newest.json["subject"]) ? newest.json["subject"] : {};
-  const commit = subject["commit"];
-  if (typeof commit !== "string" || commit === "") {
+  const commit = subjectOf(newest.json)?.commit;
+  if (commit === undefined) {
     return { ok: false, reason: `${HUMAN_APPROVAL} record ${newest.id} names no subject.commit` };
   }
   return { ok: true, value: { evidence: newest.id, commit } };

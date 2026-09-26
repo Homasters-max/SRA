@@ -1,6 +1,7 @@
 /**
  * Building one evidence record (REQ-VER-001, design §6, 06a §2): `subject` and
- * the record of any producer (A-23), and the record of a check over them.
+ * the record of any producer (A-23), and the record of a check over them;
+ * reading `subject` back (A-28).
  *
  * Everything the record says is computed by the CLI: the id is a ULID, the
  * hashes are SHA-256, the commit comes from git (06a section 3). The record
@@ -10,6 +11,7 @@ import { readFileSync } from "node:fs";
 
 import { bytesHash, canonicalHash } from "../canon/hash.js";
 import { projectUri, walkFiles } from "../fs.js";
+import { isPlainObject } from "../json.js";
 import type { Attestation } from "./attestation.js";
 
 /** Status axis of an evidence record (02 §2): owned here (registry `enums` of `architecture.json`); the schema holds the same values. */
@@ -80,6 +82,39 @@ export function evidenceSubject(input: SubjectInput): Record<string, unknown> {
   if (input.baseCommit !== undefined) subject["base_commit"] = input.baseCommit;
   if (input.specTree !== undefined) subject["spec_tree"] = input.specTree;
   return subject;
+}
+
+/** `subject` of a stored record as read (A-28): what the record is bound to — the commit, its base, the spec tree. */
+export interface EvidenceSubject {
+  commit: string;
+  baseCommit?: string;
+  specRevision?: string;
+  specTree?: string;
+}
+
+/**
+ * The `subject` of `record` (A-28), the one reader beside the writer
+ * {@link evidenceSubject}; undefined when it is not an object naming a
+ * `commit` (a malformed record is `validate`'s finding). Fields of another
+ * type than the schema's are left out.
+ */
+export function subjectOf(record: Record<string, unknown>): EvidenceSubject | undefined {
+  const subject = record["subject"];
+  if (!isPlainObject(subject)) return undefined;
+  const text = (key: string): string | undefined => {
+    const value = subject[key];
+    return typeof value === "string" && value !== "" ? value : undefined;
+  };
+  const commit = text("commit");
+  if (commit === undefined) return undefined;
+  const out: EvidenceSubject = { commit };
+  const baseCommit = text("base_commit");
+  if (baseCommit !== undefined) out.baseCommit = baseCommit;
+  const specRevision = text("spec_revision");
+  if (specRevision !== undefined) out.specRevision = specRevision;
+  const specTree = text("spec_tree");
+  if (specTree !== undefined) out.specTree = specTree;
+  return out;
 }
 
 /** One evidence record, whoever produced it (A-23): the producer supplies its own fields. */

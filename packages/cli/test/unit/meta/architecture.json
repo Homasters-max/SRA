@@ -65,6 +65,7 @@
     { "name": "policyPaths", "owner": "core/packs/objects.ts" },
     { "name": "packSkills", "owner": "core/packs/objects.ts" },
     { "name": "evidenceSubject", "owner": "core/evidence/record.ts" },
+    { "name": "subjectOf", "owner": "core/evidence/record.ts" },
     { "name": "buildEvidenceRecord", "owner": "core/evidence/record.ts" },
     { "name": "buildApprovalRecord", "owner": "core/evidence/approval.ts" },
     { "name": "startRun", "owner": "core/run/lifecycle.ts" },

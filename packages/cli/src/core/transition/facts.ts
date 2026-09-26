@@ -10,7 +10,7 @@ import { readAnalyzeInput } from "../analyze/input.js";
 import type { WarrantConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
-import { NO_GIT_COMMIT } from "../evidence/record.js";
+import { NO_GIT_COMMIT, subjectOf } from "../evidence/record.js";
 import {
   changedPaths,
   contractTree,
@@ -23,7 +23,6 @@ import {
 import { approvalOf } from "../gates/l0/spec-approved.js";
 import type { ContractTrees, EvidenceInput } from "../gates/types.js";
 import { checkAreas, checkDuplicates, loadAreas, scanIds } from "../ids/scan.js";
-import { isPlainObject } from "../json.js";
 import { findChangeDir } from "../openspec/changes.js";
 import { openspecAvailable } from "../openspec/version.js";
 import type { ArtifactStatuses } from "../ports/openspec.js";
@@ -114,7 +113,7 @@ export async function specTreeFacts(
   records: readonly EvidenceInput[],
   git: GitFacts
 ): Promise<Availability<string> | undefined> {
-  const bound = records.some((r) => isPlainObject(r.json["subject"]) && typeof r.json["subject"]["spec_tree"] === "string");
+  const bound = records.some((r) => subjectOf(r.json)?.specTree !== undefined);
   if (!bound) return undefined;
   if (git.commonDir === null || git.commit === NO_GIT_COMMIT) {
     return { ok: false, reason: "the project is not a git repository with a commit" };

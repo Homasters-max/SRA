@@ -10,6 +10,7 @@
  * `specs/**` of the Change are the same. What is left is the only evidence
  * the verdict algorithm sees.
  */
+import { subjectOf } from "../evidence/record.js";
 import { isPlainObject } from "../json.js";
 import type { Availability, EvidenceInput, Finding } from "./types.js";
 
@@ -44,9 +45,9 @@ export interface PrefilterResult {
 
 /** The first reason the record is not admissible, or null. */
 export function staleReason(record: Record<string, unknown>, ctx: PrefilterContext): { reason: StaleReason; detail: string } | null {
-  const subject = isPlainObject(record["subject"]) ? record["subject"] : {};
-  const tree = subject["spec_tree"];
-  if (typeof tree === "string") {
+  const subject = subjectOf(record);
+  const tree = subject?.specTree;
+  if (tree !== undefined) {
     const current = ctx.specTree;
     if (current === undefined || !current.ok) {
       const why = current === undefined ? "it was not computed" : current.reason;
@@ -56,11 +57,11 @@ export function staleReason(record: Record<string, unknown>, ctx: PrefilterConte
       return { reason: "spec_tree", detail: `made on spec tree ${tree}, the spec tree of commit ${ctx.commit} is ${current.value}` };
     }
   } else {
-    const commit = subject["commit"];
+    const commit = subject?.commit;
     if (commit !== ctx.commit) {
       return { reason: "commit", detail: `made on commit ${String(commit)}, evaluated commit is ${ctx.commit}` };
     }
-    const base = typeof subject["base_commit"] === "string" ? subject["base_commit"] : undefined;
+    const base = subject?.baseCommit;
     if (base !== ctx.base) {
       return { reason: "base", detail: `made against base ${base ?? "(none)"}, current base is ${ctx.base ?? "(unknown)"}` };
     }

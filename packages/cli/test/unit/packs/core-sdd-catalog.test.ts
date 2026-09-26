@@ -203,10 +203,10 @@ describe("pack core-sdd: каталог", () => {
     }
   });
 
-  it("версия 0.3.x, kernel >=0.1 <0.7, rules пуст, pack.json валиден (REQ-SDD-001, SCN-KRN-012)", () => {
-    // REQ-SDD-001 называет 0.3.x, kernel <0.7 — delta phase-4b; patch растёт по дисциплине версий (R-14).
+  it("версия 0.3.x, kernel >=0.1 <0.8, rules пуст, pack.json валиден (REQ-SDD-001, SCN-KRN-012)", () => {
+    // REQ-SDD-001 называет 0.3.x, kernel <0.8 — delta phase-4c; patch растёт по дисциплине версий (R-14).
     expect(manifest.version).toMatch(/^0\.3\.\d+$/);
-    expect(manifest.kernel).toBe(">=0.1 <0.7");
+    expect(manifest.kernel).toBe(">=0.1 <0.8");
     expect(provides["rules"]).toEqual([]);
     const result = validateFile(manifest, "pack.json");
     expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true);

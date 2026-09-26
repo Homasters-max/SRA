@@ -9,19 +9,19 @@
 
 ## 1. Bump и швы (A-28, A-29)
 
-- [ ] 1.1 Bump:
+- [x] 1.1 Bump:
   - CLI `0.7.0`;
   - pack `core-sdd` `0.3.3` с `kernel: ">=0.1 <0.8"`: 7 fixture-packs, `.warrant/warrant.json` `kernel: "0.7"`,
     `warrant.lock.json` репозитория и golden-фикстур — как I-156 (REQ-SDD-001 в части диапазона).
 
   Проверка: `npm run versions:check` зелёный; `core-sdd-catalog.test.ts` под новый диапазон.
-- [ ] 1.2 A-28: `EvidenceSubject` и `subjectOf` в `core/evidence/record.ts` (§2), строка `helpers`. Через него — `staleReason`,
+- [x] 1.2 A-28: `EvidenceSubject` и `subjectOf` в `core/evidence/record.ts` (§2), строка `helpers`. Через него — `staleReason`,
   `approvalOf`, `specTreeFacts`, `mergedCommit`.
 
   Проверка:
   - `cs grep '["subject"]' --fixed --in packages/cli/src` — только владелец;
   - тесты `gate`, `transition`, `status` без правок ожидаемых значений.
-- [ ] 1.3 A-29 (§2):
+- [x] 1.3 A-29 (§2):
   - `core/transition/merged.ts` — `mergedCommit`, `ciRunOf`, `assertOneRun`;
   - `ensureApproval` — в `core/evidence/approval.ts`;
   - `commands/transition.ts` — опции и вывод.

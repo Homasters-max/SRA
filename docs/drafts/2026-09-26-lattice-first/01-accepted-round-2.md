@@ -24,23 +24,23 @@
 | Q12 | Фаза 4 WARRANT (`phase-4c` и остальные Change фазы) доводится до конца; LATTICE — после неё. Уточнение maintainer'а к рекомендации (б) |
 | Q13 | Поток kb-domains: grilling 09 и 01 продолжается сейчас; 02–07 — после slice LATTICE. 02 заменяется ответом «модель — это LATTICE»: локального слоя в форме read model нет, источник — read model LATTICE (пересматривает Q4 раунда 1). Рефакторинг навыка — после 09 и 01 (Q8) |
 | Q14 | Запись — двумя ADR, каждый о своём: ADR WARRANT — порядок (фаза 4 → slice LATTICE → WARRANT на LATTICE), потребитель ждёт slice; `LATTICE-ADR-0001` в новом репозитории — выделение до slice (отменяет решение 2026-09-22 README, не LD-B-06). Решения раунда 1 (Q1–Q8) — в итоговый ADR потока kb-domains |
+| Q15 | Фаза 4 = `phase-4c` (CI) + vertical slice MVP в `Homasters-max/warrant-slice` (`13-roadmap.md`, строка 4c); ни одно не зависит от объектов LATTICE — ничего не переносится, фаза закрывается по критерию MVP (D-14). Раунд 3 |
+| Q16 | LATTICE в roadmap — новой фазой сразу после 4 (сейчас — часть фазы 9 «Integrations»), с критерием выхода slice: lint PASS, double-build byte-identical, reconstruction из history, golden `spec-requirement-with-test`. Правка `13-roadmap.md` — в ADR WARRANT (Q14). Раунд 3 |
+| Q17 | Поток ведёт `docs/handoff/lattice.md` в SRA с `После: phase-4`; после переноса (Q9) — `NEXT-SESSION.md` репозитория LATTICE, PR переноса удаляет файл из SRA. Раунд 3 |
+| Q18 | Репозиторий `Homasters-max/LATTICE`, public (как SRA). CI минимальный: `$schema` и канонический JSON (ADR-0006), тест структуры, форма ADR; ubuntu + windows; остальное — по потребности. Создаётся при переносе после фазы 4, публикация — отдельным подтверждением maintainer'а. Раунд 3 |
 
 Порядок работ:
 
 ```text
-фаза 4 WARRANT (phase-4c → … → конец фазы)
+фаза 4 WARRANT (phase-4c → slice MVP warrant-slice)
   → репозиторий D:\project\LATTICE (Q9) → grilling LD-* → данные meta/* → vertical slice
   → WARRANT подключается к slice → домены поиска как projection над read model (kb-domains 02–07)
 ```
 
 ## Вопросы для grilling
 
-1. Какие Change ещё входят в фазу 4 после `phase-4c` (факт — `docs/roadmap` / backlog), и есть ли среди них
-   зависящие от объектов LATTICE? Рекомендация: зависящие — перенести за slice.
-2. Кто ведёт поток LATTICE: файл передачи `docs/handoff/lattice.md` в SRA с `После: phase-4` или `NEXT-SESSION.md`
-   в новом репозитории? Рекомендация: в SRA до переноса (ADR-0033 п. 12), после Q9 — в репозитории LATTICE.
-3. GitHub-репозиторий LATTICE: remote, CI, конвенции ADR-0032/0033 — копировать или своё? Рекомендация: минимальный
-   набор (JSON-конвенции, `structure`, ADR-формат), остальное — по потребности.
+Решены (Q9–Q18). Дальше — поток `lattice` ([docs/handoff/lattice.md](../../handoff/lattice.md)): ADR WARRANT,
+перенос, `LATTICE-ADR-0001`, grilling реестра LD-* в репозитории LATTICE.
 
 ## Вне объёма
 

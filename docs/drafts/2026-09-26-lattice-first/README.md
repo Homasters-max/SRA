@@ -6,13 +6,13 @@ WARRANT, которым нужны объекты и связи (домены п
 
 ## Уже решено (не гриллить)
 
-- [01-accepted-round-2](01-accepted-round-2.md) — Q9–Q14: репозиторий, объём (vertical slice, LD-B-06 в силе),
-  порядок в LATTICE, фаза 4 до конца, поток kb-domains, два ADR.
+- [01-accepted-round-2](01-accepted-round-2.md) — Q9–Q18: репозиторий, объём (vertical slice, LD-B-06 в силе),
+  порядок в LATTICE, фаза 4 до конца, поток kb-domains, два ADR, место в roadmap, владелец потока, remote и CI.
 
 ## Порядок grilling
 
-1. Открытые вопросы [01-accepted-round-2](01-accepted-round-2.md) — состав фазы 4, владелец потока, репозиторий.
-2. Grilling реестра LD-* — в репозитории LATTICE после переноса (его `NEXT-SESSION.md`, шаг 1).
+1. Grilling реестра LD-* — в репозитории LATTICE после переноса (его `NEXT-SESSION.md`, шаг 1); поток —
+   [docs/handoff/lattice.md](../../handoff/lattice.md).
 
 ## Сквозные вопросы
 

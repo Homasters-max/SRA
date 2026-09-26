@@ -24,7 +24,6 @@ checkout (domains/, bench/, usage.jsonl), навык — ~/.claude/skills/kb-sea
 ## Открытые вопросы
 
 - Где живут домены при LATTICE-first: Q6 (репозиторий WARRANT) принят до решения о LATTICE — переспросить в 01 п. 1.
-- Открытые вопросы `2026-09-26-lattice-first/01`: состав фазы 4, владелец потока LATTICE, репозиторий и CI.
 
 ## Не забыть
 

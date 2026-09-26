@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { DOCUMENT_SCHEMAS } from "../../../src/core/schemas/registry.js";
 import { validateFile } from "../../../src/core/schemas/semantic.js";
+import { readJsonFile } from "../../helpers/json.js";
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "fixtures", "schemas");
 
@@ -15,10 +16,6 @@ interface Expectation {
   scenario: string;
   /** Some rules (change-record naming) only apply when the file path is known. */
   needsFilePath?: boolean;
-}
-
-function readJson(file: string): unknown {
-  return JSON.parse(readFileSync(file, "utf8"));
 }
 
 /**
@@ -105,7 +102,7 @@ describe("schema fixtures", () => {
       const [schema = "", file = ""] = rel.split("/");
       expect(readdirSync(join(FIXTURES, schema)), rel).toContain(file);
       if (file.startsWith("invalid-")) {
-        const expectation = readJson(join(FIXTURES, schema, file.replace(/\.json$/, ".expect.json"))) as Expectation;
+        const expectation = readJsonFile(join(FIXTURES, schema, file.replace(/\.json$/, ".expect.json"))) as Expectation;
         expect(expectation.scenario, rel).toBe(id);
       }
     }
@@ -125,7 +122,7 @@ describe("schema fixtures", () => {
         it(`accepts ${file}${tag(schema, file)}`, () => {
           // No file path: fixture names encode `valid-*`, not the document id,
           // and the change-record naming rule is asserted in semantic.test.ts.
-          const result = validateFile(readJson(join(dir, file)));
+          const result = validateFile(readJsonFile(join(dir, file)));
           if (!result.ok) {
             throw new Error(`expected valid, got: ${JSON.stringify(result.errors, null, 2)}`);
           }
@@ -135,10 +132,10 @@ describe("schema fixtures", () => {
 
       for (const file of files.filter((f) => f.startsWith("invalid-"))) {
         it(`rejects ${file}${tag(schema, file)}`, () => {
-          const expectation = readJson(
+          const expectation = readJsonFile(
             join(dir, file.replace(/\.json$/, ".expect.json"))
           ) as Expectation;
-          const json = readJson(join(dir, file));
+          const json = readJsonFile(join(dir, file));
           const filePath = expectation.needsFilePath === true ? join(dir, file) : undefined;
           const result = validateFile(json, filePath);
 
@@ -163,7 +160,7 @@ describe("schema fixtures", () => {
 describe("controller rules keep document order (SCN-KRN-028)", () => {
   it("reads the core-sdd table back in source order", () => {
     const file = join(FIXTURES, "controller-rules", "valid-doc-example.json");
-    const json = readJson(file) as { rules: { id: string }[] };
+    const json = readJsonFile(file) as { rules: { id: string }[] };
     expect(validateFile(json).ok).toBe(true);
     expect(json.rules.map((r) => r.id)).toEqual([
       "policy-conflict",

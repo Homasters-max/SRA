@@ -18,7 +18,7 @@ import { projectUri } from "../fs.js";
 import type { Availability, DiffEntry } from "../git/facts.js";
 import { ANALYZE_CLEAN } from "../gates/l0/analyze-clean.js";
 import { SPEC_APPROVED } from "../gates/l0/spec-approved.js";
-import type { CheckFailure, Finding, GateEngineResult, GateSignals, Verdict } from "../gates/types.js";
+import type { CheckFailure, EvidenceInput, Finding, GateEngineResult, GateSignals, Verdict } from "../gates/types.js";
 import { evaluateGates } from "../gates/verdict.js";
 import { isPlainObject, strings } from "../json.js";
 import { hooksInactive } from "../liveness/index.js";
@@ -57,6 +57,8 @@ export interface EvaluateParams {
    * collected under `--dry-run` — the gates judge them the same way (REQ-KRN-034).
    */
   pending?: PendingRecord[] | undefined;
+  /** Which stored records the gates may read; absent — all (`warrant ci`, REQ-VER-011). */
+  admit?: ((record: EvidenceInput) => boolean) | undefined;
 }
 
 /** Gate engine and controller for one Change and transition. Reads, never writes. */
@@ -84,7 +86,9 @@ export async function evaluateTransition(params: EvaluateParams): Promise<Evalua
   if (facts.git.baseCommit !== undefined) signals.base = facts.git.baseCommit;
   if (params.checkFailures !== undefined) signals.checkFailures = params.checkFailures;
 
-  const stored = readRecords(evidenceDir(params.ctx.root, params.change, params.env)).map((r) => ({ id: r.id, json: r.json }));
+  const stored = readRecords(evidenceDir(params.ctx.root, params.change, params.env))
+    .map((r) => ({ id: r.id, json: r.json }))
+    .filter((r) => params.admit === undefined || params.admit(r));
   const ids = new Set(stored.map((r) => r.id));
   const records = [...stored, ...(params.pending ?? []).filter((r) => !ids.has(r.id))].sort((a, b) =>
     a.id < b.id ? -1 : a.id > b.id ? 1 : 0

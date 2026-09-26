@@ -29,14 +29,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { writeJsonFile } from "../core/canon/format-json.js";
-import {
-  classify,
-  dimensionValueOrder,
-  type FloorRule,
-  type HumanValues,
-  type ProfileMatch,
-  type Proposal
-} from "../core/classify/index.js";
+import { classify, dimensionValueOrder, type HumanValues, type Proposal } from "../core/classify/index.js";
+import { collectFloors, collectProfileMatches } from "../core/classify/packs.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError, type CliError } from "../core/errors.js";
 import { changedFromGit } from "../core/git/paths.js";
@@ -177,47 +171,6 @@ function parseProposal(raw: string): Proposal {
     proposal.risk = values;
   }
   return proposal;
-}
-
-/** Floor rules всех подключённых packs, с индексом правила внутри своего файла. */
-function collectFloors(objects: { kind: string; pack: string; json: unknown }[]): FloorRule[] {
-  const out: FloorRule[] = [];
-  for (const object of objects) {
-    if (object.kind !== "risk-floor" || !isPlainObject(object.json)) continue;
-    const floors = object.json["floors"];
-    if (!Array.isArray(floors)) continue;
-    floors.forEach((rule, index) => {
-      if (!isPlainObject(rule)) return;
-      const paths = Array.isArray(rule["paths"])
-        ? rule["paths"].filter((p): p is string => typeof p === "string")
-        : [];
-      const set: Partial<Record<RiskDimension, string>> = {};
-      if (isPlainObject(rule["set"])) {
-        for (const dimension of RISK_DIMENSIONS) {
-          const value = (rule["set"] as Record<string, unknown>)[dimension];
-          if (typeof value === "string") set[dimension] = value;
-        }
-      }
-      out.push({ pack: object.pack, index, paths, set });
-    });
-  }
-  return out;
-}
-
-/** Profiles с `match.paths` — кандидаты, предлагаемые изменёнными путями. */
-function collectProfileMatches(objects: { kind: string; pack: string; id: string; json: unknown }[]): ProfileMatch[] {
-  const out: ProfileMatch[] = [];
-  for (const object of objects) {
-    if (object.kind !== "profile" || !isPlainObject(object.json)) continue;
-    const match = object.json["match"];
-    if (!isPlainObject(match)) continue;
-    const paths = Array.isArray(match["paths"])
-      ? match["paths"].filter((p): p is string => typeof p === "string")
-      : [];
-    if (paths.length === 0) continue;
-    out.push({ pack: object.pack, id: object.id, paths });
-  }
-  return out;
 }
 
 export async function runClassify(ctx: Ctx, change: string, opts: ClassifyOptions = {}): Promise<CommandResult> {

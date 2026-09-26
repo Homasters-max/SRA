@@ -32,6 +32,7 @@
     { "id": "core/status", "path": "core/status", "rank": 3 },
     { "id": "core/transition", "path": "core/transition", "rank": 4 },
     { "id": "core/guard", "path": "core/guard", "rank": 4 },
+    { "id": "core/ci", "path": "core/ci", "rank": 5 },
     { "id": "commands", "path": "commands", "layer": "commands" },
     { "id": "io", "path": "io", "layer": "io" },
     { "id": "bin", "path": "bin", "layer": "bin" },
@@ -87,6 +88,7 @@
     "helpers": [
       { "name": "write", "owner": "helpers/synced.ts" },
       { "name": "recordDoc", "owner": "helpers/synced.ts" },
+      { "name": "readJsonFile", "owner": "helpers/json.ts" },
       { "name": "git", "owner": "helpers/git.ts" },
       { "name": "validate", "owner": "app/helpers/validate.ts" },
       { "name": "validateErrors", "owner": "app/helpers/validate.ts" },

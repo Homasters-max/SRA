@@ -11,6 +11,7 @@ import { CHANGE_STATES, transitionKind } from "../../../src/core/record/lifecycl
 import { appendTransition, assertNotFrozen, withTransition } from "../../../src/core/record/write.js";
 import { createWrites } from "../../../src/core/writes.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
+import { recordDoc } from "../../helpers/synced.js";
 
 const tempDirs: string[] = [];
 afterAll(() => {
@@ -34,15 +35,6 @@ const ALLOWED: Record<string, string> = {
   "VERIFYING->ABANDONED": "abandon"
 };
 
-function record(state: string): Record<string, unknown> {
-  return {
-    $schema: "warrant://change-record/1",
-    change: "add-search",
-    change_state: state,
-    transitions: [{ to: "PROPOSED", at: "2026-09-22T09:00:00Z", by: "cli:local" }]
-  };
-}
-
 describe("transition matrix (04 section 2)", () => {
   it("allows exactly the forward chain, two backward moves and ABANDONED before MERGED", () => {
     for (const from of CHANGE_STATES) {
@@ -65,7 +57,7 @@ describe("transition matrix (04 section 2)", () => {
 describe("record freeze (SCN-VER-035)", () => {
   it("throws RECORD_FROZEN with exit 3 for ARCHIVED and ABANDONED only", () => {
     for (const state of CHANGE_STATES) {
-      const call = (): void => assertNotFrozen(record(state), "add-search");
+      const call = (): void => assertNotFrozen(recordDoc("add-search", state), "add-search");
       if (state === "ARCHIVED" || state === "ABANDONED") {
         expect(call).toThrow(WarrantError);
         try {
@@ -94,8 +86,8 @@ describe("appendTransition", () => {
       gates: { "spec-valid": "PASS" },
       evidence: ["EVID-01J8ZQ7Y3N4M5P6Q7R8S9T0V1W"]
     };
-    const updated = appendTransition({ root, writes: createWrites(false) }, "add-search", record("PROPOSED"), entry);
-    expect(updated).toEqual(withTransition(record("PROPOSED"), entry));
+    const updated = appendTransition({ root, writes: createWrites(false) }, "add-search", recordDoc("add-search", "PROPOSED"), entry);
+    expect(updated).toEqual(withTransition(recordDoc("add-search", "PROPOSED"), entry));
     const stored = JSON.parse(readFileSync(path.join(root, ".warrant", "changes", "add-search.json"), "utf8"));
     expect(stored.change_state).toBe("SPECIFIED");
     expect(stored.transitions).toHaveLength(2);
@@ -104,7 +96,7 @@ describe("appendTransition", () => {
 
   it("refuses to write past a frozen state", () => {
     expect(() =>
-      appendTransition({ root: "unused", writes: createWrites(false) }, "add-search", record("ABANDONED"), {
+      appendTransition({ root: "unused", writes: createWrites(false) }, "add-search", recordDoc("add-search", "ABANDONED"), {
         to: "PROPOSED",
         at: "2026-09-23T10:00:00Z",
         by: "cli:local"

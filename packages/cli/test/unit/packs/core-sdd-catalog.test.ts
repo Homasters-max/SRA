@@ -12,14 +12,11 @@ import { describe, expect, it } from "vitest";
 
 import { validateFile } from "../../../src/core/schemas/semantic.js";
 import { REPO_ROOT } from "../../helpers/cli.js";
+import { readJsonFile } from "../../helpers/json.js";
 
 const PACK_DIR = path.join(REPO_ROOT, "packs", "core-sdd");
 
-function readJson(rel: string): any {
-  return JSON.parse(readFileSync(path.join(PACK_DIR, rel), "utf8"));
-}
-
-const manifest = readJson("pack.json");
+const manifest = readJsonFile(PACK_DIR, "pack.json");
 const provides = manifest.provides as Record<string, string[] | string>;
 
 /** Файлы `*.json` каталога объектов, как пути относительно pack. */
@@ -109,7 +106,7 @@ describe("pack core-sdd: каталог", () => {
   it("каждый объект проходит свою схему и id равен имени файла (Decision 1)", () => {
     for (const key of ["overlays", "profiles", "gates", "checks"]) {
       for (const rel of provides[key] as string[]) {
-        const json = readJson(rel);
+        const json = readJsonFile(PACK_DIR, rel);
         const result = validateFile(json, rel);
         expect(result.ok, `${rel}: ${JSON.stringify(result.ok ? [] : result.errors)}`).toBe(true);
         expect(json.id).toBe(path.basename(rel, ".json"));
@@ -121,13 +118,13 @@ describe("pack core-sdd: каталог", () => {
 
   it("waivable: true только у branch-isolated, analyze-clean, adversarial-review и spec-approved (SCN-SDD-011)", () => {
     const waivable = (provides["gates"] as string[])
-      .map((rel) => readJson(rel))
+      .map((rel) => readJsonFile(PACK_DIR, rel))
       .filter((g) => g.waivable === true)
       .map((g) => g.id)
       .sort();
     expect(waivable).toEqual(["adversarial-review", "analyze-clean", "branch-isolated", "spec-approved"]);
     for (const rel of provides["gates"] as string[]) {
-      const gate = readJson(rel);
+      const gate = readJsonFile(PACK_DIR, rel);
       expect(typeof gate.waivable).toBe("boolean");
       expect(["L0", "L1", "L2"]).toContain(gate.level);
     }
@@ -135,9 +132,9 @@ describe("pack core-sdd: каталог", () => {
 
   it("merge-gates принимают только ci; spec-approved — L0 без requires_evidence, waivable (SCN-SDD-023)", () => {
     for (const rel of ["gates/tests-passed.json", "gates/factory-golden-passed.json"]) {
-      expect(readJson(rel).accepts_attestation, rel).toEqual(["ci"]);
+      expect(readJsonFile(PACK_DIR, rel).accepts_attestation, rel).toEqual(["ci"]);
     }
-    const specApproved = readJson("gates/spec-approved.json");
+    const specApproved = readJsonFile(PACK_DIR, "gates/spec-approved.json");
     expect(specApproved).not.toHaveProperty("requires_evidence");
     expect(specApproved.waivable).toBe(true);
     expect(specApproved.level).toBe("L0");
@@ -150,7 +147,7 @@ describe("pack core-sdd: каталог", () => {
     const referenced = new Set<string>();
     for (const key of ["profiles", "overlays"]) {
       for (const rel of provides[key] as string[]) {
-        const gates = (readJson(rel).gates ?? {}) as Record<string, string[]>;
+        const gates = (readJsonFile(PACK_DIR, rel).gates ?? {}) as Record<string, string[]>;
         for (const list of Object.values(gates)) for (const id of list) referenced.add(id);
       }
     }
@@ -162,7 +159,7 @@ describe("pack core-sdd: каталог", () => {
   });
 
   it("controller/rules.json: ровно три правила, первое — POLICY_CONFLICT (SCN-SDD-012, I-48)", () => {
-    const doc = readJson("controller/rules.json");
+    const doc = readJsonFile(PACK_DIR, "controller/rules.json");
     const result = validateFile(doc, "controller/rules.json");
     expect(result.ok).toBe(true);
     expect(doc.$schema).toBe("warrant://controller-rules/1");
@@ -180,25 +177,25 @@ describe("pack core-sdd: каталог", () => {
   });
 
   it("check tests-passed описывает только формат, openspec-validate — команду (REQ-SDD-007)", () => {
-    const tests = readJson("checks/tests-passed.json");
+    const tests = readJsonFile(PACK_DIR, "checks/tests-passed.json");
     expect(tests.run).toBeUndefined();
     expect(tests.parser).toBe("junit");
     expect(tests.produces).toEqual(["test-report"]);
-    const openspec = readJson("checks/openspec-validate.json");
+    const openspec = readJsonFile(PACK_DIR, "checks/openspec-validate.json");
     expect(openspec.run.command).toEqual(["openspec", "validate", "{change}", "--strict", "--json"]);
     expect(openspec.produces).toEqual(["spec-report"]);
     expect(openspec.parser).toBe("openspec-validate");
   });
 
   it("checks несут execution: openspec-validate — {change} и timeout 300, tests-passed — exclusive без run (SCN-SDD-018)", () => {
-    const openspec = readJson("checks/openspec-validate.json");
+    const openspec = readJsonFile(PACK_DIR, "checks/openspec-validate.json");
     expect(openspec.run.command).toContain("{change}");
     expect(openspec.execution).toEqual({ timeout_s: 300 });
-    const tests = readJson("checks/tests-passed.json");
+    const tests = readJsonFile(PACK_DIR, "checks/tests-passed.json");
     expect(tests.execution).toEqual({ exclusive: true });
     expect(tests.run).toBeUndefined();
     for (const rel of ["checks/openspec-validate.json", "checks/tests-passed.json"]) {
-      const result = validateFile(readJson(rel), rel);
+      const result = validateFile(readJsonFile(PACK_DIR, rel), rel);
       expect(result.ok, `${rel}: ${JSON.stringify(result.ok ? [] : result.errors)}`).toBe(true);
     }
   });
@@ -228,7 +225,7 @@ describe("pack core-sdd: каталог", () => {
     for (const entry of kinds) {
       if (typeof entry === "string") continue;
       expect(existsSync(path.join(PACK_DIR, entry.metrics_schema)), entry.metrics_schema).toBe(true);
-      const schema = readJson(entry.metrics_schema);
+      const schema = readJsonFile(PACK_DIR, entry.metrics_schema);
       expect(schema.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
       expect(schema.type).toBe("object");
       const types = Object.fromEntries(
@@ -245,12 +242,12 @@ describe("pack core-sdd: каталог", () => {
       )
     );
     for (const rel of provides["checks"] as string[]) {
-      for (const kind of readJson(rel).produces as string[]) expect(declared.has(kind), `${rel}: ${kind}`).toBe(true);
+      for (const kind of readJsonFile(PACK_DIR, rel).produces as string[]) expect(declared.has(kind), `${rel}: ${kind}`).toBe(true);
     }
   });
 
   it("openspec/rules.json: rules.design требует строку I-N для отклонения от spec (REQ-SDD-007)", () => {
-    const rules = readJson("openspec/rules.json");
+    const rules = readJsonFile(PACK_DIR, "openspec/rules.json");
     expect(rules.rules.design).toContain(
       "Record every deviation from the spec as an I-N row in the decisions table of design.md"
     );

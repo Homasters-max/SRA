@@ -33,6 +33,7 @@ import { openspecSync } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli, type CliRun } from "../helpers/cli.js";
 import { git } from "../helpers/git.js";
 import { write } from "../helpers/synced.js";
+import { readJsonFile } from "../helpers/json.js";
 
 // `openspec` is slow to start, especially on Windows.
 const TIMEOUT = 180_000;
@@ -80,10 +81,6 @@ let root: string;
 
 function cli(args: string[], env: NodeJS.ProcessEnv = LOCAL): Promise<CliRun> {
   return runCli(args, root, env);
-}
-
-function readJson(rel: string): any {
-  return JSON.parse(readFileSync(path.join(root, rel), "utf8"));
 }
 
 describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to archive", () => {
@@ -162,7 +159,7 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
     async () => {
       // The project on `main`: a maintainer, the project's `tests-passed` and the waiver of
       // `adversarial-review` — outside the spec-PR, whose diff would classify `.warrant/**` as factory-change.
-      const config = readJson(".warrant/warrant.json");
+      const config = readJsonFile(root, ".warrant/warrant.json");
       write(root, ".warrant/warrant.json", { ...config, roles: { maintainer: ["kat"] } });
       write(root, ".warrant/local/checks/tests-passed.json", {
         $schema: "warrant://check/1",
@@ -224,7 +221,7 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
       git(root, "commit", "--quiet", "-m", "approved");
       git(root, "checkout", "--quiet", "main");
       git(root, "merge", "--quiet", "--no-ff", "spec/demo", "-m", "Merge spec-PR");
-      expect(readJson(RECORD).change_state).toBe("APPROVED");
+      expect(readJsonFile(root, RECORD).change_state).toBe("APPROVED");
     },
     TIMEOUT
   );
@@ -279,7 +276,7 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
       expect(existsSync(path.join(root, ACTIVE))).toBe(false);
       // The real openspec merged the delta into the main spec.
       expect(readFileSync(path.join(root, "openspec/specs/search/spec.md"), "utf8")).toContain("### Requirement: Search by text");
-      expect(readJson(RECORD).change_state).toBe("ARCHIVED");
+      expect(readJsonFile(root, RECORD).change_state).toBe("ARCHIVED");
 
       const validated = await cli(["validate"]);
       expect(validated.json?.errors).toEqual([]);

@@ -56,6 +56,8 @@ export interface CheckRecordInput {
   /** HEAD, or {@link NO_GIT_COMMIT}. */
   commit: string;
   baseCommit?: string | undefined;
+  /** Tree of the result of the merge the check ran in (`warrant ci`, REQ-VER-001). */
+  tree?: string | undefined;
   attestation: Attestation;
   effectivePolicyHash: string;
   argv: string[];
@@ -179,7 +181,7 @@ export function buildCheckRecord(input: CheckRecordInput): Record<string, unknow
     kind: input.kind,
     level: input.check.level,
     status: input.status,
-    subject: evidenceSubject({ change: input.change, commit: input.commit, baseCommit: input.baseCommit }),
+    subject: evidenceSubject({ change: input.change, commit: input.commit, baseCommit: input.baseCommit, tree: input.tree }),
     claim: `${input.check.id} passed for ${input.change}`,
     producedBy: { type: "check", id: input.check.id, version: input.check.version },
     attestation: input.attestation,

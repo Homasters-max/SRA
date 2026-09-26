@@ -24,6 +24,7 @@ import type { Json } from "../../../src/core/schemas/loader.js";
 import { createWrites } from "../../../src/core/writes.js";
 import { CLI_VERSION } from "../../../src/version.js";
 import { CORE_SDD_RANGE, CORE_SDD_VERSION, REPO_ROOT } from "../../helpers/cli.js";
+import { readJsonFile } from "../../helpers/json.js";
 import { FakeCheckRunner, type FakeBehaviour } from "./fakes/checks.js";
 import { FakeClock } from "./fakes/clock.js";
 import { FakeForge, type ForgeModel } from "./fakes/forge.js";
@@ -150,6 +151,11 @@ export class ProjectBuilder {
 
   read(rel: string): string {
     return readFileSync(path.join(this.root, ...rel.split("/")), "utf8");
+  }
+
+  /** The parsed JSON of a project file (A-30). */
+  json(rel: string): any {
+    return readJsonFile(this.root, rel);
   }
 
   remove(rel: string): this {

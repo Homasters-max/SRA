@@ -74,32 +74,32 @@
 
 ## 4. warrant ci (REQ-VER-011; A-30)
 
-- [ ] 4.1 `core/ci/kind.ts`: HEAD — результат merge; records Changes в diff; вид по `change_state`; `TOPOLOGY_VIOLATION`.
+- [x] 4.1 `core/ci/kind.ts`: HEAD — результат merge; records Changes в diff; вид по `change_state`; `TOPOLOGY_VIOLATION`.
   Разбор переходов — через `core/record/lifecycle.ts` (§4). `core/ci/base.ts` — база требований из `worktreeAt(HEAD^1)`
   (I-171): policy-пути, `paths.*`, `roles`, `approvals[]`, effective policy; `dispose` в `finally`.
 
   Проверка:
   - unit на SCN-VER-077, SCN-VER-083;
   - `GitPort.parents`, `GitPort.worktreeAt(commit)` — адаптер, `FakeGit`, контракт соответствия, `dispose` при ошибке.
-- [ ] 4.2 `core/ci/record.ts` (N44 суженный, §4): префикс `transitions[]`, `change_state`, цепочка состояний, gates новых
+- [x] 4.2 `core/ci/record.ts` (N44 суженный, §4): префикс `transitions[]`, `change_state`, цепочка состояний, gates новых
   переходов вперёд, файлы и схема `evidence[]`, замороженный record, классификация не слабее базы и профилей `classify` по базе на путях diff (I-171); новый `MERGED` —
   `effective_policy_hash` по базе и записи `ci` у gates `PASS` (I-172); `RECORD_MISMATCH`. Verdicts прошлых переходов не
   пересчитываются.
 
   Проверка: app на SCN-VER-078, SCN-VER-090, SCN-VER-105, SCN-VER-107, SCN-VER-108.
-- [ ] 4.3 `core/ci/refs.ts` — `ref` новых переходов через `ForgePort.pullRequest`: `REF_NOT_VERIFIED`, `APPROVER_IS_AUTHOR`.
+- [x] 4.3 `core/ci/refs.ts` — `ref` новых переходов через `ForgePort.pullRequest`: `REF_NOT_VERIFIED`, `APPROVER_IS_AUTHOR`.
 
   Проверка: app на SCN-VER-081, SCN-VER-093 с `FakeForge`.
-- [ ] 4.4 Правила путей: общее для `openspec/specs/**`, виды `spec`, `abandon`, `none` (N47), gates `SPECIFIED->APPROVED`
+- [x] 4.4 Правила путей: общее для `openspec/specs/**`, виды `spec`, `abandon`, `none` (N47), gates `SPECIFIED->APPROVED`
   информационно.
 
   Проверка: app на SCN-VER-073, SCN-VER-074, SCN-VER-092, SCN-VER-094, SCN-VER-099, SCN-VER-100.
-- [ ] 4.5 Вид `impl`: `runVerify` на HEAD с `mergeTree`, `deferred[]`, `CHANGE_NOT_VERIFYING`, `FRONTEND_HOOKS_INACTIVE` в
+- [x] 4.5 Вид `impl`: `runVerify` на HEAD с `mergeTree`, `deferred[]`, `CHANGE_NOT_VERIFYING`, `FRONTEND_HOOKS_INACTIVE` в
   отчёте.
 
   Проверка: app на SCN-VER-068, SCN-VER-075, SCN-VER-076, SCN-VER-082, SCN-VER-095, SCN-VER-098 (`GITHUB_*` в окружении,
   ни одного нового коммита).
-- [ ] 4.6 `commands/ci.ts`, `warrant ci [--dry-run]` в `bin/warrant.ts`, `--help` с примером (линза `cli-contract`), коды
+- [x] 4.6 `commands/ci.ts`, `warrant ci [--dry-run]` в `bin/warrant.ts`, `--help` с примером (линза `cli-contract`), коды
   0/1/3.
 
   Вывод — с `evidence[]`, `dry_run`, `would_write[]` (I-175).
@@ -107,7 +107,7 @@
   Проверка:
   - app на SCN-VER-084, SCN-VER-085;
   - e2e `--help`.
-- [ ] 4.7 A-30: `ProjectBuilder.json(rel)` и `readJsonFile` в `test/helpers/`, строки `test_helpers`; 9 копий `readJson` и
+- [x] 4.7 A-30: `ProjectBuilder.json(rel)` и `readJsonFile` в `test/helpers/`, строки `test_helpers`; 9 копий `readJson` и
   `record(state)` в `unit/record/write.test.ts` — через них.
 
   Проверка: `cs dups --in packages/cli/test` без `readJson`.

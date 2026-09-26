@@ -69,17 +69,13 @@ function verifyMerge(p: ProjectBuilder, env: NodeJS.ProcessEnv): Promise<Result>
   return invoke(() => runVerify(p.ctx, "add-search", { transition: "VERIFYING->MERGED" }, env));
 }
 
-function readJson(p: ProjectBuilder, rel: string): any {
-  return JSON.parse(p.read(rel));
-}
-
 /** Evidence records of `add-search`, parsed. */
 function records(p: ProjectBuilder): any[] {
   const dir = path.join(p.root, EVIDENCE);
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((name) => name.startsWith("EVID-"))
-    .map((name) => readJson(p, `${EVIDENCE}/${name}`));
+    .map((name) => p.json(`${EVIDENCE}/${name}`));
 }
 
 /**
@@ -88,7 +84,7 @@ function records(p: ProjectBuilder): any[] {
  */
 function ciSubject(p: ProjectBuilder, id: string, extra: Record<string, unknown>): void {
   const rel = `${EVIDENCE}/${id}.json`;
-  const json = readJson(p, rel);
+  const json = p.json(rel);
   p.write(rel, { ...json, subject: { ...json.subject, ...extra } });
 }
 
@@ -154,7 +150,7 @@ describe("warrant transition", () => {
       controller_action: "CONTINUE"
     });
 
-    const stored = readJson(p, RECORD);
+    const stored = p.json(RECORD);
     expect(stored.change_state).toBe("SPECIFIED");
     const last = stored.transitions.at(-1);
     expect(last).toEqual({
@@ -221,7 +217,7 @@ describe("warrant transition", () => {
     });
     // --ref is only checked to be a URL; the record says so (R-10).
     expect(approvals[0].limitations).toContain("ref not verified (phase 4: warrant ci)");
-    expect(readJson(p, RECORD).change_state).toBe("SPECIFIED");
+    expect(p.json(RECORD).change_state).toBe("SPECIFIED");
 
     const checked = await check(p, "openspec-validate");
     expect(checked.exitCode).toBe(0);
@@ -240,7 +236,7 @@ describe("warrant transition", () => {
     expect(run.data["approval"]).toEqual({ evidence: approvals[0].id, reused: true });
     expect(records(p).filter((r) => r.kind === "human-approval")).toHaveLength(1);
 
-    const last = readJson(p, RECORD).transitions.at(-1);
+    const last = p.json(RECORD).transitions.at(-1);
     expect(last).toMatchObject({ to: "APPROVED", by: "cli:local", ref: REVIEW });
     expect(last.evidence).toEqual([approvals[0].id, checked.data["checks"][0].evidence].sort());
     expect(await validateErrors(p)).toEqual([]);
@@ -315,7 +311,7 @@ describe("warrant transition", () => {
       change_state: "MERGED"
     });
     expect(run.data["findings"].filter((f: Data) => f["code"] === "STALE")).toEqual([]);
-    const last = readJson(p, RECORD).transitions.at(-1);
+    const last = p.json(RECORD).transitions.at(-1);
     expect(last).toMatchObject({ to: "MERGED", by: "cli:local", ref: IMPL_PR, evidence: [evidence] });
     expect(await validateErrors(p)).toEqual([]);
   });
@@ -451,11 +447,11 @@ describe("warrant transition", () => {
 
     // Both records of run 2 (a trailing / aside): one run, MERGED recorded.
     const rel = `${EVIDENCE}/${spec}.json`;
-    p.write(rel, { ...readJson(p, rel), attestation: { type: "ci", ref: "https://github.com/o/r/actions/runs/2/" } });
+    p.write(rel, { ...p.json(rel), attestation: { type: "ci", ref: "https://github.com/o/r/actions/runs/2/" } });
     const same = await transition(p, "MERGED", { ref: IMPL_PR, commit: implHead });
     expect(same.errors).toEqual([]);
     expect(same.data["change_state"]).toBe("MERGED");
-    expect(readJson(p, RECORD).transitions.at(-1).evidence).toEqual([spec, tests].sort());
+    expect(p.json(RECORD).transitions.at(-1).evidence).toEqual([spec, tests].sort());
   });
 
   it("refuses a --ref of MERGED that is not a pull request with USAGE and a hint, writing nothing (SCN-VER-071)", async () => {
@@ -587,7 +583,7 @@ describe("warrant transition", () => {
     expect(back.data["recorded"]).toEqual({ to: "IMPLEMENTING", at: expect.any(String), by: "cli:local" });
     const again = await transition(p, "SPECIFIED");
     expect(again.exitCode).toBe(0);
-    expect(readJson(p, RECORD).change_state).toBe("SPECIFIED");
+    expect(p.json(RECORD).change_state).toBe("SPECIFIED");
 
     const skip = await transition(p, "IMPLEMENTING");
     expect(skip.errors[0]?.code).toBe("STATE_INVALID");
@@ -603,7 +599,7 @@ describe("warrant transition", () => {
     expect(run.exitCode).toBe(0);
     expect(run.data["removed"]).toBe("openspec/changes/add-search");
     expect(existsSync(path.join(p.root, "openspec/changes/add-search"))).toBe(false);
-    expect(readJson(p, RECORD).change_state).toBe("ABANDONED");
+    expect(p.json(RECORD).change_state).toBe("ABANDONED");
 
     const status: Result = await invoke(() => runStatus(p.ctx, "add-search", LOCAL));
     expect(status.data["stale"]).toEqual([]);

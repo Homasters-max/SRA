@@ -90,10 +90,6 @@ function submit(p: ProjectBuilder, stdin: Data | string, opts: RunSubmitOptions 
   return invoke(() => runSubmit(ctx, opts, () => Promise.resolve(text), ENV)) as Promise<Result>;
 }
 
-function readJson(p: ProjectBuilder, rel: string): Data {
-  return JSON.parse(p.read(rel)) as Data;
-}
-
 function evidenceFiles(p: ProjectBuilder): string[] {
   const dir = path.join(p.root, ".warrant", "evidence", "add-search");
   return existsSync(dir) ? readdirSync(dir).sort() : [];
@@ -102,7 +98,7 @@ function evidenceFiles(p: ProjectBuilder): string[] {
 describe("warrant run submit: the evidence of a review", () => {
   it("SUCCEEDED with one MAJOR on stdin: a review record PROVEN on the spec tree of the Run, the Run SUCCEEDED, current gone (SCN-ENF-030)", async () => {
     const { p, id, skill } = await reviewing();
-    const specTree = readJson(p, `${RUNS}/${id}.json`)["spec_tree"] as string;
+    const specTree = p.json(`${RUNS}/${id}.json`)["spec_tree"] as string;
     const sent = envelope(id, skill);
     const result = await submit(p, sent);
     expect(result.errors).toEqual([]);
@@ -124,7 +120,7 @@ describe("warrant run submit: the evidence of a review", () => {
     expect(p.read(resultFile)).toBe(canonicalText(sent as never).text);
 
     const [name, version] = skill.split("@") as [string, string];
-    const record = readJson(p, `${EVIDENCE}/${evid}.json`);
+    const record = p.json(`${EVIDENCE}/${evid}.json`);
     expect(record).toMatchObject({
       kind: "review",
       level: "L2",
@@ -141,9 +137,9 @@ describe("warrant run submit: the evidence of a review", () => {
       spec_tree: specTree,
       dataset_snapshot: null
     });
-    expect(readJson(p, `${EVIDENCE}/manifest.json`)["evidence"]).toEqual([evid]);
+    expect(p.json(`${EVIDENCE}/manifest.json`)["evidence"]).toEqual([evid]);
 
-    expect(readJson(p, `${RUNS}/${id}.json`)).toMatchObject({
+    expect(p.json(`${RUNS}/${id}.json`)).toMatchObject({
       run_state: "SUCCEEDED",
       evidence: [evid],
       skill,
@@ -161,20 +157,20 @@ describe("warrant run submit: the evidence of a review", () => {
     expect(result.exitCode).toBe(0);
     expect(result.data["evidence_status"]).toBe("NOT_PROVEN");
     expect(result.data["findings"]).toEqual({ BLOCKER: 1, MAJOR: 0, MINOR: 1, INFO: 1 });
-    expect(readJson(p, `${EVIDENCE}/${result.data["evidence"] as string}.json`)["evidence_status"]).toBe("NOT_PROVEN");
+    expect(p.json(`${EVIDENCE}/${result.data["evidence"] as string}.json`)["evidence_status"]).toBe("NOT_PROVEN");
   });
 
   it("run_state FAILED: INCONCLUSIVE, the Run FAILED; CANCELLED alike (SCN-ENF-032)", async () => {
     const { p, id, skill } = await reviewing();
     const result = await submit(p, envelope(id, skill, [], { run_state: "FAILED" }));
     expect(result.exitCode).toBe(0);
-    expect(readJson(p, `${EVIDENCE}/${result.data["evidence"] as string}.json`)["evidence_status"]).toBe("INCONCLUSIVE");
-    expect(readJson(p, `${RUNS}/${id}.json`)["run_state"]).toBe("FAILED");
+    expect(p.json(`${EVIDENCE}/${result.data["evidence"] as string}.json`)["evidence_status"]).toBe("INCONCLUSIVE");
+    expect(p.json(`${RUNS}/${id}.json`)["run_state"]).toBe("FAILED");
 
     const second = await started(p, "add-search", { operation: "review" });
     const cancelled = await submit(p, envelope(second, skill, ["BLOCKER"], { run_state: "CANCELLED" }));
     expect(cancelled.data["evidence_status"]).toBe("INCONCLUSIVE");
-    expect(readJson(p, `${RUNS}/${second}.json`)["run_state"]).toBe("CANCELLED");
+    expect(p.json(`${RUNS}/${second}.json`)["run_state"]).toBe("CANCELLED");
   });
 
   it("--file: the envelope from a file of the project, the same record", async () => {
@@ -196,7 +192,7 @@ describe("warrant run submit: refusals write nothing", () => {
     expect(result.errors[0]).toMatchObject({ code: "SKILL_RESULT_INVALID", path: "/run" });
     expect(result.errors[0]?.hint).toContain(id);
     expect(evidenceFiles(p)).toEqual([]);
-    expect(readJson(p, `${RUNS}/${id}.json`)["run_state"]).toBe("RUNNING");
+    expect(p.json(`${RUNS}/${id}.json`)["run_state"]).toBe("RUNNING");
     expect(p.tree()).toEqual(before);
   });
 
@@ -207,7 +203,7 @@ describe("warrant run submit: refusals write nothing", () => {
     expect(result.exitCode).toBe(3);
     expect(result.errors[0]?.code).toBe("STATE_INVALID");
     expect(result.errors[0]?.hint).toContain("warrant run finish");
-    expect(readJson(p, `${RUNS}/${id}.json`)["run_state"]).toBe("RUNNING");
+    expect(p.json(`${RUNS}/${id}.json`)["run_state"]).toBe("RUNNING");
   });
 
   it("no active Run: RUN_NOT_ACTIVE with warrant run start", async () => {
@@ -240,7 +236,7 @@ describe("warrant run submit: refusals write nothing", () => {
       expect(result.errors[0], other).toMatchObject({ code: "SKILL_RESULT_INVALID", path: "/skill" });
       expect(result.errors[0]?.hint, other).toContain(name);
     }
-    expect(readJson(p, `${RUNS}/${id}.json`)["run_state"]).toBe("RUNNING");
+    expect(p.json(`${RUNS}/${id}.json`)["run_state"]).toBe("RUNNING");
   });
 
   it("no envelope: an empty stdin or a missing file is USAGE; every error carries a hint (REQ-KRN-002)", async () => {

@@ -7,7 +7,7 @@
  * everything else do not.
  */
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -162,6 +162,7 @@ describe.each(CASES)("GitPort contract: $side, project prefix '$prefix'", ({ mak
     expect((await port.tree("HEAD", ["openspec"])).ok).toBe(false);
     expect(await port.files("HEAD", ["openspec"])).toBeNull();
     expect(await port.contents("HEAD", [top(".warrant/warrant.json")])).toEqual(new Map());
+    expect((await port.worktreeAt("HEAD")).ok).toBe(false);
   });
 
   it("a repository without commits: prefix and common dir, no HEAD", async () => {
@@ -318,6 +319,35 @@ describe.each(CASES)("GitPort contract: $side, project prefix '$prefix'", ({ mak
     r.commit("same content");
     expect(await port.treeId("HEAD")).toBe(merged);
     expect(await port.treeId("no-such-ref")).toBeNull();
+  });
+
+  it("a checkout of a commit: its files under the project root, the work tree untouched; dispose removes it (I-171)", async () => {
+    const r = repo();
+    r.builder.write(".warrant/warrant.json", '{"v":1}\n').write("docs/a.md", "# A\n");
+    r.commit("base");
+    r.builder.write(".warrant/warrant.json", '{"v":2}\n').remove("docs/a.md");
+    r.commit("next");
+    const { port } = r;
+
+    const checkout = await port.worktreeAt(r.sha("base"));
+    expect(checkout.ok).toBe(true);
+    if (!checkout.ok) return;
+    const { root, dispose } = checkout.value;
+    try {
+      expect(path.relative(r.builder.root, root).startsWith("..")).toBe(true);
+      expect(readFileSync(path.join(root, ".warrant", "warrant.json"), "utf8")).toBe('{"v":1}\n');
+      expect(readFileSync(path.join(root, "docs", "a.md"), "utf8")).toBe("# A\n");
+      expect(r.builder.read(".warrant/warrant.json")).toBe('{"v":2}\n');
+      expect(existsSync(path.join(r.builder.root, "docs", "a.md"))).toBe(false);
+    } finally {
+      await dispose();
+    }
+    expect(existsSync(root)).toBe(false);
+    await dispose();
+    // The repository keeps no trace of the checkout: HEAD and the branch are where they were.
+    expect(await port.head()).toBe(r.sha("next"));
+    expect(await port.branch()).toBe("main");
+    expect((await port.worktreeAt("no-such-ref")).ok).toBe(false);
   });
 
   it("a fast-forward merge moves the branch without a merge commit", async () => {

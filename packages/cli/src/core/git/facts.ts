@@ -38,6 +38,12 @@ export interface GitFacts {
   baseCommit?: string;
   /** What a record written on these facts must admit (`no git`, `no base`). */
   limitations: string[];
+  /**
+   * The result of a merge `commit` is judged in (`warrant ci`, REQ-VER-001, ADR-0037 п. 2):
+   * the id of its tree and the tip of the base it merged `commit` into (its first parent).
+   * Records written on these facts carry `subject.tree` and name the tip as `base_commit`.
+   */
+  mergeResult?: { tree: string; baseTip: string };
 }
 
 /**

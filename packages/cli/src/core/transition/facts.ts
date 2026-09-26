@@ -126,12 +126,15 @@ export async function specTreeFacts(
 
 /**
  * The tree of the result of the merge of the evaluated commit (ADR-0037 п. 2,
- * design §3 of phase-4c: M on the first-parent line of HEAD), when some record
+ * design §3 of phase-4c: M on the first-parent line of HEAD, or the tree of the
+ * merge `warrant ci` judges in, `git.mergeResult`), when some record
  * carries `subject.tree`; undefined when none does. Never throws.
  */
 export async function mergeTreeFacts(ctx: Ctx, records: readonly EvidenceInput[], git: GitFacts): Promise<Availability<string> | undefined> {
   const bound = records.some((r) => subjectOf(r.json)?.tree !== undefined);
   if (!bound) return undefined;
+  // `warrant ci` judges the head of the pull request inside the result of its merge: the tree of HEAD.
+  if (git.mergeResult !== undefined) return { ok: true, value: git.mergeResult.tree };
   if (git.commonDir === null || git.commit === NO_GIT_COMMIT) {
     return { ok: false, reason: "the project is not a git repository with a commit" };
   }

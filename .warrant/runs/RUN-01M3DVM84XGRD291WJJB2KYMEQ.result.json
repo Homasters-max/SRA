@@ -1,0 +1,158 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3DVM84XGRD291WJJB2KYMEQ",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "SCN-VER-075 expects data.artifact.name = evidence-add-search; REQ-VER-011 impl requires evidence-<change>-<attempt> (1 without GITHUB_RUN_ATTEMPT). A test by the scenario fails any implementation of the REQ.",
+      "targets": [
+        "SCN-VER-075",
+        "REQ-VER-011"
+      ],
+      "recommendation": "SCN-VER-075: evidence-add-search-<attempt>, e.g. -1 without GITHUB_RUN_ATTEMPT."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "Replay base = merge-base(HEAD^1, evaluated commit). For MERGED the commit is M^2, an ancestor of HEAD^1, so base = M^2 and diff is empty; transition used merge-base(M^1, M^2). scope-valid, analyze-clean, factory-golden-passed diverge: honest SCN-VER-091 gets RECORD_MISMATCH.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-007",
+        "SCN-VER-091"
+      ],
+      "recommendation": "For MERGED base = merge-base(M^1, M^2) as in REQ-VER-007; assert it in SCN-VER-091."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "BLOCKER",
+      "category": "ambiguity",
+      "statement": "Replay does not say where record (classification), policy (packs, lock, warrant.json, .warrant/local) come from for effective_policy_hash. From HEAD: APPROVED/IMPLEMENTING of an impl-PR that bumps pack or reclassifies (4c itself) mismatch. From evaluated commit: MERGED mismatches, transition resolved policy on archive branch, not M^2.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-007"
+      ],
+      "recommendation": "Record, policy, L0 inputs = tree of parent of the commit introducing the transition (MERGED too); only R-21 inputs of MERGED from M^2."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Replay applies REQ-VER-003 waiver rule (expires_at not before today UTC) at CI time. A waiver valid at transition but expired before the CI run turns WAIVED into FAIL/BLOCKED: RECORD_MISMATCH on an honest record.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-003"
+      ],
+      "recommendation": "In replay judge expires_at against transition at; add scenario."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "MERGED evaluated commit is head from its ref (M^2), then Ref requires PR merge commit = M and head = evaluated commit: circular. SCN-VER-093 (merge commit not M) has no independent M.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-093"
+      ],
+      "recommendation": "Define M independently: first-parent merge of HEAD^1 with M^2 = subject.commit of CI records in evidence[]; compare PR to it."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "REQ-VER-007 accepts --by from roles of any approvals[] role; REQ-VER-011 requires merged_by in roles.maintainer and produced_by.id = merged_by. Approval by a non-maintainer role passes transition and always fails ci.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-007"
+      ],
+      "recommendation": "Check merged_by against the approvals[] role, or restrict --by to maintainer."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Replay asserts transition judged the committed tree, but REQ-VER-007 has no clean-tree rule: L0 gates read the working tree. Artifacts committed with the transition give RECORD_MISMATCH.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-007"
+      ],
+      "recommendation": "Require clean tree for forward transition (error with hint), or hint in RECORD_MISMATCH."
+    },
+    {
+      "id": "F-8",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "branch-isolated not recomputed, yet mismatch counts missing or extra gate; record has it. SCN-VER-090 expects no mismatch, text does not say how.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-090"
+      ]
+    },
+    {
+      "id": "F-9",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "ci path rules spec/archive (docs, own waivers) diverge from scope-valid sets of REQ-VER-004: SCN-VER-073 shows scope-valid FAIL in data.gates; archive-PR docs before ARCHIVED fail warrant archive.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-004"
+      ]
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "ci fetch: no error for artifact record failing schema or file name not equal to id.",
+      "targets": [
+        "REQ-VER-012"
+      ]
+    },
+    {
+      "id": "F-11",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "archive: evidence[] of transition MERGED - new or any; a PR adding only ARCHIVED re-verifies old artifacts, maybe expired.",
+      "targets": [
+        "REQ-VER-011"
+      ]
+    },
+    {
+      "id": "F-12",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "pull_request runs use the PR workflow: a PR without Change editing .github/workflows can drop warrant ci; SCOPE_VIOLATION for kind none is not enforced by that run.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-SDD-005"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "effective_policy_hash covers classification from record and waiver layer (REQ-KRN-026)."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:9de6b8ac641e7afa6a8221cae0300dc627310c04893bc51fa9280c6cbc3c92db",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-26T12:00:00Z",
+    "finished_at": "2026-09-26T12:45:00Z"
+  }
+}

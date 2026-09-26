@@ -53,3 +53,21 @@ export function checkRef(ref: string): void {
     throw new WarrantError("USAGE", `--ref ${JSON.stringify(ref)} is not an http(s) URL of the forge`);
   }
 }
+
+/** Path of a pull request URL of the forge: `/<owner>/<repo>/pull/<N>`. */
+const PULL_REQUEST_PATH = /^\/[^/]+\/[^/]+\/pull\/[1-9][0-9]*\/?$/;
+
+/**
+ * `USAGE` with a `hint` unless `ref` is the URL of a pull request of the forge
+ * (`/<owner>/<repo>/pull/<N>`, a fragment allowed; REQ-VER-007, ADR-0037 п. 5):
+ * the `--ref` of `APPROVED` (the spec-PR) and of `MERGED` (the impl-PR).
+ * Locally only the form is checked; `warrant ci` verifies the PR through the forge.
+ */
+export function checkPullRequestRef(ref: string, pr: string): void {
+  checkRef(ref);
+  const url = new URL(ref);
+  if (url.search === "" && PULL_REQUEST_PATH.test(url.pathname)) return;
+  throw new WarrantError("USAGE", `--ref ${JSON.stringify(ref)} is not the URL of a pull request`, {
+    hint: `pass --ref <URL of the ${pr}>, e.g. https://github.com/<owner>/<repo>/pull/<N>`
+  });
+}

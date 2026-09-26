@@ -48,6 +48,22 @@ describe("evidence/1: metrics and base_commit", () => {
   });
 });
 
+describe("evidence/1: subject.tree (phase-4c, ADR-0037 п. 2)", () => {
+  const withSubject = (extra: Record<string, unknown>): Record<string, unknown> => {
+    const doc = fixture("evidence", "valid-metrics-base-commit.json");
+    return { ...doc, subject: { ...(doc["subject"] as Record<string, unknown>), ...extra } };
+  };
+
+  it("accepts a tree id of 40 or 64 lowercase hex characters, rejects anything else, and never beside spec_tree (SCN-KRN-141)", () => {
+    expectValid(withSubject({ tree: "0123456789abcdef0123456789abcdef01234567" }));
+    expectValid(withSubject({ tree: "a".repeat(64) }));
+    expect(pointers(withSubject({ tree: "HEAD^{tree}" }))).toContain("/subject/tree");
+    expect(pointers(withSubject({ tree: "A".repeat(40) }))).toContain("/subject/tree");
+    expect(pointers(withSubject({ tree: "a".repeat(41) }))).toContain("/subject/tree");
+    expect(pointers(withSubject({ tree: "a".repeat(40), spec_tree: `sha256:${"b".repeat(64)}` }))).toContain("/subject");
+  });
+});
+
 describe("config/1: defaults.check_timeout_s", () => {
   it("accepts a positive integer and a config without defaults (SCN-KRN-086)", () => {
     expectValid(fixture("config", "valid-defaults-timeout.json"));

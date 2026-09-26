@@ -32,11 +32,11 @@
 
 ## 2. Дерево merge в evidence и transition MERGED (REQ-KRN-012, REQ-VER-001, REQ-VER-003, REQ-VER-007)
 
-- [ ] 2.1 Схема `evidence.1.schema.json` — `subject.tree` (§3, REQ-KRN-012). Копия — `warrant sync`, golden —
+- [x] 2.1 Схема `evidence.1.schema.json` — `subject.tree` (§3, REQ-KRN-012). Копия — `warrant sync`, golden —
   `npm run golden:update`.
 
   Проверка: SCN-KRN-141; SCN-KRN-024, SCN-KRN-025, SCN-KRN-092 без правок.
-- [ ] 2.2 Писатель и пред-фильтр (§3, REQ-VER-001, REQ-VER-003):
+- [x] 2.2 Писатель и пред-фильтр (§3, REQ-VER-001, REQ-VER-003):
   - `evidenceSubject` с `tree`; `attestation.ref` с `/attempts/<GITHUB_RUN_ATTEMPT>`;
   - `PrefilterContext.mergeTree`;
   - `StaleReason` `tree`.
@@ -44,7 +44,7 @@
   Проверка:
   - unit на SCN-VER-069, SCN-VER-070; app на SCN-VER-002;
   - запись без `tree` и SCN-VER-012…018, SCN-VER-056, SCN-VER-057 — без правок ожидаемых значений.
-- [ ] 2.3 `transition MERGED` и `APPROVED` (§3, REQ-VER-007):
+- [x] 2.3 `transition MERGED` и `APPROVED` (§3, REQ-VER-007):
   - `--ref` — URL pull request;
   - одно CI-run по записям (`ciRunOf`);
   - `mergeTree` = дерево M.
@@ -52,7 +52,7 @@
   Проверка:
   - SCN-VER-031, SCN-VER-033, SCN-VER-052, SCN-VER-071 — app, ожидания переписаны по delta;
   - SCN-VER-050, SCN-VER-051 без правок.
-- [ ] 2.4 R-21: `analyzeFacts` и `ownState` читают оцениваемый commit через `git.contents` (§3).
+- [x] 2.4 R-21: `analyzeFacts` и `ownState` читают оцениваемый commit через `git.contents` (§3).
 
   Проверка: app-кейс `transition MERGED` из archive-ветки, где рабочее дерево отличается от head impl-PR, — `analyze-clean` и
   `scope-valid` судят head.

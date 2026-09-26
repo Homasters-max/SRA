@@ -12,6 +12,7 @@ import { controllerInputs } from "../controller/inputs.js";
 import type { WarrantConfig } from "../config.js";
 import { controllerRules, evaluateController, type ControllerDecision } from "../controller/evaluate.js";
 import type { Ctx } from "../ctx.js";
+import { NO_GIT_COMMIT } from "../evidence/record.js";
 import { evidenceDir, MANIFEST_FILE, readManifest, readRecords, type PendingRecord } from "../evidence/store.js";
 import { projectUri } from "../fs.js";
 import type { Availability, DiffEntry } from "../git/facts.js";
@@ -27,9 +28,9 @@ import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { ChangeRecord } from "../record/read.js";
 import type { EffectivePolicy } from "../resolve/index.js";
 import { roleMembers } from "../roles.js";
-import { otherState, ownState } from "../run/state.js";
+import { otherState, ownStateAt } from "../run/state.js";
 import { readChangeRuns } from "../run/store.js";
-import { analyzeFacts, contractTrees, specTreeFacts, type ProjectFacts } from "./facts.js";
+import { analyzeFacts, contractTrees, mergeTreeFacts, specTreeFacts, type ProjectFacts } from "./facts.js";
 
 export interface Evaluation {
   transition: string;
@@ -63,6 +64,10 @@ export async function evaluateTransition(params: EvaluateParams): Promise<Evalua
   const { record, loaded, policy, facts } = params;
   const classification = isPlainObject(record["classification"]) ? record["classification"] : {};
   const unknowns = Array.isArray(record["unknowns"]) ? record["unknowns"] : [];
+  // The Runs of the Change as the evaluated commit holds them (R-21).
+  const atCommit = facts.git.commonDir === null || facts.git.commit === NO_GIT_COMMIT ? null : facts.git.commit;
+  const changed = facts.diff.ok ? facts.diff.value.flatMap((entry) => (entry.from === undefined ? [entry.path] : [entry.path, entry.from])) : [];
+  const own = await ownStateAt(params.ctx, atCommit, params.change, changed, params.env);
   const signals: GateSignals = {
     change: params.change,
     today: facts.today,
@@ -74,7 +79,7 @@ export async function evaluateTransition(params: EvaluateParams): Promise<Evalua
     unknowns,
     profiles: strings(classification["profiles"]),
     policyPaths: policyPaths(loaded),
-    state: { own: ownState(params.ctx.root, params.change, params.env), other: otherState(params.ctx.root, params.env) }
+    state: { own, other: otherState(params.ctx.root, params.env) }
   };
   if (facts.git.baseCommit !== undefined) signals.base = facts.git.baseCommit;
   if (params.checkFailures !== undefined) signals.checkFailures = params.checkFailures;
@@ -86,12 +91,14 @@ export async function evaluateTransition(params: EvaluateParams): Promise<Evalua
   );
   const specTree = await specTreeFacts(params.ctx, params.change, records, facts.git);
   if (specTree !== undefined) signals.specTree = specTree;
+  const mergeTree = await mergeTreeFacts(params.ctx, records, facts.git);
+  if (mergeTree !== undefined) signals.mergeTree = mergeTree;
   const evaluated = policy.gates[params.transition] ?? [];
   const judged = (gate: string): boolean => evaluated.includes(gate) && (params.only === undefined || params.only.includes(gate));
   if (judged(SPEC_APPROVED)) {
     signals.contract = await contractTrees(params.ctx, params.change, record, records, facts.git);
   }
-  if (judged(ANALYZE_CLEAN)) signals.analyze = analyzeFacts(params.ctx.root, params.change, loaded.config, facts.diff);
+  if (judged(ANALYZE_CLEAN)) signals.analyze = await analyzeFacts(params.ctx, params.change, loaded.config, facts.git, facts.diff);
 
   const definitions = gateDefinitions(loaded);
   const engine = evaluateGates({

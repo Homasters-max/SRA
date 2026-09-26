@@ -17,6 +17,7 @@ import path from "node:path";
 import { writeJsonFile } from "../canon/format-json.js";
 import { cliError, EXIT, WarrantError, type CliError } from "../errors.js";
 import { projectUri, stateDir } from "../fs.js";
+import type { ProjectFiles } from "../git/files.js";
 import { waitForLock, lockHolder } from "../lock.js";
 import type { SignalsPort } from "../ports/signals.js";
 import type { Json } from "../schemas/loader.js";
@@ -116,6 +117,29 @@ export function readChangeRuns(root: string, change: string, env: NodeJS.Process
   for (const name of names) {
     const read = readRun(root, name.slice(0, -".json".length), env);
     if ("run" in read && read.run.change === change) out.push(read.run);
+  }
+  return out;
+}
+
+/**
+ * The Runs of `change` among the files directly under `runs` (project-relative
+ * `<state>/runs`) of `files` — the Run files of a commit (R-21) — as
+ * {@link readChangeRuns} reads them from the working tree: `<id>.json` that
+ * passes `warrant://run/1` and names `change`; anything else is skipped.
+ */
+export function changeRunsIn(files: ProjectFiles, runs: string, change: string): Run[] {
+  const out: Run[] = [];
+  for (const file of files.list(runs)) {
+    const name = file.slice(runs.length + 1);
+    if (!name.endsWith(".json") || !RUN_ID_RE.test(name.slice(0, -".json".length))) continue;
+    let json: unknown;
+    try {
+      json = JSON.parse(files.read(file) ?? "");
+    } catch {
+      continue;
+    }
+    if (!validateFile(json as Json, file).ok) continue;
+    if ((json as Run).change === change) out.push(json as Run);
   }
   return out;
 }

@@ -173,6 +173,41 @@ export function parentsOf(ctx: GitCtx, commit: string): Promise<string[]> {
 }
 
 /**
+ * {@link mergeCommitOf} `commit` and, when it is a merge commit other than
+ * `commit` itself, its parents other than the first — the heads it merged.
+ */
+async function searchMerge(ctx: GitCtx, commit: string, of: string): Promise<{ merge: string | null; heads: string[] }> {
+  const merge = await mergeCommitOf(ctx, commit, of);
+  if (merge === null || merge === commit) return { merge, heads: [] };
+  return { merge, heads: (await parentsOf(ctx, merge)).slice(1) };
+}
+
+/**
+ * M of `commit` (design §3 of phase-4c): the merge commit on the first-parent
+ * line of `of` whose parent other than the first is `commit` — the merge of the
+ * impl-PR with head `commit`. Null when there is none: `commit` not merged,
+ * merged by fast-forward, or not the head of what was merged. The same search
+ * as {@link notMergedHeadReason} (`MERGED`, R-1).
+ */
+export async function mergeOfHead(ctx: GitCtx, commit: string, of = "HEAD"): Promise<string | null> {
+  const { merge, heads } = await searchMerge(ctx, commit, of);
+  return merge !== null && heads.includes(commit) ? merge : null;
+}
+
+/**
+ * The tree of the result of the merge of `commit` (ADR-0037 п. 2, design §3 of
+ * phase-4c): the tree of its M ({@link mergeOfHead}) on the first-parent line
+ * of `of` — what a record with `subject.tree` is compared with outside
+ * `warrant ci`; unavailable, with the reason, when there is no M.
+ */
+export async function mergeTreeOf(ctx: GitCtx, commit: string, of = "HEAD"): Promise<Availability<string>> {
+  const merge = await mergeOfHead(ctx, commit, of);
+  if (merge === null) return { ok: false, reason: `no merge commit on the first-parent line of ${of} has ${commit} as its head` };
+  const tree = await ctx.git.treeId(merge);
+  return tree === null ? { ok: false, reason: `the tree of merge commit ${merge} is unknown to git` } : { ok: true, value: tree };
+}
+
+/**
  * Why `commit` is not the head of a merged impl-PR (`reason`, and `hint` when
  * there is a fix), or null when it is
  * (review of phase 3, R-1). The gates of `MERGED` judge `base...commit` only,
@@ -187,7 +222,7 @@ export async function notMergedHeadReason(
   commit: string,
   of = "HEAD"
 ): Promise<{ reason: string; hint?: string } | null> {
-  const merge = await mergeCommitOf(ctx, commit, of);
+  const { merge, heads } = await searchMerge(ctx, commit, of);
   if (merge === null) return { reason: `commit ${commit} is not on the first-parent line of ${of}` };
   if (merge === commit) {
     return {
@@ -195,7 +230,6 @@ export async function notMergedHeadReason(
       hint: "merge the impl-PR with a merge commit"
     };
   }
-  const heads = (await parentsOf(ctx, merge)).slice(1);
   if (heads.includes(commit)) return null;
   return {
     reason: `commit ${commit} is not the head of the impl-PR merged by ${merge} (head ${heads.join(", ") || "unknown"}): the commits after it would go unjudged`,

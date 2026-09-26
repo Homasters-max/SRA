@@ -2,11 +2,12 @@
  * Facts a transition is judged on, gathered through `ctx` (design §8, §9):
  * git facts of the project, stable-id findings, waivers, the artifact
  * statuses of OpenSpec, the contract trees `spec-approved` compares, the spec
- * tree the pre-filter compares `subject.spec_tree` with and the findings of
- * `analyze` `analyze-clean` judges by.
+ * tree the pre-filter compares `subject.spec_tree` with, the tree of the merge
+ * it compares `subject.tree` with and the findings of `analyze`
+ * `analyze-clean` judges by.
  */
 import { analyze, type AnalyzeResult } from "../analyze/index.js";
-import { readAnalyzeInput } from "../analyze/input.js";
+import { analyzePaths, readAnalyzeInput } from "../analyze/input.js";
 import type { WarrantConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
@@ -15,11 +16,13 @@ import {
   changedPaths,
   contractTree,
   currentBranch,
+  mergeTreeOf,
   specTreeHash,
   type Availability,
   type DiffEntry,
   type GitFacts
 } from "../git/facts.js";
+import { commitFiles } from "../git/files.js";
 import { approvalOf } from "../gates/l0/spec-approved.js";
 import type { ContractTrees, EvidenceInput } from "../gates/types.js";
 import { checkAreas, checkDuplicates, loadAreas, scanIds } from "../ids/scan.js";
@@ -122,21 +125,41 @@ export async function specTreeFacts(
 }
 
 /**
- * `analyze` of an active Change on the diff `scope-valid` judges (design §5,
- * REQ-VER-004): unavailable without that diff or the change directory; never throws.
+ * The tree of the result of the merge of the evaluated commit (ADR-0037 п. 2,
+ * design §3 of phase-4c: M on the first-parent line of HEAD), when some record
+ * carries `subject.tree`; undefined when none does. Never throws.
  */
-export function analyzeFacts(
-  root: string,
+export async function mergeTreeFacts(ctx: Ctx, records: readonly EvidenceInput[], git: GitFacts): Promise<Availability<string> | undefined> {
+  const bound = records.some((r) => subjectOf(r.json)?.tree !== undefined);
+  if (!bound) return undefined;
+  if (git.commonDir === null || git.commit === NO_GIT_COMMIT) {
+    return { ok: false, reason: "the project is not a git repository with a commit" };
+  }
+  return mergeTreeOf(ctx, git.commit);
+}
+
+/**
+ * `analyze` of an active Change on the diff `scope-valid` judges (design §5,
+ * REQ-VER-004), over the files of the evaluated commit, not the working tree
+ * (R-21: on `transition MERGED` in an archive branch the working tree is not
+ * the head of the impl-PR). Unavailable without that diff or the change
+ * directory at the commit; never throws.
+ */
+export async function analyzeFacts(
+  ctx: Ctx,
   change: string,
   config: WarrantConfig,
+  git: GitFacts,
   diff: Availability<DiffEntry[]>
-): Availability<AnalyzeResult> {
+): Promise<Availability<AnalyzeResult>> {
   if (!diff.ok) return { ok: false, reason: `diff unknown: ${diff.reason}` };
-  if (findChangeDir(root, change)?.where !== "active") {
-    return { ok: false, reason: `openspec/changes/${change}/ is not an active change directory` };
-  }
   try {
-    return { ok: true, value: analyze(readAnalyzeInput(root, change, config, diff)) };
+    const files = await commitFiles(ctx, git.commit, analyzePaths(change, config));
+    if (files === null) return { ok: false, reason: `the files of commit ${git.commit} could not be listed` };
+    if (files.list(`openspec/changes/${change}`).length === 0) {
+      return { ok: false, reason: `openspec/changes/${change}/ is not an active change directory at commit ${git.commit}` };
+    }
+    return { ok: true, value: analyze(readAnalyzeInput(files, change, config, diff)) };
   } catch (thrown) {
     return { ok: false, reason: `the Change could not be analyzed: ${(thrown as Error).message}` };
   }

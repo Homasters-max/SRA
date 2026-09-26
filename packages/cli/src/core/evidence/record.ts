@@ -63,13 +63,19 @@ export interface CheckRecordInput {
   createdAt: string;
 }
 
-/** What `subject` of a record names (06a §2): the commit judged, its base, the spec tree. */
+/** What `subject` of a record names (06a §2): the commit judged, its base, the spec tree or the tree of a merge. */
 export interface SubjectInput {
   change: string;
-  /** HEAD, or {@link NO_GIT_COMMIT}. */
+  /** HEAD, or {@link NO_GIT_COMMIT}; the head of the PR for a record made on the result of a merge. */
   commit: string;
   baseCommit?: string | undefined;
   specTree?: string | undefined;
+  /**
+   * Id of the git tree of the result of the merge the record was made on
+   * (ADR-0037 п. 2, REQ-VER-001): only `warrant ci` knows it; a local `check`
+   * or `verify` leaves it out.
+   */
+  tree?: string | undefined;
 }
 
 /** `subject` of every evidence record: one owner of `spec_revision` (A-23). */
@@ -81,15 +87,17 @@ export function evidenceSubject(input: SubjectInput): Record<string, unknown> {
   };
   if (input.baseCommit !== undefined) subject["base_commit"] = input.baseCommit;
   if (input.specTree !== undefined) subject["spec_tree"] = input.specTree;
+  if (input.tree !== undefined) subject["tree"] = input.tree;
   return subject;
 }
 
-/** `subject` of a stored record as read (A-28): what the record is bound to — the commit, its base, the spec tree. */
+/** `subject` of a stored record as read (A-28): what the record is bound to — the commit, its base, the spec tree, the tree of a merge. */
 export interface EvidenceSubject {
   commit: string;
   baseCommit?: string;
   specRevision?: string;
   specTree?: string;
+  tree?: string;
 }
 
 /**
@@ -114,6 +122,8 @@ export function subjectOf(record: Record<string, unknown>): EvidenceSubject | un
   if (specRevision !== undefined) out.specRevision = specRevision;
   const specTree = text("spec_tree");
   if (specTree !== undefined) out.specTree = specTree;
+  const tree = text("tree");
+  if (tree !== undefined) out.tree = tree;
   return out;
 }
 

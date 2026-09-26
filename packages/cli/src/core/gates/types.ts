@@ -123,6 +123,11 @@ export interface GateSignals {
    * `subject.spec_tree` is compared with; gathered only when such a record is among those judged.
    */
   specTree?: Availability<string>;
+  /**
+   * Id of the git tree of the result of the merge of `commit` (ADR-0037 п. 2, design §3 of phase-4c): what a
+   * record with `subject.tree` is compared with; gathered only when such a record is among those judged.
+   */
+  mergeTree?: Availability<string>;
   /** Effective thresholds by evidence kind; phase 3 has none (D-12). */
   thresholds?: Record<string, number>;
   /** Checks of this `verify` that failed (REQ-VER-006). */

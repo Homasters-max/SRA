@@ -93,18 +93,21 @@ export function ciRunOf(records: readonly EvidenceInput[]): { ref: string | null
 
 /**
  * `REF_MISMATCH` unless every CI record the verdicts of `MERGED` rest on names
- * the run of `ref` (`--ref`, R-6): evidence of two runs is no evidence of one.
+ * one and the same run ({@link ciRunOf}, R-6, ADR-0037 п. 5): evidence of two
+ * runs is no evidence of one. The run comes from the records, not from `--ref`
+ * (the URL of the impl-PR).
  */
-export function assertOneRun(root: string, change: string, env: NodeJS.ProcessEnv, evaluation: Evaluation, ref: string): void {
+export function assertOneRun(root: string, change: string, env: NodeJS.ProcessEnv, evaluation: Evaluation): void {
   const used = new Set(evidenceOf(evaluation));
   const records = readRecords(evidenceDir(root, change, env)).filter((r) => used.has(r.id));
-  const mismatched = ciRefs(records)
-    .filter((r) => r.ref !== normalRef(ref))
-    .map((r) => r.id);
-  if (mismatched.length === 0) return;
-  mismatched.sort();
+  const run = ciRunOf(records);
+  if (!("mismatched" in run)) return;
+  const named = ciRefs(records)
+    .map((r) => `${r.id} (${r.ref ?? "no attestation.ref"})`)
+    .sort();
   throw new WarrantError(
     "REF_MISMATCH",
-    `--ref ${ref} is not the CI run of ${mismatched.join(", ")}: MERGED takes the evidence of one CI run, the one --ref names`
+    `the CI records the verdicts rest on come from more than one CI run: ${named.join(", ")}: MERGED takes the evidence of one CI run`,
+    { hint: "take every record of the transition from one CI run (warrant ci fetch <pr>)" }
   );
 }

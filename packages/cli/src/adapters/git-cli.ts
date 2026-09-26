@@ -104,6 +104,11 @@ export class GitCli implements GitPort {
     return answer(await this.git(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]));
   }
 
+  async treeId(rev: string): Promise<string | null> {
+    // `^{commit}^{tree}`: a tree or blob id given as `rev` names no commit, so it has no tree here.
+    return answer(await this.git(["rev-parse", "--verify", "--quiet", `${rev}^{commit}^{tree}`]));
+  }
+
   async branch(): Promise<string | null> {
     return answer(await this.git(["rev-parse", "--abbrev-ref", "HEAD"]));
   }

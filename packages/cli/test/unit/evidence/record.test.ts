@@ -111,6 +111,15 @@ describe("subjectOf (A-28)", () => {
       specRevision: "openspec/changes/add-search@abc1234",
       specTree: TREE
     });
+    // The record of `warrant ci` on the result of a merge (SCN-VER-068): head, tip of the base, tree of the merge.
+    const merged = evidenceSubject({ change: "add-search", commit: "abc1234", baseCommit: "0001111", tree: "c".repeat(40) });
+    expect(merged["tree"]).toBe("c".repeat(40));
+    expect(subjectOf({ subject: merged })).toEqual({
+      commit: "abc1234",
+      baseCommit: "0001111",
+      specRevision: "openspec/changes/add-search@abc1234",
+      tree: "c".repeat(40)
+    });
     expect(subjectOf({ subject: evidenceSubject({ change: "add-search", commit: "nogit" }) })).toEqual({
       commit: "nogit",
       specRevision: "openspec/changes/add-search@nogit"
@@ -140,6 +149,15 @@ describe("attestationFromEnv (P-15, design §7)", () => {
         GITHUB_RUN_ID: "42"
       })
     ).toEqual({ type: "ci", ref: "https://github.com/o/r/actions/runs/42" });
+  });
+
+  it("is ci with the URL of the run attempt when GITHUB_RUN_ATTEMPT is set (SCN-VER-002, ADR-0037 п. 3)", () => {
+    const run = { GITHUB_ACTIONS: "true", GITHUB_SERVER_URL: "https://github.com/", GITHUB_REPOSITORY: "o/r", GITHUB_RUN_ID: "42" };
+    expect(attestationFromEnv({ ...run, GITHUB_RUN_ATTEMPT: "2" })).toEqual({
+      type: "ci",
+      ref: "https://github.com/o/r/actions/runs/42/attempts/2"
+    });
+    expect(attestationFromEnv({ ...run, GITHUB_RUN_ATTEMPT: "" })).toEqual({ type: "ci", ref: "https://github.com/o/r/actions/runs/42" });
   });
 
   it("is none when any of the four variables is missing or GITHUB_ACTIONS is not true", () => {

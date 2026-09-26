@@ -11,8 +11,10 @@
  * root. A `<state>` outside the project (`WARRANT_STATE_DIR`) has no path in
  * the diff, so then only records match.
  */
+import type { Ctx } from "../ctx.js";
 import { projectPath, stateDir } from "../fs.js";
-import { readChangeRuns, RESULT_SUFFIX, RUN_ID_RE } from "./store.js";
+import { commitFiles } from "../git/files.js";
+import { changeRunsIn, readChangeRuns, RESULT_SUFFIX, RUN_ID_RE } from "./store.js";
 
 /** Records live in `.warrant` whatever `<state>` is (D-2). */
 const RECORD_RE = /^\.warrant\/changes\/[^/]+\.json$/;
@@ -33,12 +35,17 @@ function runIdOf(name: string): string | undefined {
  * The own state of `change`. The Runs of the Change are read from the
  * working tree once, on the first path under `<state>/runs/`.
  */
-export function ownState(root: string, change: string, env: NodeJS.ProcessEnv = process.env): (p: string) => boolean {
+export function ownState(
+  root: string,
+  change: string,
+  env: NodeJS.ProcessEnv = process.env,
+  runIds?: ReadonlySet<string>
+): (p: string) => boolean {
   const record = `.warrant/changes/${change}.json`;
   const state = statePrefix(root, env);
   const evidence = state === null ? null : `${state}evidence/${change}/`;
   const runs = state === null ? null : `${state}runs/`;
-  let ids: Set<string> | undefined;
+  let ids: ReadonlySet<string> | undefined = runIds;
   return (p) => {
     if (p === record) return true;
     if (evidence !== null && p.startsWith(evidence)) return true;
@@ -48,6 +55,30 @@ export function ownState(root: string, change: string, env: NodeJS.ProcessEnv = 
     ids ??= new Set(readChangeRuns(root, change, env).map((run) => run.id));
     return ids.has(id);
   };
+}
+
+/**
+ * {@link ownState} of `change` as `commit` holds it (R-21): the Runs of the
+ * Change are read from the Run files of the commit the gates judge, not from
+ * the working tree — on `transition MERGED` in an archive branch the working
+ * tree is not the head of the impl-PR. Git is asked only when `paths` (the
+ * diff) holds a path under `<state>/runs/`; without a commit, or when git
+ * cannot list the files, the working tree is read as before.
+ */
+export async function ownStateAt(
+  ctx: Pick<Ctx, "git" | "root">,
+  commit: string | null,
+  change: string,
+  paths: readonly string[],
+  env: NodeJS.ProcessEnv = process.env
+): Promise<(p: string) => boolean> {
+  const state = statePrefix(ctx.root, env);
+  if (commit === null || state === null) return ownState(ctx.root, change, env);
+  const runs = `${state}runs`;
+  if (!paths.some((p) => p.startsWith(`${runs}/`))) return ownState(ctx.root, change, env, new Set());
+  const files = await commitFiles(ctx, commit, [runs]);
+  if (files === null) return ownState(ctx.root, change, env);
+  return ownState(ctx.root, change, env, new Set(changeRunsIn(files, runs, change).map((run) => run.id)));
 }
 
 /** The same for any Change: every record, evidence directory, Run file and envelope. */

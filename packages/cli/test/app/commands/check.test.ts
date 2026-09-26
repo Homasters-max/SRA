@@ -294,6 +294,24 @@ describe("warrant check", () => {
     expect(evidence.limitations.some((l: string) => l.startsWith("scoped:"))).toBe(false);
   });
 
+  it("attests a record under GitHub Actions by the URL of the run attempt, without subject.tree (SCN-VER-002)", async () => {
+    const p = await repo();
+    const env = { GITHUB_ACTIONS: "true", GITHUB_SERVER_URL: "https://github.com", GITHUB_REPOSITORY: "o/r", GITHUB_RUN_ID: "42" };
+    const attempt = await check(p, ["openspec-validate"], {}, { ...env, GITHUB_RUN_ATTEMPT: "2" });
+    expect(attempt.errors).toEqual([]);
+    const second = readJson(path.join(p.root, attempt.data["checks"][0].path));
+    expect(second.attestation).toEqual({ type: "ci", ref: "https://github.com/o/r/actions/runs/42/attempts/2" });
+    // Only `warrant ci` knows the result of a merge (ADR-0037 п. 2): check writes commit and base, no tree.
+    expect(second.subject.commit).toBe(head(p));
+    expect(second.subject).not.toHaveProperty("tree");
+
+    const run = await check(p, ["openspec-validate"], {}, env);
+    expect(readJson(path.join(p.root, run.data["checks"][0].path)).attestation).toEqual({
+      type: "ci",
+      ref: "https://github.com/o/r/actions/runs/42"
+    });
+  });
+
   it("reports CHECK_NOT_CONFIGURED with the pack check path for tests-passed without an override (SCN-VER-007)", async () => {
     const p = await repo();
     const run = await check(p, ["tests-passed"]);

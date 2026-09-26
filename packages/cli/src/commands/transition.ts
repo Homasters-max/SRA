@@ -15,9 +15,10 @@
  *   pre-filter admits it. `MERGED` is judged on the commit of the evidence
  *   (`--commit`, else the commit of the freshest record), which must be an
  *   ancestor of HEAD and the head of the merged impl-PR (`COMMIT_NOT_MERGED`),
- *   and every CI record the verdicts rest on must come from the run `--ref`
- *   names (`REF_MISMATCH`, R-6) — the rules of `core/transition/merged.ts`
- *   (A-29);
+ *   and every CI record the verdicts rest on must come from one CI run
+ *   (`REF_MISMATCH`, R-6) — the rules of `core/transition/merged.ts` (A-29).
+ *   The `--ref` of `APPROVED` and `MERGED` is the URL of the spec-PR and of the
+ *   impl-PR (ADR-0037 п. 5), checked here by its form only;
  * - backward (`VERIFYING->IMPLEMENTING`, `IMPLEMENTING->SPECIFIED`): recorded
  *   without gates;
  * - `ABANDONED` (from any state before `MERGED`): recorded, then
@@ -44,7 +45,7 @@ import { findChangeDir } from "../core/openspec/changes.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
 import { isChangeState, REF_REQUIRED_STATES, transitionKind } from "../core/record/lifecycle.js";
 import { appendTransition, assertNotFrozen, recordPath, stateOfRecord, type TransitionEntry } from "../core/record/write.js";
-import { checkRef } from "../core/roles.js";
+import { checkPullRequestRef, checkRef } from "../core/roles.js";
 import { humanApproval } from "../core/transition/approval.js";
 import { judgeGates, prepare, type Prepared } from "../core/transition/evaluate.js";
 import { decisionFields, evaluationFindings, type Evaluation } from "../core/transition/gates.js";
@@ -54,12 +55,22 @@ import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath, withDryRun } from "./context.js";
 
 export interface TransitionOptions {
-  /** `--ref <url>`: the forge artefact of the act (review, CI run); required for `APPROVED` and `MERGED`. */
+  /** `--ref <url>`: the pull request of the act — spec-PR for `APPROVED`, impl-PR for `MERGED` — required for both. */
   ref?: string | undefined;
   /** `--by <login>`: the human approving, when the transition has gate `human-approval`. */
   by?: string | undefined;
   /** `--commit <sha>`: the commit of the evidence of `MERGED`. */
   commit?: string | undefined;
+}
+
+/**
+ * The pull request whose URL is the `--ref` of a transition into `target`
+ * (REQ-VER-007, ADR-0037 п. 5): the spec-PR of `APPROVED`, the impl-PR of
+ * `MERGED`; undefined when `--ref` is not required.
+ */
+function pullRequestOf(target: string): string | undefined {
+  if (!(REF_REQUIRED_STATES as readonly string[]).includes(target)) return undefined;
+  return target === "APPROVED" ? "spec-PR" : "impl-PR";
 }
 
 /** `data` of a failed forward transition and of a passed one, before the record entry. */
@@ -118,10 +129,16 @@ async function recordTransition(
   }
   if (target === "ARCHIVED") throw new WarrantError("USAGE", `ARCHIVED is entered through \`warrant archive ${change}\``);
   if (opts.commit !== undefined && target !== "MERGED") throw new WarrantError("USAGE", "--commit applies to MERGED only");
-  if (opts.ref === undefined && (REF_REQUIRED_STATES as readonly string[]).includes(target)) {
-    throw new WarrantError("USAGE", `${target} needs --ref <url> of the act (review or CI run)`);
+  const pr = pullRequestOf(target);
+  if (opts.ref === undefined && pr !== undefined) {
+    throw new WarrantError("USAGE", `${target} needs --ref <URL of the ${pr}>`, {
+      hint: `pass --ref https://github.com/<owner>/<repo>/pull/<N> of the ${pr}`
+    });
   }
-  if (opts.ref !== undefined) checkRef(opts.ref);
+  if (opts.ref !== undefined) {
+    if (pr === undefined) checkRef(opts.ref);
+    else checkPullRequestRef(opts.ref, pr);
+  }
   const refPart = opts.ref === undefined ? {} : { ref: opts.ref };
 
   if (kind === "backward" || kind === "abandon") {
@@ -193,7 +210,7 @@ async function forward(params: ForwardParams): Promise<CommandResult> {
     const refused = gatesNotPassedRefusal(evaluation, failed);
     return failures([refused.error], refused.exitCode, data, change);
   }
-  if (target === "MERGED" && opts.ref !== undefined) assertOneRun(root, change, env, evaluation, opts.ref);
+  if (target === "MERGED") assertOneRun(root, change, env, evaluation);
 
   const entry = forwardEntry(target, policy, evaluation, opts.ref);
   appendTransition(ctx, change, record, entry);

@@ -66,12 +66,25 @@
           "description": "Hash of the spec tree of the Change (`proposal.md`, `specs/**`) the claim holds for (ADR-0036 section 3): a record with it is judged by the spec tree at the evaluated commit instead of by `commit` and `base_commit`.",
           "$ref": "warrant://common/1#/$defs/sha256"
         },
+        "tree": {
+          "description": "Id of the git tree object of the result of the merge the record was made on, 40 or 64 lowercase hex characters (ADR-0037 section 2): written only by `warrant ci`; a record with it is judged by `commit` and the tree of the merge of the evaluated commit instead of by `base_commit`.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+        },
         "dataset_snapshot": {
           "description": "Data snapshot the claim holds for, or null when no data is involved.",
           "type": ["string", "null"]
         }
       },
       "required": ["commit"],
+      "not": {
+        "description": "`spec_tree` and `tree` are never carried together: the pre-filter judges them by different rules (REQ-KRN-012).",
+        "properties": {
+          "spec_tree": { "description": "Present together with `tree`." },
+          "tree": { "description": "Present together with `spec_tree`." }
+        },
+        "required": ["spec_tree", "tree"]
+      },
       "additionalProperties": false
     },
     "produced_by": {

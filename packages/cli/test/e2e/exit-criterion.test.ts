@@ -41,11 +41,12 @@ const hasGit = spawnSync("git", ["--version"]).status === 0;
 const RECORD = ".warrant/changes/demo.json";
 const ACTIVE = "openspec/changes/demo";
 const REVIEW = "https://github.com/o/r/pull/7#pullrequestreview-1";
-const CI_RUN = "https://github.com/o/r/actions/runs/42";
+/** The impl-PR: the --ref of MERGED (ADR-0037 п. 5). */
+const IMPL_PR = "https://github.com/o/r/pull/9";
 
 /** A local run: no CI attestation, whatever the environment of the test runner. */
 const LOCAL: NodeJS.ProcessEnv = { GITHUB_ACTIONS: "" };
-/** The GitHub Actions run `CI_RUN`: records get `attestation.type: "ci"` (P-15). */
+/** The GitHub Actions run 42: records get `attestation.type: "ci"` (P-15). */
 const CI_ENV: NodeJS.ProcessEnv = {
   GITHUB_ACTIONS: "true",
   GITHUB_SERVER_URL: "https://github.com",
@@ -266,7 +267,7 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
       git(root, "add", "-A");
       git(root, "commit", "--quiet", "-m", "evidence from CI");
 
-      const merged = await cli(["transition", "demo", "MERGED", "--ref", CI_RUN]);
+      const merged = await cli(["transition", "demo", "MERGED", "--ref", IMPL_PR]);
       expect(merged.json?.errors).toEqual([]);
       expect(merged.json?.data).toMatchObject({ transition: "VERIFYING->MERGED", change_state: "MERGED" });
       expect(merged.status).toBe(0);

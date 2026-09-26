@@ -191,6 +191,63 @@ describe("pre-filter (D-12)", () => {
     const rest = prefilter([scoped], { commit: HEAD, base: BASE, activeWaivers: new Set(), specTree: { ok: true, value: TREE } });
     expect(rest.excluded.map((e) => e.finding.reason)).toEqual(["scoped"]);
   });
+
+  describe("a record of warrant ci on the result of a merge (subject.tree, ADR-0037 п. 2)", () => {
+    const TREE = "7".repeat(40);
+    /** `test-report` of CI on head H (= HEAD here) against base B, made on the merge tree T. */
+    const ciRecord = (subject: Record<string, unknown> = {}): EvidenceInput =>
+      record("test-report", "PROVEN", {
+        subject: { base_commit: PREVIOUS, tree: TREE, ...subject },
+        attestation: { type: "ci", ref: "https://github.com/o/r/actions/runs/42/attempts/1" }
+      });
+
+    it("is admissible when the merge of the evaluated commit has its tree, whatever the base (SCN-VER-069)", () => {
+      const ci = ciRecord();
+      const result = evaluate("VERIFYING->MERGED", ["tests-passed"], [ci], { signals: { mergeTree: { ok: true, value: TREE } } });
+      expect(result.gates).toEqual({ "tests-passed": "PASS" });
+      expect(result.findings).toEqual([]);
+      expect(result.evidence["tests-passed"]).toEqual([ci.id]);
+    });
+
+    it("is STALE with reason tree when the merge has another tree, not a status (SCN-VER-070)", () => {
+      const ci = ciRecord();
+      const result = evaluate("VERIFYING->MERGED", ["tests-passed"], [ci], {
+        signals: { mergeTree: { ok: true, value: "8".repeat(40) } }
+      });
+      expect(result.gates["tests-passed"]).toBe("BLOCKED");
+      expect(result.findings).toEqual([
+        expect.objectContaining({ code: "STALE", evidence: ci.id, reason: "tree", kind: "test-report" }),
+        expect.objectContaining({ code: "NO_EVIDENCE", gate: "tests-passed", kind: "test-report" })
+      ]);
+      expect(result.findings[0]?.message).toContain("8".repeat(40));
+      expect(ci.json["evidence_status"]).toBe("PROVEN");
+    });
+
+    it("is STALE with reason tree without a merge of the evaluated commit; commit still comes first", () => {
+      const ci = ciRecord();
+      const none = prefilter([ci], {
+        commit: HEAD,
+        base: BASE,
+        activeWaivers: new Set(),
+        mergeTree: { ok: false, reason: `no merge commit on the first-parent line of HEAD has ${HEAD} as its head` }
+      });
+      expect(none.excluded.map((e) => e.finding.reason)).toEqual(["tree"]);
+      expect(none.excluded[0]?.finding.message).toContain("no merge commit");
+      expect(prefilter([ci], { commit: HEAD, base: BASE, activeWaivers: new Set() }).excluded.map((e) => e.finding.reason)).toEqual([
+        "tree"
+      ]);
+      const other = ciRecord({ commit: PREVIOUS });
+      const merged = { ok: true as const, value: TREE };
+      expect(prefilter([other], { commit: HEAD, base: BASE, activeWaivers: new Set(), mergeTree: merged }).excluded.map((e) => e.finding.reason)).toEqual([
+        "commit"
+      ]);
+      // A record without tree is judged by the base, as before, whatever the merge tree.
+      const local = record("test-report", "PROVEN", { subject: { base_commit: PREVIOUS } });
+      expect(prefilter([local], { commit: HEAD, base: BASE, activeWaivers: new Set(), mergeTree: merged }).excluded.map((e) => e.finding.reason)).toEqual([
+        "base"
+      ]);
+    });
+  });
 });
 
 describe("verdict algorithm (06 section 3)", () => {

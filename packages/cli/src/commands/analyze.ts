@@ -15,6 +15,7 @@ import { loadConfig } from "../core/config.js";
 import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError } from "../core/errors.js";
 import { changedPaths, readGitFacts } from "../core/git/facts.js";
+import { workingTreeFiles } from "../core/git/files.js";
 import { findChangeDir } from "../core/openspec/changes.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath } from "./context.js";
@@ -35,7 +36,7 @@ export async function runAnalyze(ctx: Ctx, change: string, opts: AnalyzeOptions 
   }
   const git = await readGitFacts(ctx, opts.base);
   const diff = await changedPaths(ctx, git);
-  const { findings, skipped } = analyze(readAnalyzeInput(ctx.root, change, config, diff));
+  const { findings, skipped } = analyze(readAnalyzeInput(workingTreeFiles(ctx.root), change, config, diff));
   const data = { change, findings, counts: countFindings(findings), skipped };
   return findings.length === 0 ? success(data, change) : failures([], EXIT.FAIL, data, change);
 }

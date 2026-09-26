@@ -35,6 +35,8 @@ export interface GitPort {
   head(): Promise<string | null>;
   /** The full sha of `ref^{commit}`, or null when it names no commit. */
   resolveCommit(ref: string): Promise<string | null>;
+  /** Id of the tree of the commit `rev` names (`git rev-parse <rev>^{tree}`), or null when it names no commit. */
+  treeId(rev: string): Promise<string | null>;
   /** `git rev-parse --abbrev-ref HEAD`: the branch, `HEAD` when detached; null when git cannot say. */
   branch(): Promise<string | null>;
   /** `git merge-base <a> <b>`, or null when there is none. */

@@ -52,7 +52,7 @@ export const AMENDS_TARGET_STATES: readonly ChangeState[] = ["MERGED", "ARCHIVED
 /** States in which `status` reports `FRONTEND_HOOKS_INACTIVE`: `IMPLEMENTING` and later (REQ-VER-009). */
 export const HOOKS_LIVENESS_STATES: readonly ChangeState[] = ["IMPLEMENTING", "VERIFYING", "MERGED", "ARCHIVED"];
 
-/** States whose transition needs `--ref` (P-6). */
+/** States whose transition needs `--ref`, the URL of a pull request: the spec-PR of `APPROVED`, the impl-PR of `MERGED` (P-6, ADR-0037 п. 5). */
 export const REF_REQUIRED_STATES: readonly ChangeState[] = ["APPROVED", "MERGED"];
 
 export type TransitionKind = "forward" | "backward" | "abandon";

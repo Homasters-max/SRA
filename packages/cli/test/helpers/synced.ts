@@ -22,7 +22,8 @@ export function write(root: string, rel: string, content: string | object): void
   writeFileSync(absolute, typeof content === "string" ? content : canonicalText(content).text, "utf8");
 }
 
-export function record(change: string, state: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
+/** A change record `warrant://change-record/1` of `change` in `state` (A-26: one owner). */
+export function recordDoc(change: string, state: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     $schema: "warrant://change-record/1",
     change,

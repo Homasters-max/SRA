@@ -169,6 +169,20 @@ Profiles ссылаются только на ID. Определение gate с
 REQ-ING-014: есть в spec; нет task, нет test, нет evidence → UNSATISFIED
 ```
 
+MVP (фаза 4b, [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 2) — `warrant analyze <change> [--base <ref>]` выдаёт
+три вида находок; ничего не пишет, код 1 при находке. ID «определён», если объявлен в main specs или в `ADDED` /
+`MODIFIED` delta Change и не объявлен в `REMOVED` delta.
+
+| Finding MVP | Условие |
+|---|---|
+| `UNSATISFIED` `{id, missing[]}` | REQ из `ADDED` / `MODIFIED` delta: `tasks.md` не упоминает ни его, ни один его SCN (`missing` ∋ `task`), или ни один его SCN не встречается в файлах `paths.tests` (`missing` ∋ `test`) |
+| `CONFLICT` `{id, path}` | `tasks.md` упоминает неопределённый REQ или SCN (например, `REMOVED`) |
+| `ORPHAN` `{id, path}` | Файл `paths.tests`, изменённый в diff `base...HEAD`, упоминает неопределённый SCN |
+
+Без `paths.tests` проверка тестов не выполняется, без diff — `ORPHAN`; каждый пропуск — в `data.skipped[]` с причиной. Gate
+`analyze-clean` вычисляется той же функцией на оцениваемом commit: находка → `FAIL`, иначе `PASS`, нет diff → `BLOCKED`
+`NO_INPUT` (§4). `MISSING`, `AMBIGUOUS`, `STALE`, связь evidence с REQ через `claim.targets` — после MVP, по failure mode.
+
 Семантическая согласованность (требования противоречат по смыслу, сценарий не соответствует терминологии,
 acceptance criterion не наблюдаем, requirement смешивает what и how) — это skill
 `specification/consistency` (SRA). Его результат — L2 evidence и findings, не вердикт.
@@ -210,6 +224,10 @@ Reviewer ищет:
 | Implementation leakage | «создать Redis cache», если это не бизнес-требование |
 
 Каждый finding имеет `severity`; blocking findings MUST быть закрыты до `APPROVED`.
+
+В MVP (фаза 4b) reviewer — отдельный Run `review` ([03 §4](03-architecture.md)): skill `specification/adversarial-review`
+исполняет субагент Claude Code `warrant-reviewer` (генерирует `warrant sync`), результат сдаёт `warrant run submit`;
+evidence `review` судит gate `adversarial-review` на `SPECIFIED->APPROVED` ([02 §2](02-vocabulary.md)).
 
 ## 8. CI — последняя инстанция
 

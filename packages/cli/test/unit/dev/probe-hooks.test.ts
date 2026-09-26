@@ -2,11 +2,21 @@
  * Probe of the hooks of Claude Code (ADR-0034 п. 2, design phase-4a §7, task 8.2): `scripts/dev/probe-hooks-lib.js`
  * builds the probe project (recording hooks on Edit|Write|NotebookEdit|Bash, test deny entries), answers the code
  * words of Q1 from the recorder, picks the eight fixtures of the contract from the records and reads Q2, Q3 off the
- * files the scenario left.
+ * files the scenario left; for the subagent (phase-4b task 6.2) — its file with the recorder as frontmatter hook on
+ * Bash, the deny of the marker command, its fixtures and the answers A1–A3.
  */
 import { describe, expect, it } from "vitest";
 
 import {
+  AGENT_BASH_COMMAND,
+  AGENT_DENY_COMMAND,
+  AGENT_DENY_FILE,
+  AGENT_DENY_MARKER,
+  AGENT_FIXTURES,
+  AGENT_HEREDOC_COMMAND,
+  AGENT_NAME,
+  agentAnswers,
+  agentFile,
   BASH_COMMAND,
   CONTEXT_TRIGGER,
   DENY_RULES,
@@ -17,6 +27,7 @@ import {
   NOTEBOOK_FILE,
   NOTES_FILE,
   parseVersion,
+  pickAgentFixtures,
   pickFixtures,
   probeAnswers,
   probeSettings,
@@ -27,7 +38,7 @@ import {
   scenarioPrompt
 } from "../../../../../scripts/dev/probe-hooks-lib.js";
 
-const PROBE = { trigger: CONTEXT_TRIGGER, preWord: "pre-aaa", postWord: "post-bbb" };
+const PROBE = { trigger: CONTEXT_TRIGGER, preWord: "pre-aaa", postWord: "post-bbb", denyMarker: AGENT_DENY_MARKER, denyWord: "deny-ccc" };
 const ROOT = "D:\\tmp\\probe";
 const HOME = "C:\\Users\\me";
 
@@ -43,10 +54,28 @@ function hook(event: string, tool: string, toolInput: Record<string, unknown>): 
 }
 
 let seq = 0;
-function record(json: Record<string, unknown>): { name: string; text: string } {
+function record(json: Record<string, unknown>, source?: string): { name: string; text: string } {
   seq += 1;
   const text = JSON.stringify(json);
-  return { name: recordHook(text, PROBE, String(seq).padStart(4, "0")).name, text };
+  return { name: recordHook(text, PROBE, String(seq).padStart(4, "0"), source).name, text };
+}
+
+/** Input of a subagent's Bash call: the main session's fields and those of the subagent. */
+function agentHook(event: string, command: string): Record<string, unknown> {
+  return { ...hook(event, "Bash", { command }), agent_id: "a-1", agent_type: AGENT_NAME };
+}
+
+/**
+ * Records of step 7: each of the three calls seen by the frontmatter hook (`agent`) and the hook of settings.json;
+ * `ran` — the marker command ran (its PostToolUse recorded), otherwise the plain and heredoc calls only.
+ */
+function agentScenario(ran: boolean): Array<{ name: string; text: string }> {
+  const out = [];
+  for (const command of [AGENT_BASH_COMMAND, AGENT_HEREDOC_COMMAND, AGENT_DENY_COMMAND]) {
+    out.push(record(agentHook("PreToolUse", command), "agent"), record(agentHook("PreToolUse", command)));
+    if (command !== AGENT_DENY_COMMAND || ran) out.push(record(agentHook("PostToolUse", command)));
+  }
+  return out;
 }
 
 /** The records of a full scenario: steps 1–5, then Write of every deny target seen by `pre` only. */
@@ -72,9 +101,15 @@ describe("probe-hooks — the probe project (ADR-0034 п. 2)", () => {
 
   it("the probe has fresh code words; the prompt names every step of the fixtures and every deny target", () => {
     const probe = newProbe(() => 0.123456789);
-    expect(probe).toEqual({ trigger: CONTEXT_TRIGGER, preWord: expect.stringMatching(/^pre-\w+$/), postWord: expect.stringMatching(/^post-\w+$/) });
+    expect(probe).toEqual({
+      trigger: CONTEXT_TRIGGER,
+      preWord: expect.stringMatching(/^pre-\w+$/),
+      postWord: expect.stringMatching(/^post-\w+$/),
+      denyMarker: AGENT_DENY_MARKER,
+      denyWord: expect.stringMatching(/^deny-\w+$/)
+    });
     const prompt = scenarioPrompt();
-    for (const text of [NOTES_FILE, NOTEBOOK_FILE, BASH_COMMAND, `echo ${CONTEXT_TRIGGER}`, "probe-hooks code word", ...DENY_TARGETS.map((t) => t.path)]) {
+    for (const text of [NOTES_FILE, NOTEBOOK_FILE, BASH_COMMAND, `echo ${CONTEXT_TRIGGER}`, "probe-hooks code word", ...DENY_TARGETS.map((t) => t.path), AGENT_NAME, "probe-hooks agent deny", AGENT_DENY_FILE]) {
       expect(prompt).toContain(text);
     }
   });
@@ -157,5 +192,69 @@ describe("probe-hooks — collect", () => {
       q2Relative: "Edit(path) without / matches at any depth",
       q3: "Write(/…) does not act: the file was written"
     });
+  });
+});
+
+describe("probe-hooks — the subagent (phase-4b task 6.2, ADR-0034 п. 10)", () => {
+  it("the subagent file: read-only tools and Bash, the recorder with `agent` as PreToolUse hook on Bash, the three calls", () => {
+    const text = agentFile("D:/tmp/probe/.probe/recorder.mjs");
+    expect(text.startsWith(`---\nname: ${AGENT_NAME}\n`)).toBe(true);
+    expect(text).toContain("\ntools: Read, Grep, Glob, Bash\n");
+    expect(text).toContain(
+      "hooks:\n  PreToolUse:\n    - matcher: \"Bash\"\n      hooks:\n        - type: command\n          command: 'node \"D:/tmp/probe/.probe/recorder.mjs\" agent'\n---\n"
+    );
+    for (const command of [AGENT_BASH_COMMAND, `\`\`\`bash\n${AGENT_HEREDOC_COMMAND}\n\`\`\``, AGENT_DENY_COMMAND]) expect(text).toContain(command);
+    expect(agentFile("D:/it's/recorder.mjs")).toContain("command: 'node \"D:/it''s/recorder.mjs\" agent'");
+  });
+
+  it("the recorder with `agent` denies only the PreToolUse of the marker command, with the code word as reason", () => {
+    const deny = recordHook(JSON.stringify(agentHook("PreToolUse", AGENT_DENY_COMMAND)), PROBE, "0001", "agent");
+    expect(deny.name).toBe("0001-agent-PreToolUse-Bash-deny.json");
+    expect(JSON.parse(deny.stdout)).toEqual({
+      hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: "probe-hooks agent deny: deny-ccc" }
+    });
+    expect(recordHook(JSON.stringify(agentHook("PreToolUse", AGENT_BASH_COMMAND)), PROBE, "0002", "agent")).toEqual({ name: "0002-agent-PreToolUse-Bash.json", stdout: "" });
+    // The hook of settings.json neither denies the marker nor answers for the subagent's hook with a code word.
+    expect(recordHook(JSON.stringify(agentHook("PreToolUse", AGENT_DENY_COMMAND)), PROBE, "0003")).toEqual({ name: "0003-PreToolUse-Bash.json", stdout: "" });
+    expect(recordHook(JSON.stringify(hook("PreToolUse", "Bash", { command: `echo ${CONTEXT_TRIGGER}` })), PROBE, "0004", "agent").stdout).toBe("");
+    // A probe.json of an earlier setup has no marker: nothing is denied.
+    const old = { trigger: CONTEXT_TRIGGER, preWord: "pre-aaa", postWord: "post-bbb" };
+    expect(recordHook(JSON.stringify(agentHook("PreToolUse", AGENT_DENY_COMMAND)), old, "0005", "agent").stdout).toBe("");
+  });
+
+  it("picks the agent fixtures by hook, leaves them out of the main ones, and names those absent", () => {
+    const records = [...scenario(), ...agentScenario(false)];
+    expect(pickFixtures(records, HOME).fixtures.map((f) => f.file)).toEqual(FIXTURES.map((f) => f.file));
+    const { fixtures, absent } = pickAgentFixtures(records, HOME);
+    expect(absent).toEqual([]);
+    expect(fixtures.map((f) => f.file)).toEqual(AGENT_FIXTURES.map((f) => f.file));
+    const heredoc = JSON.parse(fixtures.find((f) => f.file === "agent-pre-bash-heredoc.json")!.text);
+    expect(heredoc).toEqual({ ...agentHook("PreToolUse", AGENT_HEREDOC_COMMAND), transcript_path: "~\\.claude\\projects\\p\\s1.jsonl" });
+    const onlySession = records.filter((r) => !r.name.includes("-agent-"));
+    expect(pickAgentFixtures(onlySession, HOME).absent).toEqual(["agent-pre-bash.json", "agent-pre-bash-heredoc.json", "agent-pre-bash-deny.json"]);
+  });
+
+  it("A1–A3: which hook saw each call, whether the deny acted, how the input differs from the main session's", () => {
+    const acted = agentAnswers([...scenario(), ...agentScenario(false)], () => false);
+    expect(acted.steps).toEqual([
+      { step: "plain", frontmatterPre: true, sessionPre: true, sessionPost: true },
+      { step: "heredoc", frontmatterPre: true, sessionPre: true, sessionPost: true },
+      { step: "marker", frontmatterPre: true, sessionPre: true, sessionPost: false }
+    ]);
+    expect(acted.deny).toBe("deny acted: the marker command did not run");
+    expect(acted.frontmatterVsMain).toEqual({ onlyOther: ["agent_id", "agent_type"], onlyMain: [], agentFields: { agent_id: "a-1", agent_type: AGENT_NAME } });
+    expect(acted.sessionVsMain).toEqual(acted.frontmatterVsMain);
+    expect(acted.heredocCommand).toBe(AGENT_HEREDOC_COMMAND);
+
+    expect(agentAnswers([...scenario(), ...agentScenario(true)], () => false).deny).toBe("deny did NOT act: the marker command ran (PostToolUse seen)");
+    expect(agentAnswers([...scenario(), ...agentScenario(false)], (p: string) => p === AGENT_DENY_FILE).deny).toBe(
+      `deny did NOT act: the marker command ran (${AGENT_DENY_FILE} written)`
+    );
+    const noFrontmatter = [...scenario(), ...agentScenario(true).filter((r) => !r.name.includes("-agent-"))];
+    const none = agentAnswers(noFrontmatter, () => true);
+    expect(none.steps.map((s: { frontmatterPre: boolean }) => s.frontmatterPre)).toEqual([false, false, false]);
+    expect(none.deny).toBe("no deny sent: the frontmatter hook was not called on the marker command");
+    expect(none.frontmatterVsMain).toBeUndefined();
+    expect(agentAnswers(scenario(), () => false).deny).toBe("not tried: no hook saw the marker command (step 7 not done?)");
   });
 });

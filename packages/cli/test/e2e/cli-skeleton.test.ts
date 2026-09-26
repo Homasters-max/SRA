@@ -37,8 +37,8 @@ describe("cli skeleton", () => {
     expect(r.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it("--help of transition, archive, waive, run start and run finish names --dry-run and gives an example with it (lens cli-contract)", async () => {
-    for (const command of ["transition", "archive", "waive", "run start", "run finish"]) {
+  it("--help of transition, archive, waive, run start, run finish and run submit names --dry-run and gives an example with it (lens cli-contract)", async () => {
+    for (const command of ["transition", "archive", "waive", "run start", "run finish", "run submit"]) {
       const r = await runCli([...command.split(" "), "--help"], dir);
       expect(r.status).toBe(0);
       expect(r.stdout).toBe("");
@@ -54,6 +54,16 @@ describe("cli skeleton", () => {
     expect(r.stderr).toContain("--files <a,b>");
     const examples = r.stderr.split("Examples:\n")[1]?.split("\n") ?? [];
     expect(examples.some((line) => line.startsWith("  $ warrant validate --files "))).toBe(true);
+  });
+
+  it("--help of analyze names --base and gives an example; a report writes nothing, so no --dry-run (REQ-VER-010, lens cli-contract)", async () => {
+    const r = await runCli(["analyze", "--help"], dir);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe("");
+    expect(r.stderr).toContain("--base <ref>");
+    expect(r.stderr).not.toContain("--dry-run");
+    const examples = r.stderr.split("Examples:\n")[1]?.split("\n") ?? [];
+    expect(examples.some((line) => line.startsWith("  $ warrant analyze "))).toBe(true);
   });
 
   it("--dry-run reaches the command: a refusal carries data.dry_run (REQ-KRN-034)", async () => {
@@ -75,6 +85,13 @@ describe("cli skeleton", () => {
     expect(finish.status).toBe(3);
     expect(finish.json.command).toBe("run finish");
     expect(finish.json.errors[0].hint).toBeDefined();
+
+    // The envelope on stdin through the binary (REQ-ENF-007).
+    const submit = await runCli(["run", "submit"], dir, {}, "{}");
+    expect(submit.status).toBe(3);
+    expect(submit.json.command).toBe("run submit");
+    expect(submit.json.errors[0].code).toBe("CONFIG_MISSING");
+    expect(submit.json.errors[0].hint).toMatch(/warrant init/);
 
     const unknown = await runCli(["run", "start", "add-search", "--no-such-flag"], dir);
     expect(unknown.status).toBe(3);

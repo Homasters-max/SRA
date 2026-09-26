@@ -1,0 +1,15 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y",
+  "change": "add-search",
+  "operation": "implement",
+  "write_scope": ["src/**", "tests/**"],
+  "scope": [],
+  "branch": "worktree/add-search",
+  "started_at": "2026-09-25T10:00:00.000Z",
+  "run_state": "RUNNING",
+  "context_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "effective_policy_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "spec_tree": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "guard_events": []
+}

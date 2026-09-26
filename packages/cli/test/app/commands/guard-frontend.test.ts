@@ -12,10 +12,10 @@ import { describe, expect, it } from "vitest";
 
 import { claudeFrontend } from "../../../src/adapters/frontend/claude.js";
 import { runGuard, runGuardFrontend } from "../../../src/commands/guard.js";
-import { runStart } from "../../../src/commands/run.js";
 import type { GuardEvent, GuardResult } from "../../../src/core/ports/frontend.js";
 import { CORE_SDD_RANGE } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
+import { started } from "../helpers/run.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
 
 const project = useProjectBuilder();
@@ -55,12 +55,6 @@ async function repo(configure: (p: ProjectBuilder) => void = () => undefined): P
     .withChange("add-search", { tasks: "## 1. Search\n\n- [ ] 1.1 Index\n" });
   configure(p);
   return p.synced();
-}
-
-async function started(p: ProjectBuilder): Promise<string> {
-  const run = await invoke(() => runStart(p.ctx, "add-search", { operation: "implement" }, ENV));
-  expect(run.errors).toEqual([]);
-  return run.data["run"] as string;
 }
 
 /** A hook input in the form of the documentation. */

@@ -6,6 +6,7 @@
  * command layer gathered (git, OpenSpec, ids). Nothing in `core/gates/`
  * besides `diff.ts` reads the disk or starts a process.
  */
+import type { AnalyzeResult } from "../analyze/index.js";
 import type { CliError } from "../errors.js";
 import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { EffectivePolicy } from "../resolve/types.js";
@@ -44,6 +45,10 @@ export interface Finding {
   check?: string;
   error?: string;
   paths?: string[];
+  /** A finding of `analyze` (`analyze-clean`, REQ-VER-004): the REQ or SCN id, what it misses, the file naming it. */
+  id?: string;
+  missing?: string[];
+  path?: string;
   /** How many paths `paths` leaves out (`FRONTEND_HOOKS_INACTIVE`, REQ-VER-009). */
   more?: number;
   items?: string[];
@@ -80,6 +85,14 @@ export interface ContractTrees {
   evaluated: { commit: string; tree: BlobTree };
 }
 
+/** Matchers over diff paths (POSIX, relative to the project root). */
+export interface StateMatchers {
+  /** Record, evidence, Run files and envelopes of the Change under evaluation. */
+  own: (path: string) => boolean;
+  /** The same of any Change. */
+  other: (path: string) => boolean;
+}
+
 /** Facts about the project the calculators and the pre-filter read (design §8). */
 export interface GateSignals {
   change: string;
@@ -103,12 +116,24 @@ export interface GateSignals {
   profiles: string[];
   /** Policy paths: `match.paths` of profile `factory-change`, when a pack declares it (D-15). */
   policyPaths: string[];
+  /** Own state of the Change and state of any Change (`core/run/state.ts`, N27): what `scope-valid` sets apart. */
+  state: StateMatchers;
+  /**
+   * Hash of the spec tree of the Change on `commit` (ADR-0036 п. 3, design §5): what a record with
+   * `subject.spec_tree` is compared with; gathered only when such a record is among those judged.
+   */
+  specTree?: Availability<string>;
   /** Effective thresholds by evidence kind; phase 3 has none (D-12). */
   thresholds?: Record<string, number>;
   /** Checks of this `verify` that failed (REQ-VER-006). */
   checkFailures?: CheckFailure[];
   /** Contract trees of `spec-approved`; gathered only when the evaluated gates include it. */
   contract?: Availability<ContractTrees>;
+  /**
+   * Result of `analyze` on the diff of `scope-valid` (`analyze-clean`, design §5); gathered only when the
+   * evaluated gates include it, unavailable without the diff.
+   */
+  analyze?: Availability<AnalyzeResult>;
 }
 
 export interface GateEngineInput {

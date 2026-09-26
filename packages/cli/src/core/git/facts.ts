@@ -11,6 +11,7 @@
  * them are `BLOCKED` with `NO_INPUT` (P-7). Only an explicit `--base` that
  * names no commit is a usage error.
  */
+import { canonicalHash } from "../canon/hash.js";
 import type { Ctx } from "../ctx.js";
 import { WarrantError } from "../errors.js";
 import { NO_GIT_COMMIT, NO_GIT_LIMITATION } from "../evidence/record.js";
@@ -251,4 +252,14 @@ export async function contractTree(ctx: GitCtx, commit: string, change: string):
     return { ok: false, reason: `git ls-tree ${commit} failed${detail === "" ? "" : `: ${detail}`}` };
   }
   return { ok: true, value: tree.value };
+}
+
+/**
+ * The spec tree of a Change at `commit` (ADR-0036 п. 3, design §4–5): `canonicalHash` of its
+ * `contractTree` — the value a `review` Run keeps in `spec_tree` and the pre-filter compares
+ * `subject.spec_tree` with. Unavailable as `contractTree` is.
+ */
+export async function specTreeHash(ctx: GitCtx, commit: string, change: string): Promise<Availability<string>> {
+  const tree = await contractTree(ctx, commit, change);
+  return tree.ok ? { ok: true, value: canonicalHash(tree.value) } : tree;
 }

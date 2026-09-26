@@ -14,13 +14,12 @@
  * the paths. The gate is `waivable: true`: a maintainer's waiver turns the
  * `FAIL` into `WAIVED` by step 4 of the verdict, the finding stays.
  */
+import { HUMAN_APPROVAL } from "../../evidence/approval.js";
 import { isPlainObject } from "../../json.js";
 import type { Availability, BlobTree, EvidenceInput } from "../types.js";
 import { noInput, pass, type Calculator } from "./types.js";
 
 export const SPEC_APPROVED = "spec-approved";
-
-const HUMAN_APPROVAL = "human-approval";
 
 /** The approval the contract is judged against: its record id and commit. */
 export interface Approval {

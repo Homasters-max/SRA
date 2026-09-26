@@ -63,4 +63,13 @@ export interface GitPort {
    * path missing at `rev` is absent from the map.
    */
   contents(rev: string, paths: string[]): Promise<Map<string, string>>;
+  /**
+   * `git status --porcelain -z --untracked-files=all -- <paths>` (paths
+   * relative to the project): the files under `paths` that are modified,
+   * added, deleted or untracked against `HEAD` in the index or the work tree,
+   * from the top of the repository, sorted; both paths of a rename. Git
+   * compares after its own normalisation, so a CRLF checkout of a committed
+   * file is not dirty (design phase-4b §4).
+   */
+  dirty(paths: string[]): Promise<GitAnswer<string[]>>;
 }

@@ -6,6 +6,11 @@
  * everywhere else it is a local draft (`none`). Other CI systems are later.
  */
 
+/** `attestation.type` of a record (06a §3): owned here (registry `enums` of `architecture.json`); the schema holds the same values. */
+export const ATTESTATION_TYPES = ["ci", "human-review", "signature", "none"] as const;
+export type AttestationType = (typeof ATTESTATION_TYPES)[number];
+
+/** What a check record carries: `ci` with the run, or a local draft. */
 export type Attestation = { type: "ci"; ref: string } | { type: "none" };
 
 function present(value: string | undefined): value is string {

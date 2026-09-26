@@ -81,16 +81,24 @@ Change: add-customer-search
 
 Change — единица работы и спецификации. Run — одна попытка агента выполнить операцию.
 
-Schema `warrant://run/1` (фаза 4a): обязательные `id` (`RUN-<ULID>`), `change`, `operation` (`specify` | `implement`),
-`write_scope[]`, `scope[]` (сужение `--scope`, может быть пустым), `branch`, `started_at`, `run_state`, `context_hash`,
-`effective_policy_hash`, `guard_events[]`; необязательные `task`, `skill` (`namespace/name@version`), `model`,
+Schema `warrant://run/1` (фаза 4a, `review` — 4b): обязательные `id` (`RUN-<ULID>`), `change`, `operation` (`specify` |
+`implement` | `review`), `write_scope[]` (пуст только у `review`), `scope[]` (сужение `--scope`, может быть пустым), `branch`,
+`started_at`, `run_state`, `context_hash`, `effective_policy_hash`, `guard_events[]`; `spec_tree` — обязателен у `review` и
+отсутствует у остальных ([02 §2](02-vocabulary.md)); необязательные `task`, `skill` (`namespace/name@version`), `model`,
 `finished_at`, `evidence[]`. Событие `guard_events[]` — каждый вызов `warrant guard` при активном Run: `at`, `phase`
 (`pre` | `post`), `action` (`edit` | `shell` | `other`), `paths[]`, `decision`, `findings[]` (коды), `rules_shown[]` (id
 правил), `reason?`, `argv?` (только `deny` по префиксу check); имени frontend в Run нет
 ([ADR-0034](adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 2). Run создаёт `warrant run start <change> --operation <op>`
 (его JSON — Context Pack), закрывает `warrant run finish [--state …]` ([04 §7](04-lifecycle.md)).
 
-Файл Run `<state>/runs/<id>.json` коммитится вместе с работой: `FRONTEND_HOOKS_INACTIVE` сверяет с его событиями diff
+Run `review` — отдельный Run ревьюера spec ([06 §7](06-verification.md), [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md)):
+`warrant run start <change> --operation review` в `PROPOSED` при закоммиченных `proposal.md` и `specs/**` (иначе
+`SPEC_UNCOMMITTED`), `write_scope` пуст, Run запоминает `spec_tree`. Guard при таком Run отклоняет любую правку и любую
+shell-команду, кроме `warrant run submit`. Закрывает его `warrant run submit`: envelope skill (`skill-result/1`,
+[07 §4](07-skills.md)) — в `<state>/runs/<id>.result.json` рядом с файлом Run, evidence `review` — в каталог evidence Change,
+`run_state` — из envelope.
+
+Файл Run `<state>/runs/<id>.json` (и `<id>.result.json` Run `review`) коммитится вместе с работой: `FRONTEND_HOOKS_INACTIVE` сверяет с его событиями diff
 Change ([06](06-verification.md)). Активный Run указан в `<state>/runs/current` (одна строка — id) — единственный источник
 `write_scope` для guard; `current` не коммитится (строку `.warrant/runs/current` в `.gitignore` держит `warrant sync`).
 Активный Run — один на worktree; Run не в `RUNNING` активным не считается.

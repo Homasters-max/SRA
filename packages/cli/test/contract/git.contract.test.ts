@@ -249,6 +249,34 @@ describe.each(CASES)("GitPort contract: $side, project prefix '$prefix'", ({ mak
     );
   });
 
+  it("dirty files under paths: a changed, a new and a deleted file, not a clean one; paths from the top", async () => {
+    const r = repo();
+    const dir = "openspec/changes/c";
+    r.builder
+      .write(`${dir}/proposal.md`, "# P\n")
+      .write(`${dir}/specs/s/spec.md`, "# S\n")
+      .write(`${dir}/specs/t/spec.md`, "# T\n")
+      .write(`${dir}/design.md`, "# D\n");
+    r.commit("base");
+    expect(await r.port.dirty([`${dir}/proposal.md`, `${dir}/specs`])).toEqual({ ok: true, value: [] });
+
+    r.builder
+      .write(`${dir}/specs/s/spec.md`, "# S2\n")
+      .write(`${dir}/specs/u/new/spec.md`, "# U\n")
+      .remove(`${dir}/specs/t/spec.md`)
+      .write(`${dir}/design.md`, "# D2\n");
+    expect(await r.port.dirty([`${dir}/proposal.md`, `${dir}/specs`])).toEqual({
+      ok: true,
+      value: [top(`${dir}/specs/s/spec.md`), top(`${dir}/specs/t/spec.md`), top(`${dir}/specs/u/new/spec.md`)]
+    });
+    // Before the first commit every file is new; outside a repository git cannot say.
+    const fresh = repo();
+    fresh.init();
+    fresh.builder.write(`${dir}/proposal.md`, "# P\n");
+    expect(await fresh.port.dirty([`${dir}/proposal.md`])).toEqual({ ok: true, value: [top(`${dir}/proposal.md`)] });
+    expect((await repo().port.dirty([dir])).ok).toBe(false);
+  });
+
   it("a fast-forward merge moves the branch without a merge commit", async () => {
     const r = repo();
     r.builder.write("a.txt", "a\n");

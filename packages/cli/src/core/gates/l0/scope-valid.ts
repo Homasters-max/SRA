@@ -1,26 +1,27 @@
 /**
  * `scope-valid`: every path of the diff `base...commit` lies in the set the
- * transition allows (REQ-VER-004, ADR-0011, ADR-0021, D-15):
+ * transition allows (REQ-VER-004, ADR-0011, ADR-0021, D-15). The own state of
+ * the Change — record, evidence, Run files and their envelopes
+ * (`core/run/state.ts`, N27) — is allowed on each of the three transitions and
+ * is never a policy path; the state of other Changes is allowed on none.
+ * Beyond the own state:
  *
- * - `SPECIFIED->APPROVED` (spec-PR): `openspec/changes/<change>/**` and the
- *   record `.warrant/changes/<change>.json`;
+ * - `SPECIFIED->APPROVED` (spec-PR): `openspec/changes/<change>/**`;
  * - `VERIFYING->MERGED` (impl-PR): anything but `openspec/specs/**`,
- *   `openspec/changes/archive/**`, records and evidence of other Changes, and —
- *   unless `factory-change` is among the profiles — the policy paths
- *   (`match.paths` of profile `factory-change`); the Change's own record and
- *   evidence are its own state and stay allowed;
+ *   `openspec/changes/archive/**` and — unless `factory-change` is among the
+ *   profiles — the policy paths (`match.paths` of profile `factory-change`);
  * - `MERGED->ARCHIVED` (archive-PR): its own archive directory
- *   `openspec/changes/archive/<date>-<change>/**`, `openspec/specs/**`, the
- *   removal of `openspec/changes/<change>/**`, its record and evidence.
+ *   `openspec/changes/archive/<date>-<change>/**`, `openspec/specs/**` and the
+ *   removal of `openspec/changes/<change>/**`.
  *
  * A rename counts as the removal of its source and the write of its target, so
  * the move made by `openspec archive` is judged path by path.
  */
 import type { DiffEntry } from "../../git/facts.js";
 import { pathMatcher } from "../../glob.js";
+import { FACTORY_PROFILE } from "../../packs/objects.js";
+import type { StateMatchers } from "../types.js";
 import { noInput, pass, type Calculator } from "./types.js";
-
-export const FACTORY_PROFILE = "factory-change";
 
 /** A path touched by the diff and how. */
 interface Touch {
@@ -42,23 +43,13 @@ function escapeRe(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Records and evidence of one Change. */
-function ownState(change: string): (p: string) => boolean {
-  const record = `.warrant/changes/${change}.json`;
-  const evidence = `.warrant/evidence/${change}/`;
-  return (p) => p === record || p.startsWith(evidence);
-}
-
-/** Records and evidence of any Change. */
-function anyState(p: string): boolean {
-  return /^\.warrant\/changes\/[^/]+\.json$/.test(p) || /^\.warrant\/evidence\/[^/]+\//.test(p);
-}
-
 export interface ScopeInput {
   transition: string;
   change: string;
   profiles: readonly string[];
   policyPaths: readonly string[];
+  /** Own state of the Change and state of any Change (`GateSignals.state`). */
+  state: StateMatchers;
 }
 
 /**
@@ -66,13 +57,13 @@ export interface ScopeInput {
  * null when the transition has no allowed set (the gate cannot be judged).
  */
 export function scopeViolations(entries: readonly DiffEntry[], input: ScopeInput): string[] | null {
-  const own = ownState(input.change);
+  const { own, other } = input.state;
   const changeDir = `openspec/changes/${input.change}/`;
   let allowed: (t: Touch) => boolean;
 
   switch (input.transition) {
     case "SPECIFIED->APPROVED":
-      allowed = (t) => t.path.startsWith(changeDir) || t.path === `.warrant/changes/${input.change}.json`;
+      allowed = (t) => own(t.path) || t.path.startsWith(changeDir);
       break;
     case "VERIFYING->MERGED": {
       const policy =
@@ -82,7 +73,7 @@ export function scopeViolations(entries: readonly DiffEntry[], input: ScopeInput
       allowed = (t) => {
         if (own(t.path)) return true;
         if (t.path.startsWith("openspec/specs/") || t.path.startsWith("openspec/changes/archive/")) return false;
-        if (anyState(t.path)) return false;
+        if (other(t.path)) return false;
         return !policy(t.path);
       };
       break;
@@ -90,10 +81,10 @@ export function scopeViolations(entries: readonly DiffEntry[], input: ScopeInput
     case "MERGED->ARCHIVED": {
       const archive = new RegExp(`^openspec/changes/archive/\\d{4}-\\d{2}-\\d{2}-${escapeRe(input.change)}/`);
       allowed = (t) =>
+        own(t.path) ||
         archive.test(t.path) ||
         t.path.startsWith("openspec/specs/") ||
-        (t.op === "remove" && t.path.startsWith(changeDir)) ||
-        own(t.path);
+        (t.op === "remove" && t.path.startsWith(changeDir));
       break;
     }
     default:
@@ -111,7 +102,8 @@ export const scopeValid: Calculator = (ctx) => {
     transition: ctx.transition,
     change: ctx.signals.change,
     profiles: ctx.signals.profiles,
-    policyPaths: ctx.signals.policyPaths
+    policyPaths: ctx.signals.policyPaths,
+    state: ctx.signals.state
   });
   if (violations === null) return noInput(ctx.gate, `no allowed path set is defined for ${ctx.transition}`);
   if (violations.length === 0) return pass();

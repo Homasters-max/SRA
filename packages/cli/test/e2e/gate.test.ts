@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 
 import { runCli, type CliRun } from "../helpers/cli.js";
 import { git } from "../helpers/git.js";
-import { PACKS, record, useSyncedProject, write } from "../helpers/synced.js";
+import { PACKS, recordDoc, useSyncedProject, write } from "../helpers/synced.js";
 
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
@@ -20,7 +20,7 @@ const project = useSyncedProject();
 describe.skipIf(!hasGit)("warrant gate (argv)", () => {
   it("maps gate ids and --transition; exit 2 on WAIT, 0 on CONTINUE, 3 on a usage error", async () => {
     const root = project();
-    write(root, ".warrant/changes/add-search.json", record("add-search", "APPROVED", { classification: { profiles: ["feature"] } }));
+    write(root, ".warrant/changes/add-search.json", recordDoc("add-search", "APPROVED", { classification: { profiles: ["feature"] } }));
     git(root, "-c", "init.defaultBranch=main", "init", "--quiet");
     git(root, "config", "user.name", "warrant-test");
     git(root, "config", "user.email", "test@example.invalid");

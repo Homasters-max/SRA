@@ -194,7 +194,9 @@ function collectProfiles(
  * отсутствующим — resolver трактует такое измерение как `UNKNOWN`.
  */
 export function classify(input: ClassifyInput): ClassifyResult {
-  const changed = input.changed.map(normalizePath).filter((p) => p !== "");
+  // The Change's own state (record, evidence, Runs) takes no part in floors and `match.paths` (REQ-KRN-028, N27).
+  const own = input.own ?? (() => false);
+  const changed = input.changed.map(normalizePath).filter((p) => p !== "" && !own(p));
   const floors = floorCandidates(changed, input.floors);
   const ignored: IgnoredValue[] = [];
   const belowFloor: BelowFloor[] = [];

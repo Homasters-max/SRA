@@ -3,7 +3,9 @@
  * the computed L0 gates on diffs and branches of `FakeGit` — SCN-VER-014, 019,
  * 020, 021, 022, 023 — the output shape and the exit code of the controller, a
  * project controller rule it skips (SCN-VER-049), and `spec-approved` after an
- * approval made through the commands (SCN-VER-046, 047, 048). Moved from e2e
+ * approval made through the commands (SCN-VER-046, 047, 048), the own state of
+ * the Change in `scope-valid` (SCN-VER-060, 061) and a `review` record bound to
+ * the spec tree (SCN-VER-056, 057). Moved from e2e
  * (ADR-0025, task 5.1); the parse of argv and the exit code of the binary stay
  * in `e2e/gate.test.ts`.
  *
@@ -22,6 +24,7 @@ import { runStatus } from "../../../src/commands/status.js";
 import { runTransition, type TransitionOptions } from "../../../src/commands/transition.js";
 import { runVerify } from "../../../src/commands/verify.js";
 import { runWaive } from "../../../src/commands/waive.js";
+import { specTreeHash } from "../../../src/core/git/facts.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
@@ -198,7 +201,8 @@ describe("warrant gate", () => {
       "spec-approved",
       "tests-passed"
     ]);
-    expect(run.data["gates"]["analyze-clean"]).toBe("BLOCKED");
+    // analyze-clean is computed: the Change has no finding (REQ-VER-004, I-166).
+    expect(run.data["gates"]["analyze-clean"]).toBe("PASS");
   });
 
   it("archive-PR inside its own archive directory passes scope-valid (SCN-VER-020)", async () => {
@@ -380,5 +384,176 @@ describe("warrant gate", () => {
     const merge = await gate(p, ["scope-valid", "spec-approved"], { transition: MERGE });
     expect(merge.data["gates"]).toEqual({ "scope-valid": "BLOCKED", "spec-approved": "BLOCKED" });
     expect(merge.data["findings"]).toContainEqual(expect.objectContaining({ code: "NO_INPUT", gate: "spec-approved" }));
+  });
+});
+
+describe("warrant gate: analyze-clean (REQ-VER-004)", () => {
+  /** Findings of the gate: `FRONTEND_HOOKS_INACTIVE` of the merge (REQ-VER-009) has no gate. */
+  const ofGate = (data: Data): Data[] => (data["findings"] as Data[]).filter((f) => f["gate"] === "analyze-clean");
+  const SEARCH = [{ name: "Search by text", id: "REQ-SRC-004", scenarios: [{ name: "Match", id: "SCN-SRC-010" }] }];
+
+  /** `VERIFYING` with `paths.tests: tests`, the delta adding REQ-SRC-004 / SCN-SRC-010, `tasks` and an impl branch tagging the SCN. */
+  async function analyzed(tasks: string): Promise<ProjectBuilder> {
+    const p = await repo("VERIFYING", FEATURE, (b) => {
+      const config = JSON.parse(b.read(".warrant/warrant.json")) as Record<string, unknown>;
+      b.write(".warrant/warrant.json", { ...config, paths: { tests: "tests" } });
+      b.withChange("add-search", { design: "# Design\n", tasks, specs: { search: SEARCH } });
+    });
+    branch(p, "worktree/add-search", (b) => b.write("tests/test_search.py", "# SCN-SRC-010\n"));
+    return p;
+  }
+
+  it("FAIL with UNSATISFIED for a REQ tasks.md does not mention (SCN-VER-058)", async () => {
+    const p = await analyzed("# Tasks\n\n- [ ] 1.1 Index the catalogue\n");
+    const run = await gate(p, ["analyze-clean"], { transition: MERGE });
+    expect(run.data["gates"]).toEqual({ "analyze-clean": "FAIL" });
+    expect(ofGate(run.data)).toEqual([
+      expect.objectContaining({ code: "UNSATISFIED", gate: "analyze-clean", id: "REQ-SRC-004", missing: ["task"] })
+    ]);
+  });
+
+  it("PASS without a waiver when tasks.md and a test name the REQ through its SCN (SCN-VER-059)", async () => {
+    const p = await analyzed("# Tasks\n\n- [ ] 1.1 Search by text (SCN-SRC-010)\n");
+    const run = await gate(p, ["analyze-clean"], { transition: MERGE });
+    expect(run.data["gates"]).toEqual({ "analyze-clean": "PASS" });
+    expect(ofGate(run.data)).toEqual([]);
+  });
+
+  it("BLOCKED with NO_INPUT without git", async () => {
+    const p = await project()
+      .withChange("add-search", { design: "# Design\n", tasks: "# Tasks\n", specs: { search: SEARCH } })
+      .withRecord("add-search", "VERIFYING", FEATURE)
+      .synced();
+    const run = await gate(p, ["analyze-clean"], { transition: MERGE });
+    expect(run.data["gates"]).toEqual({ "analyze-clean": "BLOCKED" });
+    expect(run.data["findings"]).toEqual([expect.objectContaining({ code: "NO_INPUT", gate: "analyze-clean" })]);
+    expect(run.data["findings"][0].message).toContain("not a git repository");
+  });
+});
+
+/** A Run file of `change`, valid by `warrant://run/1`: `review` (empty `write_scope`, `spec_tree`) or `implement`. */
+function runFile(id: string, change: string, operation: "review" | "implement"): Record<string, unknown> {
+  return {
+    $schema: "warrant://run/1",
+    id,
+    change,
+    operation,
+    write_scope: operation === "review" ? [] : ["src/**"],
+    scope: [],
+    ...(operation === "review" ? { spec_tree: `sha256:${"3".repeat(64)}` } : {}),
+    branch: `worktree/${change}`,
+    started_at: "2026-09-25T10:00:00Z",
+    finished_at: "2026-09-25T10:12:00Z",
+    run_state: "SUCCEEDED",
+    context_hash: `sha256:${"1".repeat(64)}`,
+    effective_policy_hash: `sha256:${"2".repeat(64)}`,
+    guard_events: []
+  };
+}
+
+describe("warrant gate: own state of the Change in scope-valid (REQ-VER-004, N27)", () => {
+  const RUN = "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y";
+  const OTHER_RUN = "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X7Z";
+  const EVID = ".warrant/evidence/add-search/EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1A3.json";
+
+  it("spec-PR with its record, evidence, Run and envelope passes; a Run of another Change fails (SCN-VER-060)", async () => {
+    // core-sdd judges scope-valid on the merge only; the overlay adds it to the spec-PR, as SCN-VER-020 does to the archive-PR.
+    const p = await repo("SPECIFIED", FEATURE, (b) =>
+      b.write(".warrant/local/overlays/spec-scope.json", {
+        $schema: "warrant://overlay/1",
+        id: "spec-scope",
+        version: "1.0.0",
+        match: {},
+        gates: { "SPECIFIED->APPROVED": ["scope-valid"] }
+      })
+    );
+    branch(p, "spec/add-search", (b) => {
+      b.write("openspec/changes/add-search/proposal.md", "# Proposal\n\nReviewed.\n");
+      b.write(EVID, { id: "EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1A3" });
+      b.write(`.warrant/runs/${RUN}.json`, runFile(RUN, "add-search", "review"));
+      b.write(`.warrant/runs/${RUN}.result.json`, { run: RUN });
+    });
+    const pass = await gate(p, ["scope-valid"], { transition: "SPECIFIED->APPROVED" });
+    expect(pass.errors).toEqual([]);
+    expect(pass.data["gates"]).toEqual({ "scope-valid": "PASS" });
+
+    p.write(`.warrant/runs/${OTHER_RUN}.json`, runFile(OTHER_RUN, "other", "review"));
+    p.commit("other");
+    const fail = await gate(p, ["scope-valid"], { transition: "SPECIFIED->APPROVED" });
+    expect(fail.data["gates"]).toEqual({ "scope-valid": "FAIL" });
+    expect(fail.data["findings"]).toEqual([
+      expect.objectContaining({ code: "SCOPE_VIOLATION", gate: "scope-valid", paths: [`.warrant/runs/${OTHER_RUN}.json`] })
+    ]);
+  });
+
+  it("impl-PR Runs of the Change are not policy paths without factory-change (SCN-VER-061)", async () => {
+    const p = await repo("VERIFYING", FEATURE);
+    branch(p, "worktree/add-search", (b) => {
+      b.write("src/app.py", "print('search')\n");
+      b.write(`.warrant/runs/${RUN}.json`, runFile(RUN, "add-search", "implement"));
+    });
+    const run = await gate(p, ["scope-valid"], { transition: MERGE });
+    expect(run.data["gates"]).toEqual({ "scope-valid": "PASS" });
+
+    // Runs of another Change stay forbidden, even with factory-change.
+    p.write(`.warrant/runs/${OTHER_RUN}.json`, runFile(OTHER_RUN, "other", "implement"));
+    p.commit("other");
+    const other = await gate(p, ["scope-valid"], { transition: MERGE });
+    expect(other.data["findings"]).toEqual([expect.objectContaining({ code: "SCOPE_VIOLATION", paths: [`.warrant/runs/${OTHER_RUN}.json`] })]);
+  });
+});
+
+describe("warrant gate: review bound to the spec tree (REQ-VER-003, ADR-0036 п. 3)", () => {
+  const ID = "EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1A3";
+  const REVIEW_GATE = "SPECIFIED->APPROVED";
+
+  /** `SPECIFIED` with a `review` record made on the spec-PR branch and bound to the spec tree there, merged into `main`. */
+  async function reviewed(): Promise<ProjectBuilder> {
+    const p = await repo("SPECIFIED", FEATURE);
+    p.branch("spec/add-search");
+    const made = p.git.headCommit()?.sha as string;
+    const tree = await specTreeHash(p.ctx, made, "add-search");
+    expect(tree.ok).toBe(true);
+    p.write(`.warrant/evidence/add-search/${ID}.json`, {
+      id: ID,
+      kind: "review",
+      level: "L2",
+      evidence_status: "PROVEN",
+      subject: { commit: made, spec_revision: `openspec/changes/add-search@${made}`, spec_tree: tree.ok ? tree.value : "" },
+      produced_by: { type: "skill", id: "specification/adversarial-review", version: "0.2.0", run: "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y" },
+      attestation: { type: "none" },
+      limitations: ["produced locally, unattested", "same model family as author"],
+      created_at: "2026-09-25T10:12:00Z",
+      metrics: { BLOCKER: 0, MAJOR: 0, MINOR: 1, INFO: 0 }
+    });
+    p.commit("review");
+    p.checkout("main");
+    p.merge("spec/add-search", { ff: "no" });
+    return p;
+  }
+
+  it("a review made on commit A passes on commit B after the merge when the spec did not change (SCN-VER-056)", async () => {
+    const p = await reviewed();
+    const run = await gate(p, ["adversarial-review"], { transition: REVIEW_GATE });
+    expect(run.errors).toEqual([]);
+    expect(run.data["gates"]).toEqual({ "adversarial-review": "PASS" });
+    expect(run.data["findings"]).toEqual([]);
+  });
+
+  it("a change of a delta spec makes it STALE by spec_tree; a change of design.md does not (SCN-VER-057)", async () => {
+    const p = await reviewed();
+    p.write("openspec/changes/add-search/design.md", "# Design\n\nMore.\n");
+    p.commit("design");
+    const design = await gate(p, ["adversarial-review"], { transition: REVIEW_GATE });
+    expect(design.data["gates"]).toEqual({ "adversarial-review": "PASS" });
+
+    p.write(SPEC, "# Search\n\nChanged.\n");
+    p.commit("spec");
+    const spec = await gate(p, ["adversarial-review"], { transition: REVIEW_GATE });
+    expect(spec.data["gates"]).toEqual({ "adversarial-review": "BLOCKED" });
+    expect(spec.data["findings"]).toEqual([
+      expect.objectContaining({ code: "STALE", evidence: ID, reason: "spec_tree", kind: "review" }),
+      expect.objectContaining({ code: "NO_EVIDENCE", gate: "adversarial-review", kind: "review" })
+    ]);
   });
 });

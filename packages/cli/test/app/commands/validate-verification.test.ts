@@ -246,12 +246,33 @@ describe("warrant validate (12): evidence records and manifests", () => {
 
   it("reports PACK_FORM_UNKNOWN for non-empty metrics of a kind without a form (SCN-KRN-084)", async () => {
     const p = await seeded();
-    p.write(`${DIR}/${ID_A}.json`, evidence(ID_A, { kind: "review", metrics: { findings: 3 } }))
-      .write(`${DIR}/${ID_B}.json`, evidence(ID_B, { kind: "review", metrics: {} }))
+    p.write(`${DIR}/${ID_A}.json`, evidence(ID_A, { kind: "human-approval", metrics: { findings: 3 } }))
+      .write(`${DIR}/${ID_B}.json`, evidence(ID_B, { kind: "human-approval", metrics: {} }))
       .write(`${DIR}/manifest.json`, manifest([ID_A, ID_B]));
     const run = await validate(p);
     expect(run.errors).toEqual([
       expect.objectContaining({ code: "PACK_FORM_UNKNOWN", path: `${DIR}/${ID_A}.json#/metrics` })
+    ]);
+  });
+
+  it("judges review metrics by evidence/review.metrics.schema.json: a string count is SCHEMA_VIOLATION, numbers pass (SCN-SDD-024)", async () => {
+    const p = await seeded();
+    /** A record of kind `review` in the shape `run submit` writes (REQ-ENF-007). */
+    const review = (id: string, metrics: Record<string, unknown>): Record<string, unknown> =>
+      evidence(id, {
+        kind: "review",
+        level: "L2",
+        subject: { commit: "abc1234def", spec_revision: "openspec/changes/add-search@abc1234def", spec_tree: `sha256:${"2".repeat(64)}` },
+        produced_by: { type: "skill", id: "specification/adversarial-review", version: "0.2.0", run: "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y" },
+        limitations: ["produced locally, unattested", "same model family as author"],
+        metrics
+      });
+    p.write(`${DIR}/${ID_A}.json`, review(ID_A, { BLOCKER: "one", MAJOR: 0, MINOR: 0, INFO: 0 }))
+      .write(`${DIR}/${ID_B}.json`, review(ID_B, { BLOCKER: 0, MAJOR: 1, MINOR: 0, INFO: 2 }))
+      .write(`${DIR}/manifest.json`, manifest([ID_A, ID_B]));
+    const run = await validate(p);
+    expect(run.errors).toEqual([
+      expect.objectContaining({ code: "SCHEMA_VIOLATION", path: `${DIR}/${ID_A}.json#/metrics/BLOCKER` })
     ]);
   });
 

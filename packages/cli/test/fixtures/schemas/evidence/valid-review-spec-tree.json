@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1A3",
+  "claim": {
+    "text": "adversarial review of add-search found no BLOCKER",
+    "targets": []
+  },
+  "kind": "review",
+  "level": "L2",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "abc1234",
+    "spec_revision": "openspec/changes/add-search@abc1234",
+    "spec_tree": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "skill",
+    "id": "specification/adversarial-review",
+    "version": "0.2.0",
+    "run": "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "effective_policy_hash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "created_at": "2026-09-22T10:00:00Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/runs/RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y.result.json",
+      "sha256": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    }
+  ],
+  "limitations": [
+    "produced locally, unattested",
+    "same model family as author"
+  ],
+  "metrics": {
+    "BLOCKER": 0,
+    "MAJOR": 1,
+    "MINOR": 0,
+    "INFO": 0
+  }
+}

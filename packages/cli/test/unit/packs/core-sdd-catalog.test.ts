@@ -59,7 +59,7 @@ describe("pack core-sdd: каталог", () => {
     expect(provides["gates"]).toContain("gates/spec-approved.json");
     expect(provides["checks"]).toEqual(["checks/openspec-validate.json", "checks/tests-passed.json"]);
     expect(provides["controller_rules"]).toEqual(["controller/rules.json"]);
-    expect(provides["skills"]).toEqual(["specification/adversarial-review@^0.1"]);
+    expect(provides["skills"]).toEqual(["specification/adversarial-review@^0.2"]);
   });
 
   it("каждый список provides отсортирован и каждый путь существует", () => {
@@ -203,26 +203,27 @@ describe("pack core-sdd: каталог", () => {
     }
   });
 
-  it("версия 0.3.x, kernel >=0.1 <0.6, rules пуст, pack.json валиден (REQ-SDD-001, SCN-KRN-012)", () => {
-    // REQ-SDD-001 называет 0.3.x, kernel <0.6 — delta phase-4a (I-156); patch растёт по дисциплине версий (R-14).
+  it("версия 0.3.x, kernel >=0.1 <0.7, rules пуст, pack.json валиден (REQ-SDD-001, SCN-KRN-012)", () => {
+    // REQ-SDD-001 называет 0.3.x, kernel <0.7 — delta phase-4b; patch растёт по дисциплине версий (R-14).
     expect(manifest.version).toMatch(/^0\.3\.\d+$/);
-    expect(manifest.kernel).toBe(">=0.1 <0.6");
+    expect(manifest.kernel).toBe(">=0.1 <0.7");
     expect(provides["rules"]).toEqual([]);
     const result = validateFile(manifest, "pack.json");
     expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true);
   });
 
-  it("evidence_kinds: test-report и spec-report — объекты с существующими metrics_schema, review и human-approval — строки (SCN-SDD-017)", () => {
+  it("evidence_kinds: test-report, spec-report и review — объекты с существующими metrics_schema, human-approval — строка (SCN-SDD-017, SCN-SDD-024)", () => {
     const kinds = provides["evidence_kinds"] as unknown as (string | { kind: string; metrics_schema: string })[];
     expect(kinds).toEqual([
       { kind: "test-report", metrics_schema: "evidence/test-report.metrics.schema.json" },
       { kind: "spec-report", metrics_schema: "evidence/spec-report.metrics.schema.json" },
-      "review",
+      { kind: "review", metrics_schema: "evidence/review.metrics.schema.json" },
       "human-approval"
     ]);
     const shapes: Record<string, Record<string, string>> = {
       "test-report": { tests: "integer", failures: "integer", errors: "integer", skipped: "integer" },
-      "spec-report": { issues: "integer" }
+      "spec-report": { issues: "integer" },
+      review: { BLOCKER: "integer", MAJOR: "integer", MINOR: "integer", INFO: "integer" }
     };
     for (const entry of kinds) {
       if (typeof entry === "string") continue;
@@ -255,14 +256,14 @@ describe("pack core-sdd: каталог", () => {
     );
   });
 
-  it("skill adversarial-review лежит на месте с frontmatter 0.1.0 (REQ-SDD-008)", () => {
+  it("skill adversarial-review лежит на месте с frontmatter 0.2.0 (REQ-SDD-008)", () => {
     const file = path.join(REPO_ROOT, "sra", "skills", "specification", "adversarial-review", "SKILL.md");
     expect(existsSync(file)).toBe(true);
     const text = readFileSync(file, "utf8");
     expect(text.startsWith("---\n")).toBe(true);
     const frontmatter = text.slice(4, text.indexOf("\n---", 4));
     expect(frontmatter).toMatch(/^name: adversarial-review$/m);
-    expect(frontmatter).toMatch(/^version: 0\.1\.0$/m);
+    expect(frontmatter).toMatch(/^version: 0\.2\.0$/m);
     expect(frontmatter).toMatch(/^description: .+$/m);
   });
 });

@@ -21,12 +21,13 @@ import { runStatus } from "../commands/status.js";
 import { runClassify } from "../commands/classify.js";
 import { runCheck } from "../commands/check.js";
 import { runGate } from "../commands/gate.js";
+import { runAnalyze } from "../commands/analyze.js";
 import { runVerify } from "../commands/verify.js";
 import { runTransition } from "../commands/transition.js";
 import { runArchive } from "../commands/archive.js";
 import { runLink } from "../commands/link.js";
 import { runWaive } from "../commands/waive.js";
-import { runFinish, runStart } from "../commands/run.js";
+import { runFinish, runStart, runSubmit } from "../commands/run.js";
 import { runGuard, runGuardFrontend } from "../commands/guard.js";
 import { readStdin } from "../io/stdin.js";
 import { UNREADABLE_EXIT, type FrontendAdapter } from "../core/ports/frontend.js";
@@ -297,6 +298,16 @@ register(
       .option("--base <ref>", "base commit of the diff (default: merge-base of HEAD and main)")
 );
 register(
+  "analyze",
+  "check delta specs, tasks.md and tests of a change against each other by ids (UNSATISFIED, CONFLICT, ORPHAN); writes nothing",
+  (ctx, args, opts) => runAnalyze(ctx, args[0] as string, typeof opts["base"] === "string" ? { base: opts["base"] } : {}),
+  (c) =>
+    c
+      .argument("<change>")
+      .option("--base <ref>", "base commit of the diff whose test files ORPHAN reads (default: merge-base of HEAD and main)")
+      .addHelpText("after", examples(["warrant analyze add-search", "warrant analyze add-search --base origin/main"]))
+);
+register(
   "verify",
   "run the checks of a transition, then its gates and the controller",
   (ctx, args, opts) =>
@@ -351,7 +362,7 @@ register(
 
 const runGroup = program
   .command("run")
-  .description("start or finish a Run: one attempt of an agent at an operation of a change (write_scope, Context Pack)");
+  .description("start, finish or submit a Run: one attempt of an agent at an operation of a change (write_scope, Context Pack)");
 register(
   "start",
   "create a RUNNING Run of a change and print its Context Pack; one active Run per worktree",
@@ -364,7 +375,10 @@ register(
   (c) =>
     c
       .argument("[change]", "the change the Run works on")
-      .option("--operation <specify|implement>", "specify: the artifacts of a PROPOSED change; implement: paths.src, paths.tests and tasks.md of an IMPLEMENTING one")
+      .option(
+        "--operation <specify|implement|review>",
+        "specify: the artifacts of a PROPOSED change; implement: paths.src, paths.tests and tasks.md of an IMPLEMENTING one; review: reads the committed spec of a PROPOSED one, writes nothing"
+      )
       .option("--scope <globs>", "comma-separated globs that narrow write_scope: a path must match both")
       .option("--task <label>", "label of the task, kept in the Run unchecked")
       .option("--dry-run", DRY_RUN)
@@ -372,7 +386,8 @@ register(
         "after",
         examples([
           "warrant run start add-search --operation specify --dry-run",
-          "warrant run start add-search --operation implement --scope src/search/** --task 2.1"
+          "warrant run start add-search --operation implement --scope src/search/** --task 2.1",
+          "warrant run start add-search --operation review"
         ])
       ),
   runGroup
@@ -386,6 +401,28 @@ register(
       .option("--state <SUCCEEDED|FAILED|CANCELLED>", "the state the Run ends in (default: SUCCEEDED)")
       .option("--dry-run", DRY_RUN)
       .addHelpText("after", examples(["warrant run finish --dry-run", "warrant run finish --state FAILED"])),
+  runGroup
+);
+register(
+  "submit",
+  "hand in the result envelope (warrant://skill-result/1) of the active review Run: evidence kind review, the Run finished",
+  (ctx, _args, opts) =>
+    runSubmit(
+      ctx,
+      { ...(typeof opts["file"] === "string" ? { file: opts["file"] } : {}) },
+      // Without --file the envelope is stdin; a terminal on stdin holds none.
+      () => (process.stdin.isTTY === true ? Promise.resolve("") : readStdin())
+    ),
+  (c) =>
+    c
+      .option("--file <path>", "the envelope file; without it the envelope is read from stdin")
+      .option("--dry-run", DRY_RUN)
+      .addHelpText(
+        "after",
+        "\nThe envelope names the active Run in \"run\" and the review skill of the pack in \"skill\"; evidence_status is\n" +
+          "PROVEN without a BLOCKER finding, NOT_PROVEN with one, INCONCLUSIVE when run_state is FAILED or CANCELLED.\n" +
+          examples(["warrant run submit --file review.json --dry-run", "warrant run submit < review.json"])
+      ),
   runGroup
 );
 
@@ -435,7 +472,7 @@ program
 
 /** `hint` of a usage error Commander reports, for the commands born with hints (REQ-KRN-002). */
 function usageHint(command: string): string | undefined {
-  if (command === "run") return "see `warrant run start --help` or `warrant run finish --help`";
+  if (command === "run") return "see `warrant run start --help`, `warrant run finish --help` or `warrant run submit --help`";
   return command === "guard" ? "see `warrant guard --help`" : undefined;
 }
 

@@ -19,7 +19,7 @@ import { describe, expect, it } from "vitest";
 
 import { runCli, type CliRun } from "../helpers/cli.js";
 import { git } from "../helpers/git.js";
-import { PACKS, record, useSyncedProject, write } from "../helpers/synced.js";
+import { PACKS, recordDoc, useSyncedProject, write } from "../helpers/synced.js";
 
 const hasGit = spawnSync("git", ["--version"]).status === 0;
 const project = useSyncedProject();
@@ -50,7 +50,7 @@ The system SHALL return every item whose title contains the query.
 /** Record MERGED, the Change committed on `main`, HEAD on `archive/add-search`. */
 function repo(): string {
   const root = project();
-  write(root, RECORD, record("add-search", "MERGED", { classification: { profiles: ["feature"] } }));
+  write(root, RECORD, recordDoc("add-search", "MERGED", { classification: { profiles: ["feature"] } }));
   write(
     root,
     `${ACTIVE}/proposal.md`,

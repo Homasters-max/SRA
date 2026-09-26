@@ -15,7 +15,8 @@ import {
   contextHash,
   type CheckRecordInput
 } from "../../../src/core/evidence/record.js";
-import { evidenceDir, listRecordIds, projectUri, rawDir, stateDir } from "../../../src/core/evidence/store.js";
+import { evidenceDir, listRecordIds, rawDir } from "../../../src/core/evidence/store.js";
+import { projectUri, stateDir } from "../../../src/core/fs.js";
 import { validateDocument } from "../../../src/core/schemas/loader.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 

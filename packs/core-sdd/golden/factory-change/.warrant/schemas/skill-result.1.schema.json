@@ -1,0 +1,247 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "warrant://skill-result/1",
+  "title": "WARRANT skill result",
+  "description": "Result envelope of a skill (07 section 4): findings, proposals, unknowns and decisions of one Run, with `run_state` as the only status. A skill does not judge: the envelope carries no `gate_verdict` and no `evidence_status`. `warrant run submit` stores it as `<state>/runs/<RUN-id>.result.json`, committed with the Run.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Schema URI of this document.",
+      "const": "warrant://skill-result/1"
+    },
+    "skill": {
+      "description": "Skill that produced the result, `namespace/name@version`.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*@\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "run": {
+      "description": "Run id `RUN-<ULID>` the skill worked in.",
+      "$ref": "warrant://common/1#/$defs/run_id"
+    },
+    "run_state": {
+      "description": "How the Run of the skill ended: the only status a skill reports (07 section 4).",
+      "type": "string",
+      "enum": ["SUCCEEDED", "FAILED", "CANCELLED"]
+    },
+    "findings": {
+      "description": "What the skill found; every finding carries its epistemic marker.",
+      "type": "array",
+      "items": {
+        "description": "One finding.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Id of the finding local to this result, for example `F-1`.",
+            "type": "string",
+            "minLength": 1
+          },
+          "marker": {
+            "description": "Epistemic marker (02 section 1): an INFERENCE is never passed off as a FACT.",
+            "type": "string",
+            "enum": ["FACT", "INFERENCE"]
+          },
+          "severity": {
+            "description": "Severity of the finding; `BLOCKER` makes review evidence `NOT_PROVEN` (ADR-0036 section 4).",
+            "type": "string",
+            "enum": ["BLOCKER", "MAJOR", "MINOR", "INFO"]
+          },
+          "category": {
+            "description": "Category of the finding named by the skill, for example `missing-boundary`.",
+            "type": "string",
+            "minLength": 1
+          },
+          "statement": {
+            "description": "The finding in one or a few sentences.",
+            "type": "string",
+            "minLength": 1
+          },
+          "targets": {
+            "description": "What the finding is about: stable ids or project paths.",
+            "type": "array",
+            "items": {
+              "description": "One stable id or path.",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "recommendation": {
+            "description": "What the skill recommends doing about the finding.",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["id", "marker", "severity", "category", "statement"],
+        "additionalProperties": false
+      }
+    },
+    "proposals": {
+      "description": "Proposed edits of artifacts; the skill proposes, it does not edit.",
+      "type": "array",
+      "items": {
+        "description": "One proposed edit.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Id of the proposal local to this result, for example `P-1`.",
+            "type": "string",
+            "minLength": 1
+          },
+          "target": {
+            "description": "Project path of the artifact the edit is for.",
+            "type": "string",
+            "minLength": 1
+          },
+          "change": {
+            "description": "The proposed edit.",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["id", "target", "change"],
+        "additionalProperties": false
+      }
+    },
+    "unknowns": {
+      "description": "Decision-relevant questions the skill could not answer (02 section 1); stable ids are given by the CLI.",
+      "type": "array",
+      "items": {
+        "description": "One unknown.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Id of the unknown local to this result, for example `U-1`.",
+            "type": "string",
+            "minLength": 1
+          },
+          "question": {
+            "description": "The open question.",
+            "type": "string",
+            "minLength": 1
+          },
+          "blocking": {
+            "description": "Whether the question blocks the next transition.",
+            "type": "boolean"
+          },
+          "impact": {
+            "description": "What the answer may change, for example `design`.",
+            "type": "array",
+            "items": {
+              "description": "One affected artifact or area.",
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": ["id", "question"],
+        "additionalProperties": false
+      }
+    },
+    "assumptions": {
+      "description": "Assumptions the skill made instead of asking (02 section 1).",
+      "type": "array",
+      "items": {
+        "description": "One assumption.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Id of the assumption local to this result, for example `A-1`.",
+            "type": "string",
+            "minLength": 1
+          },
+          "statement": {
+            "description": "The assumption.",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["id", "statement"],
+        "additionalProperties": false
+      }
+    },
+    "decisions_required": {
+      "description": "Decisions a human has to take before the work goes on.",
+      "type": "array",
+      "items": {
+        "description": "One decision.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Id of the decision local to this result, for example `D-1`.",
+            "type": "string",
+            "minLength": 1
+          },
+          "question": {
+            "description": "The question to decide.",
+            "type": "string",
+            "minLength": 1
+          },
+          "options": {
+            "description": "The options the skill sees.",
+            "type": "array",
+            "items": {
+              "description": "One option.",
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": ["id", "question"],
+        "additionalProperties": false
+      }
+    },
+    "artifacts_to_update": {
+      "description": "Artifacts the result makes stale, for example `design.md`.",
+      "type": "array",
+      "items": {
+        "description": "One artifact.",
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "recommended_operations": {
+      "description": "Operations (04 section 3) the skill recommends next, for example `clarify`.",
+      "type": "array",
+      "items": {
+        "description": "One operation.",
+        "$ref": "warrant://common/1#/$defs/kebab_id"
+      }
+    },
+    "provenance": {
+      "description": "Where the result comes from: the context the skill saw, the model and the time it worked.",
+      "type": "object",
+      "properties": {
+        "context_hash": {
+          "description": "Hash of the Context Pack the skill worked with.",
+          "$ref": "warrant://common/1#/$defs/sha256"
+        },
+        "model": {
+          "description": "Model the skill ran on.",
+          "type": "string",
+          "minLength": 1
+        },
+        "started_at": {
+          "description": "When the skill started (RFC 3339).",
+          "type": "string",
+          "format": "date-time"
+        },
+        "finished_at": {
+          "description": "When the skill finished (RFC 3339).",
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["started_at", "finished_at"],
+      "additionalProperties": false
+    },
+    "gate_verdict": {
+      "description": "Not allowed: a skill does not issue a verdict (07 section 4); gates are computed by the CLI.",
+      "not": {}
+    },
+    "evidence_status": {
+      "description": "Not allowed: a skill does not issue an evidence status (07 section 4); the CLI derives it when it records evidence.",
+      "not": {}
+    }
+  },
+  "required": ["$schema", "skill", "run", "run_state", "findings", "provenance"],
+  "additionalProperties": false
+}

@@ -28,7 +28,7 @@ import { recordedHook, recordedInputIn, recordedVersions } from "../helpers/clau
 import { makeTempDir, removeDir, runCli, type CliRun } from "../helpers/cli.js";
 import { git } from "../helpers/git.js";
 import { openspecSync } from "../helpers/openspec.js";
-import { record, write } from "../helpers/synced.js";
+import { recordDoc, write } from "../helpers/synced.js";
 
 // `openspec` is slow to start, especially on Windows.
 const TIMEOUT = 180_000;
@@ -106,7 +106,7 @@ describe.skipIf(!hasGit)("adapter claude: init --frontend claude, sync, run, gua
       const change = await cli(["init", "change", "demo"]);
       expect(change.json?.errors).toEqual([]);
       write(root, "openspec/changes/demo/tasks.md", "# Tasks\n\n## 1. Search\n\n- [x] 1.1 Implement search\n");
-      write(root, ".warrant/changes/demo.json", record("demo", "IMPLEMENTING", FEATURE));
+      write(root, ".warrant/changes/demo.json", recordDoc("demo", "IMPLEMENTING", FEATURE));
       const validated = await cli(["validate"]);
       expect(validated.json?.errors).toEqual([]);
       git(root, "-c", "init.defaultBranch=main", "init", "--quiet");
@@ -139,7 +139,7 @@ describe.skipIf(!hasGit)("adapter claude: init --frontend claude, sync, run, gua
       expect(JSON.stringify(run)).not.toMatch(/claude/i);
 
       // The impl-PR with the Run file: every edit of code had its post event.
-      write(root, ".warrant/changes/demo.json", record("demo", "VERIFYING", FEATURE));
+      write(root, ".warrant/changes/demo.json", recordDoc("demo", "VERIFYING", FEATURE));
       git(root, "add", "-A");
       git(root, "commit", "--quiet", "-m", "impl");
       const verify = (): Promise<CliRun> => cli(["verify", "demo", "--transition", "VERIFYING->MERGED"]);

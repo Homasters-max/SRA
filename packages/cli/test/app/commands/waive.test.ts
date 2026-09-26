@@ -54,7 +54,9 @@ function seeded(id: string, state: string, gate: string): Record<string, unknown
 /**
  * Synced project, record `add-search` in `VERIFYING` on profile `feature` (its
  * `VERIFYING->MERGED` has `analyze-clean`), waivers `001` and `004` of the
- * clock's year, one commit on `main`.
+ * clock's year. No git on purpose: without a diff `analyze-clean` is
+ * `BLOCKED` with `NO_INPUT` (REQ-VER-004), the gate SCN-KRN-121, 122 and 124
+ * speak of; with a diff it is computed and passes on this Change (I-166).
  */
 async function repo(): Promise<ProjectBuilder> {
   const p = await project()
@@ -63,7 +65,6 @@ async function repo(): Promise<ProjectBuilder> {
     .withWaiver(seeded(wav(1), "REVOKED", "adversarial-review"))
     .withWaiver(seeded(wav(4), "PROPOSED", "branch-isolated"))
     .synced();
-  p.commit("base");
   return p;
 }
 

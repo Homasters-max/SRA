@@ -25,6 +25,7 @@ import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError } from "../core/errors.js";
 import { readGitFacts } from "../core/git/facts.js";
 import { loadPacks } from "../core/packs/loader.js";
+import { packObjects } from "../core/packs/objects.js";
 import type { PackObject } from "../core/packs/types.js";
 import { nextForwardTransition } from "../core/record/lifecycle.js";
 import { readChangeRecord } from "../core/record/read.js";
@@ -65,7 +66,7 @@ export async function runCheck(
   const policy = resolved.result.policy;
 
   // Which checks: the named ones, or those of the next forward transition.
-  const checks = new Map(loaded.objects.filter((o) => o.kind === "check").map((o) => [o.id, o]));
+  const checks = new Map(packObjects(loaded, "check").map((o) => [o.id, o]));
   let transition: string | null = null;
   let selected: PackObject[];
   if (ids.length > 0) {

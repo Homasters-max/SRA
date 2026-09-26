@@ -1,19 +1,19 @@
 {
   "$schema": "warrant://lock/1",
-  "kernel": "0.5.0",
+  "kernel": "0.6.0",
   "openspec": "1.13.1",
   "packs": {
     "core-sdd": {
-      "version": "0.3.1",
+      "version": "0.3.2",
       "source": "bundled",
-      "hash": "sha256:9e4bdd538852014d52027497fb08b4d4b7b020a1ae7e88136d80e42a6a1bfad0"
+      "hash": "sha256:a8751e867dee8b2b0faeb449f22beffbf011263dfd158c0a90c88cf02a20e446"
     }
   },
   "skills": {
     "specification/adversarial-review": {
-      "version": "0.1.0",
+      "version": "0.2.0",
       "path": "sra/skills/specification/adversarial-review/SKILL.md",
-      "hash": "sha256:a0e8e2dfb9524761930ba6dc178cecf1e3b0f74ba1569bad463b1a4f744db373",
+      "hash": "sha256:23feaa7cca577e7f9850ea4e73903e7736848e870190faf5b3ad0d1139aaa436",
       "source": "bundled"
     }
   },
@@ -25,7 +25,7 @@
     ".warrant/schemas/config.1.schema.json": "sha256:45b62c5db33a15f4d5d4b10ebb2e3c70aa5633ee0ea901683b51034b5dc3b7cd",
     ".warrant/schemas/controller-rules.1.schema.json": "sha256:6493b5f1f8f483c02157427c4bfe3a28ef5bd9a95c8259095cadeab261b6d765",
     ".warrant/schemas/evidence-manifest.1.schema.json": "sha256:25b416314d9759c0e0d854a47758dae7843f3dc48c743012e03478817bd9ffdb",
-    ".warrant/schemas/evidence.1.schema.json": "sha256:d93118c8d992704b820fa387461b6ade57bb6885f2791cc97ebb6d6d71bdd3e8",
+    ".warrant/schemas/evidence.1.schema.json": "sha256:1865282aea27725d4d80432a51eb2b663df644f7b98d58da2443a2dd6cfebfe1",
     ".warrant/schemas/gate.1.schema.json": "sha256:aadc86c6f42777a62baf409d8663bb249502f2a157eeb4fdb5a9d5fdbe1f56a6",
     ".warrant/schemas/lock.1.schema.json": "sha256:f230067ef8bd43b93ee5dbe1536d2d98696e9a77d9fb98b00bdaa59f06cc6189",
     ".warrant/schemas/openspec-rules.1.schema.json": "sha256:a4abec7af798154247505389062cf6f8be3bdfb85a62be28db9b332c6aaf07bb",
@@ -36,7 +36,8 @@
     ".warrant/schemas/risk-floor.1.schema.json": "sha256:ef10883aea0f0da08f25d3749225889fcec4fb29ed0efe2f88423da8dc7511ec",
     ".warrant/schemas/risk-levels.1.schema.json": "sha256:7517af13d686af3009c8e355a9881182c5d6fc6b5f8317e0933bbcafaa5c5f26",
     ".warrant/schemas/rule.1.schema.json": "sha256:825af0cac60ca2281b1316335b06ae674ed72378a059ac20774899e520a03482",
-    ".warrant/schemas/run.1.schema.json": "sha256:9124dbf90475c539773b03f6c890d92a4ceec43464a86e7bb433396bafd7b408",
+    ".warrant/schemas/run.1.schema.json": "sha256:dd65e195d4056af6302cbd4b782910feb8b3b7d04692ab41835b366bab55dc08",
+    ".warrant/schemas/skill-result.1.schema.json": "sha256:1c055fb0139ab1294e624477422cfb4cffeb8be4df70b3facab118d8de85b5f4",
     ".warrant/schemas/waiver.1.schema.json": "sha256:427d12eff01e3a2f4c1a37e61a02a839d59835b710a9afff74ccee0f67f0d1ea",
     "openspec/config.yaml": "sha256:f5dc5917fd988e1e3fb603996d7b539a57adbdf7132322644a073c38fce8ac22",
     "openspec/schemas/warrant-sdd/schema.yaml": "sha256:b608edc3b6b8532fc4a9d3f5cdbc0b702e8882a6999f75ae9453a8fb4ad05189",

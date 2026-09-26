@@ -13,6 +13,7 @@ import path from "node:path";
 import type { CliError } from "../errors.js";
 import { reportPath, walkFiles } from "../fs.js";
 import { isPlainObject } from "../json.js";
+import { packObjects } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import type { RecordFile } from "../record/read.js";
 import { roleMembers } from "../roles.js";
@@ -38,7 +39,7 @@ export function checkWaivers(
 ): WaiverCheck {
   const errors: CliError[] = [];
   const warnings: string[] = [];
-  const gates = new Map(loaded.objects.filter((o) => o.kind === "gate").map((o) => [o.id, o]));
+  const gates = new Map(packObjects(loaded, "gate").map((o) => [o.id, o]));
   const members = roleMembers(loaded.config);
 
   for (const absolute of walkFiles(path.join(root, WAIVERS_DIR))) {

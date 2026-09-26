@@ -15,8 +15,8 @@ import { cliError, SYNC_HINT, type CliError } from "../errors.js";
 import { reportPath, walkFiles } from "../fs.js";
 import { isPlainObject } from "../json.js";
 import { validateFile } from "../schemas/semantic.js";
+import { versionSatisfies } from "../version-range.js";
 import { CLI_VERSION, KERNEL_VERSION } from "../../version.js";
-import semver from "semver";
 
 import { bundledPacksDir } from "./loader.js";
 import type { LoadedPack } from "./types.js";
@@ -139,7 +139,7 @@ export function checkLock(input: LockCheckInput): CliError[] {
     // Version range the pack was configured with, or `*` when the config says nothing.
     const range = config.packs.find((entry) => entry.id === pack.id)?.range ?? "*";
     const lockVersion = typeof entry["version"] === "string" ? entry["version"] : "";
-    if (lockVersion !== "" && range !== "*" && !semver.satisfies(lockVersion, range, { includePrerelease: true })) {
+    if (lockVersion !== "" && range !== "*" && !versionSatisfies(lockVersion, range)) {
       errors.push(
         cliError(
           "LOCK_MISMATCH",

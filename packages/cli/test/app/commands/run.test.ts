@@ -1,6 +1,6 @@
 /**
  * `warrant run start` / `run finish` in the test process (REQ-ENF-001…003,
- * SCN-ENF-002, 004…010): the Run file and `current`, `write_scope` by
+ * SCN-ENF-002, 004…010, 023): the Run file and `current`, `write_scope` by
  * operation, the Context Pack, one active Run per worktree, `--dry-run`, the
  * lock of the Run file (F18) and a `hint` on every error (REQ-KRN-002).
  */
@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import { runFinish, runStart, type RunFinishOptions, type RunStartOptions } from "../../../src/commands/run.js";
 import { canonicalText } from "../../../src/core/canon/format-json.js";
+import { specTreeHash } from "../../../src/core/git/facts.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { CORE_SDD_RANGE } from "../../helpers/cli.js";
 import { withoutDryRun, writtenBeyond } from "../helpers/dry-run.js";
@@ -200,7 +201,7 @@ describe("warrant run start", () => {
     const results = [
       await start(p, undefined, { operation: "specify" }),
       await start(p, "add-search", {}),
-      await start(p, "add-search", { operation: "review" }),
+      await start(p, "add-search", { operation: "deploy" }),
       await start(p, "add-search", { operation: "specify", scope: " , " }),
       await start(p, "no-such-change", { operation: "specify" }),
       await finish(p, { state: "DONE" })
@@ -223,6 +224,96 @@ describe("warrant run start", () => {
     expect(run.exitCode).toBe(3);
     expect(run.errors[0]?.path).toBe(`${RUNS}/RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y.json`);
     expect(run.errors[0]?.hint).toContain(CURRENT);
+  });
+});
+
+describe("warrant run start --operation review (REQ-ENF-002)", () => {
+  const SPEC = "openspec/changes/add-search/specs/search/spec.md";
+
+  /** `add-search` in `state` with a delta spec, everything committed. */
+  async function reviewed(state = "PROPOSED"): Promise<ProjectBuilder> {
+    const p = await repo(state, (b) => {
+      b.write(SPEC, "## ADDED Requirements\n");
+      rule(b, "specs", ["openspec/**"]);
+    });
+    p.commit("spec");
+    return p;
+  }
+
+  it("the spec committed: write_scope empty, spec_tree of HEAD, the artifacts in items[], no rules, exit 0 (SCN-ENF-024)", async () => {
+    const p = await reviewed();
+    const run = await start(p, "add-search", { operation: "review" });
+    expect(run.errors).toEqual([]);
+    expect(run.exitCode).toBe(0);
+    const id = run.data["run"] as string;
+    const tree = await specTreeHash(p.ctx, "HEAD", "add-search");
+    expect(tree.ok).toBe(true);
+    expect(readRun(p, id)).toMatchObject({
+      operation: "review",
+      write_scope: [],
+      scope: [],
+      spec_tree: tree.ok ? tree.value : "",
+      run_state: "RUNNING"
+    });
+    expect(run.data["write_scope"]).toEqual([]);
+    expect(run.data["rules"]).toEqual([]);
+    expect(run.data["items"].map((i: Data) => i.path)).toEqual([
+      "openspec/changes/add-search/proposal.md",
+      SPEC,
+      "openspec/changes/add-search/tasks.md"
+    ]);
+    expect(p.read(CURRENT)).toBe(`${id}\n`);
+    expect(await validateErrors(p)).toEqual([]);
+  });
+
+  it("design.md and tasks.md are not the spec: changed ones do not stop a review", async () => {
+    const p = await reviewed();
+    p.write("openspec/changes/add-search/tasks.md", "## 1. Search\n\n- [x] 1.1 Index\n");
+    expect((await start(p, "add-search", { operation: "review" })).errors).toEqual([]);
+  });
+
+  it("a spec file changed in the work tree: SPEC_UNCOMMITTED naming it, a hint to commit, no Run file, exit 3 (SCN-ENF-025)", async () => {
+    const p = await reviewed();
+    p.write(SPEC, "## ADDED Requirements\n\n### Requirement: More\n");
+    const run = await start(p, "add-search", { operation: "review" });
+    expect(run.exitCode).toBe(3);
+    expect(run.errors[0]?.code).toBe("SPEC_UNCOMMITTED");
+    expect(run.errors[0]?.path).toBe(SPEC);
+    expect(run.errors[0]?.hint).toMatch(/commit/);
+    expect(runFiles(p)).toEqual([]);
+    expect(existsSync(path.join(p.root, ".warrant", "runs", "current"))).toBe(false);
+  });
+
+  it("a new spec file and a project without a commit are uncommitted too", async () => {
+    const p = await reviewed();
+    p.write("openspec/changes/add-search/specs/other/spec.md", "## ADDED Requirements\n");
+    const added = await start(p, "add-search", { operation: "review" });
+    expect(added.errors[0]).toMatchObject({ code: "SPEC_UNCOMMITTED", path: "openspec/changes/add-search/specs/other/spec.md" });
+
+    const bare = await repo("PROPOSED");
+    const none = await start(bare, "add-search", { operation: "review" });
+    expect(none.exitCode).toBe(3);
+    expect(none.errors[0]?.code).toBe("SPEC_UNCOMMITTED");
+    expect(none.errors[0]?.hint).toMatch(/commit/);
+  });
+
+  it("review outside PROPOSED is STATE_INVALID with a hint", async () => {
+    const p = await reviewed("SPECIFIED");
+    const run = await start(p, "add-search", { operation: "review" });
+    expect(run.errors[0]?.code).toBe("STATE_INVALID");
+    expect(run.errors[0]?.hint).toMatch(/PROPOSED/);
+    expect(runFiles(p)).toEqual([]);
+  });
+
+  it("--dry-run: the same JSON, would_write[] of the Run file and current, no file created", async () => {
+    const p = await reviewed();
+    const before = p.tree();
+    const dry = await start(p, "add-search", { operation: "review" }, p.dryRun());
+    expect(dry.errors).toEqual([]);
+    expect(dry.data["would_write"]).toEqual([`${RUNS}/${dry.data["run"] as string}.json`, CURRENT]);
+    expect(p.tree()).toEqual(before);
+    const real = await start(p, "add-search", { operation: "review" });
+    expect(withoutDryRun(dry.data)).toEqual(withoutDryRun(real.data));
   });
 });
 
@@ -330,5 +421,39 @@ describe("warrant validate over Run files (SCN-ENF-002)", () => {
     expect(errors).toContainEqual(
       expect.objectContaining({ code: "SCHEMA_VIOLATION", path: `${RUNS}/${id}.json#/guard_events/0/decision` })
     );
+  });
+
+  it("an implement Run with an empty write_scope or a spec_tree is SCHEMA_VIOLATION at the Run file (SCN-ENF-023)", async () => {
+    const p = await repo("IMPLEMENTING");
+    const id = (await start(p, "add-search", { operation: "implement" })).data["run"] as string;
+    const stored = readRun(p, id);
+    for (const [change, pointer] of [
+      [{ write_scope: [] }, "/write_scope"],
+      [{ spec_tree: `sha256:${"2".repeat(64)}` }, "/spec_tree"]
+    ] as const) {
+      p.write(`${RUNS}/${id}.json`, { ...stored, ...change });
+      const errors = await validateErrors(p);
+      expect(errors).toContainEqual(expect.objectContaining({ code: "SCHEMA_VIOLATION", path: `${RUNS}/${id}.json#${pointer}` }));
+    }
+  });
+
+  it("checks <state>/runs/*.result.json by warrant://skill-result/1 (REQ-ENF-006)", async () => {
+    const p = await repo("PROPOSED");
+    const id = "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y";
+    const envelope = {
+      $schema: "warrant://skill-result/1",
+      skill: "specification/adversarial-review@0.2.0",
+      run: id,
+      run_state: "SUCCEEDED",
+      findings: [{ id: "F-1", marker: "INFERENCE", severity: "MAJOR", category: "missing-boundary", statement: "No behavior for duplicate ids." }],
+      provenance: { started_at: "2026-09-25T10:00:00Z", finished_at: "2026-09-25T10:12:00Z" }
+    };
+    p.write(`${RUNS}/${id}.result.json`, envelope);
+    expect(await validateErrors(p)).toEqual([]);
+
+    p.write(`${RUNS}/${id}.result.json`, { ...envelope, evidence_status: "PROVEN" });
+    expect(await validateErrors(p)).toEqual([
+      expect.objectContaining({ code: "SCHEMA_VIOLATION", path: `${RUNS}/${id}.result.json#/evidence_status` })
+    ]);
   });
 });

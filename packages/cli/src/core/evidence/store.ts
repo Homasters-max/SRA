@@ -9,24 +9,13 @@
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 
-import { projectPath } from "../fs.js";
-
-/** Environment variable that moves `<state>` out of the project (D-2). */
-export const STATE_ENV = "WARRANT_STATE_DIR";
+import { stateDir } from "../fs.js";
 
 export const MANIFEST_FILE = "manifest.json";
 
 /** Record files are named by their id: `EVID-<ULID>.json`. */
 const RECORD_FILE_RE = /^EVID-[0-9A-HJKMNP-TV-Z]{26}\.json$/;
-
-/** Absolute `<state>` directory; a relative `WARRANT_STATE_DIR` is taken from the project root. */
-export function stateDir(root: string, env: NodeJS.ProcessEnv = process.env): string {
-  const override = env[STATE_ENV];
-  if (override !== undefined && override !== "") return path.resolve(root, override);
-  return path.join(root, ".warrant");
-}
 
 /** Absolute `<state>/evidence/<change>/`. */
 export function evidenceDir(root: string, change: string, env: NodeJS.ProcessEnv = process.env): string {
@@ -36,16 +25,6 @@ export function evidenceDir(root: string, change: string, env: NodeJS.ProcessEnv
 /** Absolute `{out}` of one check: `<state>/evidence/<change>/raw/<check-id>/`. */
 export function rawDir(root: string, change: string, checkId: string, env: NodeJS.ProcessEnv = process.env): string {
   return path.join(evidenceDir(root, change, env), "raw", checkId);
-}
-
-/**
- * How a file is referenced from a record or the CLI output: POSIX path
- * relative to the project root when it lies inside it, a `file://` URI
- * otherwise (a `WARRANT_STATE_DIR` outside the project, SCN-VER-003).
- */
-export function projectUri(root: string, absolute: string): string {
-  const rel = projectPath(root, absolute);
-  return rel === undefined || rel === "" ? pathToFileURL(absolute).href : rel;
 }
 
 /** Ids of the records in an evidence directory, sorted (ULIDs sort by time). */

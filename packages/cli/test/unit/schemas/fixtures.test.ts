@@ -72,6 +72,14 @@ const SCENARIOS: Record<string, string> = {
   "run/invalid-event-decision-ask.json": "SCN-ENF-002",
   "run/invalid-event-without-decision.json": "SCN-ENF-002",
   "run/invalid-event-frontend-key.json": "SCN-ENF-003",
+  "run/valid-review.json": "SCN-ENF-022",
+  "run/invalid-review-without-spec-tree.json": "SCN-ENF-022",
+  "run/invalid-implement-empty-write-scope.json": "SCN-ENF-023",
+  "run/invalid-implement-with-spec-tree.json": "SCN-ENF-023",
+  "skill-result/valid-review.json": "SCN-ENF-028",
+  "skill-result/invalid-evidence-status.json": "SCN-ENF-029",
+  "skill-result/invalid-finding-without-marker.json": "SCN-ENF-029",
+  "skill-result/invalid-finding-unknown-key.json": "SCN-ENF-029",
   "waiver/valid-doc-example.json": "SCN-KRN-038",
   "waiver/invalid-missing-expires-at.json": "SCN-KRN-039"
 };

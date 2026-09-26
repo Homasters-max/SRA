@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "core-sdd review metrics",
+  "description": "Shape of `metrics` in evidence of kind `review`: the number of findings of each `severity` in the envelope `warrant://skill-result/1` that `warrant run submit` recorded.",
+  "type": "object",
+  "properties": {
+    "BLOCKER": {
+      "description": "Number of findings of severity `BLOCKER`.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "MAJOR": {
+      "description": "Number of findings of severity `MAJOR`.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "MINOR": {
+      "description": "Number of findings of severity `MINOR`.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "INFO": {
+      "description": "Number of findings of severity `INFO`.",
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "BLOCKER",
+    "MAJOR",
+    "MINOR",
+    "INFO"
+  ],
+  "additionalProperties": false
+}

@@ -51,6 +51,8 @@ export const ERROR_CODES = [
   "BELOW_FLOOR",
   "RUN_ACTIVE",
   "RUN_NOT_ACTIVE",
+  "SPEC_UNCOMMITTED",
+  "SKILL_RESULT_INVALID",
   "INTERNAL"
 ] as const;
 

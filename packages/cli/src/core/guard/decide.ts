@@ -3,7 +3,9 @@
  * functions of the Run, the loaded project and the paths of the event.
  *
  * - `edit` with an active Run — `deny` for a path outside `write_scope` or a
- *   non-empty `scope` (F1);
+ *   non-empty `scope` (F1); under a `review` Run — `deny` for any path;
+ * - `shell` under a `review` Run — `allow` only for the strict form of
+ *   `warrant run submit [--file <path>] [--dry-run]`;
  * - `edit` without one — `deny` for the paths of code, tests, Changes and the
  *   policy paths, `allow` for the rest, both with the hint `run start`
  *   (ADR-0022 п. 7);
@@ -13,12 +15,12 @@
 import { effectiveCheck } from "../check/execute.js";
 import { pathMatcher } from "../glob.js";
 import { isPlainObject, strings } from "../json.js";
+import { policyPaths } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import { codeScope, scopeMatcher } from "../run/scope.js";
 import type { GuardResult } from "../ports/frontend.js";
 import type { Run } from "../run/types.js";
-import { policyPaths } from "../transition/gates.js";
-import { defaultPrefix, simpleCommands, startsWithPrefix } from "./shell.js";
+import { defaultPrefix, leafCommands, simpleCommands, startsWithPrefix } from "./shell.js";
 
 /** What guard answers, and the `argv` its event keeps (only a `deny` by a prefix, F16). */
 export interface Answer extends GuardResult {
@@ -33,8 +35,27 @@ export const VALIDATE_HINT = "run `warrant validate`";
 
 const allow = (hints: string[] = []): Answer => ({ decision: "allow", hints });
 
-/** `pre` `edit` with the active Run: every path inside `write_scope` and a non-empty `scope`. */
+/** The words every simple command of a shell line under a `review` Run starts with (REQ-ENF-004). */
+export const SUBMIT_PREFIX: readonly string[] = ["warrant", "run", "submit"];
+
+/**
+ * A path after `--file` under a `review` Run: letters, digits and `_ . / \ : @ + , ~ -`,
+ * no leading `-` — no shell metacharacter, no blank (REQ-ENF-004, REQ-ENF-007).
+ */
+const SUBMIT_PATH_RE = /^(?!-)[\p{L}\p{N}_./\\:@+,~-]+$/u;
+
+/** `hint` of a refusal under a `review` Run. */
+export const SUBMIT_HINT = "a review Run only reads; hand in its result with `warrant run submit` (envelope warrant://skill-result/1)";
+
+/** `pre` `edit` with the active Run: every path inside `write_scope` and a non-empty `scope`; none under a `review` Run. */
 export function editWithRun(run: Run, files: readonly string[]): Answer {
+  if (run.operation === "review" && files.length > 0) {
+    return {
+      decision: "deny",
+      reason: `${files.join(", ")}: the Run ${run.id} of ${run.change} is a review, and a review Run only reads`,
+      hints: [SUBMIT_HINT]
+    };
+  }
   const inside = scopeMatcher(run.write_scope, run.scope);
   const outside = files.filter((file) => !inside(file));
   if (outside.length === 0) return allow();
@@ -96,6 +117,49 @@ export function guardedChecks(loaded: LoadResult): GuardedCheck[] {
     out.push({ id: object.id, why, prefixes, scoped: strings(run["scoped_command"]).length > 0 });
   }
   return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/**
+ * True for the strict form `warrant run submit [--file <path>] [--dry-run]`
+ * (REQ-ENF-007): exactly these words, each option at most once, in any order,
+ * the path by {@link SUBMIT_PATH_RE}.
+ */
+function isSubmit(command: readonly string[]): boolean {
+  if (!startsWithPrefix(command, SUBMIT_PREFIX)) return false;
+  let dryRun = false;
+  let file = false;
+  for (let i = SUBMIT_PREFIX.length; i < command.length; i++) {
+    const word = command[i];
+    if (word === "--dry-run" && !dryRun) {
+      dryRun = true;
+    } else if (word === "--file" && !file && SUBMIT_PATH_RE.test(command[i + 1] ?? "")) {
+      file = true;
+      i++;
+    } else {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * `pre` `shell` under a `review` Run, fail-closed: `allow` only when every
+ * command of `argv` as written — a leading `VAR=…` kept; the commands inside
+ * exactly `bash -c <string>`, not the wrapper — is the strict form of
+ * `warrant run submit` ({@link isSubmit}); the operators of the tokenizer and
+ * a heredoc (data, I-167) may join them. Any other word — `&`, a redirection,
+ * `$(…)`, a comment, an assignment — or no command at all is `deny`.
+ */
+export function reviewShellAnswer(argv: readonly string[] | undefined, run: Run): Answer {
+  const commands = argv === undefined ? [] : leafCommands(argv, true);
+  const other = commands.find((command) => !isSubmit(command));
+  if (commands.length > 0 && other === undefined) return allow();
+  const what = other === undefined ? "no command" : `\`${other.join(" ")}\``;
+  return {
+    decision: "deny",
+    reason: `${what} under the review Run ${run.id} of ${run.change}: a review Run runs only \`${SUBMIT_PREFIX.join(" ")}\``,
+    hints: [SUBMIT_HINT]
+  };
 }
 
 /**

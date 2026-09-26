@@ -9,17 +9,22 @@
  * Claude Code changes; a changed form of the input fails here. The fixture's
  * `cwd` and the paths of its tool move into the test project
  * (`recordedInputIn`); the fixtures are not edited.
+ *
+ * The subagent `warrant-reviewer` (design phase-4b §6, task 6.3): versions whose
+ * fixtures hold the Bash of a subagent (`agent-*.json`, probe of 2.1.283,
+ * I-168) — its input reads as the main session's, and under a review Run guard
+ * allows only `warrant run submit` with the envelope in a heredoc.
  */
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { claudeFrontend } from "../../src/adapters/frontend/claude.js";
 import { runGuardFrontend } from "../../src/commands/guard.js";
-import { runStart } from "../../src/commands/run.js";
 import type { FrontendResponse } from "../../src/core/ports/frontend.js";
-import { invoke } from "../app/helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../app/helpers/project-builder.js";
-import { recordedHook, recordedInputIn, recordedVersions } from "../helpers/claude-hooks.js";
+import { started } from "../app/helpers/run.js";
+import { CLAUDE_FIXTURES, recordedHook, recordedInputIn, recordedVersions } from "../helpers/claude-hooks.js";
 import { CORE_SDD_RANGE } from "../helpers/cli.js";
 
 const project = useProjectBuilder();
@@ -34,10 +39,10 @@ const NOTEBOOK = "nb.ipynb";
 const BASH = ["echo", "probe-bash"];
 
 /**
- * `demo` in `IMPLEMENTING` with `paths.src: <src>`, a rule on notebooks and an
+ * `demo` in `state` (`IMPLEMENTING`) with `paths.src: <src>`, a rule on notebooks and an
  * exclusive check whose default prefix is `echo` (the command of the probe).
  */
-async function repo(src = "src"): Promise<ProjectBuilder> {
+async function repo(src = "src", state = "IMPLEMENTING"): Promise<ProjectBuilder> {
   return project()
     .write(".warrant/warrant.json", {
       $schema: "warrant://config/1",
@@ -58,15 +63,9 @@ async function repo(src = "src"): Promise<ProjectBuilder> {
       produces: ["test-report"],
       parser: "junit"
     })
-    .withRecord("demo", "IMPLEMENTING")
+    .withRecord("demo", state)
     .withChange("demo", { tasks: "## 1. Demo\n\n- [ ] 1.1 Demo\n" })
     .synced();
-}
-
-async function started(p: ProjectBuilder): Promise<string> {
-  const run = await invoke(() => runStart(p.ctx, "demo", { operation: "implement" }, ENV));
-  expect(run.errors).toEqual([]);
-  return run.data["run"] as string;
 }
 
 /** The hook answer of the recorded input `name` of `version`, moved into `p` (the file of the tool at `rel`). */
@@ -104,7 +103,7 @@ describe.each(versions)("adapter claude on the recorded input of Claude Code %s"
 
   it("PreToolUse Edit outside the write_scope of the active Run: permissionDecision deny naming the path, exit 0 (SCN-ENF-017)", async () => {
     const p = await repo();
-    await started(p);
+    await started(p, "demo");
     const denied = output(await answer(p, version, "pre-edit"));
     expect(denied["hookEventName"]).toBe("PreToolUse");
     expect(denied["permissionDecision"]).toBe("deny");
@@ -114,7 +113,7 @@ describe.each(versions)("adapter claude on the recorded input of Claude Code %s"
 
   it("PostToolUse NotebookEdit of a file under a rule not yet shown: the rule text in additionalContext, no permissionDecision (SCN-ENF-018)", async () => {
     const p = await repo();
-    await started(p);
+    await started(p, "demo");
     const hinted = output(await answer(p, version, "post-notebook-edit", "src/nb.ipynb"));
     expect(hinted["hookEventName"]).toBe("PostToolUse");
     expect(hinted["additionalContext"]).toContain(`rule notebooks: ${RULE_TEXT}`);
@@ -125,7 +124,7 @@ describe.each(versions)("adapter claude on the recorded input of Claude Code %s"
 
   it("PreToolUse Write inside write_scope: no permissionDecision allow, the answer is empty (SCN-ENF-019)", async () => {
     const p = await repo("notes");
-    await started(p);
+    await started(p, "demo");
     for (const name of ["pre-write", "pre-edit", "pre-notebook-edit"]) {
       const allowed = await answer(p, version, name, name === "pre-notebook-edit" ? "notes/nb.ipynb" : undefined);
       expect(allowed, name).toEqual({ stdout: "", exit: 0 });
@@ -143,7 +142,7 @@ describe.each(versions)("adapter claude on the recorded input of Claude Code %s"
 
   it("PreToolUse Bash of the prefix of an exclusive check: deny with warrant check; PostToolUse Bash answers nothing", async () => {
     const p = await repo();
-    await started(p);
+    await started(p, "demo");
     const denied = output(await answer(p, version, "pre-bash"));
     expect(denied["permissionDecision"]).toBe("deny");
     expect(denied["permissionDecisionReason"]).toContain("warrant check demo slow");
@@ -162,5 +161,55 @@ describe.each(versions)("adapter claude on the recorded input of Claude Code %s"
       expect.stringMatching(/^warrant guard --frontend claude: stdin is not JSON: /),
       expect.stringMatching(/^warrant guard --frontend claude: stdin is not a Claude Code hook input/)
     ]);
+  });
+});
+
+/** Versions whose fixtures hold the subagent's Bash: the hook of its frontmatter (`agent-pre-bash*`) and of settings.json. */
+const agentVersions = versions.filter((version) => existsSync(path.join(CLAUDE_FIXTURES, version, "agent-pre-bash-heredoc.json")));
+const AGENT_INPUTS = ["agent-pre-bash", "agent-pre-bash-heredoc", "agent-pre-bash-deny", "agent-session-pre-bash"];
+
+it("fixtures of a subagent are recorded for at least one version of Claude Code (I-168)", () => {
+  expect(agentVersions.length).toBeGreaterThan(0);
+});
+
+describe.each(agentVersions)("adapter claude on the recorded input of a subagent of Claude Code %s (design phase-4b §6)", (version) => {
+  /** `demo` in PROPOSED, its spec committed, the review Run of the subagent active. */
+  async function underReview(): Promise<ProjectBuilder> {
+    const p = await repo("src", "PROPOSED");
+    p.commit("spec");
+    await started(p, "demo", { operation: "review" });
+    return p;
+  }
+
+  it("the input of the subagent differs by agent_id and agent_type only, and reads as the main session's; the heredoc body is data (I-167)", () => {
+    const root = path.resolve("/project");
+    const main = recordedHook(version, "pre-bash");
+    for (const name of AGENT_INPUTS) {
+      const recorded = recordedHook(version, name);
+      expect(Object.keys(recorded).filter((key) => !(key in main)).sort(), name).toEqual(["agent_id", "agent_type"]);
+      expect(Object.keys(main).filter((key) => !(key in recorded)), name).toEqual([]);
+    }
+    const event = (name: string): unknown => claudeFrontend.toEvent(JSON.parse(recordedInputIn(recordedHook(version, name), root)) as unknown);
+    expect(event("agent-pre-bash")).toEqual({ phase: "pre", action: "shell", paths: [], argv: ["echo", "probe-agent-bash"], cwd: root });
+    expect(event("agent-session-pre-bash")).toEqual(event("agent-pre-bash"));
+    const heredoc = event("agent-pre-bash-heredoc") as { argv: string[] };
+    expect(heredoc).toMatchObject({ phase: "pre", action: "shell", paths: [], cwd: root });
+    expect(heredoc.argv[0]).toBe("cat");
+    expect(heredoc.argv.join(" ")).not.toContain("probe-agent-heredoc");
+  });
+
+  it("under a review Run: warrant run submit with the envelope in a heredoc is allowed with an empty answer, any other Bash of the subagent is denied naming run submit", async () => {
+    const p = await underReview();
+    const recorded = JSON.parse(recordedInputIn(recordedHook(version, "agent-pre-bash-heredoc"), p.root)) as Record<string, any>;
+    const command = String(recorded["tool_input"]["command"]);
+    expect(command).toMatch(/^cat <<'JSON'\n/);
+    const submit = { ...recorded, tool_input: { ...recorded["tool_input"], command: command.replace(/^cat /, "warrant run submit ") } };
+    expect(await runGuardFrontend(p.ctx, claudeFrontend, JSON.stringify(submit), ENV)).toEqual({ stdout: "", exit: 0 });
+
+    for (const name of AGENT_INPUTS) {
+      const denied = output(await answer(p, version, name));
+      expect(denied["permissionDecision"], name).toBe("deny");
+      expect(denied["permissionDecisionReason"], name).toContain("warrant run submit");
+    }
   });
 });

@@ -2,7 +2,8 @@
  * Files of the `claude` frontend `sync` keeps (REQ-KRN-033, ADR-0034 п. 3,
  * design phase-4a §8): the managed subset of `.claude/settings.json` — the
  * static deny of ADR-0014 п. 1 and the hook groups of `warrant guard
- * --frontend claude` (F19) — and the `@AGENTS.md` line of `CLAUDE.md` (F7).
+ * --frontend claude` (F19) — the `@AGENTS.md` line of `CLAUDE.md` (F7) and
+ * the subagent `warrant-reviewer` of the review Run (design phase-4b §6).
  * The generator is one of the places the frontend name may appear (design §9).
  */
 import { canonicalHash } from "../canon/hash.js";
@@ -10,6 +11,7 @@ import { canonicalText } from "../canon/format-json.js";
 import { cliError } from "../errors.js";
 import { isPlainObject } from "../json.js";
 import type { Json } from "../schemas/loader.js";
+import { AGENTS_MD_MARKER } from "./agents.js";
 import { driftPath, linesTarget, subsetTarget, type Merged, type OwnEntry, type SubsetTarget } from "./subset.js";
 
 /** Name of this frontend in `frontends[]` of `config/1`. */
@@ -149,3 +151,74 @@ export const claudeSettingsTarget: SubsetTarget = subsetTarget({ path: CLAUDE_SE
 
 /** `CLAUDE.md` imports the generated `AGENTS.md` (F7). */
 export const claudeMdTarget: SubsetTarget = linesTarget(CLAUDE_MD_REL, ["@AGENTS.md"]);
+
+/** The subagent of the review Run (REQ-KRN-033, ADR-0034 п. 10, design phase-4b §6): an exact-bytes target. */
+export const CLAUDE_REVIEWER_REL = ".claude/agents/warrant-reviewer.md";
+
+/** The skill the subagent carries: the review skill of the pack (REQ-SDD-008), resolved as the lock resolves it. */
+export const REVIEW_SKILL = "specification/adversarial-review";
+
+/** Tools of the subagent: reading and Bash, never `Write`, `Edit`, `NotebookEdit` (ADR-0014 п. 3). */
+export const REVIEWER_TOOLS: readonly string[] = ["Read", "Grep", "Glob", "Bash"];
+
+/** The review skill as `sync` resolved it: its version and the text of its SKILL.md. */
+export interface ReviewSkill {
+  version: string;
+  text: string;
+}
+
+/** The text of a SKILL.md without its leading `---` frontmatter and the blank lines after it. */
+function skillBody(text: string): string {
+  return text.replace(/^---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/, "").replace(/^(?:[ \t]*\r?\n)+/, "").trimEnd();
+}
+
+/**
+ * Bytes of `.claude/agents/warrant-reviewer.md`: frontmatter (`name`,
+ * `description`, read-only `tools` and Bash, the hook `PreToolUse` on `Bash`
+ * running `warrant guard --frontend claude` — the guard of the review Run
+ * allows only `warrant run submit`, probe of Claude Code 2.1.283, I-168), the
+ * generated marker, the body of the review skill and how the result is handed
+ * in: the envelope in one command `warrant run submit <<'JSON' … JSON` (I-167).
+ */
+export function reviewerAgent(skill: ReviewSkill): Buffer {
+  const lines = [
+    "---",
+    "name: warrant-reviewer",
+    `description: Adversarial review of the specification of a Change in a review Run of warrant (${REVIEW_SKILL}). Reads the Context Pack of the Run, does not edit files, hands in a warrant://skill-result/1 envelope with warrant run submit. Use when a review Run is active (warrant run start <change> --operation review).`,
+    `tools: ${REVIEWER_TOOLS.join(", ")}`,
+    "hooks:",
+    "  PreToolUse:",
+    '    - matcher: "Bash"',
+    "      hooks:",
+    "        - type: command",
+    `          command: "${GUARD_COMMAND}"`,
+    "---",
+    "",
+    AGENTS_MD_MARKER,
+    "",
+    skillBody(skill.text),
+    "",
+    "## Сдача результата",
+    "",
+    "Ты работаешь в Run `review`: хук этого файла (`" + GUARD_COMMAND + "` на `Bash`) запрещает любую правку и любую",
+    "команду shell, кроме `warrant run submit`. Файлы читай инструментами Read, Grep, Glob; Bash — только для сдачи.",
+    "",
+    "1. Context Pack — вывод `warrant run start <change> --operation review`, его передаёт тот, кто тебя вызвал: `run`,",
+    "   `change`, `items[]`, `context_hash`. Без него review не начинай — попроси Context Pack.",
+    `2. Envelope \`warrant://skill-result/1\` раздела «Результат» (\`skill\` — \`${REVIEW_SKILL}@${skill.version}\`, \`run\` и`,
+    "   `context_hash` — из Context Pack) сдай одной командой Bash: envelope — в heredoc, без файла, без других команд",
+    "   до и после; строка-разделитель `JSON` — с начала строки:",
+    "",
+    "```bash",
+    "warrant run submit <<'JSON'",
+    '{"$schema": "warrant://skill-result/1", "skill": "…", "run": "RUN-…", "run_state": "SUCCEEDED", "findings": [], "provenance": {}}',
+    "JSON",
+    "```",
+    "",
+    "3. Ответ `ok: false` — Run остаётся активным: исправь envelope по `errors[].message` и `hint` и сдай снова. Ответ",
+    "   `ok: true` — Run завершён: верни вызвавшему `evidence`, `status` и число находок по `severity` из ответа.",
+    "4. `warrant` не найден или команда отклонена не guard'ом — остановись и сообщи вызвавшему; guard не обходи.",
+    ""
+  ];
+  return Buffer.from(lines.join("\n"), "utf8");
+}

@@ -11,10 +11,10 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { runGuard } from "../../../src/commands/guard.js";
-import { runStart, type RunStartOptions } from "../../../src/commands/run.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { CORE_SDD_RANGE } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
+import { started } from "../helpers/run.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
 
 const project = useProjectBuilder();
@@ -41,13 +41,6 @@ async function repo(state: string, configure: (p: ProjectBuilder) => void = () =
     .withChange("add-search", { tasks: "## 1. Search\n\n- [ ] 1.1 Index\n" });
   configure(p);
   return p.synced();
-}
-
-/** The active Run of `add-search`, started in the test process. */
-async function started(p: ProjectBuilder, opts: RunStartOptions = { operation: "implement" }): Promise<string> {
-  const run = await invoke(() => runStart(p.ctx, "add-search", opts, ENV));
-  expect(run.errors).toEqual([]);
-  return run.data["run"] as string;
 }
 
 /** `warrant guard` on `event`; `cwd` is the project root unless the event names one. */
@@ -109,7 +102,7 @@ describe("warrant guard: pre edit with an active Run", () => {
 
   it("a non-empty scope narrows: a path of write_scope outside scope is denied, the reason names the scope", async () => {
     const p = await repo("IMPLEMENTING");
-    await started(p, { operation: "implement", scope: "src/search/**" });
+    await started(p, "add-search", { operation: "implement", scope: "src/search/**" });
     expect((await guard(p, { phase: "pre", action: "edit", paths: ["src/search/index.py"] })).data["decision"]).toBe("allow");
     const other = await guard(p, { phase: "pre", action: "edit", paths: ["src/search/index.py", "src/other.py"] });
     expect(other.data["decision"]).toBe("deny");
@@ -219,9 +212,92 @@ describe("warrant guard: pre shell", () => {
     expect(make.data["hints"]).toEqual(["warrant check <change> tests [--paths <a,b>]"]);
   });
 
+  it("<< in a comment or inside $((…)) is no heredoc: pytest on the next line is denied (I-167)", async () => {
+    const p = await repo("IMPLEMENTING", (b) => testsCheck(b));
+    for (const line of ["echo # <<X\npytest\nX", "echo $((1<<X))\npytest\nX"]) {
+      const result = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", line] });
+      expect(result.data["decision"], line).toBe("deny");
+      expect(result.data["hints"], line).toEqual(["warrant check <change> tests"]);
+    }
+  });
+
   it("a check that may run directly is not guarded", async () => {
     const p = await repo("IMPLEMENTING", (b) => testsCheck(b, { exclusive: false, local: "allowed" }));
     expect((await guard(p, { phase: "pre", action: "shell", argv: ["pytest"] })).data["decision"]).toBe("allow");
+  });
+});
+
+describe("warrant guard under a review Run (REQ-ENF-004)", () => {
+  /** `add-search` in PROPOSED, its spec committed, a review Run active. */
+  async function underReview(): Promise<{ p: ProjectBuilder; id: string }> {
+    const p = await repo("PROPOSED");
+    p.commit("spec");
+    return { p, id: await started(p, "add-search", { operation: "review" }) };
+  }
+
+  it("any edit is denied: a review Run only reads; the Run records the event (SCN-ENF-026)", async () => {
+    const { p, id } = await underReview();
+    const result = await guard(p, { phase: "pre", action: "edit", paths: ["openspec/changes/add-search/proposal.md"] });
+    expect(result.data["decision"]).toBe("deny");
+    expect(result.data["reason"]).toContain("only reads");
+    expect(result.data["reason"]).toContain("openspec/changes/add-search/proposal.md");
+    expect(result.data["hints"].join(" ")).toContain("warrant run submit");
+    expect(events(p, id)).toEqual([
+      expect.objectContaining({ phase: "pre", action: "edit", paths: ["openspec/changes/add-search/proposal.md"], decision: "deny" })
+    ]);
+  });
+
+  it("shell: warrant run submit is allowed, a line with any other command is denied with the hint (SCN-ENF-027)", async () => {
+    const { p, id } = await underReview();
+    const submit = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", "warrant run submit --file result.json"] });
+    expect(submit.data).toEqual({ decision: "allow", hints: [] });
+    const mixed = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", "cat x && warrant run submit"] });
+    expect(mixed.data["decision"]).toBe("deny");
+    expect(mixed.data["hints"].join(" ")).toContain("warrant run submit");
+    expect(events(p, id).map((e) => e["decision"])).toEqual(["allow", "deny"]);
+  });
+
+  it("shell: only the strict form of warrant run submit is allowed; &, a redirection, $(…), `…`, <(…), VAR=… and << in a comment are denied (SCN-ENF-027)", async () => {
+    const { p, id } = await underReview();
+    const allowed = [
+      "warrant run submit --file envelope.json",
+      "warrant run submit --dry-run --file a/b.json",
+      "warrant run submit <<'JSON'\n{\"statement\": \"it's; a && b | c # d $((1<<2))\"}\nJSON"
+    ];
+    const denied = [
+      "warrant run submit & rm -rf src",
+      "warrant run submit > openspec/changes/add-search/proposal.md",
+      "warrant run submit --file $(rm -rf src)",
+      "warrant run submit --file `rm -rf src`",
+      "warrant run submit --file <(rm -rf src)",
+      "NODE_OPTIONS=--import=x warrant run submit",
+      "warrant run submit # <<X\nrm -rf src\nX"
+    ];
+    for (const line of allowed) {
+      expect((await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", line] })).data, line).toEqual({ decision: "allow", hints: [] });
+    }
+    for (const line of denied) {
+      const result = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", line] });
+      expect(result.data["decision"], line).toBe("deny");
+      expect(result.data["hints"].join(" "), line).toContain("warrant run submit");
+    }
+    expect(events(p, id).map((e) => e["decision"])).toEqual([...allowed.map(() => "allow"), ...denied.map(() => "deny")]);
+  });
+
+  it("shell: an envelope in a heredoc of warrant run submit is data, a command after the delimiter line is not (I-167)", async () => {
+    const { p, id } = await underReview();
+    const submit = `warrant run submit <<'JSON'\n{"statement": "it's; a && b | c"}\nJSON`;
+    expect((await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", submit] })).data).toEqual({ decision: "allow", hints: [] });
+    const after = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", `${submit}\nrm -rf x`] });
+    expect(after.data["decision"]).toBe("deny");
+    expect(after.data["reason"]).toContain("rm -rf x");
+    expect(events(p, id).map((e) => e["decision"])).toEqual(["allow", "deny"]);
+  });
+
+  it("post and other actions keep their answers", async () => {
+    const { p } = await underReview();
+    expect((await guard(p, { phase: "post", action: "shell", argv: ["cat", "x"] })).data["decision"]).toBe("allow");
+    expect((await guard(p, { phase: "pre", action: "other" })).data["decision"]).toBe("allow");
   });
 });
 

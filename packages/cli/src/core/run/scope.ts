@@ -18,10 +18,12 @@ function directory(value: string | undefined): string | undefined {
 /**
  * `write_scope` of `operation` on `change`: `specify` — the Change directory;
  * `implement` — `<paths.src>/**`, `<paths.tests>/**` and `tasks.md` of the
- * Change. `implement` without either path is `CONFIG_INVALID`.
+ * Change; `review` — nothing, a review only reads (REQ-ENF-002). `implement`
+ * without either path is `CONFIG_INVALID`.
  */
 export function writeScopeOf(operation: RunOperation, change: string, config: WarrantConfig): string[] {
   const dir = `openspec/changes/${change}`;
+  if (operation === "review") return [];
   if (operation === "specify") return [`${dir}/**`];
   const code = codeScope(config);
   if (code.length === 0) {

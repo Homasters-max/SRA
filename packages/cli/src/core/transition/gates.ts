@@ -12,37 +12,24 @@ import { controllerInputs } from "../controller/inputs.js";
 import type { WarrantConfig } from "../config.js";
 import { controllerRules, evaluateController, type ControllerDecision } from "../controller/evaluate.js";
 import type { Ctx } from "../ctx.js";
-import { evidenceDir, MANIFEST_FILE, projectUri, readManifest, readRecords, type PendingRecord } from "../evidence/store.js";
+import { evidenceDir, MANIFEST_FILE, readManifest, readRecords, type PendingRecord } from "../evidence/store.js";
+import { projectUri } from "../fs.js";
 import type { Availability, DiffEntry } from "../git/facts.js";
-import { FACTORY_PROFILE } from "../gates/l0/scope-valid.js";
+import { ANALYZE_CLEAN } from "../gates/l0/analyze-clean.js";
 import { SPEC_APPROVED } from "../gates/l0/spec-approved.js";
 import type { CheckFailure, Finding, GateEngineResult, GateSignals, Verdict } from "../gates/types.js";
 import { evaluateGates } from "../gates/verdict.js";
 import { isPlainObject, strings } from "../json.js";
 import { hooksInactive } from "../liveness/index.js";
+import { gateDefinitions, policyPaths } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { ChangeRecord } from "../record/read.js";
 import type { EffectivePolicy } from "../resolve/index.js";
 import { roleMembers } from "../roles.js";
+import { otherState, ownState } from "../run/state.js";
 import { readChangeRuns } from "../run/store.js";
-import { contractTrees, type ProjectFacts } from "./facts.js";
-
-/** Gate documents by id, override in force. */
-export function gateDefinitions(loaded: LoadResult): Map<string, Record<string, unknown>> {
-  const out = new Map<string, Record<string, unknown>>();
-  for (const object of loaded.objects) {
-    if (object.kind === "gate" && isPlainObject(object.json)) out.set(object.id, object.json);
-  }
-  return out;
-}
-
-/** `match.paths` of profile `factory-change`: the policy paths of D-15. */
-export function policyPaths(loaded: LoadResult): string[] {
-  const profile = loaded.objects.find((o) => o.kind === "profile" && o.id === FACTORY_PROFILE);
-  const match = isPlainObject(profile?.json) ? profile.json["match"] : undefined;
-  return isPlainObject(match) ? strings(match["paths"]) : [];
-}
+import { analyzeFacts, contractTrees, specTreeFacts, type ProjectFacts } from "./facts.js";
 
 export interface Evaluation {
   transition: string;
@@ -86,7 +73,8 @@ export async function evaluateTransition(params: EvaluateParams): Promise<Evalua
     ids: facts.ids,
     unknowns,
     profiles: strings(classification["profiles"]),
-    policyPaths: policyPaths(loaded)
+    policyPaths: policyPaths(loaded),
+    state: { own: ownState(params.ctx.root, params.change, params.env), other: otherState(params.ctx.root, params.env) }
   };
   if (facts.git.baseCommit !== undefined) signals.base = facts.git.baseCommit;
   if (params.checkFailures !== undefined) signals.checkFailures = params.checkFailures;
@@ -96,10 +84,14 @@ export async function evaluateTransition(params: EvaluateParams): Promise<Evalua
   const records = [...stored, ...(params.pending ?? []).filter((r) => !ids.has(r.id))].sort((a, b) =>
     a.id < b.id ? -1 : a.id > b.id ? 1 : 0
   );
+  const specTree = await specTreeFacts(params.ctx, params.change, records, facts.git);
+  if (specTree !== undefined) signals.specTree = specTree;
   const evaluated = policy.gates[params.transition] ?? [];
-  if (evaluated.includes(SPEC_APPROVED) && (params.only === undefined || params.only.includes(SPEC_APPROVED))) {
+  const judged = (gate: string): boolean => evaluated.includes(gate) && (params.only === undefined || params.only.includes(gate));
+  if (judged(SPEC_APPROVED)) {
     signals.contract = await contractTrees(params.ctx, params.change, record, records, facts.git);
   }
+  if (judged(ANALYZE_CLEAN)) signals.analyze = analyzeFacts(params.ctx.root, params.change, loaded.config, facts.diff);
 
   const definitions = gateDefinitions(loaded);
   const engine = evaluateGates({

@@ -11,6 +11,7 @@
     "SPEC_CHANGED_AFTER_APPROVAL finding lists the changed paths for the impl-PR reviewer"
   ],
   "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
   "expires_at": "2026-12-31",
-  "waiver_state": "PROPOSED"
+  "waiver_state": "ACTIVE"
 }

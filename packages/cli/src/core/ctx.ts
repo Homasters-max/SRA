@@ -7,6 +7,7 @@
  */
 import type { CheckRunnerPort } from "./ports/checks.js";
 import type { ClockPort } from "./ports/clock.js";
+import type { ForgePort } from "./ports/forge.js";
 import type { GitPort } from "./ports/git.js";
 import type { OpenSpecPort } from "./ports/openspec.js";
 import type { SignalsPort } from "./ports/signals.js";
@@ -19,6 +20,8 @@ export interface Ctx {
   readonly git: GitPort;
   readonly checks: CheckRunnerPort;
   readonly clock: ClockPort;
+  /** The forge of this repository through `gh` (ADR-0037 п. 6); reached only by `ci` and `ci fetch`. */
+  readonly forge: ForgePort;
   /** Cleanup on SIGINT / SIGTERM / SIGHUP: a lock taken must not outlive the process (A-12). */
   readonly signals: SignalsPort;
   /** Every write of a command that changes state: performed, or only collected under `--dry-run` (REQ-KRN-034). */

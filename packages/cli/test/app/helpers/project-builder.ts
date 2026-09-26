@@ -26,6 +26,7 @@ import { CLI_VERSION } from "../../../src/version.js";
 import { CORE_SDD_RANGE, CORE_SDD_VERSION, REPO_ROOT } from "../../helpers/cli.js";
 import { FakeCheckRunner, type FakeBehaviour } from "./fakes/checks.js";
 import { FakeClock } from "./fakes/clock.js";
+import { FakeForge, type ForgeModel } from "./fakes/forge.js";
 import { FakeGit, type Tree } from "./fakes/git.js";
 import { FakeOpenSpec, OPENSPEC_VERSION } from "./fakes/openspec.js";
 import { FakeSignals } from "./fakes/signals.js";
@@ -80,6 +81,7 @@ export class ProjectBuilder {
   readonly git: FakeGit;
   readonly checks = new FakeCheckRunner();
   readonly signals = new FakeSignals();
+  readonly forge = new FakeForge();
   /** What the commands wrote to stderr through `ctx.warn`. */
   readonly warnings: string[] = [];
   readonly ctx: Ctx;
@@ -102,6 +104,7 @@ export class ProjectBuilder {
       git: this.git,
       checks: this.checks,
       clock: this.clock,
+      forge: this.forge,
       signals: this.signals,
       writes: createWrites(false),
       warn: (text) => void this.warnings.push(text)
@@ -212,6 +215,12 @@ export class ProjectBuilder {
   /** The Change record `.warrant/changes/<change>.json`. */
   withRecord(change: string, state: string, extra: Record<string, unknown> = {}): this {
     return this.write(`.warrant/changes/${change}.json`, changeRecord(change, state, extra));
+  }
+
+  /** Pull requests, run attempts and artifacts of the forge (`FakeForge`); repeated calls add. */
+  withForge(model: ForgeModel): this {
+    this.forge.add(model);
+    return this;
   }
 
   /** A waiver `.warrant/waivers/<id>.json`. */

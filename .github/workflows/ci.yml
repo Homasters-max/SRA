@@ -14,8 +14,12 @@ on:
     branches: [main]
   pull_request:
 
+# actions and pull-requests: the contract of ForgePort reads PRs, runs and
+# artifacts of this repository through gh (phase-4c, design §6, §8).
 permissions:
   contents: read
+  actions: read
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -78,6 +82,8 @@ jobs:
         run: node scripts/dev/pr-form.js "$HEAD_REF" "$BASE_REF"
 
       - name: Test
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: npm test
 
       - name: Typecheck

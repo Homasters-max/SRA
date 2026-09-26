@@ -59,15 +59,15 @@
 
 ## 3. ForgePort (§6)
 
-- [ ] 3.1 `core/ports/forge.ts` — четыре метода, `FORGE_UNAVAILABLE` с `hint`; порт в `Ctx`; `FakeForge` в `ProjectBuilder`
+- [x] 3.1 `core/ports/forge.ts` — четыре метода, `FORGE_UNAVAILABLE` с `hint`; порт в `Ctx`; `FakeForge` в `ProjectBuilder`
   (`withForge`), строки `test_helpers` и рангов `architecture.json`.
 
   Проверка: `architecture.test.ts`, `levels.test.ts` зелёные.
-- [ ] 3.2 `adapters/forge-gh.ts` через `adapters/exec.ts`: `gh api`, `gh run download`; `owner/repo` — из `GITHUB_REPOSITORY`
+- [x] 3.2 `adapters/forge-gh.ts` через `adapters/exec.ts`: `gh api`, `gh run download`; `owner/repo` — из `GITHUB_REPOSITORY`
   или URL `origin`.
 
   Проверка: unit разбора URL `origin` (https, ssh) и ответов `gh api` на записанных телах.
-- [ ] 3.3 Контракт `test/contract/forge.contract.test.ts` на настоящем GitHub (§6): PR #53, run `36203233664`, свежий run
+- [x] 3.3 Контракт `test/contract/forge.contract.test.ts` на настоящем GitHub (§6): PR #53, run `36203233664`, свежий run
   impl-PR для `downloadArtifact`. В `ci.yml` — `GH_TOKEN` у шага `npm test` и `permissions`.
 
   Проверка: контракт зелёный локально (`gh auth`) и в CI; без авторизации — падение с `hint`.

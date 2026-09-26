@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command, CommanderError } from "commander";
 import { CheckRunner } from "../adapters/check-runner.js";
+import { ForgeGh } from "../adapters/forge-gh.js";
 import { GitCli } from "../adapters/git-cli.js";
 import { OpenSpecCli } from "../adapters/openspec-cli.js";
 import { processSignals } from "../adapters/signals.js";
@@ -39,8 +40,8 @@ const FRONTENDS: readonly FrontendAdapter[] = [claudeFrontend];
 export type Runner = (ctx: Ctx, args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
 /**
- * The production `ctx` (ADR-0025 п. 2): the adapters over `openspec`, `git` and
- * the check runner, rooted at the cwd; `--dry-run` makes `writes` collect instead of write.
+ * The production `ctx` (ADR-0025 п. 2): the adapters over `openspec`, `git`,
+ * the check runner and `gh` (the forge), rooted at the cwd; `--dry-run` makes `writes` collect instead of write.
  */
 function productionCtx(dryRun: boolean): Ctx {
   const root = projectRoot();
@@ -50,6 +51,7 @@ function productionCtx(dryRun: boolean): Ctx {
     git: new GitCli(root),
     checks: new CheckRunner(),
     clock: systemClock,
+    forge: new ForgeGh(root),
     signals: processSignals,
     writes: createWrites(dryRun),
     warn: (text) => void process.stderr.write(text)

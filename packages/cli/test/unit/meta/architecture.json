@@ -55,6 +55,7 @@
     { "name": "stateDir", "owner": "core/fs.ts" },
     { "name": "projectUri", "owner": "core/fs.ts" },
     { "name": "cliError", "owner": "core/errors.ts" },
+    { "name": "forgeUnavailable", "owner": "core/errors.ts" },
     { "name": "pathMatcher", "owner": "core/glob.ts" },
     { "name": "toProjectPaths", "owner": "core/git/paths.ts" },
     { "name": "countingWaiverIds", "owner": "core/waivers/status.ts" },
@@ -93,6 +94,8 @@
       { "name": "withoutDryRun", "owner": "app/helpers/dry-run.ts" },
       { "name": "writtenBeyond", "owner": "app/helpers/dry-run.ts" },
       { "name": "started", "owner": "app/helpers/run.ts" },
+      { "name": "fakePull", "owner": "app/helpers/fakes/forge.ts" },
+      { "name": "fakeRun", "owner": "app/helpers/fakes/forge.ts" },
       { "name": "recordedVersions", "owner": "helpers/claude-hooks.ts" },
       { "name": "recordedHook", "owner": "helpers/claude-hooks.ts" },
       { "name": "recordedInputIn", "owner": "helpers/claude-hooks.ts" }

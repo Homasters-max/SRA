@@ -133,22 +133,22 @@
 
 ## 6. Мелкие строки (REQ-VER-010, REQ-KRN-033, REQ-SDD-001; R-20)
 
-- [ ] 6.1 BL-43: `analyze` и `signals.analyze` через `findChangeDir` с архивом (REQ-VER-010).
+- [x] 6.1 BL-43: `analyze` и `signals.analyze` через `findChangeDir` с архивом (REQ-VER-010).
 
   Проверка:
   - app на SCN-VER-072;
   - SCN-VER-062…067 без правок.
-- [ ] 6.2 BL-40: находка `REVIEWER_SKILL_MISSING` в `data.findings[]` `sync` (REQ-KRN-033).
+- [x] 6.2 BL-40: находка `REVIEWER_SKILL_MISSING` в `data.findings[]` `sync` (REQ-KRN-033).
 
   Проверка: app на SCN-KRN-142; SCN-KRN-130…134, SCN-KRN-139, SCN-KRN-140 без правок.
-- [ ] 6.3 R-20: `checkSkill` сверяет имя с `REVIEW_SKILL`; константа — у владельца skill review (§7).
+- [x] 6.3 R-20: `checkSkill` сверяет имя с `REVIEW_SKILL`; константа — у владельца skill review (§7).
 
   Проверка: app `run submit` с envelope другого skill подключённого pack — `SKILL_RESULT_INVALID` с путём `/skill`; SCN-ENF-030…035
   без правок.
-- [ ] 6.4 BL-26: тег SCN-SDD-001 в `core-sdd-catalog.test.ts` — форма lock по THEN delta (REQ-SDD-001).
+- [x] 6.4 BL-26: тег SCN-SDD-001 в `core-sdd-catalog.test.ts` — форма lock по THEN delta (REQ-SDD-001).
 
   Проверка: `node scripts/dev/scn-coverage.js --main` на ветке не теряет SCN-SDD-001.
-- [ ] 6.5 Profile `factory-change` `1.1.0`: `.github/workflows/**`, `packages/cli/src/**`, `packages/cli/package.json` в
+- [x] 6.5 Profile `factory-change` `1.1.0`: `.github/workflows/**`, `packages/cli/src/**`, `packages/cli/package.json` в
   `match.paths` (REQ-SDD-005, I-173); golden и lock — `sync`, `golden:update`.
 
   Проверка: app `classify` на SCN-SDD-026, SCN-SDD-027; SCN-SDD-007, SCN-SDD-008 без правок.

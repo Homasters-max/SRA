@@ -5,7 +5,8 @@
  * project controller rule it skips (SCN-VER-049), and `spec-approved` after an
  * approval made through the commands (SCN-VER-046, 047, 048), the own state of
  * the Change in `scope-valid` (SCN-VER-060, 061) and a `review` record bound to
- * the spec tree (SCN-VER-056, 057). Moved from e2e
+ * the spec tree (SCN-VER-056, 057), `analyze-clean` of an archived Change
+ * (SCN-VER-072), a CI workflow as a policy path (SCN-SDD-026). Moved from e2e
  * (ADR-0025, task 5.1); the parse of argv and the exit code of the binary stay
  * in `e2e/gate.test.ts`.
  *
@@ -240,6 +241,14 @@ describe("warrant gate", () => {
     expect(pass.data["gates"]).toEqual({ "scope-valid": "PASS" });
   });
 
+  it("a CI workflow is a policy path: without reclassification scope-valid of a feature Change fails naming it (SCN-SDD-026)", async () => {
+    const p = await repo("VERIFYING", FEATURE);
+    branch(p, "worktree/add-search", (b) => void b.write(".github/workflows/ci.yml", "name: ci\n"));
+    const run = await gate(p, ["scope-valid"], { transition: MERGE });
+    expect(run.data["gates"]).toEqual({ "scope-valid": "FAIL" });
+    expect(run.data["findings"][0]).toMatchObject({ code: "SCOPE_VIOLATION", paths: [".github/workflows/ci.yml"] });
+  });
+
   it("an open blocking UNKNOWN fails blocking-unknowns-resolved naming it (SCN-VER-022)", async () => {
     const p = await repo("SPECIFIED", { ...FEATURE, unknowns: [{ id: "UNK-SRC-001", text: "Which index?", blocking: true }] });
     const run = await gate(p, [], { transition: "SPECIFIED->APPROVED" });
@@ -417,6 +426,43 @@ describe("warrant gate: analyze-clean (REQ-VER-004)", () => {
     const run = await gate(p, ["analyze-clean"], { transition: MERGE });
     expect(run.data["gates"]).toEqual({ "analyze-clean": "PASS" });
     expect(ofGate(run.data)).toEqual([]);
+  });
+
+  it("MERGED->ARCHIVED after the archive reads the archive directory: PASS; CONFLICT names the archived tasks.md (SCN-VER-072)", async () => {
+    const ARCHIVED = "openspec/changes/archive/2026-09-26-add-search";
+    /** `MERGED` with `tasks`, a test tagging the SCN on `main` and the branch `archive/add-search` moving the Change to the archive. */
+    const archived = async (tasks: string, removed = false): Promise<ProjectBuilder> => {
+      const p = await repo("MERGED", FEATURE, (b) => {
+        const config = JSON.parse(b.read(".warrant/warrant.json")) as Record<string, unknown>;
+        b.write(".warrant/warrant.json", { ...config, paths: { tests: "tests" } });
+        b.withChange("add-search", { design: "# Design\n", tasks, specs: { search: SEARCH } });
+        if (removed) {
+          const delta = b.read("openspec/changes/add-search/specs/search/spec.md");
+          b.write(
+            "openspec/changes/add-search/specs/search/spec.md",
+            `${delta}\n## REMOVED Requirements\n\n### Requirement: Legacy\n<!-- id: REQ-SRC-002 -->\n`
+          );
+        }
+        b.write("tests/test_search.py", "# SCN-SRC-010\n");
+      });
+      branch(p, "archive/add-search", (b) => {
+        // `openspec archive add-search`: the change directory moves into the archive.
+        renameSync(path.join(b.root, "openspec/changes/add-search"), path.join(b.root, ARCHIVED));
+      });
+      return p;
+    };
+
+    const clean = await archived("# Tasks\n\n- [x] 1.1 Search by text (SCN-SRC-010)\n");
+    const passed = await gate(clean, ["analyze-clean"], { transition: "MERGED->ARCHIVED" });
+    expect(passed.data["gates"]).toEqual({ "analyze-clean": "PASS" });
+    expect(ofGate(passed.data)).toEqual([]);
+
+    const conflicted = await archived("# Tasks\n\n- [x] 1.1 Search by text (SCN-SRC-010)\n- [x] 1.2 Drop REQ-SRC-002\n", true);
+    const failed = await gate(conflicted, ["analyze-clean"], { transition: "MERGED->ARCHIVED" });
+    expect(failed.data["gates"]).toEqual({ "analyze-clean": "FAIL" });
+    expect(ofGate(failed.data)).toEqual([
+      expect.objectContaining({ code: "CONFLICT", gate: "analyze-clean", id: "REQ-SRC-002", path: `${ARCHIVED}/tasks.md` })
+    ]);
   });
 
   it("BLOCKED with NO_INPUT without git", async () => {

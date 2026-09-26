@@ -17,6 +17,13 @@ export const FINAL_RUN_STATES: readonly RunState[] = RUN_STATES.slice(2);
 export const RUN_OPERATIONS = ["specify", "implement", "review"] as const;
 export type RunOperation = (typeof RUN_OPERATIONS)[number];
 
+/**
+ * The skill a review Run carries (REQ-ENF-007, REQ-SDD-008): `run submit`
+ * accepts an envelope of this skill only (R-20), `sync` puts it into the
+ * subagent of the review Run (REQ-KRN-033).
+ */
+export const REVIEW_SKILL = "specification/adversarial-review";
+
 /** One element of `guard_events[]` (F16): codes and ids only, no frontend. */
 export interface GuardEventRecord {
   at: string;

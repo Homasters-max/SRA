@@ -4,9 +4,10 @@
  * `.claude/settings.json`, the `@AGENTS.md` line of `CLAUDE.md`, the Run line of
  * `.gitignore`, the generated `AGENTS.md` (SCN-KRN-130…134) and the subagent
  * `.claude/agents/warrant-reviewer.md` of the review Run (SCN-KRN-139, 140;
- * design phase-4b §6).
+ * design phase-4b §6) and its absence without the review skill (SCN-KRN-142).
  */
-import { existsSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
@@ -23,6 +24,7 @@ import { validate, validateErrors } from "../helpers/validate.js";
 const builder = useProjectBuilder();
 
 const SETTINGS = ".claude/settings.json";
+const PACKS_ENV = "WARRANT_PACKS_DIR";
 
 /** A project with the given `frontends`; `undefined` leaves the key out. */
 function project(frontends?: string[]): ProjectBuilder {
@@ -263,6 +265,59 @@ describe("warrant sync: the subagent warrant-reviewer", () => {
     );
     await sync(p);
     expect(await validate(p)).toMatchObject({ ok: true });
+  });
+
+  it("packs without the review skill: no subagent, REVIEWER_SKILL_MISSING in data.findings, exit 0; the generated file is removed (SCN-KRN-142)", async () => {
+    const p = project(["claude"]);
+    await p.synced();
+    expect(exists(p, CLAUDE_REVIEWER_REL)).toBe(true);
+
+    // core-sdd without `provides.skills`, from a bundle of its own.
+    const bundle = mkdtempSync(path.join(tmpdir(), "warrant-bundle-"));
+    const before = process.env[PACKS_ENV];
+    try {
+      const pack = path.join(bundle, "packs", "core-sdd");
+      cpSync(path.join(REPO_ROOT, "packs", "core-sdd"), pack, { recursive: true });
+      const manifest = JSON.parse(readFileSync(path.join(pack, "pack.json"), "utf8")) as { provides: Record<string, unknown> };
+      delete manifest.provides["skills"];
+      writeFileSync(path.join(pack, "pack.json"), JSON.stringify(manifest, null, 2));
+      process.env[PACKS_ENV] = path.join(bundle, "packs");
+
+      const missing = { code: "REVIEWER_SKILL_MISSING", path: CLAUDE_REVIEWER_REL, hint: expect.stringContaining("specification/adversarial-review") };
+      // --check: the finding is reported; the exit code is the drift of the files — the file sync would delete among them.
+      const check = await sync(p, { check: true });
+      expect(check.data["findings"]).toEqual([missing]);
+      expect(check.exitCode).toBe(1);
+      expect(check.errors).toContainEqual(expect.objectContaining({ code: "GENERATED_DRIFT", path: CLAUDE_REVIEWER_REL }));
+      expect(exists(p, CLAUDE_REVIEWER_REL)).toBe(true);
+
+      const run = await sync(p);
+      expect(run.errors).toEqual([]);
+      expect(run.exitCode).toBe(0);
+      expect(run.data["findings"]).toEqual([missing]);
+      expect(run.data["changed"]).toContain(CLAUDE_REVIEWER_REL);
+      expect(run.data["generated"]).not.toContain(CLAUDE_REVIEWER_REL);
+      expect(exists(p, CLAUDE_REVIEWER_REL)).toBe(false);
+      expect(settings(p)["permissions"]["deny"]).toEqual(expect.arrayContaining([...CLAUDE_DENY]));
+      expect(await validate(p)).toMatchObject({ ok: true });
+
+      // A file without the marker is not ours: kept by sync, not compared by validate.
+      p.write(CLAUDE_REVIEWER_REL, "---\nname: my-reviewer\n---\n\nMy own reviewer.\n");
+      const again = await sync(p);
+      expect(again.data["changed"]).toEqual([]);
+      expect(again.data["findings"]).toEqual([missing]);
+      expect(p.read(CLAUDE_REVIEWER_REL)).toBe("---\nname: my-reviewer\n---\n\nMy own reviewer.\n");
+      expect(await validate(p)).toMatchObject({ ok: true });
+    } finally {
+      if (before === undefined) delete process.env[PACKS_ENV];
+      else process.env[PACKS_ENV] = before;
+      rmSync(bundle, { recursive: true, force: true });
+    }
+  });
+
+  it("data.findings is empty when a pack provides the review skill (REQ-KRN-033)", async () => {
+    const run = await sync(project(["claude"]));
+    expect(run.data["findings"]).toEqual([]);
   });
 });
 

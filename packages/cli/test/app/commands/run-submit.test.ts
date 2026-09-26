@@ -2,10 +2,12 @@
  * `warrant run submit` in the test process (REQ-ENF-007, SCN-ENF-030…035):
  * the envelope of the active review Run from stdin or `--file`, the evidence
  * record `kind: review` with its status by the findings (N22), the envelope
- * beside the Run, the Run finished; the refusals that write nothing and
- * `--dry-run` with the one write plan.
+ * beside the Run, the Run finished; the refusals that write nothing — an
+ * envelope of another skill of the packs among them (R-20) — and `--dry-run`
+ * with the one write plan.
  */
-import { existsSync, readdirSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -14,7 +16,7 @@ import { canonicalText } from "../../../src/core/canon/format-json.js";
 import { bytesHash } from "../../../src/core/canon/hash.js";
 import type { Ctx } from "../../../src/core/ctx.js";
 import type { CommandResult } from "../../../src/io/output.js";
-import { CORE_SDD_RANGE } from "../../helpers/cli.js";
+import { CORE_SDD_RANGE, REPO_ROOT } from "../../helpers/cli.js";
 import { withoutDryRun, writtenBeyond } from "../helpers/dry-run.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
@@ -237,6 +239,38 @@ describe("warrant run submit: refusals write nothing", () => {
       expect(result.errors[0]?.hint, other).toContain(name);
     }
     expect(p.json(`${RUNS}/${id}.json`)["run_state"]).toBe("RUNNING");
+  });
+
+  it("an envelope of another skill of an enabled pack, locked too: SKILL_RESULT_INVALID at /skill, the Run RUNNING (R-20)", async () => {
+    // core-sdd from a bundle of its own with a second skill beside the review skill.
+    const bundle = mkdtempSync(path.join(tmpdir(), "warrant-bundle-"));
+    const before = process.env["WARRANT_PACKS_DIR"];
+    try {
+      const pack = path.join(bundle, "packs", "core-sdd");
+      cpSync(path.join(REPO_ROOT, "packs", "core-sdd"), pack, { recursive: true });
+      const skills = path.join(pack, "skills", "specification");
+      cpSync(path.join(REPO_ROOT, "sra", "skills", "specification", "adversarial-review"), path.join(skills, "adversarial-review"), { recursive: true });
+      mkdirSync(path.join(skills, "authoring"), { recursive: true });
+      writeFileSync(path.join(skills, "authoring", "SKILL.md"), "---\nname: authoring\nversion: 1.0.0\ndescription: Authoring.\n---\n\nWrite the spec.\n");
+      const manifest = JSON.parse(readFileSync(path.join(pack, "pack.json"), "utf8")) as { provides: { skills: string[] } };
+      manifest.provides.skills.push("specification/authoring@^1.0");
+      writeFileSync(path.join(pack, "pack.json"), JSON.stringify(manifest, null, 2));
+      process.env["WARRANT_PACKS_DIR"] = path.join(bundle, "packs");
+
+      const { p, id } = await reviewing();
+      const lock = JSON.parse(p.read(".warrant/warrant.lock.json")) as Data;
+      expect(Object.keys(lock["skills"]).sort()).toEqual(["specification/adversarial-review", "specification/authoring"]);
+      const result = await submit(p, envelope(id, "specification/authoring@1.0.0"));
+      expect(result.exitCode).toBe(3);
+      expect(result.errors[0]).toMatchObject({ code: "SKILL_RESULT_INVALID", path: "/skill" });
+      expect(result.errors[0]?.hint).toContain("specification/adversarial-review");
+      expect(p.json(`${RUNS}/${id}.json`)["run_state"]).toBe("RUNNING");
+      expect(evidenceFiles(p)).toEqual([]);
+    } finally {
+      if (before === undefined) delete process.env["WARRANT_PACKS_DIR"];
+      else process.env["WARRANT_PACKS_DIR"] = before;
+      rmSync(bundle, { recursive: true, force: true });
+    }
   });
 
   it("no envelope: an empty stdin or a missing file is USAGE; every error carries a hint (REQ-KRN-002)", async () => {

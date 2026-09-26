@@ -1,7 +1,8 @@
 /**
  * `warrant classify` in the test process (REQ-KRN-027, REQ-KRN-028): floors
  * from the diff of `FakeGit` or from `--paths` (SCN-KRN-073, 074, 076, 077),
- * without the own state of the Change (SCN-KRN-138),
+ * without the own state of the Change (SCN-KRN-138), factory-change from CI
+ * workflows and the CLI (SCN-SDD-026, 027),
  * monotonic runs (SCN-KRN-075), values set by a human (SCN-KRN-105, 106, 107)
  * and values below the floor with approval (SCN-KRN-116, 117). Moved from e2e
  * (ADR-0025, task 5.4); the parse of argv (`--base`, `--paths`, `--propose`,
@@ -82,6 +83,25 @@ describe("warrant classify", () => {
     expect(stored["classification"]).toEqual(classification);
     expect(stored["transitions"]).toHaveLength(1);
     expect(run.data["effective_policy"].risk_level).toBe("HIGH");
+  });
+
+  it.each([
+    ["a CI workflow (SCN-SDD-026)", ".github/workflows/ci.yml"],
+    ["the judge of warrant ci (SCN-SDD-027)", "packages/cli/src/core/ci/kind.ts"],
+    ["the package of the CLI (SCN-SDD-027)", "packages/cli/package.json"]
+  ])("%s in the diff of a feature Change adds factory-change to profiles", async (_, changed) => {
+    const p = project();
+    p.write(".warrant/changes/demo.json", { ...record(p), classification: { profiles: ["feature"] } });
+    p.commit("base");
+    p.branch("work");
+    p.write(changed, "changed\n");
+    p.commit("factory");
+
+    const run = await classify(p, "demo", { base: "main" });
+    expect(run.errors).toEqual([]);
+    expect(run.data["changed"]).toEqual([changed]);
+    expect(run.data["classification"].profiles).toEqual(["factory-change", "feature"]);
+    expect(record(p)["classification"].profiles).toEqual(["factory-change", "feature"]);
   });
 
   it("leaves the own state of the Change out of floors and match.paths (SCN-KRN-138)", async () => {

@@ -33,7 +33,7 @@ import { validateFile } from "../schemas/semantic.js";
 import { versionSatisfies } from "../version-range.js";
 import { finishRun, requireActiveRun } from "./lifecycle.js";
 import { RESULT_SUFFIX, runFile, runsDir } from "./store.js";
-import type { Run, RunState } from "./types.js";
+import { REVIEW_SKILL, type Run, type RunState } from "./types.js";
 
 /** `severity` of a finding (07 §4); the schema `skill-result/1` and the metrics of kind `review` hold the same values. */
 export const SEVERITIES = ["BLOCKER", "MAJOR", "MINOR", "INFO"] as const;
@@ -113,14 +113,18 @@ export function parseEnvelope(input: SubmitInput): Envelope {
   return json as unknown as Envelope;
 }
 
-/** `skill` of the envelope names a skill of an enabled pack that the lock holds, at a version in the pack's range. */
+/**
+ * `skill` of the envelope names the review skill (`REVIEW_SKILL`, R-20) as an
+ * enabled pack declares it and the lock holds it, at a version in the pack's
+ * range; another skill of the packs is not a review.
+ */
 function checkSkill(root: string, skill: string, source: string | undefined): void {
   const loaded = loadPacks(root);
   const first = loaded.errors[0];
   if (first !== undefined) throw new WarrantError(first.code, `the policy does not load: ${first.message}`, { ...(first.path === undefined ? {} : { path: first.path }), hint: "run `warrant validate`" });
   const lock = readJson(path.join(root, ...LOCK_REL.split("/")), LOCK_REL, []);
   const locked = isPlainObject(lock) && isPlainObject(lock["skills"]) ? lock["skills"] : {};
-  const skills = packSkills(loaded).filter((s) => locked[s.name] !== undefined);
+  const skills = packSkills(loaded).filter((s) => s.name === REVIEW_SKILL && locked[s.name] !== undefined);
   const expected = skills.map((s) => `${s.name}@${s.range}`).join(" or ");
   const at = skill.lastIndexOf("@");
   const name = skill.slice(0, at);
@@ -128,7 +132,7 @@ function checkSkill(root: string, skill: string, source: string | undefined): vo
   const declared = skills.find((s) => s.name === name);
   if (declared === undefined) {
     throw invalid(
-      `skill ${skill} is not a skill of the enabled packs in ${LOCK_REL}${expected === "" ? "" : `: expected ${expected}`}`,
+      `skill ${skill} is not the review skill ${REVIEW_SKILL} of the enabled packs in ${LOCK_REL}${expected === "" ? "" : `: expected ${expected}`}`,
       "/skill",
       source,
       expected === "" ? "declare the review skill in a pack and run `warrant sync`" : `run the review skill ${expected} and name it in "skill"`

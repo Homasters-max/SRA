@@ -233,7 +233,7 @@
     "kernel@{CLI_VERSION}",
     "core-sdd@0.3.3:overlay/core-default@1.0.0",
     "core-sdd@0.3.3:profile/feature@1.0.0",
-    "core-sdd@0.3.3:profile/factory-change@1.0.0",
+    "core-sdd@0.3.3:profile/factory-change@1.1.0",
     "core-sdd@0.3.3:overlay/risk-high@1.0.0"
   ]
 }

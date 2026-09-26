@@ -4,12 +4,15 @@
  * Читает файлы pack напрямую: `provides` должен покрывать ровно каталоги
  * объектов, gates ссылок profiles и overlays должны существовать
  * (SCN-SDD-002), `waivable`, `accepts_attestation` и controller rules
- * зафиксированы (SCN-SDD-011, SCN-SDD-012, SCN-SDD-023).
+ * зафиксированы (SCN-SDD-011, SCN-SDD-012, SCN-SDD-023); форма lock репозитория
+ * (SCN-SDD-001).
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { bytesHash } from "../../../src/core/canon/hash.js";
+import { packContentHash } from "../../../src/core/packs/hash.js";
 import { validateFile } from "../../../src/core/schemas/semantic.js";
 import { REPO_ROOT } from "../../helpers/cli.js";
 import { readJsonFile } from "../../helpers/json.js";
@@ -104,13 +107,15 @@ describe("pack core-sdd: каталог", () => {
   });
 
   it("каждый объект проходит свою схему и id равен имени файла (Decision 1)", () => {
+    // factory-change — 1.1.0 (REQ-SDD-005: CI workflows и CLI в match.paths), остальные — 1.0.0.
+    const versions: Readonly<Record<string, string>> = { "profiles/factory-change.json": "1.1.0" };
     for (const key of ["overlays", "profiles", "gates", "checks"]) {
       for (const rel of provides[key] as string[]) {
         const json = readJsonFile(PACK_DIR, rel);
         const result = validateFile(json, rel);
         expect(result.ok, `${rel}: ${JSON.stringify(result.ok ? [] : result.errors)}`).toBe(true);
         expect(json.id).toBe(path.basename(rel, ".json"));
-        expect(json.version).toBe("1.0.0");
+        expect(json.version, rel).toBe(versions[rel] ?? "1.0.0");
         expect(json.$schema).toBe(`warrant://${key.replace(/s$/, "")}/1`);
       }
     }
@@ -262,5 +267,17 @@ describe("pack core-sdd: каталог", () => {
     expect(frontmatter).toMatch(/^name: adversarial-review$/m);
     expect(frontmatter).toMatch(/^version: 0\.2\.0$/m);
     expect(frontmatter).toMatch(/^description: .+$/m);
+  });
+
+  it("lock репозитория: в packs[\"core-sdd\"] версия pack и один hash его содержимого, в skills — версия, путь и hash skill (SCN-SDD-001)", () => {
+    // `warrant validate` на корне репозитория держит шаг CI; здесь — форма lock из THEN (BL-26).
+    const lock = readJsonFile(REPO_ROOT, ".warrant/warrant.lock.json");
+    expect(lock.packs["core-sdd"]).toEqual({ version: manifest.version, source: "bundled", hash: packContentHash(PACK_DIR) });
+    const skill = "sra/skills/specification/adversarial-review/SKILL.md";
+    expect(lock.skills["specification/adversarial-review"]).toEqual({
+      version: "0.2.0",
+      path: skill,
+      hash: bytesHash(readFileSync(path.join(REPO_ROOT, ...skill.split("/"))))
+    });
   });
 });

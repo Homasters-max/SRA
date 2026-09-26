@@ -23,10 +23,11 @@ import {
   type GitFacts
 } from "../git/facts.js";
 import { commitFiles } from "../git/files.js";
+import { toProjectPaths } from "../git/paths.js";
 import { approvalOf } from "../gates/l0/spec-approved.js";
 import type { ContractTrees, EvidenceInput } from "../gates/types.js";
 import { checkAreas, checkDuplicates, loadAreas, scanIds } from "../ids/scan.js";
-import { findChangeDir } from "../openspec/changes.js";
+import { archivedChangeDir, findChangeDir } from "../openspec/changes.js";
 import { openspecAvailable } from "../openspec/version.js";
 import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { ChangeRecord } from "../record/read.js";
@@ -142,11 +143,12 @@ export async function mergeTreeFacts(ctx: Ctx, records: readonly EvidenceInput[]
 }
 
 /**
- * `analyze` of an active Change on the diff `scope-valid` judges (design §5,
+ * `analyze` of a Change on the diff `scope-valid` judges (design §5,
  * REQ-VER-004), over the files of the evaluated commit, not the working tree
  * (R-21: on `transition MERGED` in an archive branch the working tree is not
- * the head of the impl-PR). Unavailable without that diff or the change
- * directory at the commit; never throws.
+ * the head of the impl-PR). The change directory is the active one or, after
+ * `openspec archive`, the archived one at that commit (BL-43). Unavailable
+ * without that diff or a change directory at the commit; never throws.
  */
 export async function analyzeFacts(
   ctx: Ctx,
@@ -157,13 +159,39 @@ export async function analyzeFacts(
 ): Promise<Availability<AnalyzeResult>> {
   if (!diff.ok) return { ok: false, reason: `diff unknown: ${diff.reason}` };
   try {
-    const files = await commitFiles(ctx, git.commit, analyzePaths(change, config));
-    if (files === null) return { ok: false, reason: `the files of commit ${git.commit} could not be listed` };
-    if (files.list(`openspec/changes/${change}`).length === 0) {
-      return { ok: false, reason: `openspec/changes/${change}/ is not an active change directory at commit ${git.commit}` };
+    const changeDir = await changeDirAt(ctx, git.commit, change);
+    if (changeDir === undefined) {
+      return { ok: false, reason: `openspec/changes/${change}/ is neither a change directory nor archived at commit ${git.commit}` };
     }
-    return { ok: true, value: analyze(readAnalyzeInput(files, change, config, diff)) };
+    const files = await commitFiles(ctx, git.commit, analyzePaths(changeDir, config));
+    if (files === null) return { ok: false, reason: `the files of commit ${git.commit} could not be listed` };
+    return { ok: true, value: analyze(readAnalyzeInput(files, changeDir, config, diff)) };
   } catch (thrown) {
     return { ok: false, reason: `the Change could not be analyzed: ${(thrown as Error).message}` };
   }
+}
+
+const ARCHIVE_DIR = "openspec/changes/archive";
+
+/**
+ * The directory of the Change `change` at `commit`, as `findChangeDir` names it
+ * in the working tree: `openspec/changes/<change>`, else its archive directory
+ * (`archivedChangeDir`); undefined when there is none or git cannot list it.
+ */
+async function changeDirAt(ctx: Ctx, commit: string, change: string): Promise<string | undefined> {
+  const prefix = await ctx.git.prefix();
+  if (prefix === null) return undefined;
+  const active = `openspec/changes/${change}`;
+  const listed = await ctx.git.files(commit, [active, ARCHIVE_DIR]);
+  if (listed === null) return undefined;
+  const files = toProjectPaths(prefix, listed);
+  if (files.some((file) => file.startsWith(`${active}/`))) return active;
+  const entries = new Set<string>();
+  for (const file of files) {
+    if (!file.startsWith(`${ARCHIVE_DIR}/`)) continue;
+    const [entry, ...rest] = file.slice(ARCHIVE_DIR.length + 1).split("/");
+    if (entry !== undefined && rest.length > 0) entries.add(entry);
+  }
+  const found = archivedChangeDir([...entries], change);
+  return found === undefined ? undefined : `${ARCHIVE_DIR}/${found}`;
 }

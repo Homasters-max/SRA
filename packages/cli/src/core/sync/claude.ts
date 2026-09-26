@@ -10,6 +10,7 @@ import { canonicalHash } from "../canon/hash.js";
 import { canonicalText } from "../canon/format-json.js";
 import { cliError } from "../errors.js";
 import { isPlainObject } from "../json.js";
+import { REVIEW_SKILL } from "../run/types.js";
 import type { Json } from "../schemas/loader.js";
 import { AGENTS_MD_MARKER } from "./agents.js";
 import { driftPath, linesTarget, subsetTarget, type Merged, type OwnEntry, type SubsetTarget } from "./subset.js";
@@ -154,9 +155,6 @@ export const claudeMdTarget: SubsetTarget = linesTarget(CLAUDE_MD_REL, ["@AGENTS
 
 /** The subagent of the review Run (REQ-KRN-033, ADR-0034 п. 10, design phase-4b §6): an exact-bytes target. */
 export const CLAUDE_REVIEWER_REL = ".claude/agents/warrant-reviewer.md";
-
-/** The skill the subagent carries: the review skill of the pack (REQ-SDD-008), resolved as the lock resolves it. */
-export const REVIEW_SKILL = "specification/adversarial-review";
 
 /** Tools of the subagent: reading and Bash, never `Write`, `Edit`, `NotebookEdit` (ADR-0014 п. 3). */
 export const REVIEWER_TOOLS: readonly string[] = ["Read", "Grep", "Glob", "Bash"];

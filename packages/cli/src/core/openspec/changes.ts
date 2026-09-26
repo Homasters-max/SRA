@@ -37,10 +37,19 @@ export function findChangeDir(root: string, name: string): ChangeDirLocation | n
   } catch {
     return null;
   }
-  // Exactly `<name>` or `<YYYY-MM-DD>-<name>`: a bare suffix match would make
-  // `auth` collide with an archived `add-auth`.
-  const found = entries.find((entry) => entry === name || (ARCHIVE_DATE_RE.test(entry) && entry.slice(11) === name));
+  const found = archivedChangeDir(entries, name);
   return found === undefined ? null : { where: "archive", path: `openspec/changes/archive/${found}` };
+}
+
+/**
+ * The archive directory of the Change `name` among the directory names
+ * `entries` of `openspec/changes/archive/`: `<YYYY-MM-DD>-<name>` with the
+ * latest date (REQ-VER-010), else a plain `<name>`. Exactly these names: a bare
+ * suffix match would make `auth` collide with an archived `add-auth`.
+ */
+export function archivedChangeDir(entries: readonly string[], name: string): string | undefined {
+  const dated = entries.filter((entry) => ARCHIVE_DATE_RE.test(entry) && entry.slice(11) === name).sort();
+  return dated.at(-1) ?? entries.find((entry) => entry === name);
 }
 
 /**

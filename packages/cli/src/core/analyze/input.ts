@@ -15,21 +15,27 @@ import type { AnalyzeInput, TestFile } from "./index.js";
 
 const isMarkdown = (file: string): boolean => file.toLowerCase().endsWith(".md");
 
-/** The paths `analyze` of `change` reads — its whole change directory among them — for a reader of a commit ({@link ProjectFiles}). */
-export function analyzePaths(change: string, config: WarrantConfig): string[] {
-  const dir = `openspec/changes/${change}`;
+/**
+ * The paths `analyze` of the Change in `changeDir` (active or archived, as
+ * `findChangeDir` names it) reads — the whole change directory among them —
+ * for a reader of a commit ({@link ProjectFiles}).
+ */
+export function analyzePaths(changeDir: string, config: WarrantConfig): string[] {
   const tests = config.paths.tests;
-  return [dir, "openspec/specs", ...(tests === undefined || tests.length === 0 ? [] : [tests])];
+  return [changeDir, "openspec/specs", ...(tests === undefined || tests.length === 0 ? [] : [tests])];
 }
 
-/** Input of `analyze` for the active Change `change` in `files`; `diff` is `base...HEAD` as `scope-valid` reads it. */
+/**
+ * Input of `analyze` for the Change in `changeDir` (`openspec/changes/<change>`
+ * or its archive directory, BL-43) in `files`; `diff` is `base...HEAD` as
+ * `scope-valid` reads it.
+ */
 export function readAnalyzeInput(
   files: ProjectFiles,
-  change: string,
+  changeDir: string,
   config: WarrantConfig,
   diff: Availability<readonly DiffEntry[]>
 ): AnalyzeInput {
-  const changeDir = `openspec/changes/${change}`;
   const delta = files
     .list(`${changeDir}/specs`)
     .filter(isMarkdown)

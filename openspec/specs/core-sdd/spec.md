@@ -9,7 +9,7 @@ Pack `core-sdd@0.1` — baseline policy spec-driven workflow: какие profile
 ### Requirement: Состав pack core-sdd 0.1
 <!-- id: REQ-SDD-001 -->
 
-Pack `core-sdd` версии `0.3.x` (`kernel: ">=0.1 <0.7"`; patch поднимается первым изменением поставляемого после релиза и
+Pack `core-sdd` версии `0.3.x` (`kernel: ">=0.1 <0.8"`; patch поднимается первым изменением поставляемого после релиза и
 проверяется `npm run versions:check`, R-14) SHALL объявлять в `provides`: overlays `core-default`, `risk-low`, `risk-medium`, `risk-high`;
 profiles `feature`, `chore`, `factory-change`; gates `spec-valid`, `required-artifacts-present`, `blocking-unknowns-resolved`, `ids-valid`,
 `branch-isolated`, `tests-passed`, `scope-valid`, `analyze-clean`, `evidence-complete`, `human-approval`, `adversarial-review`,
@@ -27,7 +27,7 @@ Profiles `bugfix`, `refactor`, `experiment` SHALL NOT входить в 0.3 (ADR
 #### Scenario: Validate на pack
 <!-- id: SCN-SDD-001 -->
 - **WHEN** `warrant validate` вызван в корне репозитория WARRANT
-- **THEN** `ok: true`; `data.checked.packs` содержит `core-sdd`; lock содержит hash каждого файла `provides` и skill
+- **THEN** `ok: true`; `data.checked.packs` содержит `core-sdd`; `warrant.lock.json` содержит в `packs["core-sdd"]` версию pack и один hash его содержимого, а в `skills["specification/adversarial-review"]` — версию, путь и hash skill
 
 #### Scenario: Gate объявлен в одном месте
 <!-- id: SCN-SDD-002 -->
@@ -103,9 +103,12 @@ approvals роли `maintainer` на `SPECIFIED->APPROVED`; `match.paths`: `docs
 ### Requirement: Profile factory-change
 <!-- id: REQ-SDD-005 -->
 
-Profile `factory-change@1.0.0` SHALL иметь `extends: ["feature"]`, дополнительно gate `factory-golden-passed` на `VERIFYING->MERGED`,
+Profile `factory-change@1.1.0` SHALL иметь `extends: ["feature"]`, дополнительно gate `factory-golden-passed` на `VERIFYING->MERGED`,
 `capabilities.forbidden: ["PRODUCTION_WRITE"]`, `match.paths`: `.warrant/**`, `openspec/schemas/**`, `openspec/config.yaml`, `packs/**`,
-`packages/cli/schemas/**`, `sra/skills/**`.
+`packages/cli/schemas/**`, `sra/skills/**`, `.github/workflows/**`, `packages/cli/src/**`, `packages/cli/package.json`. Workflows
+CI и судья `warrant ci` — часть фабрики: run `pull_request` исполняет workflow из самого PR и ставит CLI из его checkout, и их
+правка в обычном Change подменила бы producer evidence CI ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md),
+[ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md) п. 3).
 
 #### Scenario: Golden factory-change
 <!-- id: SCN-SDD-007 -->
@@ -117,6 +120,16 @@ Profile `factory-change@1.0.0` SHALL иметь `extends: ["feature"]`, допо
 <!-- id: SCN-SDD-008 -->
 - **WHEN** `warrant classify phase-2-core-sdd --base main` выполнен на этой ветке
 - **THEN** `profiles` содержит `factory-change`, `risk.blast_radius` равен `SYSTEM` от floor, `warrant resolve phase-2-core-sdd` показывает `risk_level: HIGH`, а `warrant status` — `stale: []` и `overlay/risk-high` в `sources`
+
+#### Scenario: Правка CI — factory-change
+<!-- id: SCN-SDD-026 -->
+- **WHEN** diff Change профиля `feature` содержит `.github/workflows/ci.yml`
+- **THEN** `warrant classify` добавляет `factory-change` в `profiles`; без переклассификации gate `scope-valid` на `VERIFYING->MERGED` даёт `FAIL` с `SCOPE_VIOLATION` и этим путём
+
+#### Scenario: Правка судьи — factory-change
+<!-- id: SCN-SDD-027 -->
+- **WHEN** diff Change профиля `feature` содержит `packages/cli/src/core/ci/kind.ts` или `packages/cli/package.json`
+- **THEN** `warrant classify` добавляет `factory-change` в `profiles`
 
 ### Requirement: Risk overlays
 <!-- id: REQ-SDD-006 -->

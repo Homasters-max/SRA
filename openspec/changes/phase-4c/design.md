@@ -126,14 +126,13 @@
     - для остальных — родитель коммита, внёсшего запись перехода. Его находит обход коммитов `HEAD^1..HEAD^2`, меняющих файл
       record (`GitPort.log(range, path)`), с чтением record на каждом (`git.contents`); переходы одного коммита делят его.
   - `branch-isolated` не пересчитывается: он судит ветку окружения, а в CI и во временном worktree ветки нет (F-1).
-  - Gates без `requires_evidence` вычисляются тем же `evaluate`, что у `transition`, во временном detached worktree этого
-    commit (`GitPort.worktreeAt(commit) → { root, dispose }`): L0-калькуляторы вроде `required-artifacts-present` зовут
-    `openspec` по рабочему дереву.
-  - Gates с evidence сверяют существование и допуск записей `evidence[]`; L1 заново не прогоняется (ADR-0010 п. 3: заново
-    считается только merge-вердикт).
+  - Пересчёт (review 3): переход вычисляется тем же `evaluate`, что у `transition`, во временном worktree коммита C, внёсшего
+    переход (`GitPort.worktreeAt(C) → { root, dispose }`), с git-контекстом HEAD = C^1 (`GitFacts` с переопределённым
+    commit), record без этого перехода и `ctx.clock` = `at` перехода. Так policy, record, evidence, waivers и base совпадают
+    с тем, что видел `transition`; L1 не прогоняется (ADR-0010 п. 3: заново считается только merge-вердикт).
 - **`refs.ts`** — `ref` новых переходов (`APPROVED`, `MERGED`):
-  - `ForgePort.pullRequest(n)` — PR этого репозитория (URL сверяется с `owner/repo`), `merged`,
-    `mergedBy ∈ roles.maintainer` (ADR-0037 п. 5; `approvals[]` у `MERGED` есть не при любом риске);
+  - `ForgePort.pullRequest(n)` — PR этого репозитория (URL сверяется с `owner/repo`), `merged`, `mergedBy` в роли
+    `approvals[]` перехода, при пустом — `roles.maintainer` (как `--by` у `transition`, ADR-0037 п. 5);
   - связь с Change: для `APPROVED` — diff `mergeCommit^1..mergeCommit` вносит переход `SPECIFIED` в record этого Change; для
     `MERGED` — `mergeCommit = M`, `headSha` = оцениваемый commit;
   - `mergedBy === author` — `APPROVER_IS_AUTHOR`.
@@ -169,7 +168,8 @@
   - `ForgePort.workflowRun(id из attestation.ref)`: `repository` = `owner/repo`, `conclusion = success`; для `event:
     pull_request` — `headSha = subject.commit`. У run `workflow_dispatch` head sha — tip ветки запуска: его связь с M держат
     `subject.tree` записи (пред-фильтр на дереве M) и побайтовое равенство artifact'у (F-5);
-  - `ForgePort.downloadArtifact(run, "evidence-<change>")` → каталог; файл `<EVID>.json` побайтно равен закоммиченному.
+  - `ForgePort.downloadArtifact(run, "evidence-<change>-<attempt>")` → каталог; файл `<EVID>.json` побайтно равен
+    закоммиченному.
   Одна загрузка на run.
 - **R-16.** `worktreeAt(HEAD^1)` → `openspec archive <change> --yes` (порт `openspec`) → дерево `openspec/specs/**` сравнивается
   с HEAD (`git.contents`) по путям и блобам. Имя каталога архива с датой не сравнивается. Отдельного пересчёта gates
@@ -321,6 +321,12 @@ BLOCKER, 12 MAJOR, 8 MINOR, 2 INFO; spec исправлена до второг�
 - F-12 — checks при любом `change_state`; F-13 — `spec_tree` и `tree` не вместе; F-14 — проверка версии OpenSpec при
   повторе; F-15 — SCN-VER-072; F-16 — задача 5.2; F-17 — репозиторий форжа в REQ-VER-011; F-18 — `PR_NOT_IMPL`;
   F-19 — CI-записи `MERGED` обязаны нести `tree`.
+
+Третий review (`RUN-01M3DVM84XGRD291WJJB2KYMEQ`, `EVID-01M3DW2G086HG5WCMQ6NG3CWY3`, `NOT_PROVEN`): 3 BLOCKER, 4 MAJOR, 4 MINOR,
+1 INFO. BLOCKER F-2, F-3 и MAJOR F-4, F-5, F-7 — одна причина: пересчёт собирал входы оценки из разных деревьев. Правило
+заменено одним: пересчёт повторяет `transition` в дереве коммита C с HEAD = C^1 и датой `at` (§4). Остальное: F-1 — имя
+artifact'а в SCN-VER-075; F-6 — роль `merged_by` из `approvals[]`; F-8 — `branch-isolated` из record; F-9 — правила путей
+независимы от `scope-valid`; F-10 — `SCHEMA_VIOLATION` в `ci fetch`; F-11 — «нового перехода `MERGED`»; F-12 — Non-Goals.
 
 ## Решения по ходу реализации
 

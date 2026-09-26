@@ -304,33 +304,36 @@ ID «определён», если он объявлен в main specs или �
 **Record.** `transitions[]` record на HEAD SHALL начинаться с `transitions[]` record базы, а `change_state` SHALL быть равен `to`
 последнего перехода; иначе `RECORD_MISMATCH`. Новые переходы — те, которых нет в record базы.
 
-**Оцениваемый commit нового перехода:**
-- для `MERGED` — head impl-PR из его `ref` (второй родитель merge-коммита M на first-parent линии HEAD^1), а не commit самой
-  свежей записи;
-- для остальных — родитель первого коммита first-parent пути от `merge-base(HEAD^1, HEAD^2)` до HEAD^2, который вносит этот
-  переход в record; переходы, внесённые одним коммитом, делят оцениваемый commit. Другие правки в том же коммите на оценку не
-  влияют: `transition` судил закоммиченное дерево.
-Base — `merge-base(HEAD^1, оцениваемый commit)`.
+**Коммит перехода.** Для нового перехода C — первый коммит first-parent пути от `merge-base(HEAD^1, HEAD^2)` до HEAD^2, который
+вносит этот переход в record; переходы, внесённые одним коммитом, делят C.
 
-**Пересчёт перехода.** Каждый gate перехода по effective policy, кроме `branch-isolated` (он судит ветку окружения, а не commit),
-SHALL пересчитываться алгоритмом [REQ-VER-003](#requirement-команда-gate-и-алгоритм-verdict) на оцениваемом commit: файлы проекта
-(артефакты Change, specs, код, `openspec`) — из дерева оцениваемого commit, а evidence, waivers и Runs — из HEAD (запись CI
-приносит `ci fetch` позже перехода, запись `human-approval` коммитится вместе с ним). L1 заново не прогоняется. Расхождение с
-record — verdict gate, отсутствующий или лишний gate, другой `effective_policy_hash`, id `evidence[]`, которых нет среди
-допустимых записей, — `RECORD_MISMATCH` с переходом и причиной.
+**Пересчёт перехода.** Новый переход SHALL пересчитываться так, как его вычислил `warrant transition`
+([REQ-VER-007](#requirement-команда-transition)), в копии дерева C:
+- файлы проекта, policy (packs, lock, `warrant.json`, `.warrant/local/`), evidence, waivers и Runs — из дерева C; record — из
+  дерева C без этого и последующих переходов;
+- контекст git — HEAD = C^1: оцениваемый commit, base и для `MERGED` merge-коммит M, head impl-PR и base `merge-base(M^1, head)`
+  определяются по правилам REQ-VER-007 от C^1;
+- даты (срок waiver) сравниваются с `at` перехода, а не с датой прогона CI;
+- checks (L1) заново не выполняются: verdict gate с `requires_evidence` выносится по записям evidence дерева C.
+Каждый gate перехода по effective policy SHALL получить verdict алгоритмом [REQ-VER-003](#requirement-команда-gate-и-алгоритм-verdict).
+`branch-isolated` судит ветку окружения, а не дерево: его verdict берётся из record без сравнения, но сам gate SHALL в record
+быть. Расхождение с record — verdict gate, отсутствующий или лишний gate, другой `effective_policy_hash`, id `evidence[]`, на
+которых verdict не вынесен, — `RECORD_MISMATCH` с переходом и причиной.
 
 **Ref.** `ref` нового перехода `APPROVED` или `MERGED` SHALL верифицироваться через API форджа
 ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 5):
-- pull request этого репозитория, слит, `merged_by ∈ roles.maintainer`;
+- pull request этого репозитория, слит, `merged_by` входит в `roles[<role>]` для роли из `approvals[]` перехода, а при пустом
+  `approvals[]` — в `roles.maintainer`;
 - для `APPROVED` — merge-коммит PR вносит в record этого Change переход `SPECIFIED`;
-- для `MERGED` — merge-коммит PR равен M, а head PR — оцениваемому commit;
+- для `MERGED` — merge-коммит PR равен M, найденному пересчётом перехода, а head PR — второму родителю M;
 - `produced_by.id` записи `human-approval` перехода равен `merged_by`.
-Иначе `REF_NOT_VERIFIED` с причиной (`repository`, `merged`, `merged_by`, `change`, `merge_commit`, `by`). Если `merged_by` равен автору PR — это информационная находка `APPROVER_IS_AUTHOR` в
-`data.findings[]`, а не нарушение.
+Иначе `REF_NOT_VERIFIED` с причиной (`repository`, `merged`, `merged_by`, `change`, `merge_commit`, `by`). Если `merged_by`
+равен автору PR — это информационная находка `APPROVER_IS_AUTHOR` в `data.findings[]`, а не нарушение.
 
 **Пути.** Собственное состояние Change ([REQ-VER-004](#requirement-вычисляемые-l0-gates-core-sdd)) SHALL быть разрешено во всех
 видах. `openspec/specs/**` в diff SHALL быть допустим только в archive-PR с новым переходом `ARCHIVED` и равенством повтору
-archive (ниже), иначе `SCOPE_VIOLATION` (R-16).
+archive (ниже), иначе `SCOPE_VIOLATION` (R-16). Правила путей судят PR целиком и не зависят от gate `scope-valid`: тот
+судит diff своего перехода и пересчитывается вместе с ним.
 
 **Правила по виду.**
 - **spec**: diff SHALL NOT трогать `paths.src`, `paths.tests`, каталоги `openspec/changes/<другой>/**`, состояние других Changes и
@@ -355,7 +358,7 @@ archive (ниже), иначе `SCOPE_VIOLATION` (R-16).
   - `FRONTEND_HOOKS_INACTIVE` ([REQ-VER-009](#requirement-живость-hooks)) — в `data.findings[]` без влияния на код выхода.
 - **archive**:
   - пути — как у spec-PR, плюс `openspec/specs/**` по общему правилу и каталог архива `openspec/changes/archive/<date>-<change>/**`;
-  - каждая запись `evidence[]` перехода `MERGED` с `attestation.type: "ci"` SHALL нести `subject.tree` и SHALL быть проверена
+  - каждая запись `evidence[]` нового перехода `MERGED` с `attestation.type: "ci"` SHALL нести `subject.tree` и SHALL быть проверена
     через API форджа: попытка run из `attestation.ref` принадлежит репозиторию и имеет `conclusion: success`; у run события
     `pull_request` head sha равен `subject.commit`; run события `workflow_dispatch` запущен с ветки по умолчанию; других событий
     нет;
@@ -395,7 +398,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 #### Scenario: Вердикт impl-PR
 <!-- id: SCN-VER-075 -->
 - **WHEN** `warrant ci` под GitHub Actions на результате merge impl-PR Change `add-search` с `risk_level: HIGH` в `VERIFYING`, checks проходят, gate `human-approval` перехода `VERIFYING->MERGED` без evidence
-- **THEN** `data.kind` равен `impl`, записи evidence лежат в `.warrant/evidence/add-search/` рабочей копии с `attestation.type: "ci"`, `subject.commit` равным HEAD^2 и `subject.tree`, `data.artifact.name` равен `evidence-add-search`, `data.deferred[]` содержит `human-approval`, код 0; ни один commit не создан
+- **THEN** `data.kind` равен `impl`, записи evidence лежат в `.warrant/evidence/add-search/` рабочей копии с `attestation.type: "ci"`, `subject.commit` равным HEAD^2 и `subject.tree`, `data.artifact.name` равен `evidence-add-search-1` (без `GITHUB_RUN_ATTEMPT`; при `GITHUB_RUN_ATTEMPT=2` — `evidence-add-search-2`), `data.deferred[]` содержит `human-approval`, код 0; ни один commit не создан
 
 #### Scenario: impl-PR с упавшим gate
 <!-- id: SCN-VER-076 -->
@@ -450,12 +453,12 @@ checks и `data.would_write[]` без запуска checks и без обращ
 #### Scenario: Первый коммит impl-PR с двумя переходами
 <!-- id: SCN-VER-090 -->
 - **WHEN** impl-PR вносит одним коммитом переходы `APPROVED` (ref — слитый maintainer'ом spec-PR этого Change) и `IMPLEMENTING`, в CI ветки нет (detached HEAD)
-- **THEN** оба перехода пересчитаны на родителе этого коммита, `branch-isolated` не пересчитывается, `RECORD_MISMATCH` нет, ref подтверждён
+- **THEN** оба перехода пересчитаны в дереве этого коммита с оцениваемым commit — его родителем, verdict `branch-isolated` взят из record, `RECORD_MISMATCH` нет, ref подтверждён
 
 #### Scenario: Честный archive-PR
 <!-- id: SCN-VER-091 -->
 - **WHEN** archive-PR `add-search` содержит новые переходы `MERGED` (ref — impl-PR, слитый merge-коммитом M) и `ARCHIVED`, записи `ci`, положенные `ci fetch` из run с деревом M, и `openspec/specs/**`, равные повтору archive
-- **THEN** `data.kind` равен `archive`; переход `MERGED` пересчитан на M^2 с записями из HEAD, записи `ci` допустимы по дереву M, попытка run и artifact подтверждены, `errors` пуст, код 0
+- **THEN** `data.kind` равен `archive`; переход `MERGED` пересчитан в дереве своего коммита с head M^2 и base `merge-base(M^1, M^2)`, записи `ci` допустимы по дереву M, попытка run и artifact подтверждены, `errors` пуст, код 0
 
 #### Scenario: specs в abandon-PR
 <!-- id: SCN-VER-092 -->
@@ -464,7 +467,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 
 #### Scenario: ref чужого PR
 <!-- id: SCN-VER-093 -->
-- **WHEN** новый переход `MERGED` несёт `ref` слитого PR, чей merge-коммит не M
+- **WHEN** новый переход `MERGED` несёт `ref` слитого PR, чей merge-коммит не равен M, найденному пересчётом перехода по записям `ci` его `evidence[]`
 - **THEN** `errors[]` содержит `REF_NOT_VERIFIED` с причиной `merge_commit`, код 1
 
 #### Scenario: policy-путь без Change
@@ -496,6 +499,11 @@ checks и `data.would_write[]` без запуска checks и без обращ
 <!-- id: SCN-VER-101 -->
 - **WHEN** новый переход `SPECIFIED` записан с `gates["spec-valid"]: "PASS"` и `evidence[]` с записью `spec-report` `NOT_PROVEN`
 - **THEN** `errors[]` содержит `RECORD_MISMATCH` с переходом `SPECIFIED` и gate `spec-valid`, код 1
+
+#### Scenario: Waiver истёк после перехода
+<!-- id: SCN-VER-105 -->
+- **WHEN** переход `APPROVED` записан с `gates["adversarial-review"]: "WAIVED"` по waiver с `expires_at` 2026-10-01, а `warrant ci` на archive-PR идёт 2026-10-05
+- **THEN** пересчёт сравнивает срок с `at` перехода, verdict `WAIVED`, `RECORD_MISMATCH` нет
 
 #### Scenario: Попытка run вне ветки по умолчанию
 <!-- id: SCN-VER-102 -->
@@ -530,7 +538,8 @@ workflow вручную со входом `merge_commit` = M; ничего не 
 **Запись.** SHALL записываться побайтно ровно записи выбранной попытки с её `attestation.ref`; их id добавляются в локальный manifest
 по правилам [REQ-VER-001](#requirement-хранение-evidence-и-attestation-по-окружению). `manifest.json` и `raw/` artifact'а SHALL NOT
 импортироваться. Запись с тем же id и тем же содержимым пропускается — повторный `ci fetch` ничего не меняет. Запись с тем же id и
-другим содержимым → `EVIDENCE_CONFLICT`, код 3, ничего не записано.
+другим содержимым → `EVIDENCE_CONFLICT`; запись, не проходящая схему `evidence/1`, или файл, чьё имя не равно `id`, →
+`SCHEMA_VIOLATION` с путём; в обоих случаях код 3, ничего не записано.
 
 Вывод — `data{ pr, change, merge_commit, tree, run, evidence[], skipped[] }`. `--dry-run` SHALL выбрать run и вывести
 `data.dry_run: true` и `data.would_write[]` без записи.

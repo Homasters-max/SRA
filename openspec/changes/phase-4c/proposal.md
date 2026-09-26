@@ -27,7 +27,7 @@ design.md).
     равны результату повтора archive (R-16);
   - **abandon-PR и PR без Change** — правила путей; `openspec/specs/**` — только в archive-PR с переходом `ARCHIVED`;
   - **любой вид** — переходы из diff пересчитываются и сверяются с record, ref подтверждений проверяются через форж
-    (`merged_by ∈ roles.maintainer`, связь PR с Change и merge-коммитом, R-10); совпадение `merged_by` с автором PR —
+    (`merged_by` в роли подтверждения, связь PR с Change и merge-коммитом, R-10); совпадение `merged_by` с автором PR —
     информационная находка `APPROVER_IS_AUTHOR`.
   `FRONTEND_HOOKS_INACTIVE` — в отчёте (BL-7).
 - **Evidence на результате merge** (R-12, ADR-0037 п. 2–4):
@@ -84,6 +84,8 @@ design.md).
   совпадение `merged_by` с автором PR — информационная находка, а не отказ.
 - **Branch protection и обязательный статус** — недоступны на приватном репозитории без GitHub Pro. Красный `warrant ci` —
   сигнал maintainer'у, а не замок форжа.
+- **PR без Change, правящий `.github/workflows/**`**: run `pull_request` исполняет workflow из самого PR и может не вызвать
+  `warrant ci`; у Changes цепочку держат `factory-change` и `human-approval`, у такого PR — только глаза maintainer'а.
 - **Автоматическое evidence на каждый push в `main`** — только ручной `workflow_dispatch` для восстановления (ADR-0037 п. 4).
 - **Разбор ID в тестах по названиям или маркерам; `paths.tests` этого репозитория** — I-169 закрыт статус-кво (ADR-0037 п. 7).
 - **Изменение таблицы gates по переходам** (04 §5) — правило путей spec-PR держит `warrant ci`, а не gate `scope-valid`.

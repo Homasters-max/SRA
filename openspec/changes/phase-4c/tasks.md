@@ -80,17 +80,17 @@
   Проверка:
   - unit на SCN-VER-077, SCN-VER-083;
   - `GitPort.parents`, `GitPort.log(range, path)` — адаптер, `FakeGit`, контракт соответствия.
-- [ ] 4.2 `core/ci/replay.ts` (N44, §4):
+- [ ] 4.2 `core/ci/replay.ts` (N44, §4; пересчёт в дереве коммита перехода):
   - префикс `transitions[]`;
   - оцениваемый commit перехода;
   - gates без evidence — в `GitPort.worktreeAt(commit)`;
   - допуск записей `evidence[]`;
   - `RECORD_MISMATCH`;
-  - `branch-isolated` не пересчитывается;
-  - файлы проекта — из оцениваемого commit, evidence и waivers — из HEAD.
+  - `branch-isolated` — из record;
+  - пересчёт в worktree коммита C с HEAD = C^1, record без перехода, `clock` = `at`.
 
   Проверка:
-  - app на SCN-VER-078, SCN-VER-090, SCN-VER-101;
+  - app на SCN-VER-078, SCN-VER-090, SCN-VER-101, SCN-VER-105;
   - `worktreeAt` — контракт соответствия, `dispose` при ошибке.
 - [ ] 4.3 `core/ci/refs.ts` — `ref` новых переходов через `ForgePort.pullRequest`: `REF_NOT_VERIFIED`, `APPROVER_IS_AUTHOR`.
 

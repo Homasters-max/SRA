@@ -44,8 +44,8 @@ design.md Change `phase-4c`.
    Head sha такого run — tip ветки запуска, а не M^2, поэтому run восстановления опознаётся по содержимому artifact'а, а не
    по head sha. Автоматического прогона на каждый push в `main` нет.
 5. **Ref подтверждения — URL слитого PR** (N36, N42; уточняет ADR-0010 п. 2). `human-approval` на `APPROVED` несёт URL
-   spec-PR, на `MERGED` — URL impl-PR; `warrant ci` через `ForgePort` проверяет: PR слит, `merged_by ∈
-   roles.maintainer`. `merged_by = pr.author` — информационная находка `APPROVER_IS_AUTHOR`, не отказ: это проверяемый
+   spec-PR, на `MERGED` — URL impl-PR; `warrant ci` через `ForgePort` проверяет: PR слит, `merged_by` входит в роль из `approvals[]`
+   перехода (при пустом `approvals[]` — `roles.maintainer`). `merged_by = pr.author` — информационная находка `APPROVER_IS_AUTHOR`, не отказ: это проверяемый
    факт форжа при одном аккаунте. Условие «`review.author ≠ pr.author`» возвращается с bot-идентичностью
    ([ADR-0010](WARRANT-ADR-0010-trust-by-reference.md) п. 4). `transition MERGED --ref` — URL impl-PR; CI-run выводится
    из допущенных CI-записей (`attestation.ref`), правило «evidence одного run» проверяется по записям, без флага;

@@ -79,19 +79,11 @@
 
   Проверка:
   - unit на SCN-VER-077, SCN-VER-083;
-  - `GitPort.parents`, `GitPort.log(range, path)` — адаптер, `FakeGit`, контракт соответствия.
-- [ ] 4.2 `core/ci/replay.ts` (N44, §4; пересчёт в дереве коммита перехода):
-  - префикс `transitions[]`;
-  - оцениваемый commit перехода;
-  - gates без evidence — в `GitPort.worktreeAt(commit)`;
-  - допуск записей `evidence[]`;
-  - `RECORD_MISMATCH`;
-  - `branch-isolated` — из record;
-  - пересчёт в worktree коммита C с HEAD = C^1, record без перехода, `clock` = `at`.
+  - `GitPort.parents` — адаптер, `FakeGit`, контракт соответствия.
+- [ ] 4.2 `core/ci/record.ts` (N44 суженный, §4): префикс `transitions[]`, `change_state`, цепочка состояний, gates новых
+  переходов вперёд, файлы и схема `evidence[]`; `RECORD_MISMATCH`. Verdicts прошлых переходов не пересчитываются.
 
-  Проверка:
-  - app на SCN-VER-078, SCN-VER-090, SCN-VER-101, SCN-VER-105;
-  - `worktreeAt` — контракт соответствия, `dispose` при ошибке.
+  Проверка: app на SCN-VER-078, SCN-VER-090.
 - [ ] 4.3 `core/ci/refs.ts` — `ref` новых переходов через `ForgePort.pullRequest`: `REF_NOT_VERIFIED`, `APPROVER_IS_AUTHOR`.
 
   Проверка: app на SCN-VER-081, SCN-VER-093 с `FakeForge`.
@@ -122,7 +114,7 @@
 
   Проверка: app на SCN-VER-079, SCN-VER-102 с `FakeForge`.
 - [ ] 5.2 R-16: повтор `openspec archive` в `worktreeAt(HEAD^1)` и сравнение `openspec/specs/**`, `SPECS_NOT_ARCHIVED`;
-  правило путей archive-PR. Переход `ARCHIVED` пересчитывает `replay` (4.2), отдельного пересчёта на HEAD нет.
+  правило путей archive-PR; `GitPort.worktreeAt(commit)` — адаптер, `FakeGit`, контракт соответствия, `dispose` при ошибке.
 
   Проверка: app на SCN-VER-080, SCN-VER-091.
 - [ ] 5.3 `core/ci/fetch.ts` и `warrant ci fetch <pr> [--dry-run]`:

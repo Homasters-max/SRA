@@ -59,7 +59,7 @@
 | N41 | `ci fetch` выбирает run по head sha, `success` и `subject.tree` = дерево M; иначе `NO_CI_EVIDENCE` с `hint` |
 | N42 | `transition MERGED --ref` — URL impl-PR; run — из записей; `--commit` — head (п. 5) |
 | N43 | `ForgePort`: `pullRequest`, `workflowRun`, `listRuns`, `downloadArtifact` (п. 6) |
-| N44 | Переходы из diff: gates без `requires_evidence` пересчитываются на оцениваемом commit перехода, записи `evidence[]` — существуют и допустимы; сверка с `gates` record. Следующий переход impl-PR — полный L0/L1 |
+| N44 | Сужено после review 4 (maintainer 2026-09-26): verdicts прошлых переходов не пересчитываются; `ci` проверяет структуру record (префикс, `change_state`, цепочка, gates только `PASS`/`WAIVED`/`NOT_APPLICABLE`, файлы и схема `evidence[]`), ref через форж, merge-вердикт impl-PR и CI-evidence archive-PR. Прежнее «L0 на оцениваемом commit» дало BLOCKER во всех 4 раундах review |
 | N45 | `owner/repo` — `GITHUB_REPOSITORY` или URL `origin`; токен — `gh`; ключа `forge` в `warrant.json` нет |
 | N46 | ADR-0037 едет в spec-PR 4c |
 | N47 | spec-PR не трогает `paths.src`, `paths.tests`, `openspec/specs/**`, чужие Changes и их состояние, policy-пути; документы разрешены |
@@ -90,8 +90,8 @@
   запись судится по `commit` и `base_commit`, как раньше.
 - **Пред-фильтр.** `PrefilterContext.mergeTree?: Availability<string>` — дерево результата merge оцениваемого commit:
   - в `warrant ci` при оценке следующего перехода impl-PR (оцениваемый commit — HEAD^2) — `HEAD^{tree}`;
-  - во всех остальных случаях (`transition`, `gate`, `verify`, `replay` в `ci`) — `M^{tree}` merge-коммита M на first-parent
-    линии HEAD (в `ci` — HEAD^1), чей второй родитель — оцениваемый commit; поиск M — общий с `mergedCommit` (A-29);
+  - во всех остальных случаях (`transition`, `gate`, `verify`) — `M^{tree}` merge-коммита M на first-parent линии HEAD, чей
+    второй родитель — оцениваемый commit; поиск M — общий с `mergedCommit` (A-29);
   - M нет — запись с `tree` получает `STALE` `tree` «результата merge нет».
   Так `gate` и `verify` в archive-ветке предсказывают `transition MERGED` (находка F-29 review).
   Порядок в `staleReason`: `spec_tree`, затем `commit`; для записи с `tree` — сравнение дерева вместо `base_commit`; дальше
@@ -118,23 +118,17 @@
   - разбор переходов — через владельца `core/record/lifecycle.ts`, а не разбором JSON в `ci` (аудит §3.4).
   Флага `--base` нет (уточнение N33): база и head определяются родителями HEAD — в CI это делает job, в режиме восстановления
   это сам M. Локально для отладки: `git merge --no-ff` в detached HEAD и `warrant ci`.
-- **`replay.ts`** — пересчёт переходов из diff.
-  - Префикс `transitions[]` сохранён и `change_state` равен `to` последнего перехода, иначе `RECORD_MISMATCH`; удалённый record —
-    тоже `RECORD_MISMATCH`.
-  - Оцениваемый commit нового перехода:
-    - для `MERGED` — по REQ-VER-007 (`mergedCommit` через `subject.commit` записей);
-    - для остальных — родитель коммита, внёсшего запись перехода. Его находит обход коммитов `HEAD^1..HEAD^2`, меняющих файл
-      record (`GitPort.log(range, path)`), с чтением record на каждом (`git.contents`); переходы одного коммита делят его.
-  - `branch-isolated` не пересчитывается: он судит ветку окружения, а в CI и во временном worktree ветки нет (F-1).
-  - Пересчёт (review 3): переход вычисляется тем же `evaluate`, что у `transition`, во временном worktree коммита C, внёсшего
-    переход (`GitPort.worktreeAt(C) → { root, dispose }`), с git-контекстом HEAD = C^1 (`GitFacts` с переопределённым
-    commit), record без этого перехода и `ctx.clock` = `at` перехода. Так policy, record, evidence, waivers и base совпадают
-    с тем, что видел `transition`; L1 не прогоняется (ADR-0010 п. 3: заново считается только merge-вердикт).
+- **`record.ts`** — структура record (N44 в суженной форме): префикс `transitions[]`, `change_state` = `to` последнего
+  перехода, цепочка состояний — `core/record/lifecycle.ts`; у переходов вперёд, кроме `PROPOSED`, — `effective_policy_hash`
+  и gates только `PASS`/`WAIVED`/`NOT_APPLICABLE`; id `evidence[]` — файлы на HEAD, валидные по схеме (реестр `validate`).
+  Удалённый record — `RECORD_MISMATCH`. Verdicts не пересчитываются.
 - **`refs.ts`** — `ref` новых переходов (`APPROVED`, `MERGED`):
   - `ForgePort.pullRequest(n)` — PR этого репозитория (URL сверяется с `owner/repo`), `merged`, `mergedBy` в роли
     `approvals[]` перехода, при пустом — `roles.maintainer` (как `--by` у `transition`, ADR-0037 п. 5);
   - связь с Change: для `APPROVED` — diff `mergeCommit^1..mergeCommit` вносит переход `SPECIFIED` в record этого Change; для
-    `MERGED` — `mergeCommit = M`, `headSha` = оцениваемый commit;
+    `MERGED` — `mergeCommit = M`, `headSha = M^2`, где M — merge-коммит на first-parent линии HEAD^1 со вторым родителем, равным
+    общему `subject.commit` CI-записей `evidence[]` перехода (независимо от PR);
+  - запись `human-approval` в `evidence[]` перехода (если есть) — `produced_by.id = mergedBy`;
   - `mergedBy === author` — `APPROVER_IS_AUTHOR`.
 - **Виды:**
   - **Общее правило путей:** собственное состояние (`ownState`) разрешено всюду; `openspec/specs/**` — только в archive-PR с
@@ -150,7 +144,7 @@
     (константа владельца `core/evidence/approval.ts`). Плюс `CHANGE_NOT_VERIFYING`. `FRONTEND_HOOKS_INACTIVE` приходит из
     `verify`, как сейчас.
   - **archive** — §5.
-  - **abandon** — `replay` и пути: только `ownState` и удаление `openspec/changes/<change>/**`.
+  - **abandon** — структура record и пути: только `ownState` и удаление `openspec/changes/<change>/**`.
   - **none** — `openspec/changes/**`, `.warrant/changes/**`, `.warrant/evidence/**`, `.warrant/runs/**` и policy-пути в diff —
     `SCOPE_VIOLATION`. История репозитория: все правки `.warrant/**` шли в Changes, process-PR их не трогают.
 - **Коды выхода.** Нарушения — `errors[]` с `hint` и код 1. Ошибки конфигурации и форжа — код 3. Код controller'а на `ci` не
@@ -158,8 +152,9 @@
 - **`--dry-run`** — `kind.ts` и план checks; ни checks, ни форжа.
 - Alternatives:
   - подкоманды по видам PR — отвергнуто: источником вида снова стал бы флаг или ветка (R-16);
-  - пересчёт L1 прошлых переходов — отвергнуто: тесты на каждом старом коммите, а ADR-0010 п. 3 требует заново только
-    merge-вердикт;
+  - пересчёт verdicts прошлых переходов (N44 в исходной форме) — отвергнуто после 4 раундов review: исторический контекст
+    оценки (дерево, версия CLI, `--commit`, перенос каталога в архив, дата) не восстанавливается надёжно, а доверие к этим
+    переходам уже держат ref, merge-вердикт и проверка CI-evidence;
   - `--base <sha>` — отвергнуто при записи: второй источник базы рядом с родителями HEAD.
 
 ### 5. archive-PR и `ci fetch`
@@ -167,14 +162,13 @@
 - **Проверка CI-записей** (`core/ci/archive.ts`). Для записей `evidence[]` перехода `MERGED` с `attestation.type: "ci"`:
   - `ForgePort.workflowRun(id из attestation.ref)`: `repository` = `owner/repo`, `conclusion = success`; для `event:
     pull_request` — `headSha = subject.commit`. У run `workflow_dispatch` head sha — tip ветки запуска: его связь с M держат
-    `subject.tree` записи (пред-фильтр на дереве M) и побайтовое равенство artifact'у (F-5);
+    `subject.commit` = M^2 и `subject.tree` = дерево M записи и побайтовое равенство artifact'у (F-5);
   - `ForgePort.downloadArtifact(run, "evidence-<change>-<attempt>")` → каталог; файл `<EVID>.json` побайтно равен
     закоммиченному.
   Одна загрузка на run.
 - **R-16.** `worktreeAt(HEAD^1)` → `openspec archive <change> --yes` (порт `openspec`) → дерево `openspec/specs/**` сравнивается
-  с HEAD (`git.contents`) по путям и блобам. Имя каталога архива с датой не сравнивается. Отдельного пересчёта gates
-  `MERGED->ARCHIVED` на HEAD нет: переход `ARCHIVED` пересчитывает `replay` на его оцениваемом commit (F-3; после BL-43
-  `analyze-clean` там вычисляется).
+  с HEAD (`git.contents`) по путям и блобам. Имя каталога архива с датой не сравнивается. Gates `MERGED->ARCHIVED` не
+  пересчитываются (N44): их вычислил `warrant archive`, а `analyze-clean` после BL-43 работает и по каталогу архива.
 - **`ci fetch <pr>`** (`core/ci/fetch.ts`, `commands/ci.ts`):
   - `pullRequest(n)`: `merged`, `mergeCommit`; M с двумя родителями, иначе `PR_NOT_MERGED`;
   - Change — из diff record `M^1..M` (`kind.ts`);
@@ -255,7 +249,7 @@ Job `warrant` (ubuntu) вместо `evidence`:
   1. швы A-28, A-29;
   2. `subject.tree`, пред-фильтр, `transition MERGED`, R-21;
   3. `ForgePort`, адаптер, `FakeForge`, контракт;
-  4. `warrant ci`: вид, `replay`, `refs`, spec / none / impl; A-30 с тестами `ci`;
+  4. `warrant ci`: вид, структура record, `refs`, spec / none / impl; A-30 с тестами `ci`;
   5. archive-PR и `ci fetch`;
   6. BL-43, BL-40, R-20, BL-26;
   7. `ci.yml`, навыки, документы, e2e.
@@ -279,7 +273,7 @@ Job `warrant` (ubuntu) вместо `evidence`:
   восстановление — dispatch на M; ложный `PASS` невозможен.
 - [Приватный репозиторий: красный `warrant ci` не блокирует кнопку merge] → навык `git-land` сливает только при зелёном CI;
   форж-замок — вне MVP.
-- [`worktreeAt` на каждый переход замедляет `ci`] → переходов в PR 1–3; worktree detached во временном каталоге,
+- [`worktreeAt(HEAD^1)` для повтора archive замедляет archive-PR] → один worktree на PR, detached во временном каталоге,
   `dispose` в `finally`.
 - [`gh` не установлен локально] → `FORGE_UNAVAILABLE` с `hint`. Форж нужен `ci fetch`, проверкам archive-PR и проверке ref
   новых `APPROVED` / `MERGED` (impl-PR с первым коммитом и archive-PR); spec-PR и PR без Change форжа не требуют.
@@ -324,9 +318,16 @@ BLOCKER, 12 MAJOR, 8 MINOR, 2 INFO; spec исправлена до второг�
 
 Третий review (`RUN-01M3DVM84XGRD291WJJB2KYMEQ`, `EVID-01M3DW2G086HG5WCMQ6NG3CWY3`, `NOT_PROVEN`): 3 BLOCKER, 4 MAJOR, 4 MINOR,
 1 INFO. BLOCKER F-2, F-3 и MAJOR F-4, F-5, F-7 — одна причина: пересчёт собирал входы оценки из разных деревьев. Правило
-заменено одним: пересчёт повторяет `transition` в дереве коммита C с HEAD = C^1 и датой `at` (§4). Остальное: F-1 — имя
+заменено одним: пересчёт повторяет `transition` в дереве коммита C с HEAD = C^1 и датой `at`. Остальное: F-1 — имя
 artifact'а в SCN-VER-075; F-6 — роль `merged_by` из `approvals[]`; F-8 — `branch-isolated` из record; F-9 — правила путей
 независимы от `scope-valid`; F-10 — `SCHEMA_VIOLATION` в `ci fetch`; F-11 — «нового перехода `MERGED`»; F-12 — Non-Goals.
+
+Четвёртый review (`RUN-01M3DW7GYGE2DZD5YQWMM5WZYS`, `EVID-01M3DWMHN5N9PMR9RAM20A24BB`, `NOT_PROVEN`): 3 BLOCKER, 3 MAJOR, 4 MINOR,
+1 INFO. BLOCKER F-1…F-3 и MAJOR F-4…F-6 — снова пересчёт прошлых переходов: `ARCHIVED` записывается после переноса каталога,
+`--commit` `MERGED` не сохраняется, версия CLI вне диапазона `kernel` старого дерева. Maintainer сузил N44 (§1): пересчёт
+verdicts убран, `ci` проверяет структуру record (§4). Остальное: F-7 — правило дерева M без «пересчёта в `ci`»; F-8 —
+локальный `ci` на impl ожидаемо даёт `ATTESTATION_REQUIRED`; F-9 — проверка `by` только при записи `human-approval`; F-10,
+F-11 — сняты сужением.
 
 ## Решения по ходу реализации
 

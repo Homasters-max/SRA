@@ -26,7 +26,7 @@ design.md).
   - **archive-PR** — проверка CI-evidence по ссылке: run, head, `conclusion`, повторное скачивание artifact'а; `openspec/specs/**`
     равны результату повтора archive (R-16);
   - **abandon-PR и PR без Change** — правила путей; `openspec/specs/**` — только в archive-PR с переходом `ARCHIVED`;
-  - **любой вид** — переходы из diff пересчитываются и сверяются с record, ref подтверждений проверяются через форж
+  - **любой вид** — структура record (переходы, gates, файлы `evidence[]`), ref подтверждений проверяются через форж
     (`merged_by` в роли подтверждения, связь PR с Change и merge-коммитом, R-10); совпадение `merged_by` с автором PR —
     информационная находка `APPROVER_IS_AUTHOR`.
   `FRONTEND_HOOKS_INACTIVE` — в отчёте (BL-7).
@@ -94,7 +94,7 @@ design.md).
 ## Impact
 
 - `packages/cli/src`:
-  - новые — `commands/ci.ts`, `core/ci/*` (вид PR, пересчёт переходов, проверки archive-PR, выбор run),
+  - новые — `commands/ci.ts`, `core/ci/*` (вид PR, структура record, проверки archive-PR, выбор run),
     `core/ports/forge.ts`, `adapters/forge-gh.ts`, `core/transition/merged.ts`, `core/evidence/approval.ts` (перенос);
   - правки — `commands/transition.ts`, `core/evidence/record.ts` (`subjectOf`, `tree`), `core/gates/prefilter.ts`,
     `core/gates/l0/spec-approved.ts`, `core/transition/facts.ts` (R-21), `core/run/{state,submit}.ts` (R-21, R-20),

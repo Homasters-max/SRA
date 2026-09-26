@@ -19,14 +19,16 @@ design.md).
 - **Швы первой группой** (без изменения поведения):
   - общий читатель `subject` записи evidence рядом с писателем (A-28);
   - правила `MERGED` о CI-evidence — из `commands/transition.ts` в `core` (A-29).
-- **`warrant ci [--base <sha>]`** — вердикт PR в CI, без записи в репозиторий (ADR-0010 п. 1). Вид PR и Change выводятся
+- **`warrant ci [--dry-run]`** — вердикт PR в CI, без записи в репозиторий (ADR-0010 п. 1). Вид PR и Change выводятся
   из diff record, а не из имени ветки (ADR-0034 п. 13). По видам PR:
   - **spec-PR** — правило путей (BL-42);
   - **impl-PR** — checks `VERIFYING->MERGED` на результате merge и вердикт;
   - **archive-PR** — проверка CI-evidence по ссылке: run, head, `conclusion`, повторное скачивание artifact'а; `openspec/specs/**`
     равны результату повтора archive (R-16);
+  - **abandon-PR и PR без Change** — правила путей; `openspec/specs/**` — только в archive-PR с переходом `ARCHIVED`;
   - **любой вид** — переходы из diff пересчитываются и сверяются с record, ref подтверждений проверяются через форж
-    (`merged_by`, R-10).
+    (`merged_by ∈ roles.maintainer`, связь PR с Change и merge-коммитом, R-10); совпадение `merged_by` с автором PR —
+    информационная находка `APPROVER_IS_AUTHOR`.
   `FRONTEND_HOOKS_INACTIVE` — в отчёте (BL-7).
 - **Evidence на результате merge** (R-12, ADR-0037 п. 2–4):
   - CI-запись несёт `subject.tree` — дерево результата merge; `subject.commit` остаётся head PR;
@@ -34,7 +36,7 @@ design.md).
   - результат merge считает сам job, так что Re-run до merge лечит `STALE`; после merge — `workflow_dispatch` на
     merge-коммите.
 - **`warrant ci fetch <pr> [--dry-run]`** — локальный шаг archive-PR (BL-12, ADR-0034 п. 14):
-  - находит run слитого impl-PR, чьё evidence сделано на дереве merge-коммита;
+  - находит run слитого impl-PR или run восстановления, чьё evidence сделано на дереве merge-коммита;
   - проверяет run, скачивает artifact и кладёт записи в `<state>/evidence/<change>/`.
 - **`transition MERGED`** (ADR-0037 п. 5):
   - `--ref` — URL impl-PR (ref `human-approval`, как у `APPROVED`);
@@ -74,7 +76,7 @@ design.md).
 ## Non-Goals
 
 - **Полное INV-03** (`review.author ≠ pr.author`, метод `reviews` в `ForgePort`) — с bot-идентичностью (BL-44). В 4c
-  совпадение `merged_by` с автором PR даёт limitation, а не отказ.
+  совпадение `merged_by` с автором PR — информационная находка, а не отказ.
 - **Branch protection и обязательный статус** — недоступны на приватном репозитории без GitHub Pro. Красный `warrant ci` —
   сигнал maintainer'у, а не замок форжа.
 - **Автоматическое evidence на каждый push в `main`** — только ручной `workflow_dispatch` для восстановления (ADR-0037 п. 4).

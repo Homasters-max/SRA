@@ -85,21 +85,24 @@
   - оцениваемый commit перехода;
   - gates без evidence — в `GitPort.worktreeAt(commit)`;
   - допуск записей `evidence[]`;
-  - `RECORD_MISMATCH`.
+  - `RECORD_MISMATCH`;
+  - `branch-isolated` не пересчитывается.
 
   Проверка:
-  - app на SCN-VER-078;
+  - app на SCN-VER-078, SCN-VER-090;
   - `worktreeAt` — контракт соответствия, `dispose` при ошибке.
 - [ ] 4.3 `core/ci/refs.ts` — `ref` новых переходов через `ForgePort.pullRequest`: `REF_NOT_VERIFIED`, `APPROVER_IS_AUTHOR`.
 
-  Проверка: app на SCN-VER-081 с `FakeForge`.
-- [ ] 4.4 Виды `spec` и `none` — правило путей N47, gates `SPECIFIED->APPROVED` информационно.
+  Проверка: app на SCN-VER-081, SCN-VER-093 с `FakeForge`.
+- [ ] 4.4 Правила путей: общее для `openspec/specs/**`, виды `spec`, `abandon`, `none` (N47), gates `SPECIFIED->APPROVED`
+  информационно.
 
-  Проверка: app на SCN-VER-073, SCN-VER-074.
+  Проверка: app на SCN-VER-073, SCN-VER-074, SCN-VER-092, SCN-VER-094.
 - [ ] 4.5 Вид `impl`: `runVerify` на HEAD с `mergeTree`, `deferred[]`, `CHANGE_NOT_VERIFYING`, `FRONTEND_HOOKS_INACTIVE` в
   отчёте.
 
-  Проверка: app на SCN-VER-068, SCN-VER-075, SCN-VER-076, SCN-VER-082 (`GITHUB_*` в окружении, ни одного нового коммита).
+  Проверка: app на SCN-VER-068, SCN-VER-075, SCN-VER-076, SCN-VER-082, SCN-VER-095 (`GITHUB_*` в окружении, ни одного
+  нового коммита).
 - [ ] 4.6 `commands/ci.ts`, `warrant ci [--dry-run]` в `bin/warrant.ts`, `--help` с примером (линза `cli-contract`), коды
   0/1/3.
 
@@ -120,13 +123,13 @@
 - [ ] 5.2 R-16: повтор `openspec archive` в `worktreeAt(HEAD^1)` и сравнение `openspec/specs/**`, `SPECS_NOT_ARCHIVED`;
   gates `MERGED->ARCHIVED` на HEAD.
 
-  Проверка: app на SCN-VER-080; честный archive-PR фикстуры — код 0.
+  Проверка: app на SCN-VER-080, SCN-VER-091.
 - [ ] 5.3 `core/ci/fetch.ts` и `warrant ci fetch <pr> [--dry-run]`:
   - выбор run по дереву M;
   - `importRecords` в `core/evidence/store.ts`;
   - ошибки `PR_NOT_MERGED`, `NO_CI_EVIDENCE` с `hint`, `EVIDENCE_CONFLICT`.
 
-  Проверка: app на SCN-VER-086…089 с `FakeForge`.
+  Проверка: app на SCN-VER-086…089, SCN-VER-096, SCN-VER-097 с `FakeForge`.
 
 ## 6. Мелкие строки (REQ-VER-010, REQ-KRN-033, REQ-SDD-001; R-20)
 

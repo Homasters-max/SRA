@@ -41,11 +41,12 @@ design.md Change `phase-4c`.
    момент запуска, `git merge --no-ff`; конфликт — ошибка конфигурации (exit 3). Re-run job до merge лечит `STALE`.
 4. **Восстановление после merge** (N40): если `main` сдвинулся между прогоном и merge, evidence производит
    `workflow_dispatch` того же job со входом `merge_commit` — checkout M, `subject.commit` = M^2, `tree` = tree(M).
-   Автоматического прогона на каждый push в `main` нет.
+   Head sha такого run — tip ветки запуска, а не M^2, поэтому run восстановления опознаётся по содержимому artifact'а, а не
+   по head sha. Автоматического прогона на каждый push в `main` нет.
 5. **Ref подтверждения — URL слитого PR** (N36, N42; уточняет ADR-0010 п. 2). `human-approval` на `APPROVED` несёт URL
    spec-PR, на `MERGED` — URL impl-PR; `warrant ci` через `ForgePort` проверяет: PR слит, `merged_by ∈
-   roles.maintainer`. `merged_by = pr.author` — limitation «approver is PR author», не `FAIL`: это проверяемый факт
-   форжа при одном аккаунте. Условие «`review.author ≠ pr.author`» возвращается с bot-идентичностью
+   roles.maintainer`. `merged_by = pr.author` — информационная находка `APPROVER_IS_AUTHOR`, не отказ: это проверяемый
+   факт форжа при одном аккаунте. Условие «`review.author ≠ pr.author`» возвращается с bot-идентичностью
    ([ADR-0010](WARRANT-ADR-0010-trust-by-reference.md) п. 4). `transition MERGED --ref` — URL impl-PR; CI-run выводится
    из допущенных CI-записей (`attestation.ref`), правило «evidence одного run» проверяется по записям, без флага;
    `--commit` — head.
@@ -60,12 +61,12 @@ design.md Change `phase-4c`.
 
 - ADR-0034: п. 9 — без `reviews`; п. 12 — merge считает job, восстановление — `workflow_dispatch`; п. 14 — `ci fetch`
   выбирает run по совпадению `subject.tree` с деревом M. Остальные пункты не меняются.
-- ADR-0010 п. 2: для `human-approval` в MVP «автор ≠ автор PR» — limitation, а не отказ; INV-03
+- ADR-0010 п. 2: для `human-approval` в MVP «автор ≠ автор PR» — информационная находка, а не отказ; INV-03
   ([01](../01-principles.md)) уточняется в Change 4c. П. 1, 3, 5 не меняются.
 - Спецификация (Change `phase-4c`): [06](../06-verification.md) §3 — правило `tree` пред-фильтра; [06a](../06a-evidence.md)
   — поле `subject.tree`; [04](../04-lifecycle.md) §6 — `warrant ci` выводит Change и переход из record; delta specs
-  `verification` (пред-фильтр, `transition MERGED` — BREAKING SCN-VER-050/051 и `REF_MISMATCH`, `warrant ci`), `kernel`
-  (`ci fetch`, REQ-KRN-033 — BL-40), `core-sdd` (SCN-SDD-001 — BL-26). Схема `evidence/1` — `subject.tree` (минорная
+  `verification` (пред-фильтр, `transition MERGED` — BREAKING форма `--ref` и смысл `REF_MISMATCH`, `warrant ci`, `ci fetch`),
+  `kernel` (`subject.tree`, REQ-KRN-033 — BL-40), `core-sdd` (SCN-SDD-001 — BL-26). Схема `evidence/1` — `subject.tree` (минорная
   правка).
 - `ci.yml`: job `warrant` на всех PR вместо `evidence` на `worktree/*`; шаги «Change of the branch» и «Main specs only
   through an archive-PR» удаляются; `permissions: actions: read`; `workflow_dispatch` со входом `merge_commit`.

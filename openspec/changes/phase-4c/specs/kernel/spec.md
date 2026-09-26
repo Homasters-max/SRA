@@ -55,7 +55,9 @@ pack для kind, [REQ-KRN-001](#requirement-адресация-и-форма-js
 `warrant run submit`. Если ни один подключённый pack не даёт skill `specification/adversarial-review`, файл субагента SHALL NOT
 генерироваться, а вывод `sync` SHALL содержать в `data.findings[]` находку `{ code: "REVIEWER_SKILL_MISSING", path, hint }` с путём файла
 субагента и `hint` подключить pack с этим skill; код выхода — 0: проект без review-skill законен, gate `adversarial-review` у него
-закрывается waiver'ом (BL-40). Во всех
+закрывается waiver'ом (BL-40). Прежний файл субагента со строкой-маркером `sync` при этом SHALL удалить, файл без маркера SHALL NOT
+трогать; `validate` без review-skill файл субагента SHALL NOT сверять, а `sync --check` сообщает находку, но код выхода определяет
+только расхождение файлов. Во всех
 случаях `sync` SHALL держать строку `.warrant/runs/current` в `.gitignore`. Чужие ключи, записи и строки этих файлов SHALL
 сохраняться; `.claude/settings.json` пишется в каноническом JSON. `warrant init --frontend claude` SHALL записать
 `frontends: ["claude"]` в новый `warrant.json`. `warrant validate` SHALL сверять `AGENTS.md` и `.claude/agents/warrant-reviewer.md` побайтно, а в `.claude/settings.json`,
@@ -100,4 +102,4 @@ pack для kind, [REQ-KRN-001](#requirement-адресация-и-форма-js
 #### Scenario: Нет skill review
 <!-- id: SCN-KRN-142 -->
 - **WHEN** `warrant sync` при `frontends: ["claude"]` в проекте, чьи packs не дают skill `specification/adversarial-review`
-- **THEN** `.claude/agents/warrant-reviewer.md` не создан, `data.findings[]` содержит `REVIEWER_SKILL_MISSING` с `path` `.claude/agents/warrant-reviewer.md` и `hint`, `.claude/settings.json` сгенерирован, код 0
+- **THEN** `.claude/agents/warrant-reviewer.md` не создан, `data.findings[]` содержит `REVIEWER_SKILL_MISSING` с `path` `.claude/agents/warrant-reviewer.md` и `hint`, `.claude/settings.json` сгенерирован, код 0; `warrant validate` не даёт `GENERATED_DRIFT` по файлу субагента; прежний сгенерированный файл субагента удалён

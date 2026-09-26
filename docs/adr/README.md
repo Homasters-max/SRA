@@ -41,5 +41,6 @@
 | [0035](WARRANT-ADR-0035-ratchet-external-packages.md) | Храповик границ: реестр внешних пакетов «пакет → владелец» и помощники тестов в `architecture.json` | ACCEPTED |
 | [0036](WARRANT-ADR-0036-phase-4b-producers.md) | Нарезка 4b / 4c: producers (`skill-result/1`, `run submit`, `analyze`, `analyze-clean`, `adversarial-review`, находки A-23…A-27) раньше CI (`ForgePort`, `warrant ci`, `subject.tree`); `analyze-clean` — вычисляемый gate; evidence review привязана к дереву spec (`subject.spec_tree`), статус — по `BLOCKER` | ACCEPTED |
 | [0037](WARRANT-ADR-0037-phase-4c-ci.md) | Фаза 4c: evidence CI на результате merge, который считает сам job (`subject.commit` — head, `subject.tree` — дерево merge), `STALE` — причина пред-фильтра `tree`, восстановление — `workflow_dispatch`; ref `human-approval` — URL слитого PR с проверкой `merged_by`; `ForgePort` из четырёх методов; I-169 — без `paths.tests` | ACCEPTED |
+| [0038](WARRANT-ADR-0038-pr-judged-by-base.md) | PR не задаёт требований к себе: policy-пути, `paths.*`, `roles`, effective policy и классификация для `warrant ci` — из HEAD^1; требования к новому `MERGED` — из политики базы; исполняемое из PR (workflow, судья-CLI) — policy-пути `factory-change` | ACCEPTED |
 
 Новый ADR: следующий номер, frontmatter как в существующих, строка в этой таблице.

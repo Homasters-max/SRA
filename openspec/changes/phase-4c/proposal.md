@@ -86,6 +86,9 @@ design.md).
   сигнал maintainer'у, а не замок форжа.
 - **PR без Change, правящий `.github/workflows/**`**: run `pull_request` исполняет workflow из самого PR и может не вызвать
   `warrant ci`; у Changes цепочку держат `factory-change` и `human-approval`, у такого PR — только глаза maintainer'а.
+- **Изоляция судьи** (CLI из базы, `pull_request_target`) — судья и workflow из PR — policy-пути `factory-change`, их правку
+  видит классификация по базе ([ADR-0038](../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md)); зависимости корневого
+  `package-lock.json` — глаза maintainer'а.
 - **Ref у `ARCHIVED` и `ABANDONED`**: их держат локальный `warrant`, повтор archive и merge maintainer'а; verdicts переходов
   `warrant ci` не пересчитывает (N44 сужен).
 - **Автоматическое evidence на каждый push в `main`** — только ручной `workflow_dispatch` для восстановления (ADR-0037 п. 4).

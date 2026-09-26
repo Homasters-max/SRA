@@ -291,6 +291,11 @@ ID «определён», если он объявлен в main specs или �
 код 3. Diff — `HEAD^1..HEAD`. Репозиторий форжа — `GITHUB_REPOSITORY`, иначе из URL remote `origin`
 ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 6).
 
+**База требований.** Всё, из чего `warrant ci` выводит требования к PR, SHALL читаться из packs и `warrant.json` дерева HEAD^1
+(базы), а не из PR ([ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md) п. 1): policy-пути (`match.paths`
+profile `factory-change`), `paths.src`, `paths.tests`, `roles`, `approvals[]`, effective policy и классификация по путям diff.
+PR предъявляет только предмет суждения.
+
 **Change и вид PR.** Change SHALL выводиться из records `.warrant/changes/*.json`, изменённых или удалённых в diff, а не из имени
 ветки ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 13):
 - больше одного такого record — `TOPOLOGY_VIOLATION` с именами;
@@ -310,10 +315,15 @@ ID «определён», если он объявлен в main specs или �
   `NOT_APPLICABLE`;
 - каждый id его `evidence[]` — файл `.warrant/evidence/<change>/<id>.json` на HEAD, валидный по `evidence/1`;
 - record, замороженный в базе (`ARCHIVED`, `ABANDONED`), в diff не меняется;
-- в видах impl, archive и abandon `classification` на HEAD не слабее, чем в базе: `profiles` — надмножество профилей базы,
-  `risk_level` effective policy — не ниже; иначе PR снял бы с себя gates своего merge.
-Verdicts ни одного перехода record, в том числе новых, `warrant ci` заново SHALL NOT вычислять. Доверие к ним держат другие
-проверки
+- в видах impl, archive и abandon `classification` на HEAD не слабее базы: `profiles` — надмножество профилей record базы и
+  профилей, которые `classify` по packs базы выводит из путей diff PR; `risk_level` effective policy по packs базы — не ниже,
+  чем у record базы; иначе PR снял бы с себя gates своего merge (причина `classification`);
+- у нового перехода `MERGED` `effective_policy_hash` равен hash effective policy, вычисленной по базе для `classification` на
+  HEAD (причина `policy`); для каждого gate `PASS` этого перехода, чьи `requires_evidence` содержат kind, который производят
+  checks перехода `VERIFYING->MERGED`, `evidence[]` содержит запись этого kind с `attestation.type: "ci"` (причина
+  `ci_evidence`, [ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md) п. 2).
+Требования к переходам выводятся из базы, а verdicts ни одного перехода record, в том числе новых, `warrant ci` заново
+SHALL NOT вычислять. Доверие к ним держат другие проверки
 ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md), N44 уточнён review spec):
 - ref подтверждений (ниже): maintainer слил spec-PR до `APPROVED` и impl-PR до `MERGED`;
 - merge-вердикт impl-PR, пересчитанный из evidence своего run;
@@ -324,13 +334,13 @@ maintainer'ом — остаточный риск MVP.
 **Ref.** `ref` нового перехода `APPROVED` или `MERGED` SHALL верифицироваться через API форджа
 ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 5):
 - pull request этого репозитория, слит, `merged_by` входит в `roles[<role>]` для роли из `approvals[]` перехода в effective policy
-  Change, а при пустом `approvals[]` — в `roles.maintainer`; `roles` и `approvals[]` берутся из дерева HEAD^1 (базы), а не из
-  PR: иначе PR вписал бы себе подтверждающего;
+  Change, а при пустом `approvals[]` — в `roles.maintainer`; `roles` и `approvals[]` — из базы требований: иначе PR вписал бы
+  себе подтверждающего;
 - для `APPROVED` — merge-коммит PR лежит на first-parent линии HEAD^1 и вносит в record этого Change переход `SPECIFIED`;
 - для `MERGED` — merge-коммит PR равен M, а head PR — второму родителю M. M — merge-коммит на first-parent линии HEAD^1, чей
   второй родитель равен общему `subject.commit` записей `attestation.type: "ci"` из `evidence[]` перехода; у них разные
-  `subject.commit` — причина `merge_commit`. Таких записей нет (policy Change не требует CI-evidence) — M — merge-коммит PR
-  из ref, если он лежит на first-parent линии HEAD^1 и вносит в record этого Change переход `VERIFYING`;
+  `subject.commit` — причина `merge_commit`. Таких записей нет (policy базы их не требует, правило `ci_evidence`) — M —
+  merge-коммит PR из ref, если он лежит на first-parent линии HEAD^1 и вносит в record этого Change переход `VERIFYING`;
 - если среди `evidence[]` перехода есть запись `human-approval`, её `produced_by.id` равен `merged_by`; нет такой записи
   (gate `human-approval` не требовался) — проверка не выполняется.
 Иначе `REF_NOT_VERIFIED` с причиной (`repository`, `merged`, `merged_by`, `change`, `merge_commit`, `by`). Если `merged_by`
@@ -361,7 +371,7 @@ archive (ниже), иначе `SCOPE_VIOLATION` (R-16). Правила путе
     `data.deferred[]`;
   - вне GitHub Actions «текущий run» — этот вызов: его записи несут `attestation.type: "none"`, и gates L1 перехода дают
     `BLOCKED` с `ATTESTATION_REQUIRED` (REQ-VER-003), код 1 — ожидаемый исход локальной отладки;
-  - approver'ы waivers (`approved_by` ∈ `roles`, REQ-VER-003) — по `roles` из дерева HEAD^1; правка `roles` в diff —
+  - approver'ы waivers (`approved_by` ∈ `roles`, REQ-VER-003) — по `roles` базы требований; правка `roles` в diff —
     информационная находка `ROLES_CHANGED`;
   - `change_state` не `VERIFYING` — нарушение `CHANGE_NOT_VERIFYING`;
   - ошибки checks (`CHECK_TIMEOUT`, `BUSY`, `CHECK_NOT_CONFIGURED`, `CHECK_LOCAL_FORBIDDEN`) — в `errors[]`, код выхода 3, как
@@ -387,7 +397,8 @@ archive (ниже), иначе `SCOPE_VIOLATION` (R-16). Правила путе
   policy-пути, иначе `SCOPE_VIOLATION`.
 
 **Вывод** — `data{ kind, change?, transitions[]{ to, at, ref? }, gates?, deferred[]?, findings[], skipped[], evidence[]?,
-artifact? }`; `transitions[]` — новые переходы.
+artifact?, dry_run?, would_write[]? }`; `transitions[]` — новые переходы; `evidence[]` — id записей, которые записал вид impl
+или проверил через форж вид archive.
 
 **Код выхода:**
 - 0 — нарушений нет;
@@ -441,7 +452,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 #### Scenario: Подтверждение не maintainer'ом
 <!-- id: SCN-VER-081 -->
 - **WHEN** новый переход `APPROVED` несёт `ref` spec-PR этого Change, который слил логин вне `roles.maintainer`
-- **THEN** `errors[]` содержит `REF_NOT_VERIFIED` с причиной `merged_by`, код 1; если слил maintainer, он же автор PR, — `data.findings[]` содержит `APPROVER_IS_AUTHOR`, код 0
+- **THEN** `errors[]` содержит `REF_NOT_VERIFIED` с причиной `merged_by`, код 1; если слил maintainer, он же автор PR, — `REF_NOT_VERIFIED` нет, а `data.findings[]` содержит `APPROVER_IS_AUTHOR` (код выхода задают остальные правила, SCN-VER-090)
 
 #### Scenario: Живость hooks в отчёте ci
 <!-- id: SCN-VER-082 -->
@@ -515,13 +526,23 @@ checks и `data.would_write[]` без запуска checks и без обращ
 
 #### Scenario: archive-PR только с MERGED
 <!-- id: SCN-VER-106 -->
-- **WHEN** archive-PR `add-search` вносит только переход `MERGED` (архивация — следующим PR) и не меняет `openspec/specs/**`
+- **WHEN** честный archive-PR `add-search` (как SCN-VER-091) вносит только переход `MERGED` (архивация — следующим PR) и не меняет `openspec/specs/**`
 - **THEN** `data.kind` равен `archive`, повтор `openspec archive` не выполняется, `SPECS_NOT_ARCHIVED` нет, код 0
 
 #### Scenario: Попытка run вне ветки по умолчанию
 <!-- id: SCN-VER-102 -->
 - **WHEN** запись `ci` перехода `MERGED` сделана run `workflow_dispatch`, запущенным с ветки `feature/x`
 - **THEN** `errors[]` содержит `EVIDENCE_NOT_VERIFIED` с причиной `branch`, код 1
+
+#### Scenario: PR сужает policy-пути
+<!-- id: SCN-VER-107 -->
+- **WHEN** impl-PR `add-search` с `classification.profiles` `["feature"]` убирает `packs/**` из `match.paths` profile `factory-change` в `packs/core-sdd/profiles/factory-change.json`
+- **THEN** `errors[]` содержит `RECORD_MISMATCH` с причиной `classification` и профилем `factory-change`, выведенным по packs базы, код 1
+
+#### Scenario: MERGED без CI-evidence
+<!-- id: SCN-VER-108 -->
+- **WHEN** честный archive-PR `add-search` вносит переход `MERGED` с `gates["tests-passed"]` `PASS`, чей `evidence[]` не содержит записей `ci`; либо `MERGED` с пустым `gates`
+- **THEN** `errors[]` содержит `RECORD_MISMATCH` с причиной `ci_evidence`; для пустого `gates` — с причиной `policy`; код 1
 
 ### Requirement: Команда ci fetch
 <!-- id: REQ-VER-012 -->
@@ -532,6 +553,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 
 **Ошибки входа** (код 3, ничего не записано):
 - URL другого репозитория — `USAGE`;
+- заданный `WARRANT_STATE_DIR` — `USAGE`: записи едут в archive-PR, состояние — в `.warrant`, как у `warrant ci`;
 - PR не найден — `PR_NOT_FOUND`;
 - форж недоступен — `FORGE_UNAVAILABLE` с `hint`;
 - PR не слит или слит не merge-коммитом (squash, rebase) — `PR_NOT_MERGED`;
@@ -539,7 +561,8 @@ checks и `data.would_write[]` без запуска checks и без обращ
 - Change — тот, чей record меняет diff `M^1..M`; не ровно один — `TOPOLOGY_VIOLATION` (ошибка входа команды);
 - record Change на M не в `VERIFYING` (PR — не impl-PR) — `PR_NOT_IMPL` с `hint` про номер impl-PR.
 
-**Кандидаты** — попытки runs этого репозитория с `conclusion: success`, новые первыми:
+**Кандидаты** — попытки runs этого репозитория с `conclusion: success`, новые первыми; каждая попытка run, а не только
+последняя:
 - события `pull_request` с head sha, равным M^2;
 - события `workflow_dispatch` с ветки по умолчанию, созданные после merge M (восстановление, ADR-0037 п. 4).
 Попытка без artifact `evidence-<change>-<attempt>` (истёк) пропускается с причиной в `data.skipped[]`.
@@ -550,8 +573,9 @@ checks и `data.would_write[]` без запуска checks и без обращ
 workflow вручную со входом `merge_commit` = M; ничего не записано.
 
 **Запись.** SHALL записываться побайтно ровно записи выбранной попытки с её `attestation.ref`; их id добавляются в локальный manifest
-по правилам [REQ-VER-001](#requirement-хранение-evidence-и-attestation-по-окружению). `manifest.json` и `raw/` artifact'а SHALL NOT
-импортироваться. Запись с тем же id и тем же содержимым пропускается — повторный `ci fetch` ничего не меняет. Запись с тем же id и
+по правилам [REQ-VER-001](#requirement-хранение-evidence-и-attestation-по-окружению), `manifest.commit` — HEAD, как у любой
+локальной записи. `manifest.json` и `raw/` artifact'а SHALL NOT импортироваться. Импорт SHALL идти под lock Change, как `check`:
+занятый lock — `BUSY`, код 3. Файлы записей пишутся до manifest: прерванный импорт доводит повторный `ci fetch`. Запись с тем же id и тем же содержимым пропускается — повторный `ci fetch` ничего не меняет. Запись с тем же id и
 другим содержимым → `EVIDENCE_CONFLICT`; запись, не проходящая схему `evidence/1`, или файл, чьё имя не равно `id`, →
 `SCHEMA_VIOLATION` с путём; в обоих случаях код 3, ничего не записано.
 
@@ -597,3 +621,8 @@ workflow вручную со входом `merge_commit` = M; ничего не 
 <!-- id: SCN-VER-097 -->
 - **WHEN** `warrant ci fetch 9` выполнен второй раз после успешного первого
 - **THEN** ни один файл не изменён, `data.evidence[]` перечисляет те же id, код 0
+
+#### Scenario: fetch во внешнее состояние
+<!-- id: SCN-VER-109 -->
+- **WHEN** `warrant ci fetch 9` при заданном `WARRANT_STATE_DIR`
+- **THEN** `errors[0].code` равен `USAGE` с `hint` снять переменную, к форжу не было обращений, ни один файл не изменён, код 3

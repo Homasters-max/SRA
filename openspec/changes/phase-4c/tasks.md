@@ -75,16 +75,18 @@
 ## 4. warrant ci (REQ-VER-011; A-30)
 
 - [ ] 4.1 `core/ci/kind.ts`: HEAD — результат merge; records Changes в diff; вид по `change_state`; `TOPOLOGY_VIOLATION`.
-  Разбор переходов — через `core/record/lifecycle.ts` (§4).
+  Разбор переходов — через `core/record/lifecycle.ts` (§4). `core/ci/base.ts` — база требований из `worktreeAt(HEAD^1)`
+  (I-171): policy-пути, `paths.*`, `roles`, `approvals[]`, effective policy; `dispose` в `finally`.
 
   Проверка:
   - unit на SCN-VER-077, SCN-VER-083;
-  - `GitPort.parents` — адаптер, `FakeGit`, контракт соответствия.
+  - `GitPort.parents`, `GitPort.worktreeAt(commit)` — адаптер, `FakeGit`, контракт соответствия, `dispose` при ошибке.
 - [ ] 4.2 `core/ci/record.ts` (N44 суженный, §4): префикс `transitions[]`, `change_state`, цепочка состояний, gates новых
-  переходов вперёд, файлы и схема `evidence[]`, замороженный record, классификация не слабее базы; `RECORD_MISMATCH`. Verdicts
-  прошлых переходов не пересчитываются.
+  переходов вперёд, файлы и схема `evidence[]`, замороженный record, классификация не слабее базы и профилей `classify` по базе на путях diff (I-171); новый `MERGED` —
+  `effective_policy_hash` по базе и записи `ci` у gates `PASS` (I-172); `RECORD_MISMATCH`. Verdicts прошлых переходов не
+  пересчитываются.
 
-  Проверка: app на SCN-VER-078, SCN-VER-090, SCN-VER-105.
+  Проверка: app на SCN-VER-078, SCN-VER-090, SCN-VER-105, SCN-VER-107, SCN-VER-108.
 - [ ] 4.3 `core/ci/refs.ts` — `ref` новых переходов через `ForgePort.pullRequest`: `REF_NOT_VERIFIED`, `APPROVER_IS_AUTHOR`.
 
   Проверка: app на SCN-VER-081, SCN-VER-093 с `FakeForge`.
@@ -99,6 +101,8 @@
   ни одного нового коммита).
 - [ ] 4.6 `commands/ci.ts`, `warrant ci [--dry-run]` в `bin/warrant.ts`, `--help` с примером (линза `cli-contract`), коды
   0/1/3.
+
+  Вывод — с `evidence[]`, `dry_run`, `would_write[]` (I-175).
 
   Проверка:
   - app на SCN-VER-084, SCN-VER-085;
@@ -115,15 +119,17 @@
 
   Проверка: app на SCN-VER-079, SCN-VER-102 с `FakeForge`.
 - [ ] 5.2 R-16: повтор `openspec archive` в `worktreeAt(HEAD^1)` и сравнение `openspec/specs/**`, `SPECS_NOT_ARCHIVED`;
-  правило путей archive-PR; `GitPort.worktreeAt(commit)` — адаптер, `FakeGit`, контракт соответствия, `dispose` при ошибке.
+  правило путей archive-PR; `worktreeAt` — из задачи 4.1 (I-171).
 
   Проверка: app на SCN-VER-080, SCN-VER-091, SCN-VER-106.
 - [ ] 5.3 `core/ci/fetch.ts` и `warrant ci fetch <pr> [--dry-run]`:
   - выбор run по дереву M;
   - `importRecords` в `core/evidence/store.ts`;
-  - ошибки `PR_NOT_MERGED`, `NO_CI_EVIDENCE` с `hint`, `EVIDENCE_CONFLICT`.
+  - ошибки `PR_NOT_MERGED`, `NO_CI_EVIDENCE` с `hint`, `EVIDENCE_CONFLICT`;
+  - I-175: `WARRANT_STATE_DIR` — `USAGE`; lock Change (`BUSY`), manifest последним, `manifest.commit` — HEAD; попытки run —
+    `workflowRun(id, n)` от последней к первой.
 
-  Проверка: app на SCN-VER-086…089, SCN-VER-096, SCN-VER-097, SCN-VER-103, SCN-VER-104 с `FakeForge`.
+  Проверка: app на SCN-VER-086…089, SCN-VER-096, SCN-VER-097, SCN-VER-103, SCN-VER-104, SCN-VER-109 с `FakeForge`.
 
 ## 6. Мелкие строки (REQ-VER-010, REQ-KRN-033, REQ-SDD-001; R-20)
 
@@ -142,10 +148,10 @@
 - [ ] 6.4 BL-26: тег SCN-SDD-001 в `core-sdd-catalog.test.ts` — форма lock по THEN delta (REQ-SDD-001).
 
   Проверка: `node scripts/dev/scn-coverage.js --main` на ветке не теряет SCN-SDD-001.
-- [ ] 6.5 Profile `factory-change` `1.1.0`: `.github/workflows/**` в `match.paths` (REQ-SDD-005); golden и lock — `sync`,
-  `golden:update`.
+- [ ] 6.5 Profile `factory-change` `1.1.0`: `.github/workflows/**`, `packages/cli/src/**`, `packages/cli/package.json` в
+  `match.paths` (REQ-SDD-005, I-173); golden и lock — `sync`, `golden:update`.
 
-  Проверка: app `classify` на SCN-SDD-026; SCN-SDD-007, SCN-SDD-008 без правок.
+  Проверка: app `classify` на SCN-SDD-026, SCN-SDD-027; SCN-SDD-007, SCN-SDD-008 без правок.
 
 ## 7. CI, навыки, документы, сквозная проверка
 
@@ -157,7 +163,8 @@
   - удалить job `evidence` и шаг «Main specs only through an archive-PR».
 
   Проверка: CI impl-PR 4c зелёный, `warrant ci` дал `kind: impl` и artifact.
-- [ ] 7.2 Навыки `change-archive-pr` (`ci fetch`, `--ref` — URL impl-PR) и `change-impl-pr` (job `warrant`).
+- [ ] 7.2 Навыки `change-archive-pr` (`ci fetch`, `--ref` — URL impl-PR), `change-impl-pr` (job `warrant`) и `change-spec-pr`
+  (review `PROVEN` с MAJOR — решение в impl-PR по ADR-0024 п. 4, I-176).
 
   Проверка: `dev-context.test.ts`.
 - [ ] 7.3 e2e критерия 4c на фикстуре с `FakeForge` и git:

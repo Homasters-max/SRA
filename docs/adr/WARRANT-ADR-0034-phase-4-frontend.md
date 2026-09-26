@@ -5,7 +5,7 @@ adr_state: ACCEPTED
 date: 2026-09-25
 supersedes: []
 amends: [WARRANT-ADR-0011, WARRANT-ADR-0013, WARRANT-ADR-0014, WARRANT-ADR-0018, WARRANT-ADR-0020, WARRANT-ADR-0023, WARRANT-ADR-0025]
-amended_by: [WARRANT-ADR-0036, WARRANT-ADR-0037]
+amended_by: [WARRANT-ADR-0036, WARRANT-ADR-0037, WARRANT-ADR-0039]
 ---
 
 > Уточнено [ADR-0036](WARRANT-ADR-0036-phase-4b-producers.md): п. 6 — 4b делится на `phase-4b` (producers, п. 10) и
@@ -14,6 +14,9 @@ amended_by: [WARRANT-ADR-0036, WARRANT-ADR-0037]
 > Уточнено [ADR-0037](WARRANT-ADR-0037-phase-4c-ci.md): п. 9 — `ForgePort` без `reviews`; п. 12 — результат merge считает
 > сам job (не `refs/pull/<N>/merge`), `STALE` — причина пред-фильтра `tree`, восстановление после merge — `workflow_dispatch`;
 > п. 14 — `ci fetch` выбирает run по совпадению `subject.tree` с деревом merge-коммита.
+>
+> Уточнено [ADR-0039](WARRANT-ADR-0039-vertical-slice.md): п. 7 — CLI в slice ставится тегом в его workflow
+> (`npm i -g github:Homasters-max/SRA#<тег>`), смена pin — Change `factory-change` в slice.
 
 ## Context
 

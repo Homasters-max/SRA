@@ -10,7 +10,7 @@ version: 0.1.0
 
 ## 1. MVP
 
-MVP = **kernel + pack `core-sdd` + один vertical slice** (WARRANT-ADR-0007, уточнён [ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md): sample-проект Python + pytest, slice ведёт агент под hooks — Claude Code, [ADR-0034](adr/WARRANT-ADR-0034-phase-4-frontend.md); фазы 4a, 4b и 4c входят в MVP).
+MVP = **kernel + pack `core-sdd` + один vertical slice** (WARRANT-ADR-0007, уточнён [ADR-0013](adr/WARRANT-ADR-0013-mvp-refinement.md): sample-проект Python + pytest, slice ведёт агент под hooks — Claude Code, [ADR-0034](adr/WARRANT-ADR-0034-phase-4-frontend.md); фазы 4a, 4b и 4c входят в MVP). Объём slice — [ADR-0039](adr/WARRANT-ADR-0039-vertical-slice.md): Change `rate-limiter` в `Homasters-max/warrant-slice`.
 
 Vertical slice — одно реальное FEATURE-изменение, проведённое от intent до archive:
 

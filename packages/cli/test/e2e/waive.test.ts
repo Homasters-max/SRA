@@ -16,6 +16,10 @@ import { PACKS, recordDoc, useSyncedProject, write } from "../helpers/synced.js"
 const project = useSyncedProject();
 
 const YEAR = new Date().getUTCFullYear();
+
+/** What a failed run said: the exit code alone does not tell why the binary failed (stderr of a crash, stdout of an envelope). */
+const said = (run: { stdout: string; stderr: string }): string => `stderr: ${run.stderr}
+stdout: ${run.stdout}`;
 const EXPIRES = `${YEAR}-12-31`;
 
 describe("warrant waive (argv)", () => {
@@ -41,8 +45,8 @@ describe("warrant waive (argv)", () => {
       "--expires",
       EXPIRES
     );
+    expect(proposed.status, said(proposed)).toBe(0);
     expect(proposed.json?.errors).toEqual([]);
-    expect(proposed.status).toBe(0);
     const id = proposed.json.data.waiver.id as string;
     expect(id).toMatch(new RegExp(`^WAV-${YEAR}-\\d{3}$`));
     const file = path.join(root, ".warrant", "waivers", `${id}.json`);
@@ -58,16 +62,16 @@ describe("warrant waive (argv)", () => {
     });
 
     const bob = await waive("--activate", id, "--by", "bob");
+    expect(bob.status, said(bob)).toBe(3);
     expect(bob.json?.errors[0].code).toBe("ROLE_REQUIRED");
-    expect(bob.status).toBe(3);
 
     const activated = await waive("--activate", id, "--by", "kat");
+    expect(activated.status, said(activated)).toBe(0);
     expect(activated.json?.errors).toEqual([]);
-    expect(activated.status).toBe(0);
     expect(activated.json.data.waiver).toMatchObject({ id, waiver_state: "ACTIVE", approved_by: "human:kat" });
 
     const revoked = await waive("--revoke", id, "--by", "kat");
-    expect(revoked.status).toBe(0);
+    expect(revoked.status, said(revoked)).toBe(0);
     expect(JSON.parse(readFileSync(file, "utf8"))).toMatchObject({ waiver_state: "REVOKED" });
   }, 60_000);
 });

@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3DXQD6T3VF0Q5SNPEGWKXMR",
+  "claim": {
+    "text": "specification/adversarial-review@0.2.0 reviewed the spec of phase-4c: 0 BLOCKER, 3 MAJOR, 5 MINOR, 0 INFO",
+    "targets": []
+  },
+  "kind": "review",
+  "level": "L2",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "bd56978a51cc7f319e59ac14ec79c73554ac2c1d",
+    "spec_revision": "openspec/changes/phase-4c@bd56978a51cc7f319e59ac14ec79c73554ac2c1d",
+    "spec_tree": "sha256:1528755d45f2cc295e3562c9a88f86b7be90d9a9db963fb7d885ecb190da86dd",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "skill",
+    "id": "specification/adversarial-review",
+    "version": "0.2.0",
+    "run": "RUN-01M3DX9M9GHCB00NASQ7GNRZSF"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:7455bee770f2c94f4cf706d12def36c17331c0137f37b61ddecde83f75a0ea23",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-26T03:56:44.122Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/runs/RUN-01M3DX9M9GHCB00NASQ7GNRZSF.result.json",
+      "sha256": "sha256:f0e7beacaff0f08846b062bd9ebe5489b1e4fe437903f348eee2e5849c9c90a9"
+    }
+  ],
+  "limitations": [
+    "produced locally, unattested",
+    "same model family as author"
+  ],
+  "metrics": {
+    "BLOCKER": 0,
+    "INFO": 0,
+    "MAJOR": 3,
+    "MINOR": 5
+  }
+}

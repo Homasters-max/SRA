@@ -1,0 +1,118 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3DX9M9GHCB00NASQ7GNRZSF",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "impl verdict uses effective policy from record classification on HEAD (profiles, risk_level); the PR can hand-edit classification (drop factory-change, lower risk) and weaken its own merge gates - the self-authorization that roles from HEAD^1 prevent.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "In impl and archive require HEAD classification not stale vs classify of the PR diff (profiles superset, risk >= floor), else RECORD_MISMATCH; add SCN."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "archive bullet: diff openspec/specs/** SHALL equal replay of openspec archive - unconditional, while kind archive includes change_state MERGED. A PR with new MERGED only: replay changes specs, diff has none -> SPECS_NOT_ARCHIVED, against the Paths rule tied to new ARCHIVED.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Replay only with new ARCHIVED in diff; otherwise specs in diff -> SCOPE_VIOLATION. Add SCN for a MERGED-only PR."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "M for MERGED ref is found only via ci records in evidence[]. A Change whose VERIFYING->MERGED has no ci evidence (L0-only pack, NOT_APPLICABLE by applies_when) always gets REF_NOT_VERIFIED merge_commit and ci fetch NO_CI_EVIDENCE, though transition MERGED accepts it.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-012"
+      ],
+      "recommendation": "No ci records: M = merge commit of the ref PR on first-parent line of HEAD^1 whose diff changes this record; ci fetch: nothing to fetch, code 0."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "APPROVED ref: merge commit of the spec-PR is not required to be in HEAD^1 history; a spec-PR merged by a maintainer into a side branch satisfies the check.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Require the merge commit on first-parent line of HEAD^1."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Record rules miss a diff that edits a record frozen in base (ARCHIVED, ABANDONED) without new transitions: prefix holds, ci passes; 04 and ADR-0021 say the file is immutable.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Frozen record changed in diff -> RECORD_MISMATCH."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "Record rule reads evidence[] files at .warrant/evidence on HEAD, impl writes to <state>; with WARRANT_STATE_DIR (D-2) every new transition is RECORD_MISMATCH and the artifact leaves the working copy.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "State that ci uses .warrant and ignores or rejects WARRANT_STATE_DIR."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "attestation.ref without /attempts/ (allowed by REQ-VER-001) has no defined attempt for artifact evidence-<change>-<attempt> in the archive check and for URL of the attempt in ci fetch.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-012"
+      ],
+      "recommendation": "Ref without attempt = attempt 1."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "impl: records of kinds which checks do not produce - checks of VERIFYING->MERGED or any check of the pack is not said; the readings differ for kinds produced by checks of other transitions.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Name the set: kinds produced by checks of VERIFYING->MERGED."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "N44 narrowed, N48, N49 are maintainer decisions and not findings"
+    },
+    {
+      "id": "A-2",
+      "statement": "core-sdd tests-passed is non-waivable and ci-only, so F-3 hits other packs, not core-sdd"
+    },
+    {
+      "id": "A-3",
+      "statement": "Fixes of review 5 (F-1..F-8) checked and hold"
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:7455bee770f2c94f4cf706d12def36c17331c0137f37b61ddecde83f75a0ea23",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-26T12:00:00Z",
+    "finished_at": "2026-09-26T12:30:00Z"
+  }
+}

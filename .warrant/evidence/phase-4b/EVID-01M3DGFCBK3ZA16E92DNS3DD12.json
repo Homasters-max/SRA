@@ -1,0 +1,42 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3DGFCBK3ZA16E92DNS3DD12",
+  "claim": {
+    "text": "tests-passed passed for phase-4b",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "c3b6033ce3af943c7b515cd3e79acf1b79125e18",
+    "base_commit": "5170ed0b81e48007717a61c9b5f9657ddca5194e",
+    "spec_revision": "openspec/changes/phase-4b@c3b6033ce3af943c7b515cd3e79acf1b79125e18",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "ci",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/36203233664"
+  },
+  "context_hash": "sha256:33b2475d70053ed00e82ea0360ceabad4f8070b349a78f543e76f6c6725ee62c",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-26T00:05:09.620Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/phase-4b/raw/tests-passed/junit.xml",
+      "sha256": "sha256:0d7e7e121ce1b22efebcef2a0af4213c3a906ff3d8f90772fae036c097e65ffb"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 1,
+    "tests": 1370
+  }
+}

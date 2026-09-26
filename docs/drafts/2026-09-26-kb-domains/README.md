@@ -25,15 +25,22 @@
   (Q1–Q8); домен ≠ context LATTICE, домен — projection.
 - **Раунд 2 (2026-09-26)** — [lattice-first](../2026-09-26-lattice-first/01-accepted-round-2.md): LATTICE — отдельный
   проект после фазы 4; 02–07 — после его vertical slice, 02 заменяется read model LATTICE (Q13).
+-## Порядок grilling
 
-## Порядок grilling
+Раздел «Вопросы для grilling» каждого файла — открытое; остальное в файлах 01–09 — история, где оно расходится с 11–12,
+действуют 11–12.
 
-0. ~~[08-architecture](08-architecture.md)~~ — решено в раунде 1 (файл 10).
-0a. [09-assessment-records](09-assessment-records.md) — записи оценок (assessment) над снимками (snapshot): ID, связь
-   с хэшем, устаревание при изменении группы объектов, цепочка аудита.
-1. [01-storage](01-storage.md) — где живут домены, компоненты SEF, `docs/integrations` (LATTICE), кто обновляет.
-2. [02-entity-model](02-entity-model.md) — модель на контракте LATTICE: context, objects, relations, projection, глоссарий.
-3. [03-query-path](03-query-path.md) — хэш запроса, поиск по алиасам глоссария, обучаемые алиасы, риск ошибки LLM.
+1. Открытые вопросы записи: [12-search-model](12-search-model.md), [lattice-first 02–04](../2026-09-26-lattice-first/README.md).
+2. [01-storage](01-storage.md) п. 2 (каталог и `$schema` доменов), п. 5 (кто перенарезает); п. 1, 3, 4, 6 — решены
+   (Q26–Q28, Q1).
+3. После slice LATTICE (Q13): [03-query-path](03-query-path.md) (промпты, пороги по данным — Q34),
+   [04-agent-workflow](04-agent-workflow.md), [05-conflicts](05-conflicts.md), [06-bench](06-bench.md),
+   [07-doc-form](07-doc-form.md).
+4. Решены полностью: [08-architecture](08-architecture.md) (Q1–Q8), [09-assessment-records](09-assessment-records.md)
+   (Q19–Q25, заменено ядром), [02-entity-model](02-entity-model.md) (заменён LATTICE, Q13; классификация —
+   lattice-first 03).
+
+ поиск по алиасам глоссария, обучаемые алиасы, риск ошибки LLM.
 4. [04-agent-workflow](04-agent-workflow.md) — пакет норм координатора, бюджет кодера, `--by-code` ревьюера.
 5. [05-conflicts](05-conflicts.md) — 37 противоречий, найденных нарезкой.
 6. [06-bench](06-bench.md) — методика стенда: наборы, ловушки, пустышки, критерии, уроки.

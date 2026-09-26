@@ -21,10 +21,11 @@ OpenSpec; компоненты WARRANT, которым нужны объекты
 
 ## Открытые вопросы
 
-- Нет: раунды 2–3 grilling закрыли Q9–Q18. Новые — grilling реестра LD-* в репозитории LATTICE.
+- Q9–Q18 закрыты. В grilling реестра LD-* добавить: ядро kb-domains как часть LATTICE, SSOT ledger против §41,
+  assertions и proposals ([lattice-first/02](../drafts/2026-09-26-lattice-first/02-core-model.md) вопросы 1–3).
 
 ## Не забыть
 
 - LD-B-06 в силе: slice, не полная модель заранее.
 - Контракты стыка `docs/integrations/01, 02, 05` остаются в SRA.
-- Поток kb-domains: 02–07 ждут slice LATTICE (Q13).
+- Поток kb-domains: 02–07 ждут slice LATTICE (Q13); термины — lattice-first/04-terms, ID — lattice-first/03.

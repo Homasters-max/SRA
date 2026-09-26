@@ -25,6 +25,8 @@
 ## Порядок grilling
 
 0. [08-architecture](08-architecture.md) — модули и конвейер поиска, порты (Jev, хранилище, LATTICE); рамка для 01–07.
+0a. [09-assessment-records](09-assessment-records.md) — записи оценок (assessment) над снимками (snapshot): ID, связь
+   с хэшем, устаревание при изменении группы объектов, цепочка аудита.
 1. [01-storage](01-storage.md) — где живут домены, компоненты SEF, `docs/integrations` (LATTICE), кто обновляет.
 2. [02-entity-model](02-entity-model.md) — модель на контракте LATTICE: context, objects, relations, projection, глоссарий.
 3. [03-query-path](03-query-path.md) — хэш запроса, поиск по алиасам глоссария, обучаемые алиасы, риск ошибки LLM.

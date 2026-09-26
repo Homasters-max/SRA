@@ -50,9 +50,10 @@ Profiles `bugfix`, `refactor`, `experiment` SHALL NOT входить в 0.3 (ADR
 
 Profile `factory-change@1.1.0` SHALL иметь `extends: ["feature"]`, дополнительно gate `factory-golden-passed` на `VERIFYING->MERGED`,
 `capabilities.forbidden: ["PRODUCTION_WRITE"]`, `match.paths`: `.warrant/**`, `openspec/schemas/**`, `openspec/config.yaml`, `packs/**`,
-`packages/cli/schemas/**`, `sra/skills/**`, `.github/workflows/**`. Workflows CI — часть фабрики: run `pull_request` исполняет
-workflow из самого PR, и его правка в обычном Change подменила бы producer evidence CI
-([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md), review spec `phase-4c`).
+`packages/cli/schemas/**`, `sra/skills/**`, `.github/workflows/**`, `packages/cli/src/**`, `packages/cli/package.json`. Workflows
+CI и судья `warrant ci` — часть фабрики: run `pull_request` исполняет workflow из самого PR и ставит CLI из его checkout, и их
+правка в обычном Change подменила бы producer evidence CI ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md),
+[ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md) п. 3).
 
 #### Scenario: Golden factory-change
 <!-- id: SCN-SDD-007 -->
@@ -69,3 +70,8 @@ workflow из самого PR, и его правка в обычном Change �
 <!-- id: SCN-SDD-026 -->
 - **WHEN** diff Change профиля `feature` содержит `.github/workflows/ci.yml`
 - **THEN** `warrant classify` добавляет `factory-change` в `profiles`; без переклассификации gate `scope-valid` на `VERIFYING->MERGED` даёт `FAIL` с `SCOPE_VIOLATION` и этим путём
+
+#### Scenario: Правка судьи — factory-change
+<!-- id: SCN-SDD-027 -->
+- **WHEN** diff Change профиля `feature` содержит `packages/cli/src/core/ci/kind.ts` или `packages/cli/package.json`
+- **THEN** `warrant classify` добавляет `factory-change` в `profiles`

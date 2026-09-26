@@ -7,12 +7,13 @@
  * everything else do not.
  */
 import { spawnSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { GitCli } from "../../src/adapters/git-cli.js";
 import type { GitPort } from "../../src/core/ports/git.js";
-import { blobSha } from "../app/helpers/fakes/git.js";
+import { blobSha, treeSha, type Tree } from "../app/helpers/fakes/git.js";
 import { useProjectBuilder, type ProjectBuilder } from "../app/helpers/project-builder.js";
 
 const project = useProjectBuilder();
@@ -117,6 +118,21 @@ class FakeRepo implements Repo {
   }
 }
 
+/** The files of the work tree of `top` without `.git`, keyed by their path from the top: what a commit of all of them holds. */
+function diskTree(top: string): Tree {
+  const tree: Tree = new Map();
+  const visit = (rel: string): void => {
+    for (const entry of readdirSync(path.join(top, rel), { withFileTypes: true })) {
+      if (rel === "" && entry.name === ".git") continue;
+      const child = rel === "" ? entry.name : `${rel}/${entry.name}`;
+      if (entry.isDirectory()) visit(child);
+      else tree.set(child, readFileSync(path.join(top, child)));
+    }
+  };
+  visit("");
+  return tree;
+}
+
 const SIDES = [
   { side: "GitCli (real git)", make: (b: ProjectBuilder): Repo => new RealRepo(b) },
   { side: "FakeGit", make: (b: ProjectBuilder): Repo => new FakeRepo(b) }
@@ -141,10 +157,12 @@ describe.each(CASES)("GitPort contract: $side, project prefix '$prefix'", ({ mak
     expect(await port.isAncestor("HEAD", "HEAD")).toBe(false);
     expect(await port.firstParents("HEAD")).toBeNull();
     expect(await port.parents("HEAD")).toEqual([]);
+    expect(await port.treeId("HEAD")).toBeNull();
     expect((await port.diffNames("main")).ok).toBe(false);
     expect((await port.tree("HEAD", ["openspec"])).ok).toBe(false);
     expect(await port.files("HEAD", ["openspec"])).toBeNull();
     expect(await port.contents("HEAD", [top(".warrant/warrant.json")])).toEqual(new Map());
+    expect((await port.worktreeAt("HEAD")).ok).toBe(false);
   });
 
   it("a repository without commits: prefix and common dir, no HEAD", async () => {
@@ -275,6 +293,61 @@ describe.each(CASES)("GitPort contract: $side, project prefix '$prefix'", ({ mak
     fresh.builder.write(`${dir}/proposal.md`, "# P\n");
     expect(await fresh.port.dirty([`${dir}/proposal.md`])).toEqual({ ok: true, value: [top(`${dir}/proposal.md`)] });
     expect((await repo().port.dirty([dir])).ok).toBe(false);
+  });
+
+  it("tree ids: git's own, equal for equal content whatever the history (phase-4c, subject.tree)", async () => {
+    const r = repo();
+    r.builder.write("a.txt", "a\n").write("dir/b.txt", "b\n");
+    r.commit("base");
+    r.branch("topic");
+    r.builder.write("a.txt", "a2\n");
+    r.commit("work");
+    r.checkout("main");
+    r.builder.write("m.txt", "m\n");
+    r.commit("main-2");
+    r.merge("topic", "merge", "no");
+    const { port } = r;
+    const merged = await port.treeId(r.sha("merge"));
+    expect(merged).toBe(treeSha(diskTree(r.builder.top)));
+    expect(await port.treeId("HEAD")).toBe(merged);
+    expect(await port.treeId(r.sha("work"))).not.toBe(merged);
+    expect(await port.treeId(`${r.sha("merge")}^1`)).toBe(await port.treeId(r.sha("main-2")));
+
+    // The same files committed on another line: the same tree as the merge.
+    r.branch("again", r.sha("main-2"));
+    r.builder.write("a.txt", "a2\n");
+    r.commit("same content");
+    expect(await port.treeId("HEAD")).toBe(merged);
+    expect(await port.treeId("no-such-ref")).toBeNull();
+  });
+
+  it("a checkout of a commit: its files under the project root, the work tree untouched; dispose removes it (I-171)", async () => {
+    const r = repo();
+    r.builder.write(".warrant/warrant.json", '{"v":1}\n').write("docs/a.md", "# A\n");
+    r.commit("base");
+    r.builder.write(".warrant/warrant.json", '{"v":2}\n').remove("docs/a.md");
+    r.commit("next");
+    const { port } = r;
+
+    const checkout = await port.worktreeAt(r.sha("base"));
+    expect(checkout.ok).toBe(true);
+    if (!checkout.ok) return;
+    const { root, dispose } = checkout.value;
+    try {
+      expect(path.relative(r.builder.root, root).startsWith("..")).toBe(true);
+      expect(readFileSync(path.join(root, ".warrant", "warrant.json"), "utf8")).toBe('{"v":1}\n');
+      expect(readFileSync(path.join(root, "docs", "a.md"), "utf8")).toBe("# A\n");
+      expect(r.builder.read(".warrant/warrant.json")).toBe('{"v":2}\n');
+      expect(existsSync(path.join(r.builder.root, "docs", "a.md"))).toBe(false);
+    } finally {
+      await dispose();
+    }
+    expect(existsSync(root)).toBe(false);
+    await dispose();
+    // The repository keeps no trace of the checkout: HEAD and the branch are where they were.
+    expect(await port.head()).toBe(r.sha("next"));
+    expect(await port.branch()).toBe("main");
+    expect((await port.worktreeAt("no-such-ref")).ok).toBe(false);
   });
 
   it("a fast-forward merge moves the branch without a merge commit", async () => {

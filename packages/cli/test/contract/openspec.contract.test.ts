@@ -9,12 +9,13 @@
  * the wording of a failure — the scenario compares what the CLI relies on
  * (I-130): the set of names, `ok`, the effect on disk, that a warning exists.
  */
-import { existsSync, readdirSync } from "node:fs";
+import { cpSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { OpenSpecCli } from "../../src/adapters/openspec-cli.js";
 import type { OpenSpecPort } from "../../src/core/ports/openspec.js";
+import { makeTempDir, removeDir } from "../helpers/cli.js";
 import { OPENSPEC_VERSION } from "../helpers/openspec.js";
 import type { ModelRequirement } from "../app/helpers/fakes/spec-model.js";
 import { useProjectBuilder, type ProjectBuilder } from "../app/helpers/project-builder.js";
@@ -135,4 +136,34 @@ describe.each(SIDES)("OpenSpecPort contract: $side", ({ port: portOf }) => {
     expect(await port.listChanges()).toEqual(["draft"]);
     expect((await port.archive("no-such-change")).ok).toBe(false);
   });
+
+  it("archive in another root acts on that checkout only and changes the main specs of the Change there", async () => {
+    const p = await built();
+    const port = portOf(p);
+    const copy = path.join(makeTempDir("warrant-openspec-root-"), "project");
+    try {
+      cpSync(p.root, copy, { recursive: true });
+      const before = specFiles(copy);
+      expect((await port.archive("add-search", copy)).ok).toBe(true);
+      expect(existsSync(path.join(copy, "openspec", "changes", "add-search"))).toBe(false);
+      expect(existsSync(path.join(p.root, "openspec", "changes", "add-search"))).toBe(true);
+      const after = specFiles(copy);
+      const changed = [...new Set([...before.keys(), ...after.keys()])].filter((f) => before.get(f) !== after.get(f)).sort();
+      expect(changed).toEqual(["area/ranking/spec.md", "search/spec.md"]);
+      expect((await port.archive("no-such-change", copy)).ok).toBe(false);
+    } finally {
+      removeDir(path.dirname(copy));
+    }
+  });
 });
+
+/** The main specs of `root`: path under `openspec/specs/` → text. */
+function specFiles(root: string): Map<string, string> {
+  const dir = path.join(root, "openspec", "specs");
+  const out = new Map<string, string>();
+  for (const entry of readdirSync(dir, { recursive: true }) as string[]) {
+    const file = path.join(dir, entry);
+    if (entry.endsWith("spec.md") && existsSync(file)) out.set(entry.split(path.sep).join("/"), readFileSync(file, "utf8"));
+  }
+  return out;
+}

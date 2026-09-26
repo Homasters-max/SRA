@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3F2S2RS58XB1XYP6KG6PNM8",
+  "claim": {
+    "text": "openspec-validate passed for phase-4c",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "a446e6ac5ae7be95e91f64f774eb0a19fed2d347",
+    "base_commit": "a446e6ac5ae7be95e91f64f774eb0a19fed2d347",
+    "spec_revision": "openspec/changes/phase-4c@a446e6ac5ae7be95e91f64f774eb0a19fed2d347",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:eacf18d72f0d113f0d3d6d418ac8540d72e71141fd1cc465fc816b3eea18f983",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-26T14:44:16.289Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/phase-4c/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:2fa49f49006322e1b01b0bfef7b1d9dfb49d5bd87c5c2a073bbf5eb9732f3ff3"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

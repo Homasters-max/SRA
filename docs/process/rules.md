@@ -13,12 +13,12 @@
 | Golden после изменения pack | REQ-SDD-009 | `golden.test.ts` |
 | Версия поднимается первым изменением поставляемого после релиза | R-14 | `versions.test.ts`, `npm run versions:check` |
 | Состав пакета | R-15 | `package-contents.test.ts` |
-| Main specs только через archive-PR | ADR-0011, D-15 | `scope-valid` в Change + шаг CI `test` вне Change (R-16, до `warrant ci`) |
+| Main specs только через archive-PR | ADR-0011, D-15 | `scope-valid` в Change + `warrant ci` на каждом PR (job `warrant`: `openspec/specs/**` — только archive-PR с новым `ARCHIVED` и повтором archive, R-16) |
 | impl-PR — только merge commit (не squash, не rebase) | I-97, ADR-0033 п. 11 | настройки репозитория (squash и rebase выключены); `transition MERGED` (`COMMIT_NOT_MERGED`, R-1) |
 | CI на ubuntu + windows | P-9 | `ci.yml` matrix |
 | Record и evidence пишет только CLI; `.warrant/evidence/**/raw/` не коммитится | ADR-0009, P-19 | `.gitignore`; `validate` (схемы record, evidence); `guard` — фаза 4 |
 | Уровни тестов: процессы только в `contract`/`e2e`, у e2e-файла причина, тест только в каталоге уровня | ADR-0025 п. 7 | `SPAWN_FORBIDDEN_AT_LEVEL` (setup `unit`/`app`), `test/unit/meta/levels.test.ts`, `globalSetup` `contract`/`e2e` (openspec 1.13.1); выбор уровня — правило о решении |
-| Порядок P-2 (что в каком PR) | ADR-0011, P-2, ADR-0033 п. 4 | частично: `transition` (последовательность), `scope-valid`; последовательность шагов — навыки `change-spec-pr`, `change-impl-pr`, `change-archive-pr`; размещение по PR — `warrant ci`, фаза 4 (BL-12) |
+| Порядок P-2 (что в каком PR) | ADR-0011, P-2, ADR-0033 п. 4 | частично: `transition` (последовательность), `scope-valid`; последовательность шагов — навыки `change-spec-pr`, `change-impl-pr`, `change-archive-pr`; размещение по PR — `warrant ci` (вид PR по record в diff, правила путей по виду; job `warrant`) |
 | Направление зависимостей модулей, циклы, копии помощников, один владелец перечислений | ADR-0030 | `test/unit/meta/architecture.test.ts` + `architecture.json`; исключения храповика — строки `A-N` в [backlog.md](../backlog.md) |
 | Архитектурный аудит перед spec-PR каждой фазы; находки — `A-N` в `backlog.md` | ADR-0030, навык `architecture-audit` | правило о решении; шаг навыка `handoff`: следующий поток — фаза → готовый запрос начинается с аудита |
 | Graft только через `cs.js`: разрешённые подкоманды, флаги и версия | ADR-0026 п. 2, ADR-0028 п. 2, 4, ADR-0029 п. 3 | `scripts/dev/cs.js` (код 2 / 3), `test/unit/dev/cs.test.ts`; обновление — `graph-audit.js --baseline` + `bench-score.js report` |

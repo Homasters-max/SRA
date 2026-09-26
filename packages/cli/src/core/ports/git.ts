@@ -22,6 +22,14 @@ export type BlobTree = Record<string, string>;
 /** A git answer, or the first line of what git printed when it failed. */
 export type GitAnswer<T> = { ok: true; value: T } | { ok: false; detail: string };
 
+/** A checkout of one commit in a temporary directory (`worktreeAt`). */
+export interface CommitCheckout {
+  /** The project root inside the checkout: its top joined with the project's prefix. */
+  root: string;
+  /** Removes the checkout; a second call does nothing. The caller calls it in `finally`. */
+  dispose(): Promise<void>;
+}
+
 export interface GitPort {
   /**
    * The project's path inside its repository as git sees it (`git rev-parse
@@ -35,6 +43,8 @@ export interface GitPort {
   head(): Promise<string | null>;
   /** The full sha of `ref^{commit}`, or null when it names no commit. */
   resolveCommit(ref: string): Promise<string | null>;
+  /** Id of the tree of the commit `rev` names (`git rev-parse <rev>^{tree}`), or null when it names no commit. */
+  treeId(rev: string): Promise<string | null>;
   /** `git rev-parse --abbrev-ref HEAD`: the branch, `HEAD` when detached; null when git cannot say. */
   branch(): Promise<string | null>;
   /** `git merge-base <a> <b>`, or null when there is none. */
@@ -72,4 +82,10 @@ export interface GitPort {
    * file is not dirty (design phase-4b §4).
    */
   dirty(paths: string[]): Promise<GitAnswer<string[]>>;
+  /**
+   * The files of `commit` checked out in a temporary directory outside the
+   * work tree (`git worktree add --detach`): what `warrant ci` reads the base
+   * of a pull request from (I-171). Fails when `commit` names no commit.
+   */
+  worktreeAt(commit: string): Promise<GitAnswer<CommitCheckout>>;
 }

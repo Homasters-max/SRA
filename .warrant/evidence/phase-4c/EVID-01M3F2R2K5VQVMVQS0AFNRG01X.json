@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3F2R2K5VQVMVQS0AFNRG01X",
+  "claim": {
+    "text": "Homasters-max approved phase-4c for SPECIFIED->APPROVED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "a446e6ac5ae7be95e91f64f774eb0a19fed2d347",
+    "base_commit": "a446e6ac5ae7be95e91f64f774eb0a19fed2d347",
+    "spec_revision": "openspec/changes/phase-4c@a446e6ac5ae7be95e91f64f774eb0a19fed2d347",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/55"
+  },
+  "context_hash": "sha256:a2ed660769bf66709411c0bc591514d79b647f647abe524ccbdcb7187ead762c",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-26T14:43:43.334Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

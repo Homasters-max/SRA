@@ -53,6 +53,21 @@ export const ERROR_CODES = [
   "RUN_NOT_ACTIVE",
   "SPEC_UNCOMMITTED",
   "SKILL_RESULT_INVALID",
+  "FORGE_UNAVAILABLE",
+  "TOPOLOGY_VIOLATION",
+  "RECORD_MISMATCH",
+  "REF_NOT_VERIFIED",
+  "SCOPE_VIOLATION",
+  "GATE_NOT_PASSED",
+  "CHANGE_NOT_VERIFYING",
+  "EVIDENCE_NOT_VERIFIED",
+  "SPECS_NOT_ARCHIVED",
+  "PR_NOT_FOUND",
+  "PR_NOT_MERGED",
+  "PR_NOT_IMPL",
+  "COMMIT_NOT_FOUND",
+  "NO_CI_EVIDENCE",
+  "EVIDENCE_CONFLICT",
   "INTERNAL"
 ] as const;
 
@@ -75,6 +90,9 @@ export const SYNC_HINT = "run `warrant sync`";
 
 /** `hint` of errors fixed by rewriting files in canonical form. */
 export const FMT_HINT = "run `warrant fmt`";
+
+/** `hint` of `FORGE_UNAVAILABLE`: how to give `gh` a token (ADR-0037 п. 6). */
+export const FORGE_HINT = "run `gh auth login`, or set `GH_TOKEN` to a GitHub token with read access to the repository";
 
 /** Options of an `errors[]` entry: where it is and how to fix it. */
 export interface ErrorOptions {
@@ -128,6 +146,14 @@ export class WarrantError extends Error {
     if (this.hint !== undefined) options.hint = this.hint;
     return cliError(this.code, this.message, options);
   }
+}
+
+/**
+ * The one form of `FORGE_UNAVAILABLE` of `ForgePort` (REQ-VER-011, REQ-VER-012):
+ * code 3, `hint` about `gh auth login` or `GH_TOKEN` unless another fixes it.
+ */
+export function forgeUnavailable(message: string, hint: string = FORGE_HINT): WarrantError {
+  return new WarrantError("FORGE_UNAVAILABLE", message, { hint });
 }
 
 export function isErrorCode(value: string): value is ErrorCode {

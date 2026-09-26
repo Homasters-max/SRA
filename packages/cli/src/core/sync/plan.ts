@@ -23,8 +23,9 @@ import { SCHEMAS_DIR } from "../schemas/loader.js";
 import { versionSatisfies } from "../version-range.js";
 import { CLI_VERSION } from "../../version.js";
 import { CURRENT_FILE } from "../run/store.js";
-import { agentsMd, AGENTS_MD_REL } from "./agents.js";
-import { CLAUDE_FRONTEND, CLAUDE_REVIEWER_REL, claudeMdTarget, claudeSettingsTarget, REVIEW_SKILL, reviewerAgent } from "./claude.js";
+import { agentsMd, AGENTS_MD_MARKER, AGENTS_MD_REL } from "./agents.js";
+import { REVIEW_SKILL } from "../run/types.js";
+import { CLAUDE_FRONTEND, CLAUDE_REVIEWER_REL, claudeMdTarget, claudeSettingsTarget, reviewerAgent } from "./claude.js";
 import { mergeRules, type OpenspecRules } from "./rules.js";
 import { driftPath, linesTarget, type SubsetTarget } from "./subset.js";
 
@@ -76,10 +77,28 @@ export interface SyncPlan {
    * any more. `sync` never deletes; they are only reported.
    */
   stale: string[];
+  /**
+   * Generated files a previous `sync` wrote that the plan no longer has: the
+   * subagent of the review Run with the marker line, when no pack provides the
+   * review skill (REQ-KRN-033). `sync` deletes them.
+   */
+  removed: string[];
+  /** What `sync` reports without failing (`data.findings[]`, REQ-KRN-033); empty by default. */
+  findings: SyncFinding[];
   /** Merged rules, for the `rules` keys check of `validate`. */
   rules: OpenspecRules;
   /** Source file of each merged `rules.<artifact>` key, for error paths. */
   ruleSources: Record<string, string>;
+}
+
+/**
+ * A finding of `sync`: reported in `data.findings[]`, never an error — the exit
+ * code stays with the files (REQ-KRN-033, BL-40).
+ */
+export interface SyncFinding {
+  code: "REVIEWER_SKILL_MISSING";
+  path: string;
+  hint: string;
 }
 
 export interface PlanInput {
@@ -245,7 +264,7 @@ export function skillFrontmatterVersion(text: string): string | undefined {
  */
 function resolveSkill(pack: LoadedPack, root: string, spec: string, errors: CliError[]): ResolvedSkill | undefined {
   const at = spec.lastIndexOf("@");
-  const name = at > 0 ? spec.slice(0, at) : spec;
+  const name = skillName(spec);
   const range = at > 0 ? spec.slice(at + 1) : "*";
   const segments = name.split("/");
 
@@ -294,6 +313,12 @@ function inside(dir: string, absolute: string): string | undefined {
   return relative === "" ? undefined : relative;
 }
 
+/** `<ns>/<name>` of a `provides.skills` entry `<ns>/<name>@<range>`. */
+function skillName(spec: string): string {
+  const at = spec.lastIndexOf("@");
+  return at > 0 ? spec.slice(0, at) : spec;
+}
+
 /** Every skill the enabled packs declare, resolved to its file; what does not resolve goes to `errors`. */
 function resolveSkills(root: string, packs: LoadedPack[], errors: CliError[]): ResolvedSkill[] {
   const out: ResolvedSkill[] = [];
@@ -320,17 +345,38 @@ function planSkills(resolved: readonly ResolvedSkill[]): Record<string, unknown>
   return skills;
 }
 
+/** What `sync` does with `.claude/agents/warrant-reviewer.md`. */
+type ReviewerPlan =
+  | { kind: "none" }
+  | { kind: "generate"; bytes: Buffer }
+  | { kind: "missing"; finding: SyncFinding; stale: boolean };
+
 /**
  * `.claude/agents/warrant-reviewer.md` with `frontends ∋ "claude"` (REQ-KRN-033):
- * the review skill of the packs, the same file the lock records. A policy
- * whose packs declare no review skill gets no subagent — there is nothing for
- * it to carry; a declared skill that does not resolve is an error of the lock.
+ * the review skill of the packs, the same file the lock records. Packs that
+ * declare no review skill get no subagent — there is nothing for it to carry —
+ * but a finding `REVIEWER_SKILL_MISSING`, and the subagent a previous `sync`
+ * generated (the marker line) is stale (BL-40); a file without the marker is
+ * not ours. A declared skill that does not resolve is an error of the lock.
  */
-function reviewerTarget(loaded: LoadResult, skills: readonly ResolvedSkill[]): Buffer | undefined {
-  if (!loaded.config.frontends.includes(CLAUDE_FRONTEND)) return undefined;
+function reviewerPlan(root: string, loaded: LoadResult, skills: readonly ResolvedSkill[]): ReviewerPlan {
+  if (!loaded.config.frontends.includes(CLAUDE_FRONTEND)) return { kind: "none" };
   const review = skills.find((skill) => skill.name === REVIEW_SKILL);
-  if (review === undefined) return undefined;
-  return reviewerAgent({ version: review.version, text: readFileSync(review.absolute, "utf8") });
+  if (review !== undefined) {
+    return { kind: "generate", bytes: reviewerAgent({ version: review.version, text: readFileSync(review.absolute, "utf8") }) };
+  }
+  const declared = loaded.packs.some((pack) => providedList(pack, "skills").some((spec) => skillName(spec) === REVIEW_SKILL));
+  if (declared) return { kind: "none" };
+  const current = currentBytes(path.join(root, CLAUDE_REVIEWER_REL));
+  return {
+    kind: "missing",
+    finding: {
+      code: "REVIEWER_SKILL_MISSING",
+      path: CLAUDE_REVIEWER_REL,
+      hint: `enable a pack that provides skill \`${REVIEW_SKILL}\` (core-sdd does); without it gate adversarial-review is closed by a waiver`
+    },
+    stale: current !== undefined && current.toString("utf8").split(/\r?\n/).includes(AGENTS_MD_MARKER)
+  };
 }
 
 /** Builds the full plan. Never writes and never throws for project data. */
@@ -356,7 +402,7 @@ export function planSync(input: PlanInput): SyncPlan {
         { path: ".warrant/warrant.json#/packs" }
       )
     );
-    return { schema: "", artifacts: [], files, subsets: [], errors, stale, rules: {}, ruleSources: {} };
+    return { schema: "", artifacts: [], files, subsets: [], errors, stale, removed: [], findings: [], rules: {}, ruleSources: {} };
   }
   if (providers.length > 1) {
     errors.push(
@@ -366,7 +412,7 @@ export function planSync(input: PlanInput): SyncPlan {
         { path: ".warrant/warrant.json#/packs" }
       )
     );
-    return { schema: "", artifacts: [], files, subsets: [], errors, stale, rules: {}, ruleSources: {} };
+    return { schema: "", artifacts: [], files, subsets: [], errors, stale, removed: [], findings: [], rules: {}, ruleSources: {} };
   }
 
   const owner = providers[0] as LoadedPack;
@@ -377,7 +423,7 @@ export function planSync(input: PlanInput): SyncPlan {
     if (errors.length === 0) {
       errors.push(cliError("CONFIG_INVALID", "openspec schema source is not an object", { path: schemaRel }));
     }
-    return { schema: "", artifacts: [], files, subsets: [], errors, stale, rules: {}, ruleSources: {} };
+    return { schema: "", artifacts: [], files, subsets: [], errors, stale, removed: [], findings: [], rules: {}, ruleSources: {} };
   }
   const schemaName = optionalString(schemaJson["name"]) ?? "";
   const artifactIds = (Array.isArray(schemaJson["artifacts"]) ? schemaJson["artifacts"] : [])
@@ -484,8 +530,14 @@ export function planSync(input: PlanInput): SyncPlan {
   // Their errors belong to the lock: check (4) of `validate` plans without it and leaves them to check (2).
   const skillErrors: CliError[] = [];
   const skills = resolveSkills(root, loaded.packs, skillErrors);
-  const reviewer = reviewerTarget(loaded, skills);
-  if (reviewer !== undefined) add(CLAUDE_REVIEWER_REL, reviewer);
+  const reviewer = reviewerPlan(root, loaded, skills);
+  const removed: string[] = [];
+  const findings: SyncFinding[] = [];
+  if (reviewer.kind === "generate") add(CLAUDE_REVIEWER_REL, reviewer.bytes);
+  if (reviewer.kind === "missing") {
+    findings.push(reviewer.finding);
+    if (reviewer.stale) removed.push(CLAUDE_REVIEWER_REL);
+  }
 
   const subsets = planSubsets(root, subsetTargets(loaded, agents !== undefined && !("error" in agents)), errors);
 
@@ -514,7 +566,7 @@ export function planSync(input: PlanInput): SyncPlan {
     add(LOCK_REL, Buffer.from(canonicalText(lock).text, "utf8"), lock);
   }
 
-  return { schema: schemaName, artifacts: artifactIds, files, subsets, errors, stale, rules, ruleSources };
+  return { schema: schemaName, artifacts: artifactIds, files, subsets, errors, stale, removed, findings, rules, ruleSources };
 }
 
 /**

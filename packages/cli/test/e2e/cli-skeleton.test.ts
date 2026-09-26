@@ -66,6 +66,18 @@ describe("cli skeleton", () => {
     expect(examples.some((line) => line.startsWith("  $ warrant analyze "))).toBe(true);
   });
 
+  it("--help of ci names --dry-run, the merge HEAD must be and the exit codes, with examples (REQ-VER-011, lens cli-contract)", async () => {
+    const r = await runCli(["ci", "--help"], dir);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe("");
+    expect(r.stderr).toContain("--dry-run");
+    expect(r.stderr).toContain("HEAD must be the result of a merge");
+    expect(r.stderr).toContain("Exit codes: 0");
+    const examples = r.stderr.split("Examples:\n")[1]?.split("\n") ?? [];
+    expect(examples.some((line) => line.startsWith("  $ ") && line.includes("git merge --no-ff") && line.endsWith("warrant ci"))).toBe(true);
+    expect(examples).toContain("  $ warrant ci --dry-run");
+  });
+
   it("--dry-run reaches the command: a refusal carries data.dry_run (REQ-KRN-034)", async () => {
     const r = await runCli(["transition", "add-search", "SPECIFIED", "--dry-run"], dir);
     expect(r.status).toBe(3);

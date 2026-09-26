@@ -31,6 +31,7 @@ import { CLI_ROOT, makeTempDir, removeDir, runCli, type CliRun } from "../helper
 import { git } from "../helpers/git.js";
 import { openspecSync } from "../helpers/openspec.js";
 import { write } from "../helpers/synced.js";
+import { readJsonFile } from "../helpers/json.js";
 
 // `openspec` is slow to start, especially on Windows.
 const TIMEOUT = 180_000;
@@ -84,10 +85,6 @@ function waivers(): string[] {
   return existsSync(dir) ? readdirSync(dir).filter((name) => name.endsWith(".json")) : [];
 }
 
-function readJson(rel: string): any {
-  return JSON.parse(readFileSync(path.join(root, rel), "utf8"));
-}
-
 describe.skipIf(!hasGit)("criterion 4b: adversarial-review PASS by run submit, analyze-clean PASS, no waivers", () => {
   beforeAll(() => {
     root = makeTempDir("warrant-e2e-producers-");
@@ -103,7 +100,7 @@ describe.skipIf(!hasGit)("criterion 4b: adversarial-review PASS by run submit, a
       expect(openspecSync(["init", "--tools", "none"], root).ok).toBe(true);
       const init = await cli(["init"]);
       expect(init.json?.errors).toEqual([]);
-      const config = readJson(".warrant/warrant.json");
+      const config = readJsonFile(root, ".warrant/warrant.json");
       write(root, ".warrant/warrant.json", { ...config, paths: { src: "src", tests: "tests" }, roles: { maintainer: ["kat"] } });
       write(root, ".warrant/local/areas.json", { $schema: "warrant://areas/1", SRC: { capability: "search" } });
       write(root, ".warrant/local/checks/tests-passed.json", {
@@ -153,19 +150,19 @@ describe.skipIf(!hasGit)("criterion 4b: adversarial-review PASS by run submit, a
       expect(start.json?.errors).toEqual([]);
       expect(start.json?.data).toMatchObject({ operation: "review", write_scope: [], rules: [] });
       const id = start.json?.data.run as string;
-      const run = readJson(`.warrant/runs/${id}.json`);
+      const run = readJsonFile(root, `.warrant/runs/${id}.json`);
       expect(run.spec_tree).toMatch(/^sha256:/);
 
       // The subagent's one command: the envelope on stdin, its run and the skill of the lock filled in.
-      const [skillName, skillEntry] = Object.entries(readJson(".warrant/warrant.lock.json").skills)[0] as [string, { version: string }];
+      const [skillName, skillEntry] = Object.entries(readJsonFile(root, ".warrant/warrant.lock.json").skills)[0] as [string, { version: string }];
       const envelope = { ...JSON.parse(readFileSync(ENVELOPE, "utf8")), run: id, skill: `${skillName}@${skillEntry.version}` };
       const submitted = await cli(["run", "submit"], LOCAL, JSON.stringify(envelope));
       expect(submitted.json?.errors).toEqual([]);
       expect(submitted.json?.data).toMatchObject({ run: id, change: "demo", evidence_status: "PROVEN", findings: { BLOCKER: 0, MAJOR: 1 } });
       expect(submitted.status).toBe(0);
       const evid = submitted.json?.data.evidence as string;
-      expect(readJson(`.warrant/evidence/demo/${evid}.json`).subject).toMatchObject({ spec_tree: run.spec_tree });
-      expect(readJson(`.warrant/runs/${id}.json`)).toMatchObject({ run_state: "SUCCEEDED", evidence: [evid] });
+      expect(readJsonFile(root, `.warrant/evidence/demo/${evid}.json`).subject).toMatchObject({ spec_tree: run.spec_tree });
+      expect(readJsonFile(root, `.warrant/runs/${id}.json`)).toMatchObject({ run_state: "SUCCEEDED", evidence: [evid] });
       expect(existsSync(path.join(root, ".warrant", "runs", `${id}.result.json`))).toBe(true);
       expect(existsSync(path.join(root, ".warrant", "runs", "current"))).toBe(false);
 
@@ -189,7 +186,7 @@ describe.skipIf(!hasGit)("criterion 4b: adversarial-review PASS by run submit, a
       git(root, "commit", "--quiet", "-m", "review and approval");
       git(root, "checkout", "--quiet", "main");
       git(root, "merge", "--quiet", "--no-ff", "spec/demo", "-m", "Merge spec-PR");
-      expect(readJson(RECORD).change_state).toBe("APPROVED");
+      expect(readJsonFile(root, RECORD).change_state).toBe("APPROVED");
     },
     TIMEOUT
   );

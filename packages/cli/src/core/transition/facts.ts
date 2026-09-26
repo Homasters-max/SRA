@@ -2,29 +2,32 @@
  * Facts a transition is judged on, gathered through `ctx` (design §8, §9):
  * git facts of the project, stable-id findings, waivers, the artifact
  * statuses of OpenSpec, the contract trees `spec-approved` compares, the spec
- * tree the pre-filter compares `subject.spec_tree` with and the findings of
- * `analyze` `analyze-clean` judges by.
+ * tree the pre-filter compares `subject.spec_tree` with, the tree of the merge
+ * it compares `subject.tree` with and the findings of `analyze`
+ * `analyze-clean` judges by.
  */
 import { analyze, type AnalyzeResult } from "../analyze/index.js";
-import { readAnalyzeInput } from "../analyze/input.js";
+import { analyzePaths, readAnalyzeInput } from "../analyze/input.js";
 import type { WarrantConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
-import { NO_GIT_COMMIT } from "../evidence/record.js";
+import { NO_GIT_COMMIT, subjectOf } from "../evidence/record.js";
 import {
   changedPaths,
   contractTree,
   currentBranch,
+  mergeTreeOf,
   specTreeHash,
   type Availability,
   type DiffEntry,
   type GitFacts
 } from "../git/facts.js";
+import { commitFiles } from "../git/files.js";
+import { toProjectPaths } from "../git/paths.js";
 import { approvalOf } from "../gates/l0/spec-approved.js";
 import type { ContractTrees, EvidenceInput } from "../gates/types.js";
 import { checkAreas, checkDuplicates, loadAreas, scanIds } from "../ids/scan.js";
-import { isPlainObject } from "../json.js";
-import { findChangeDir } from "../openspec/changes.js";
+import { archivedChangeDir, findChangeDir } from "../openspec/changes.js";
 import { openspecAvailable } from "../openspec/version.js";
 import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { ChangeRecord } from "../record/read.js";
@@ -114,7 +117,7 @@ export async function specTreeFacts(
   records: readonly EvidenceInput[],
   git: GitFacts
 ): Promise<Availability<string> | undefined> {
-  const bound = records.some((r) => isPlainObject(r.json["subject"]) && typeof r.json["subject"]["spec_tree"] === "string");
+  const bound = records.some((r) => subjectOf(r.json)?.specTree !== undefined);
   if (!bound) return undefined;
   if (git.commonDir === null || git.commit === NO_GIT_COMMIT) {
     return { ok: false, reason: "the project is not a git repository with a commit" };
@@ -123,22 +126,72 @@ export async function specTreeFacts(
 }
 
 /**
- * `analyze` of an active Change on the diff `scope-valid` judges (design §5,
- * REQ-VER-004): unavailable without that diff or the change directory; never throws.
+ * The tree of the result of the merge of the evaluated commit (ADR-0037 п. 2,
+ * design §3 of phase-4c: M on the first-parent line of HEAD, or the tree of the
+ * merge `warrant ci` judges in, `git.mergeResult`), when some record
+ * carries `subject.tree`; undefined when none does. Never throws.
  */
-export function analyzeFacts(
-  root: string,
+export async function mergeTreeFacts(ctx: Ctx, records: readonly EvidenceInput[], git: GitFacts): Promise<Availability<string> | undefined> {
+  const bound = records.some((r) => subjectOf(r.json)?.tree !== undefined);
+  if (!bound) return undefined;
+  // `warrant ci` judges the head of the pull request inside the result of its merge: the tree of HEAD.
+  if (git.mergeResult !== undefined) return { ok: true, value: git.mergeResult.tree };
+  if (git.commonDir === null || git.commit === NO_GIT_COMMIT) {
+    return { ok: false, reason: "the project is not a git repository with a commit" };
+  }
+  return mergeTreeOf(ctx, git.commit);
+}
+
+/**
+ * `analyze` of a Change on the diff `scope-valid` judges (design §5,
+ * REQ-VER-004), over the files of the evaluated commit, not the working tree
+ * (R-21: on `transition MERGED` in an archive branch the working tree is not
+ * the head of the impl-PR). The change directory is the active one or, after
+ * `openspec archive`, the archived one at that commit (BL-43). Unavailable
+ * without that diff or a change directory at the commit; never throws.
+ */
+export async function analyzeFacts(
+  ctx: Ctx,
   change: string,
   config: WarrantConfig,
+  git: GitFacts,
   diff: Availability<DiffEntry[]>
-): Availability<AnalyzeResult> {
+): Promise<Availability<AnalyzeResult>> {
   if (!diff.ok) return { ok: false, reason: `diff unknown: ${diff.reason}` };
-  if (findChangeDir(root, change)?.where !== "active") {
-    return { ok: false, reason: `openspec/changes/${change}/ is not an active change directory` };
-  }
   try {
-    return { ok: true, value: analyze(readAnalyzeInput(root, change, config, diff)) };
+    const changeDir = await changeDirAt(ctx, git.commit, change);
+    if (changeDir === undefined) {
+      return { ok: false, reason: `openspec/changes/${change}/ is neither a change directory nor archived at commit ${git.commit}` };
+    }
+    const files = await commitFiles(ctx, git.commit, analyzePaths(changeDir, config));
+    if (files === null) return { ok: false, reason: `the files of commit ${git.commit} could not be listed` };
+    return { ok: true, value: analyze(readAnalyzeInput(files, changeDir, config, diff)) };
   } catch (thrown) {
     return { ok: false, reason: `the Change could not be analyzed: ${(thrown as Error).message}` };
   }
+}
+
+const ARCHIVE_DIR = "openspec/changes/archive";
+
+/**
+ * The directory of the Change `change` at `commit`, as `findChangeDir` names it
+ * in the working tree: `openspec/changes/<change>`, else its archive directory
+ * (`archivedChangeDir`); undefined when there is none or git cannot list it.
+ */
+async function changeDirAt(ctx: Ctx, commit: string, change: string): Promise<string | undefined> {
+  const prefix = await ctx.git.prefix();
+  if (prefix === null) return undefined;
+  const active = `openspec/changes/${change}`;
+  const listed = await ctx.git.files(commit, [active, ARCHIVE_DIR]);
+  if (listed === null) return undefined;
+  const files = toProjectPaths(prefix, listed);
+  if (files.some((file) => file.startsWith(`${active}/`))) return active;
+  const entries = new Set<string>();
+  for (const file of files) {
+    if (!file.startsWith(`${ARCHIVE_DIR}/`)) continue;
+    const [entry, ...rest] = file.slice(ARCHIVE_DIR.length + 1).split("/");
+    if (entry !== undefined && rest.length > 0) entries.add(entry);
+  }
+  const found = archivedChangeDir([...entries], change);
+  return found === undefined ? undefined : `${ARCHIVE_DIR}/${found}`;
 }

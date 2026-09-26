@@ -2,9 +2,10 @@
  * `warrant transition` in the test process (REQ-VER-007, design §9, §10):
  * forward transitions through the gate engine — SCN-VER-029, 030 —
  * `human-approval` by `--ref --by` — SCN-VER-031, 032 — `MERGED` on the
- * commit of CI evidence after a merge — SCN-VER-033, 034 — only on the head of
- * the impl-PR — SCN-VER-050, 051 — and only from the run of `--ref` —
- * SCN-VER-052 — `ABANDONED` with the freeze of the record — SCN-VER-035 — and
+ * commit of CI evidence after a merge, judged by the tree of the merge —
+ * SCN-VER-033, 034, 069, 070 — only on the head of the impl-PR — SCN-VER-050,
+ * 051 — only from one CI run — SCN-VER-052 — with `--ref` the URL of the
+ * impl-PR — SCN-VER-071 — `ABANDONED` with the freeze of the record — SCN-VER-035 — and
  * `--dry-run` — SCN-KRN-135, 136.
  * Moved from e2e (ADR-0025, task 5.1); the parse of argv and the exit code of
  * the binary stay in `e2e/transition.test.ts`.
@@ -19,6 +20,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { runAnalyze } from "../../../src/commands/analyze.js";
 import { runCheck } from "../../../src/commands/check.js";
 import { runClassify } from "../../../src/commands/classify.js";
 import { runGate } from "../../../src/commands/gate.js";
@@ -36,6 +38,8 @@ const project = useProjectBuilder();
 const RECORD = ".warrant/changes/add-search.json";
 const EVIDENCE = ".warrant/evidence/add-search";
 const REVIEW = "https://github.com/o/r/pull/7#pullrequestreview-1";
+/** The impl-PR: the `--ref` of `MERGED` (ADR-0037 п. 5). */
+const IMPL_PR = "https://github.com/o/r/pull/9";
 const CI_RUN = "https://github.com/o/r/actions/runs/42";
 
 /** Environment of a local run: no CI attestation, whatever the environment of the test runner. */
@@ -65,17 +69,23 @@ function verifyMerge(p: ProjectBuilder, env: NodeJS.ProcessEnv): Promise<Result>
   return invoke(() => runVerify(p.ctx, "add-search", { transition: "VERIFYING->MERGED" }, env));
 }
 
-function readJson(p: ProjectBuilder, rel: string): any {
-  return JSON.parse(p.read(rel));
-}
-
 /** Evidence records of `add-search`, parsed. */
 function records(p: ProjectBuilder): any[] {
   const dir = path.join(p.root, EVIDENCE);
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((name) => name.startsWith("EVID-"))
-    .map((name) => readJson(p, `${EVIDENCE}/${name}`));
+    .map((name) => p.json(`${EVIDENCE}/${name}`));
+}
+
+/**
+ * The record `id` as `warrant ci` writes it on the result of a merge (REQ-VER-001, SCN-VER-068):
+ * `subject` gets `extra` (`base_commit` — the tip of the base, `tree` — the tree of the merge).
+ */
+function ciSubject(p: ProjectBuilder, id: string, extra: Record<string, unknown>): void {
+  const rel = `${EVIDENCE}/${id}.json`;
+  const json = p.json(rel);
+  p.write(rel, { ...json, subject: { ...json.subject, ...extra } });
 }
 
 const JUNIT =
@@ -140,7 +150,7 @@ describe("warrant transition", () => {
       controller_action: "CONTINUE"
     });
 
-    const stored = readJson(p, RECORD);
+    const stored = p.json(RECORD);
     expect(stored.change_state).toBe("SPECIFIED");
     const last = stored.transitions.at(-1);
     expect(last).toEqual({
@@ -186,6 +196,10 @@ describe("warrant transition", () => {
     // Without --by: the policy has gate human-approval on SPECIFIED->APPROVED.
     const noBy = await transition(p, "APPROVED", { ref: REVIEW });
     expect(noBy.errors[0]?.code).toBe("USAGE");
+    // --ref is the URL of the spec-PR (a fragment allowed), not of any act (ADR-0037 п. 5).
+    const notPr = await transition(p, "APPROVED", { ref: CI_RUN, by: "kat" });
+    expect(notPr.errors[0]?.code).toBe("USAGE");
+    expect(notPr.errors[0]?.hint).toContain("spec-PR");
     expect(records(p)).toEqual([]);
 
     // No spec-report yet: the approval is written anyway and the gates refuse.
@@ -203,7 +217,7 @@ describe("warrant transition", () => {
     });
     // --ref is only checked to be a URL; the record says so (R-10).
     expect(approvals[0].limitations).toContain("ref not verified (phase 4: warrant ci)");
-    expect(readJson(p, RECORD).change_state).toBe("SPECIFIED");
+    expect(p.json(RECORD).change_state).toBe("SPECIFIED");
 
     const checked = await check(p, "openspec-validate");
     expect(checked.exitCode).toBe(0);
@@ -222,7 +236,7 @@ describe("warrant transition", () => {
     expect(run.data["approval"]).toEqual({ evidence: approvals[0].id, reused: true });
     expect(records(p).filter((r) => r.kind === "human-approval")).toHaveLength(1);
 
-    const last = readJson(p, RECORD).transitions.at(-1);
+    const last = p.json(RECORD).transitions.at(-1);
     expect(last).toMatchObject({ to: "APPROVED", by: "cli:local", ref: REVIEW });
     expect(last.evidence).toEqual([approvals[0].id, checked.data["checks"][0].evidence].sort());
     expect(await validateErrors(p)).toEqual([]);
@@ -238,7 +252,7 @@ describe("warrant transition", () => {
     expect(p.read(RECORD)).toBe(before);
   });
 
-  it("records MERGED on the commit of CI evidence after the impl-PR is merged (SCN-VER-033, SCN-VER-034)", async () => {
+  it("records MERGED with --ref of the impl-PR on the commit of CI evidence made on the merge tree (SCN-VER-033, SCN-VER-034, SCN-VER-069)", async () => {
     const p = await repo("VERIFYING", CHORE, (b) => {
       // The record never went through APPROVED: the contract check is waived, the case is about the commit and the run.
       waiver(b, "WAV-2026-001", "spec-approved");
@@ -246,13 +260,20 @@ describe("warrant transition", () => {
     });
     const fork = head(p);
 
-    // impl-PR: code, then the CI run records evidence on its head.
+    // impl-PR: code; meanwhile main moves on with another PR.
     p.branch("worktree/add-search");
     p.write("src/search.ts", "export const search = 1;\n");
     const implHead = p.commit("impl");
+    p.checkout("main");
+    p.write("docs/other.md", "# Other\n");
+    const tip = p.commit("other PR");
+
+    // The CI run records evidence on the impl head; as `warrant ci` it names the tip of main and the merge tree.
+    p.checkout("worktree/add-search");
     const ci = await verifyMerge(p, CI_ENV);
     expect(ci.data["checks"][0]).toMatchObject({ id: "tests-passed", evidence_status: "PROVEN" });
     expect(ci.data["gates"]["tests-passed"]).toBe("PASS");
+    const evidence = ci.data["checks"][0].evidence as string;
 
     // A commit that never reaches main: not merged (SCN-VER-034).
     p.branch("stray", "main");
@@ -260,14 +281,16 @@ describe("warrant transition", () => {
     // Only the file: the untracked CI records must stay untracked across the checkouts.
     const stray = p.commit("stray", { paths: ["src/stray.ts"] });
 
-    // Merge the impl-PR with a merge commit, then the archive branch carries the CI records.
+    // Merge the impl-PR with a merge commit M, then the archive branch carries the CI records.
     p.checkout("main");
-    p.merge("worktree/add-search", { label: "Merge impl" });
+    const merge = p.merge("worktree/add-search", { label: "Merge impl" });
+    const tree = (await p.git.treeId(merge)) as string;
+    ciSubject(p, evidence, { base_commit: tip, tree });
     p.branch("archive/add-search");
     p.commit("evidence from CI");
 
     const before = p.read(RECORD);
-    const notMerged = await transition(p, "MERGED", { ref: CI_RUN, commit: stray });
+    const notMerged = await transition(p, "MERGED", { ref: IMPL_PR, commit: stray });
     expect(notMerged.errors[0]?.code).toBe("COMMIT_NOT_MERGED");
     expect(notMerged.exitCode).toBe(3);
     expect(p.read(RECORD)).toBe(before);
@@ -275,8 +298,9 @@ describe("warrant transition", () => {
     const noRef = await transition(p, "MERGED", { commit: implHead });
     expect(noRef.errors[0]?.code).toBe("USAGE");
 
-    // Without --commit: the commit of the freshest record, which is the impl head.
-    const run = await transition(p, "MERGED", { ref: CI_RUN });
+    // Without --commit: the commit of the freshest record, which is the impl head. The record names
+    // the tip of main, not the fork point: the tree of M admits it instead of the base (SCN-VER-069).
+    const run = await transition(p, "MERGED", { ref: IMPL_PR });
     expect(run.errors).toEqual([]);
     expect(run.exitCode).toBe(0);
     expect(run.data).toMatchObject({
@@ -286,9 +310,41 @@ describe("warrant transition", () => {
       gates: { "ids-valid": "PASS", "scope-valid": "PASS", "spec-approved": "WAIVED", "tests-passed": "PASS" },
       change_state: "MERGED"
     });
-    const last = readJson(p, RECORD).transitions.at(-1);
-    expect(last).toMatchObject({ to: "MERGED", by: "cli:local", ref: CI_RUN, evidence: [ci.data["checks"][0].evidence] });
+    expect(run.data["findings"].filter((f: Data) => f["code"] === "STALE")).toEqual([]);
+    const last = p.json(RECORD).transitions.at(-1);
+    expect(last).toMatchObject({ to: "MERGED", by: "cli:local", ref: IMPL_PR, evidence: [evidence] });
     expect(await validateErrors(p)).toEqual([]);
+  });
+
+  it("sets aside CI evidence whose merge tree is not the tree of M: STALE tree, MERGED refused (SCN-VER-070)", async () => {
+    const p = await repo("VERIFYING", CHORE, (b) => {
+      waiver(b, "WAV-2026-001", "spec-approved");
+      fakeTests(b);
+    });
+    p.branch("worktree/add-search");
+    p.write("src/search.ts", "export const search = 1;\n");
+    const implHead = p.commit("impl");
+    const ci = await verifyMerge(p, CI_ENV);
+    const evidence = ci.data["checks"][0].evidence as string;
+    // The CI run merged into an older main; another PR landed before the merge.
+    const stale = (await p.git.treeId(implHead)) as string;
+    p.checkout("main");
+    p.write("docs/other.md", "# Other\n");
+    // Only the file: the untracked CI records must stay untracked across the checkouts.
+    p.commit("other PR", { paths: ["docs/other.md"] });
+    p.merge("worktree/add-search", { label: "Merge impl" });
+    ciSubject(p, evidence, { tree: stale });
+    p.branch("archive/add-search");
+    p.commit("evidence from CI");
+    const before = p.read(RECORD);
+
+    const run = await transition(p, "MERGED", { ref: IMPL_PR, commit: implHead });
+    expect(run.errors[0]?.code).toBe("GATES_NOT_PASSED");
+    expect(run.data["gates"]["tests-passed"]).toBe("BLOCKED");
+    expect(run.data["findings"]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "STALE", evidence, reason: "tree" })])
+    );
+    expect(p.read(RECORD)).toBe(before);
   });
 
   it("refuses MERGED on a commit that is not the head of the merged impl-PR (SCN-VER-050, review R-1)", async () => {
@@ -310,20 +366,20 @@ describe("warrant transition", () => {
     const before = p.read(RECORD);
 
     // The freshest record is on the early commit: refused, not judged on base...early.
-    const byDefault = await transition(p, "MERGED", { ref: CI_RUN });
+    const byDefault = await transition(p, "MERGED", { ref: IMPL_PR });
     expect(byDefault.errors[0]?.code).toBe("COMMIT_NOT_MERGED");
     expect(byDefault.errors[0]?.message).toContain(`not the head of the impl-PR merged by ${merge} (head ${late})`);
     expect(byDefault.exitCode).toBe(3);
-    const explicit = await transition(p, "MERGED", { ref: CI_RUN, commit: early });
+    const explicit = await transition(p, "MERGED", { ref: IMPL_PR, commit: early });
     expect(explicit.errors[0]?.code).toBe("COMMIT_NOT_MERGED");
     // A commit of the base line itself has no PR boundary.
-    const onLine = await transition(p, "MERGED", { ref: CI_RUN, commit: `${merge}^1` });
+    const onLine = await transition(p, "MERGED", { ref: IMPL_PR, commit: `${merge}^1` });
     expect(onLine.errors[0]?.code).toBe("COMMIT_NOT_MERGED");
     expect(onLine.errors[0]?.message).toContain("first-parent line");
     expect(p.read(RECORD)).toBe(before);
 
     // The head passes the commit check; its gates see the late commit.
-    const onHead = await transition(p, "MERGED", { ref: CI_RUN, commit: late });
+    const onHead = await transition(p, "MERGED", { ref: IMPL_PR, commit: late });
     expect(onHead.errors[0]?.code).toBe("GATES_NOT_PASSED");
     expect(onHead.data).toMatchObject({ commit: late, gates: { "scope-valid": "FAIL", "tests-passed": "BLOCKED" } });
     expect(p.read(RECORD)).toBe(before);
@@ -343,39 +399,72 @@ describe("warrant transition", () => {
     p.commit("evidence from CI");
 
     // Before R-1 the base was head^1 and the diff held "impl 2" only.
-    const run = await transition(p, "MERGED", { ref: CI_RUN, commit: implHead });
+    const run = await transition(p, "MERGED", { ref: IMPL_PR, commit: implHead });
     expect(run.errors[0]?.code).toBe("COMMIT_NOT_MERGED");
     expect(run.errors[0]?.message).toContain("fast-forward");
   });
 
-  it("refuses MERGED with REF_MISMATCH when the CI records come from another run (SCN-VER-052)", async () => {
+  it("refuses MERGED with REF_MISMATCH when the CI records of the verdicts come from two runs (SCN-VER-052)", async () => {
     const p = await repo("VERIFYING", CHORE, (b) => {
       // The record never went through APPROVED: the contract check is waived, the case is about the commit and the run.
       waiver(b, "WAV-2026-001", "spec-approved");
       fakeTests(b);
+      // tests-passed strengthened to two kinds, so its verdict rests on two records.
+      b.write(".warrant/local/gates/tests-passed.json", {
+        $schema: "warrant://gate/1",
+        id: "tests-passed",
+        version: "1.0.1",
+        overrides: "core-sdd:tests-passed",
+        level: "L1",
+        requires_evidence: [
+          { kind: "test-report", status: "PROVEN" },
+          { kind: "spec-report", status: "PROVEN" }
+        ],
+        waivable: false,
+        accepts_attestation: ["ci"]
+      });
     });
     p.branch("worktree/add-search");
     p.write("src/search.ts", "export const search = 1;\n");
     const implHead = p.commit("impl");
-    const ci = await verifyMerge(p, { ...CI_ENV, GITHUB_RUN_ID: "2" });
-    expect(ci.data["gates"]["tests-passed"]).toBe("PASS");
-    const evidence = ci.data["checks"][0].evidence as string;
+    const run1 = await invoke(() => runCheck(p.ctx, "add-search", ["openspec-validate"], {}, { ...CI_ENV, GITHUB_RUN_ID: "1" }));
+    const run2 = await invoke(() => runCheck(p.ctx, "add-search", ["tests-passed"], {}, { ...CI_ENV, GITHUB_RUN_ID: "2" }));
+    const spec = run1.data["checks"][0].evidence as string;
+    const tests = run2.data["checks"][0].evidence as string;
     p.checkout("main");
     p.merge("worktree/add-search", { label: "Merge impl" });
     p.branch("archive/add-search");
-    p.commit("evidence from CI run 2");
+    p.commit("evidence from CI runs 1 and 2");
     const before = p.read(RECORD);
 
-    const run = await transition(p, "MERGED", { ref: "https://github.com/o/r/actions/runs/1", commit: implHead });
+    // --ref is the impl-PR; the run comes from the records, and they name two.
+    const run = await transition(p, "MERGED", { ref: IMPL_PR, commit: implHead });
     expect(run.errors[0]?.code).toBe("REF_MISMATCH");
-    expect(run.errors[0]?.message).toContain(evidence);
+    expect(run.errors[0]?.message).toContain(spec);
+    expect(run.errors[0]?.message).toContain(tests);
     expect(run.exitCode).toBe(3);
     expect(p.read(RECORD)).toBe(before);
 
-    // The run of the records, spelled with a trailing slash, is the same run.
-    const same = await transition(p, "MERGED", { ref: "https://github.com/o/r/actions/runs/2/", commit: implHead });
+    // Both records of run 2 (a trailing / aside): one run, MERGED recorded.
+    const rel = `${EVIDENCE}/${spec}.json`;
+    p.write(rel, { ...p.json(rel), attestation: { type: "ci", ref: "https://github.com/o/r/actions/runs/2/" } });
+    const same = await transition(p, "MERGED", { ref: IMPL_PR, commit: implHead });
     expect(same.errors).toEqual([]);
     expect(same.data["change_state"]).toBe("MERGED");
+    expect(p.json(RECORD).transitions.at(-1).evidence).toEqual([spec, tests].sort());
+  });
+
+  it("refuses a --ref of MERGED that is not a pull request with USAGE and a hint, writing nothing (SCN-VER-071)", async () => {
+    const p = await repo("VERIFYING", CHORE, fakeTests);
+    const before = p.read(RECORD);
+    for (const ref of [CI_RUN, "https://github.com/o/r/pull/9/files", "https://github.com/o/r/pulls", "https://github.com/o/r/pull/x"]) {
+      const run = await transition(p, "MERGED", { ref, by: "kat" });
+      expect(run.errors[0]?.code, ref).toBe("USAGE");
+      expect(run.errors[0]?.hint, ref).toContain("impl-PR");
+      expect(run.exitCode).toBe(3);
+    }
+    expect(records(p)).toEqual([]);
+    expect(p.read(RECORD)).toBe(before);
   });
 
   it("evidence-complete on merge counts the approval of an earlier commit and review excused by a waiver (I-96)", async () => {
@@ -433,10 +522,58 @@ describe("warrant transition", () => {
     } finally {
       rmSync(aside, { recursive: true, force: true });
     }
-    const merged = await transition(p, "MERGED", { ref: CI_RUN });
+    const merged = await transition(p, "MERGED", { ref: IMPL_PR });
     expect(merged.errors).toEqual([]);
     expect(merged.data).toMatchObject({ commit: implHead, change_state: "MERGED" });
     expect(merged.data["gates"]["evidence-complete"]).toBe("PASS");
+  });
+
+  it("judges analyze-clean and scope-valid of MERGED on the head of the impl-PR, not on the archive working tree (R-21)", async () => {
+    const SEARCH = [{ name: "Search by text", id: "REQ-SRC-004", scenarios: [{ name: "Match", id: "SCN-SRC-010" }] }];
+    const RUN = "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y";
+    const TASKS = "openspec/changes/add-search/tasks.md";
+    const p = await repo("VERIFYING", FEATURE, (b) => {
+      const config = JSON.parse(b.read(".warrant/warrant.json")) as Record<string, unknown>;
+      b.write(".warrant/warrant.json", { ...config, paths: { tests: "tests" } });
+      b.withChange("add-search", { design: "# Design\n", tasks: "# Tasks\n\n- [x] 1.1 Search by text (SCN-SRC-010)\n", specs: { search: SEARCH } });
+    });
+
+    // impl-PR: code, a test naming the SCN and the Run of the Change.
+    p.branch("worktree/add-search");
+    p.write("src/search.ts", "export const search = 1;\n");
+    p.write("tests/test_search.py", "# SCN-SRC-010\n");
+    p.write(`.warrant/runs/${RUN}.json`, {
+      $schema: "warrant://run/1",
+      id: RUN,
+      change: "add-search",
+      operation: "implement",
+      write_scope: ["src/**"],
+      scope: [],
+      branch: "worktree/add-search",
+      started_at: "2026-09-25T10:00:00Z",
+      finished_at: "2026-09-25T10:12:00Z",
+      run_state: "SUCCEEDED",
+      context_hash: `sha256:${"1".repeat(64)}`,
+      effective_policy_hash: `sha256:${"2".repeat(64)}`,
+      guard_events: []
+    });
+    const implHead = p.commit("impl");
+    p.checkout("main");
+    p.merge("worktree/add-search", { label: "Merge impl" });
+
+    // The archive branch moves on: tasks.md loses the SCN, the Run file is gone.
+    p.branch("archive/add-search");
+    p.write(TASKS, "# Tasks\n\n- [x] 1.1 Search\n");
+    p.remove(`.warrant/runs/${RUN}.json`);
+    p.commit("archive edits");
+    const working: Result = await invoke(() => runAnalyze(p.ctx, "add-search"));
+    expect(working.data["findings"]).toEqual([expect.objectContaining({ code: "UNSATISFIED", id: "REQ-SRC-004" })]);
+
+    const run = await transition(p, "MERGED", { ref: IMPL_PR, commit: implHead });
+    expect(run.data["commit"]).toBe(implHead);
+    expect(run.data["gates"]["analyze-clean"]).toBe("PASS");
+    expect(run.data["gates"]["scope-valid"]).toBe("PASS");
+    expect(run.data["findings"].filter((f: Data) => f["gate"] === "analyze-clean" || f["gate"] === "scope-valid")).toEqual([]);
   });
 
   it("records backward transitions without gates and refuses moves outside 04 section 2", async () => {
@@ -446,7 +583,7 @@ describe("warrant transition", () => {
     expect(back.data["recorded"]).toEqual({ to: "IMPLEMENTING", at: expect.any(String), by: "cli:local" });
     const again = await transition(p, "SPECIFIED");
     expect(again.exitCode).toBe(0);
-    expect(readJson(p, RECORD).change_state).toBe("SPECIFIED");
+    expect(p.json(RECORD).change_state).toBe("SPECIFIED");
 
     const skip = await transition(p, "IMPLEMENTING");
     expect(skip.errors[0]?.code).toBe("STATE_INVALID");
@@ -462,7 +599,7 @@ describe("warrant transition", () => {
     expect(run.exitCode).toBe(0);
     expect(run.data["removed"]).toBe("openspec/changes/add-search");
     expect(existsSync(path.join(p.root, "openspec/changes/add-search"))).toBe(false);
-    expect(readJson(p, RECORD).change_state).toBe("ABANDONED");
+    expect(p.json(RECORD).change_state).toBe("ABANDONED");
 
     const status: Result = await invoke(() => runStatus(p.ctx, "add-search", LOCAL));
     expect(status.data["stale"]).toEqual([]);

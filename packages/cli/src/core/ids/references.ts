@@ -45,3 +45,13 @@ export function readSourceText(absolute: string): string | undefined {
   if (buffer.includes(0)) return undefined;
   return buffer.toString("utf8");
 }
+
+/**
+ * `text` when it is a source file as {@link readSourceText} reads one, for a
+ * text read from elsewhere (a commit, R-21): undefined over
+ * {@link MAX_TEXT_BYTES} or with a NUL character.
+ */
+export function sourceText(text: string): string | undefined {
+  if (Buffer.byteLength(text, "utf8") > MAX_TEXT_BYTES || text.includes("\0")) return undefined;
+  return text;
+}

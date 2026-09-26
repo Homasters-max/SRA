@@ -16,10 +16,11 @@
  * as when the git call fails.
  */
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
-import type { BlobTree, DiffEntry, GitAnswer, GitPort } from "../../../../src/core/ports/git.js";
+import type { BlobTree, CommitCheckout, DiffEntry, GitAnswer, GitPort } from "../../../../src/core/ports/git.js";
 
 export type Tree = Map<string, Buffer>;
 
@@ -35,6 +36,40 @@ type Method = keyof GitPort;
 /** Git's blob id of `content`. */
 export function blobSha(content: Buffer): string {
   return createHash("sha1").update(`blob ${content.length}\0`).update(content).digest("hex");
+}
+
+/**
+ * Git's id of the tree object of `tree` (paths from the top, every file mode
+ * `100644`): what `git rev-parse <rev>^{tree}` prints for a commit of it.
+ */
+export function treeSha(tree: Tree): string {
+  type Dir = Map<string, Dir | Buffer>;
+  const top: Dir = new Map();
+  for (const [file, content] of tree) {
+    const parts = file.split("/");
+    let dir = top;
+    for (const part of parts.slice(0, -1)) {
+      let next = dir.get(part);
+      if (!(next instanceof Map)) {
+        next = new Map();
+        dir.set(part, next);
+      }
+      dir = next;
+    }
+    dir.set(parts[parts.length - 1] as string, content);
+  }
+  const hash = (dir: Dir): Buffer => {
+    // Git sorts the entries of a tree by name, a directory as `<name>/`.
+    const entries = [...dir].map(([name, node]) =>
+      node instanceof Map
+        ? { key: `${name}/`, head: `40000 ${name}`, sha: hash(node) }
+        : { key: name, head: `100644 ${name}`, sha: Buffer.from(blobSha(node), "hex") }
+    );
+    entries.sort((a, b) => Buffer.compare(Buffer.from(a.key), Buffer.from(b.key)));
+    const body = Buffer.concat(entries.flatMap((e) => [Buffer.from(`${e.head}\0`), e.sha]));
+    return createHash("sha1").update(`tree ${body.length}\0`).update(body).digest();
+  };
+  return hash(top).toString("hex");
 }
 
 /** Byte order of paths: the order git lists them in. */
@@ -69,6 +104,8 @@ export class FakeGit implements GitPort {
   detached: string | null = null;
   /** The calls made: method name and arguments. */
   readonly calls: string[] = [];
+  /** Every checkout `worktreeAt` made: its directory and whether it was disposed. */
+  readonly checkouts: { dir: string; disposed: boolean }[] = [];
 
   private repo = false;
   private counter = 0;
@@ -253,6 +290,13 @@ export class FakeGit implements GitPort {
     return this.answer("resolveCommit", [ref], null, () => this.resolve(ref));
   }
 
+  treeId(rev: string): Promise<string | null> {
+    return this.answer("treeId", [rev], null, () => {
+      const tree = this.treeOf(rev);
+      return tree === null ? null : treeSha(tree);
+    });
+  }
+
   branch(): Promise<string | null> {
     return this.answer("branch", [], null, () => (this.headCommit() === null ? null : (this.current ?? "HEAD")));
   }
@@ -369,6 +413,33 @@ export class FakeGit implements GitPort {
         if (!onDisk.has(file) && specs.some((spec) => within(file, spec))) out.add(file);
       }
       return { ok: true, value: [...out].sort(byPath) };
+    });
+  }
+
+  /** The tree of `commit` written into a temporary directory, as `git worktree add --detach` would check it out. */
+  worktreeAt(commit: string): Promise<GitAnswer<CommitCheckout>> {
+    const failed: GitAnswer<CommitCheckout> = { ok: false, detail: `fatal: invalid reference: ${commit}` };
+    return this.answer("worktreeAt", [commit], failed, () => {
+      const tree = this.repo ? this.treeOf(commit) : null;
+      if (tree === null) return failed;
+      const dir = mkdtempSync(path.join(tmpdir(), "warrant-fake-tree-"));
+      const top = path.join(dir, "tree");
+      mkdirSync(top);
+      for (const [file, content] of tree) {
+        const absolute = path.join(top, ...file.split("/"));
+        mkdirSync(path.dirname(absolute), { recursive: true });
+        writeFileSync(absolute, content);
+      }
+      const entry = { dir, disposed: false };
+      this.checkouts.push(entry);
+      const dispose = (): Promise<void> => {
+        entry.disposed = true;
+        rmSync(dir, { recursive: true, force: true });
+        return Promise.resolve();
+      };
+      const root = this.projectPrefix === "" ? top : path.join(top, ...this.projectPrefix.split("/"));
+      mkdirSync(root, { recursive: true });
+      return { ok: true, value: { root, dispose } };
     });
   }
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command, CommanderError } from "commander";
 import { CheckRunner } from "../adapters/check-runner.js";
+import { ForgeGh } from "../adapters/forge-gh.js";
 import { GitCli } from "../adapters/git-cli.js";
 import { OpenSpecCli } from "../adapters/openspec-cli.js";
 import { processSignals } from "../adapters/signals.js";
@@ -23,6 +24,7 @@ import { runCheck } from "../commands/check.js";
 import { runGate } from "../commands/gate.js";
 import { runAnalyze } from "../commands/analyze.js";
 import { runVerify } from "../commands/verify.js";
+import { runCi, runCiFetch } from "../commands/ci.js";
 import { runTransition } from "../commands/transition.js";
 import { runArchive } from "../commands/archive.js";
 import { runLink } from "../commands/link.js";
@@ -39,8 +41,8 @@ const FRONTENDS: readonly FrontendAdapter[] = [claudeFrontend];
 export type Runner = (ctx: Ctx, args: string[], opts: Record<string, unknown>) => Promise<CommandResult> | CommandResult;
 
 /**
- * The production `ctx` (ADR-0025 п. 2): the adapters over `openspec`, `git` and
- * the check runner, rooted at the cwd; `--dry-run` makes `writes` collect instead of write.
+ * The production `ctx` (ADR-0025 п. 2): the adapters over `openspec`, `git`,
+ * the check runner and `gh` (the forge), rooted at the cwd; `--dry-run` makes `writes` collect instead of write.
  */
 function productionCtx(dryRun: boolean): Ctx {
   const root = projectRoot();
@@ -50,6 +52,7 @@ function productionCtx(dryRun: boolean): Ctx {
     git: new GitCli(root),
     checks: new CheckRunner(),
     clock: systemClock,
+    forge: new ForgeGh(root),
     signals: processSignals,
     writes: createWrites(dryRun),
     warn: (text) => void process.stderr.write(text)
@@ -99,14 +102,17 @@ function register(
   runner: Runner,
   configure?: (cmd: Command) => void,
   parent: Command = program
-): void {
+): Command {
   const cmd = parent.command(name).description(description);
   configure?.(cmd);
   const envelopeName = parent === program ? name : `${parent.name()} ${name}`;
   cmd.action(async (...actionArgs: unknown[]) => {
     const command = actionArgs[actionArgs.length - 1] as Command;
-    await run(envelopeName, runner, command.args, command.opts());
+    // Commander gives an option the parent also declares (`ci --dry-run`) to the parent, wherever it stands: `ci fetch 9 --dry-run`.
+    const opts = parent === program ? command.opts() : { ...parent.opts(), ...command.opts() };
+    await run(envelopeName, runner, command.args, opts);
   });
+  return cmd;
 }
 
 register(
@@ -322,6 +328,40 @@ register(
       .option("--transition <FROM->TO>", "transition to verify (default: the next forward one)")
       .option("--base <ref>", "base commit of the evidence and the diff (default: merge-base of HEAD and main)")
       .option("--paths <a,b>", "run run.scoped_command of the checks over these comma-separated paths")
+);
+
+const ciCommand = register(
+  "ci",
+  "judge the pull request whose merge is HEAD: kind by the record in the diff, rules of the base, merge verdict of an impl-PR",
+  (ctx, _args, opts) => runCi(ctx, { dryRun: opts["dryRun"] === true }),
+  (c) =>
+    c
+      .option("--dry-run", "print the plan — kind, Change, checks, data.would_write[] — without running checks or asking the forge")
+      .addHelpText(
+        "after",
+        examples([
+          "git checkout --detach origin/main && git merge --no-ff <head of the PR> && warrant ci",
+          "warrant ci --dry-run"
+        ]) +
+          "\nHEAD must be the result of a merge: the first parent the tip of the base, the second the head of the PR.\n" +
+          "Exit codes: 0 no violation; 1 a violation of the PR (errors[]); 3 configuration, USAGE, a failed check, FORGE_UNAVAILABLE.\n"
+      )
+);
+register(
+  "fetch",
+  "put the CI evidence of a merged impl-PR — the run whose records are on the tree of its merge commit — into .warrant/evidence/<change>/",
+  (ctx, args) => runCiFetch(ctx, args[0] as string),
+  (c) =>
+    c
+      .argument("<pr>", "number or URL of the merged impl-PR of this repository")
+      .option("--dry-run", "choose the run and print data.would_write[]; write nothing")
+      .addHelpText(
+        "after",
+        examples(["warrant ci fetch 57", "warrant ci fetch https://github.com/<owner>/<repo>/pull/57 --dry-run"]) +
+          "\nNo run on the tree of the merge commit M (main moved before the merge): gh workflow run ci.yml -f merge_commit=<M>, then fetch again.\n" +
+          "Exit codes: 0 imported or already present; 3 USAGE, PR_NOT_FOUND, PR_NOT_MERGED, PR_NOT_IMPL, NO_CI_EVIDENCE, EVIDENCE_CONFLICT, BUSY, FORGE_UNAVAILABLE — nothing written.\n"
+      ),
+  ciCommand
 );
 
 register(

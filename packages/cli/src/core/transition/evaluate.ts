@@ -16,6 +16,7 @@ import type { ControllerDecision } from "../controller/evaluate.js";
 import type { Ctx } from "../ctx.js";
 import { WarrantError, type CliError } from "../errors.js";
 import type { PendingRecord } from "../evidence/store.js";
+import type { EvidenceInput } from "../gates/types.js";
 import { readGitFacts, type GitFacts } from "../git/facts.js";
 import { loadPacks } from "../packs/loader.js";
 import type { LoadResult, PackObject } from "../packs/types.js";
@@ -42,6 +43,15 @@ export interface EvaluateOptions {
   record?: ChangeRecord | undefined;
   /** Gate ids named on the command line: only these are judged. */
   gates?: string[] | undefined;
+  /** The packs, when the command loaded them elsewhere: `warrant ci` judges by the base (I-171). */
+  loaded?: LoadResult | undefined;
+  /** The git facts, when the command computed them (`warrant ci`: the head of the PR inside its merge); `base` is then unused. */
+  git?: GitFacts | undefined;
+  /**
+   * Which stored records the gates may read; absent — all. `warrant ci` counts
+   * the kinds its checks produce only from this run (REQ-VER-011, ADR-0010 п. 3).
+   */
+  admit?: ((record: EvidenceInput) => boolean) | undefined;
 }
 
 /**
@@ -64,6 +74,7 @@ export interface Prepared {
   only: string[] | undefined;
   paths: string[] | undefined;
   env: NodeJS.ProcessEnv;
+  admit: ((record: EvidenceInput) => boolean) | undefined;
 }
 
 export interface Evaluated<Run extends ChecksRun | undefined = ChecksRun | undefined> {
@@ -83,7 +94,7 @@ export interface Evaluated<Run extends ChecksRun | undefined = ChecksRun | undef
  * conflict is returned.
  */
 export function prepare(ctx: Ctx, change: string, opts: EvaluateOptions): Prepared | Refusal {
-  const loaded = loadPacks(ctx.root);
+  const loaded = opts.loaded ?? loadPacks(ctx.root);
   if (loaded.errors.length > 0) return { ok: false, conflict: false, errors: loaded.errors };
   const record = opts.record ?? readChangeRecord(ctx.root, change);
   const transition = transitionOf(record, opts.transition);
@@ -98,7 +109,7 @@ export function prepare(ctx: Ctx, change: string, opts: EvaluateOptions): Prepar
   const paths = opts.paths === undefined ? undefined : splitPaths(opts.paths);
   if (paths !== undefined && paths.length === 0) throw new WarrantError("USAGE", "--paths lists no path");
 
-  return { ok: true, loaded, record, transition, policy: resolved.policy, only, paths, env: opts.env };
+  return { ok: true, loaded, record, transition, policy: resolved.policy, only, paths, env: opts.env, admit: opts.admit };
 }
 
 /**
@@ -127,7 +138,8 @@ export async function judgeGates(
     env: prepared.env,
     only: prepared.only,
     pending: [...(run?.records ?? []), ...pending],
-    ...(run === undefined ? {} : { checkFailures: run.failures })
+    ...(run === undefined ? {} : { checkFailures: run.failures }),
+    ...(prepared.admit === undefined ? {} : { admit: prepared.admit })
   });
   recordVerdicts(ctx, change, prepared.env, evaluation.engine.gates);
   return evaluation;
@@ -141,7 +153,7 @@ export async function evaluate(ctx: Ctx, change: string, opts: EvaluateOptions):
   if (!prepared.ok) return prepared;
   const { loaded, policy, transition } = prepared;
 
-  const git = await readGitFacts(ctx, opts.base);
+  const git = opts.git ?? (await readGitFacts(ctx, opts.base));
   const run =
     opts.checks === undefined
       ? undefined

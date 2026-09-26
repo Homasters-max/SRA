@@ -3,9 +3,13 @@
  * files of the project and the diff of `FakeGit` — `UNSATISFIED` with the
  * exit code 1 (SCN-VER-062), a consistent Change with 0 (SCN-VER-066), `ORPHAN`
  * of the changed test only (SCN-VER-065), `ORPHAN` skipped without git
- * (SCN-VER-067), `CHANGE_NOT_FOUND` with a `hint`; the tree of the project is
- * the same bytes after every call — the command writes nothing.
+ * (SCN-VER-067), an archived Change in its archive directory (SCN-VER-072),
+ * `CHANGE_NOT_FOUND` with a `hint`; the tree of the project is the same bytes
+ * after every call — the command writes nothing.
  */
+import { renameSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { runAnalyze, type AnalyzeOptions } from "../../../src/commands/analyze.js";
@@ -108,6 +112,20 @@ describe("warrant analyze", () => {
       { code: "UNSATISFIED", id: "REQ-SRC-004", missing: ["test"] }
     ]);
     expect(run.data["skipped"]).toEqual([{ code: "ORPHAN", reason: expect.stringContaining("not a git repository") }]);
+  });
+
+  it("an archived Change is read from its archive directory with the latest date (SCN-VER-072)", async () => {
+    const p = repo("- [x] 1.1 REQ-SRC-004, REQ-SRC-777\n");
+    p.write("tests/test_search.py", "# SCN-SRC-010\n");
+    // An older archive of the same name, then `openspec archive add-search`.
+    p.write("openspec/changes/archive/2026-01-02-add-search/tasks.md", "- [x] 1.1 REQ-SRC-004\n");
+    renameSync(path.join(p.root, "openspec/changes/add-search"), path.join(p.root, "openspec/changes/archive/2026-09-26-add-search"));
+
+    const run = await analyze(p);
+    expect(run.exitCode).toBe(1);
+    expect(run.data["findings"]).toEqual([
+      { code: "CONFLICT", id: "REQ-SRC-777", path: "openspec/changes/archive/2026-09-26-add-search/tasks.md" }
+    ]);
   });
 
   it("an unknown Change is CHANGE_NOT_FOUND with a hint, exit 3", async () => {

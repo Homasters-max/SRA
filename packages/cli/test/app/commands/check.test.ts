@@ -24,6 +24,7 @@ import type { CommandResult } from "../../../src/io/output.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
 import { validate, validateErrors } from "../helpers/validate.js";
+import { readJsonFile } from "../../helpers/json.js";
 
 const project = useProjectBuilder();
 
@@ -108,10 +109,6 @@ function head(p: ProjectBuilder): string {
   return p.git.headCommit()?.sha as string;
 }
 
-function readJson(file: string): any {
-  return JSON.parse(readFileSync(file, "utf8"));
-}
-
 function recordFiles(dir: string): string[] {
   try {
     return readdirSync(dir).filter((name) => name.startsWith("EVID-"));
@@ -133,7 +130,7 @@ describe("warrant check", () => {
     expect(entry.path).toBe(`${EVIDENCE}/${entry.evidence}.json`);
 
     const sha = head(p);
-    const evidence = readJson(path.join(p.root, entry.path));
+    const evidence = readJsonFile(path.join(p.root, entry.path));
     expect(evidence).toMatchObject({
       id: entry.evidence,
       kind: "spec-report",
@@ -149,7 +146,7 @@ describe("warrant check", () => {
     const stdout = readFileSync(path.join(p.root, EVIDENCE, "raw", "openspec-validate", "stdout.json"));
     expect(evidence.artifacts).toEqual([{ uri: `${EVIDENCE}/raw/openspec-validate/stdout.json`, sha256: bytesHash(stdout) }]);
 
-    const manifest = readJson(path.join(p.root, EVIDENCE, "manifest.json"));
+    const manifest = readJsonFile(path.join(p.root, EVIDENCE, "manifest.json"));
     expect(manifest).toMatchObject({ change: "add-search", commit: sha, evidence: [entry.evidence] });
     expect(manifest.versions).toMatchObject({ openspec: "1.13.1" });
     expect(await validateErrors(p)).toEqual([]);
@@ -160,7 +157,7 @@ describe("warrant check", () => {
     const again = await check(p, ["openspec-validate"]);
     expect(again.exitCode).toBe(0);
     const second = again.data["checks"][0].evidence as string;
-    const updated = readJson(path.join(p.root, EVIDENCE, "manifest.json"));
+    const updated = readJsonFile(path.join(p.root, EVIDENCE, "manifest.json"));
     expect(updated.evidence).toEqual([entry.evidence, second].sort());
     expect(updated.gates).toEqual({ "spec-valid": "PASS" });
     expect(recordFiles(path.join(p.root, EVIDENCE))).toHaveLength(2);
@@ -179,7 +176,7 @@ describe("warrant check", () => {
     expect(recordFiles(dir)).toHaveLength(1);
     expect(existsSync(path.join(dir, "manifest.json"))).toBe(true);
     expect(existsSync(path.join(p.root, EVIDENCE))).toBe(false);
-    const evidence = readJson(path.join(dir, recordFiles(dir)[0] as string));
+    const evidence = readJsonFile(path.join(dir, recordFiles(dir)[0] as string));
     expect(evidence.artifacts[0].uri).toMatch(/^file:\/\//);
   });
 
@@ -190,7 +187,7 @@ describe("warrant check", () => {
     expect(run.exitCode).toBe(0);
     const junit = path.join(p.root, EVIDENCE, "raw", "tests-passed", "junit.xml");
     expect(existsSync(junit)).toBe(true);
-    const evidence = readJson(path.join(p.root, run.data["checks"][0].path));
+    const evidence = readJsonFile(path.join(p.root, run.data["checks"][0].path));
     expect(evidence.artifacts[0]).toEqual({
       uri: `${EVIDENCE}/raw/tests-passed/junit.xml`,
       sha256: bytesHash(readFileSync(junit))
@@ -289,9 +286,27 @@ describe("warrant check", () => {
     expect(run.exitCode).toBe(0);
     // run.command, not scoped_command: no paths after {out}.
     expect(testRuns(p)).toEqual([[`${EVIDENCE}/raw/tests-passed`]]);
-    const evidence = readJson(path.join(p.root, run.data["checks"][0].path));
+    const evidence = readJsonFile(path.join(p.root, run.data["checks"][0].path));
     expect(evidence.attestation).toEqual({ type: "ci", ref: "https://github.com/o/r/actions/runs/7" });
     expect(evidence.limitations.some((l: string) => l.startsWith("scoped:"))).toBe(false);
+  });
+
+  it("attests a record under GitHub Actions by the URL of the run attempt, without subject.tree (SCN-VER-002)", async () => {
+    const p = await repo();
+    const env = { GITHUB_ACTIONS: "true", GITHUB_SERVER_URL: "https://github.com", GITHUB_REPOSITORY: "o/r", GITHUB_RUN_ID: "42" };
+    const attempt = await check(p, ["openspec-validate"], {}, { ...env, GITHUB_RUN_ATTEMPT: "2" });
+    expect(attempt.errors).toEqual([]);
+    const second = readJsonFile(path.join(p.root, attempt.data["checks"][0].path));
+    expect(second.attestation).toEqual({ type: "ci", ref: "https://github.com/o/r/actions/runs/42/attempts/2" });
+    // Only `warrant ci` knows the result of a merge (ADR-0037 п. 2): check writes commit and base, no tree.
+    expect(second.subject.commit).toBe(head(p));
+    expect(second.subject).not.toHaveProperty("tree");
+
+    const run = await check(p, ["openspec-validate"], {}, env);
+    expect(readJsonFile(path.join(p.root, run.data["checks"][0].path)).attestation).toEqual({
+      type: "ci",
+      ref: "https://github.com/o/r/actions/runs/42"
+    });
   });
 
   it("reports CHECK_NOT_CONFIGURED with the pack check path for tests-passed without an override (SCN-VER-007)", async () => {
@@ -326,7 +341,7 @@ describe("warrant check", () => {
     expect(run.errors).toEqual([]);
     expect(run.exitCode).toBe(0);
     expect(testRuns(p)).toEqual([[`${EVIDENCE}/raw/tests-passed`, "src/a.py", "src/b.py"]]);
-    const evidence = readJson(path.join(p.root, run.data["checks"][0].path));
+    const evidence = readJsonFile(path.join(p.root, run.data["checks"][0].path));
     expect(evidence.limitations).toEqual(["scoped: src/a.py,src/b.py"]);
   });
 
@@ -359,7 +374,7 @@ describe("warrant check", () => {
     const p = await repo();
     const run = await check(p, ["openspec-validate"], { base: "main" });
     expect(run.exitCode).toBe(0);
-    expect(readJson(path.join(p.root, run.data["checks"][0].path)).subject.base_commit).toBe(head(p));
+    expect(readJsonFile(path.join(p.root, run.data["checks"][0].path)).subject.base_commit).toBe(head(p));
 
     const bad = await check(p, ["openspec-validate"], { base: "no-such-ref" });
     expect(bad.exitCode).toBe(3);
@@ -384,7 +399,7 @@ describe("warrant check outside git", () => {
     expect(run.exitCode).toBe(0);
     expect(p.warnings.join("")).toMatch(/not a git repository/);
     expect(existsSync(path.join(p.root, ".warrant", "check.lock"))).toBe(false);
-    const evidence = readJson(path.join(p.root, run.data["checks"][0].path));
+    const evidence = readJsonFile(path.join(p.root, run.data["checks"][0].path));
     expect(evidence.subject.commit).toBe("nogit");
     expect(evidence.subject).not.toHaveProperty("base_commit");
     expect(evidence.limitations).toEqual(["no git: commit unknown"]);

@@ -29,6 +29,7 @@ import { makeTempDir, removeDir, runCli, type CliRun } from "../helpers/cli.js";
 import { git } from "../helpers/git.js";
 import { openspecSync } from "../helpers/openspec.js";
 import { recordDoc, write } from "../helpers/synced.js";
+import { readJsonFile } from "../helpers/json.js";
 
 // `openspec` is slow to start, especially on Windows.
 const TIMEOUT = 180_000;
@@ -54,10 +55,6 @@ afterAll(() => {
   for (const root of roots) removeDir(root);
 });
 
-function readJson(root: string, rel: string): any {
-  return JSON.parse(readFileSync(path.join(root, rel), "utf8"));
-}
-
 /** A hook of Claude Code: the recorded input `name`, the file of its tool at `rel`, through `warrant guard --frontend claude`. */
 function hook(root: string, name: string, rel: string): Promise<CliRun> {
   return runCli(["guard", "--frontend", "claude"], root, LOCAL, recordedInputIn(recordedHook(VERSION, name), root, rel));
@@ -80,7 +77,7 @@ describe.skipIf(!hasGit)("adapter claude: init --frontend claude, sync, run, gua
       expect(openspecSync(["init", "--tools", "none"], root).ok).toBe(true);
       const init = await cli(["init", "--frontend", "claude"]);
       expect(init.json?.errors).toEqual([]);
-      const config = readJson(root, ".warrant/warrant.json");
+      const config = readJsonFile(root, ".warrant/warrant.json");
       expect(config.frontends).toEqual(["claude"]);
       write(root, ".warrant/warrant.json", { ...config, paths: { src: "src", tests: "tests" }, roles: { maintainer: ["kat"] } });
       write(root, ".warrant/local/rules/docstrings.json", { $schema: "warrant://rule/1", id: "docstrings", paths: ["src/**/*.py"], text: RULE_TEXT });
@@ -94,7 +91,7 @@ describe.skipIf(!hasGit)("adapter claude: init --frontend claude, sync, run, gua
       });
       const sync = await cli(["sync"]);
       expect(sync.json?.errors).toEqual([]);
-      const settings = readJson(root, ".claude/settings.json");
+      const settings = readJsonFile(root, ".claude/settings.json");
       expect(settings.permissions.deny).toContain("Edit(/.warrant/runs/**)");
       expect(settings.permissions.deny).toContain("Bash(git push origin main:*)");
       expect(settings.permissions.deny.filter((rule: string) => rule.startsWith("Write("))).toEqual([]);
@@ -134,7 +131,7 @@ describe.skipIf(!hasGit)("adapter claude: init --frontend claude, sync, run, gua
 
       const finish = await cli(["run", "finish"]);
       expect(finish.json?.errors).toEqual([]);
-      const run = readJson(root, `.warrant/runs/${id}.json`);
+      const run = readJsonFile(root, `.warrant/runs/${id}.json`);
       expect(run.guard_events.map((e: { phase: string; decision: string }) => `${e.phase} ${e.decision}`)).toEqual(["pre deny", "pre allow", "post allow"]);
       expect(JSON.stringify(run)).not.toMatch(/claude/i);
 

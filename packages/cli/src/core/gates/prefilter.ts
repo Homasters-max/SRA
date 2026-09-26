@@ -7,13 +7,17 @@
  * partial waiver it applied that is no longer in force. A record bound to the
  * spec tree (`subject.spec_tree`, ADR-0036 п. 3) is compared by that tree
  * instead of commit and base: it stays admissible while `proposal.md` and
- * `specs/**` of the Change are the same. What is left is the only evidence
- * the verdict algorithm sees.
+ * `specs/**` of the Change are the same. A record of `warrant ci` on the result
+ * of a merge (`subject.tree`, ADR-0037 п. 2) is compared by its commit and by
+ * the tree of the merge of the evaluated commit instead of the base: a moved
+ * base does not set it aside, another merge result does (`reason: "tree"`).
+ * What is left is the only evidence the verdict algorithm sees.
  */
+import { subjectOf } from "../evidence/record.js";
 import { isPlainObject } from "../json.js";
 import type { Availability, EvidenceInput, Finding } from "./types.js";
 
-export type StaleReason = "commit" | "base" | "spec_tree" | "threshold" | "scoped" | "waiver";
+export type StaleReason = "commit" | "base" | "spec_tree" | "tree" | "threshold" | "scoped" | "waiver";
 
 export interface PrefilterContext {
   /** Commit under evaluation (HEAD, or the commit of `MERGED`). */
@@ -29,6 +33,12 @@ export interface PrefilterContext {
    * `subject.spec_tree`; undefined or unavailable sets every such record aside.
    */
   specTree?: Availability<string> | undefined;
+  /**
+   * Id of the git tree of the result of the merge of `commit` (ADR-0037 п. 2, design §3 of phase-4c),
+   * for records with `subject.tree`: compared instead of the base; undefined or unavailable (no such
+   * merge) sets every such record aside.
+   */
+  mergeTree?: Availability<string> | undefined;
 }
 
 /** One record set aside, with the finding that says why. */
@@ -44,9 +54,9 @@ export interface PrefilterResult {
 
 /** The first reason the record is not admissible, or null. */
 export function staleReason(record: Record<string, unknown>, ctx: PrefilterContext): { reason: StaleReason; detail: string } | null {
-  const subject = isPlainObject(record["subject"]) ? record["subject"] : {};
-  const tree = subject["spec_tree"];
-  if (typeof tree === "string") {
+  const subject = subjectOf(record);
+  const tree = subject?.specTree;
+  if (tree !== undefined) {
     const current = ctx.specTree;
     if (current === undefined || !current.ok) {
       const why = current === undefined ? "it was not computed" : current.reason;
@@ -56,13 +66,25 @@ export function staleReason(record: Record<string, unknown>, ctx: PrefilterConte
       return { reason: "spec_tree", detail: `made on spec tree ${tree}, the spec tree of commit ${ctx.commit} is ${current.value}` };
     }
   } else {
-    const commit = subject["commit"];
+    const commit = subject?.commit;
     if (commit !== ctx.commit) {
       return { reason: "commit", detail: `made on commit ${String(commit)}, evaluated commit is ${ctx.commit}` };
     }
-    const base = typeof subject["base_commit"] === "string" ? subject["base_commit"] : undefined;
-    if (base !== ctx.base) {
-      return { reason: "base", detail: `made against base ${base ?? "(none)"}, current base is ${ctx.base ?? "(unknown)"}` };
+    const merged = subject?.tree;
+    if (merged !== undefined) {
+      const current = ctx.mergeTree;
+      if (current === undefined || !current.ok) {
+        const why = current === undefined ? "it was not computed" : current.reason;
+        return { reason: "tree", detail: `made on the merge tree ${merged}; no result of a merge of commit ${ctx.commit}: ${why}` };
+      }
+      if (current.value !== merged) {
+        return { reason: "tree", detail: `made on the merge tree ${merged}, the merge of commit ${ctx.commit} has tree ${current.value}` };
+      }
+    } else {
+      const base = subject?.baseCommit;
+      if (base !== ctx.base) {
+        return { reason: "base", detail: `made against base ${base ?? "(none)"}, current base is ${ctx.base ?? "(unknown)"}` };
+      }
     }
   }
   const metrics = isPlainObject(record["metrics"]) ? record["metrics"] : {};

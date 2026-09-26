@@ -7,7 +7,7 @@
  * expected files are written by hand from 05 section 5: they are the contract,
  * not a recording of the implementation.
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -16,6 +16,7 @@ import { resolveForProject, type Classification } from "../../../src/core/resolv
 import { CLI_VERSION } from "../../../src/version.js";
 import { CLI_ROOT, makeTempDir, removeDir } from "../../helpers/cli.js";
 import { write } from "../../helpers/synced.js";
+import { readJsonFile } from "../../helpers/json.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const GOLDEN_DIR = path.join(CLI_ROOT, "test", "golden", "resolve");
@@ -52,10 +53,6 @@ export function buildProject(input: GoldenInput): string {
   return root;
 }
 
-function readJson(file: string): any {
-  return JSON.parse(readFileSync(file, "utf8"));
-}
-
 /** Local sources carry a content hash; the golden file records the shape only. */
 function normaliseSources(sources: string[]): string[] {
   return sources.map((s) =>
@@ -68,8 +65,8 @@ const cases = readdirSync(GOLDEN_DIR).sort();
 describe("resolver golden cases", () => {
   for (const name of cases) {
     it(name, () => {
-      const input = readJson(path.join(GOLDEN_DIR, name, "input.json")) as GoldenInput;
-      const expected = readJson(path.join(GOLDEN_DIR, name, "expected.json"));
+      const input = readJsonFile(path.join(GOLDEN_DIR, name, "input.json")) as GoldenInput;
+      const expected = readJsonFile(path.join(GOLDEN_DIR, name, "expected.json"));
       const root = buildProject(input);
       const loaded = loadPacks(root);
       expect(loaded.errors).toEqual([]);
@@ -106,7 +103,7 @@ describe("resolver golden cases", () => {
 });
 
 describe("hash stability (SCN-KRN-065)", () => {
-  const input = readJson(path.join(GOLDEN_DIR, "feature-medium", "input.json")) as GoldenInput;
+  const input = readJsonFile(path.join(GOLDEN_DIR, "feature-medium", "input.json")) as GoldenInput;
 
   it("is identical across two runs on the same inputs", () => {
     const rootA = buildProject(input);

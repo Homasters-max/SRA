@@ -96,7 +96,10 @@ Gate — правило перехода; агрегирует evidence в `gate
 
 Сначала **пред-фильтр допустимости evidence** (D-12): запись исключается из рассмотрения с finding `STALE`, если
 `subject.commit` / `subject.base_commit` отличаются от текущих (у записи с `subject.spec_tree` вместо них сравнивается
-дерево spec Change на оцениваемом коммите, [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 3); `metrics.threshold` ≠ текущий effective param
+дерево spec Change на оцениваемом коммите, [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 3; у CI-записи с
+`subject.tree` вместо `base_commit` сравнивается дерево результата merge — в `warrant ci` impl-PR дерево HEAD, иначе дерево
+merge-коммита M на first-parent линии HEAD, чей второй родитель — оцениваемый commit; несовпадение или M нет — `STALE` с
+`reason: "tree"`, [ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 1–2); `metrics.threshold` ≠ текущий effective param
 ([06a §2](06a-evidence.md)); `limitations` содержит `scoped: …` (суженный прогон, [ADR-0017](adr/WARRANT-ADR-0017-check-execution.md));
 отпечаток target частичного waiver, применённого check, не совпадает с текущим кодом ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md) п. 7).
 
@@ -235,3 +238,8 @@ evidence `review` судит gate `adversarial-review` на `SPECIFIED->APPROVED
 - Доверие evidence определяется тем, где оно произведено, а не подписью: воспроизводимое (L0/L1) CI пересчитывает,
   невоспроизводимое принимается только с attestation, которую допускает gate ([06a §3](06a-evidence.md)).
 - CI MUST блокировать merge при `FAIL`, `BLOCKED` и отсутствии required evidence.
+- `warrant ci` ([04 §7](04-lifecycle.md)) считает checks `VERIFYING->MERGED` на результате merge, который строит сам job
+  (tip базы на момент запуска + head PR): CI-запись несёт `subject.commit` — head PR и `subject.tree` — дерево результата
+  merge, так что evidence судит то, что вливается в `main` (R-12). Сдвиг `main` до merge — `STALE` `tree`, лечится Re-run
+  job; после merge — run `workflow_dispatch` на merge-коммите ([ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 3, 4).
+  В MVP красный job — сигнал maintainer'у: branch protection вне MVP.

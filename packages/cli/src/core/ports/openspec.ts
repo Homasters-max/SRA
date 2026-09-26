@@ -41,8 +41,12 @@ export interface OpenSpecPort {
   showSpec(id: string): Promise<string[]>;
   /** `openspec status --change <change> --json`; never throws (the warning says why it could not be read). */
   status(change: string): Promise<OpenspecStatusResult>;
-  /** `openspec archive <change> --yes --json`. */
-  archive(change: string): Promise<OpenspecAct>;
+  /**
+   * `openspec archive <change> --yes --json` in the project, or in `root` — a
+   * checkout of another commit (`GitPort.worktreeAt`) where `warrant ci`
+   * repeats the archive of an archive-PR (R-16).
+   */
+  archive(change: string, root?: string): Promise<OpenspecAct>;
   /** `openspec new change <name> --schema <schema> --json`. */
   newChange(name: string, schema: string): Promise<OpenspecAct>;
   /** `openspec schema validate <schema> --json`: `ok` is false when the call fails or the body says `valid: false`. */

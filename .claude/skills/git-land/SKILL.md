@@ -39,7 +39,7 @@ argument-hint: "[pr | merge <N> | after <N>]"
    gh pr checks <N> --watch --interval 20
    ```
    Сразу после `gh pr create` — `no checks reported`: CI ещё не стартовал, подождать 20 с и повторить.
-   `evidence` — `skipping` вне impl-PR, `WAIT` по `human-approval` в impl-PR — штатно. Красное — [ci.md](ci.md),
+   `warrant` в impl-PR до коммита `VERIFYING` (`CHANGE_NOT_VERIFYING`) — штатно. Красное — [ci.md](ci.md),
    исправление — коммитом `git-start`, push, снова шаг 3. Зелёное — отчёт и «жду merge #N».
 4. **Merge** — только по «merge #N» в чате для этого N; CI зелёный (шаг 3):
    ```bash

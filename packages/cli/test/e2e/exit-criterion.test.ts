@@ -33,6 +33,7 @@ import { openspecSync } from "../helpers/openspec.js";
 import { makeTempDir, removeDir, runCli, type CliRun } from "../helpers/cli.js";
 import { git } from "../helpers/git.js";
 import { write } from "../helpers/synced.js";
+import { readJsonFile } from "../helpers/json.js";
 
 // `openspec` is slow to start, especially on Windows.
 const TIMEOUT = 180_000;
@@ -41,11 +42,12 @@ const hasGit = spawnSync("git", ["--version"]).status === 0;
 const RECORD = ".warrant/changes/demo.json";
 const ACTIVE = "openspec/changes/demo";
 const REVIEW = "https://github.com/o/r/pull/7#pullrequestreview-1";
-const CI_RUN = "https://github.com/o/r/actions/runs/42";
+/** The impl-PR: the --ref of MERGED (ADR-0037 п. 5). */
+const IMPL_PR = "https://github.com/o/r/pull/9";
 
 /** A local run: no CI attestation, whatever the environment of the test runner. */
 const LOCAL: NodeJS.ProcessEnv = { GITHUB_ACTIONS: "" };
-/** The GitHub Actions run `CI_RUN`: records get `attestation.type: "ci"` (P-15). */
+/** The GitHub Actions run 42: records get `attestation.type: "ci"` (P-15). */
 const CI_ENV: NodeJS.ProcessEnv = {
   GITHUB_ACTIONS: "true",
   GITHUB_SERVER_URL: "https://github.com",
@@ -79,10 +81,6 @@ let root: string;
 
 function cli(args: string[], env: NodeJS.ProcessEnv = LOCAL): Promise<CliRun> {
   return runCli(args, root, env);
-}
-
-function readJson(rel: string): any {
-  return JSON.parse(readFileSync(path.join(root, rel), "utf8"));
 }
 
 describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to archive", () => {
@@ -161,7 +159,7 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
     async () => {
       // The project on `main`: a maintainer, the project's `tests-passed` and the waiver of
       // `adversarial-review` — outside the spec-PR, whose diff would classify `.warrant/**` as factory-change.
-      const config = readJson(".warrant/warrant.json");
+      const config = readJsonFile(root, ".warrant/warrant.json");
       write(root, ".warrant/warrant.json", { ...config, roles: { maintainer: ["kat"] } });
       write(root, ".warrant/local/checks/tests-passed.json", {
         $schema: "warrant://check/1",
@@ -223,7 +221,7 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
       git(root, "commit", "--quiet", "-m", "approved");
       git(root, "checkout", "--quiet", "main");
       git(root, "merge", "--quiet", "--no-ff", "spec/demo", "-m", "Merge spec-PR");
-      expect(readJson(RECORD).change_state).toBe("APPROVED");
+      expect(readJsonFile(root, RECORD).change_state).toBe("APPROVED");
     },
     TIMEOUT
   );
@@ -266,7 +264,7 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
       git(root, "add", "-A");
       git(root, "commit", "--quiet", "-m", "evidence from CI");
 
-      const merged = await cli(["transition", "demo", "MERGED", "--ref", CI_RUN]);
+      const merged = await cli(["transition", "demo", "MERGED", "--ref", IMPL_PR]);
       expect(merged.json?.errors).toEqual([]);
       expect(merged.json?.data).toMatchObject({ transition: "VERIFYING->MERGED", change_state: "MERGED" });
       expect(merged.status).toBe(0);
@@ -278,7 +276,7 @@ describe.skipIf(!hasGit)("lifecycle: phase-1 exit criterion, then every state to
       expect(existsSync(path.join(root, ACTIVE))).toBe(false);
       // The real openspec merged the delta into the main spec.
       expect(readFileSync(path.join(root, "openspec/specs/search/spec.md"), "utf8")).toContain("### Requirement: Search by text");
-      expect(readJson(RECORD).change_state).toBe("ARCHIVED");
+      expect(readJsonFile(root, RECORD).change_state).toBe("ARCHIVED");
 
       const validated = await cli(["validate"]);
       expect(validated.json?.errors).toEqual([]);

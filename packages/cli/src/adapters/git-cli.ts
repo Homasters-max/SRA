@@ -4,9 +4,11 @@
  * answer is `null`, an empty list, or `{ ok: false, detail }` with the first
  * line git printed.
  */
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
-import type { BlobTree, DiffEntry, DiffStatus, GitAnswer, GitPort } from "../core/ports/git.js";
+import type { BlobTree, CommitCheckout, DiffEntry, DiffStatus, GitAnswer, GitPort } from "../core/ports/git.js";
 import { exec } from "./exec.js";
 
 interface GitRun {
@@ -104,6 +106,11 @@ export class GitCli implements GitPort {
     return answer(await this.git(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]));
   }
 
+  async treeId(rev: string): Promise<string | null> {
+    // `^{commit}^{tree}`: a tree or blob id given as `rev` names no commit, so it has no tree here.
+    return answer(await this.git(["rev-parse", "--verify", "--quiet", `${rev}^{commit}^{tree}`]));
+  }
+
   async branch(): Promise<string | null> {
     return answer(await this.git(["rev-parse", "--abbrev-ref", "HEAD"]));
   }
@@ -163,6 +170,34 @@ export class GitCli implements GitPort {
     const run = await this.git(["status", "--porcelain", "-z", "--untracked-files=all", "--", ...paths]);
     if (!run.ok) return { ok: false, detail: detailOf(run) };
     return { ok: true, value: parsePorcelainPaths(run.stdout) };
+  }
+
+  /**
+   * `git worktree add --detach` into a fresh temporary directory, the files
+   * as committed (no CRLF conversion); `dispose`
+   * runs `git worktree remove --force` and removes the directory, so the
+   * repository keeps no record of the checkout.
+   */
+  async worktreeAt(commit: string): Promise<GitAnswer<CommitCheckout>> {
+    const prefix = await this.prefix();
+    if (prefix === null) return { ok: false, detail: "fatal: not a git repository (or any of the parent directories): .git" };
+    const dir = mkdtempSync(path.join(tmpdir(), "warrant-tree-"));
+    const top = path.join(dir, "tree");
+    // `core.autocrlf=false`: the files are the committed bytes, not a CRLF checkout (I-132).
+    const run = await this.git(["-c", "core.autocrlf=false", "worktree", "add", "--detach", "--quiet", top, `${commit}^{commit}`]);
+    if (!run.ok) {
+      rmSync(dir, { recursive: true, force: true });
+      return { ok: false, detail: detailOf(run) };
+    }
+    let disposed = false;
+    const dispose = async (): Promise<void> => {
+      if (disposed) return;
+      disposed = true;
+      await this.git(["worktree", "remove", "--force", top]);
+      rmSync(dir, { recursive: true, force: true });
+      await this.git(["worktree", "prune"]);
+    };
+    return { ok: true, value: { root: prefix === "" ? top : path.join(top, ...prefix.split("/")), dispose } };
   }
 
   /**

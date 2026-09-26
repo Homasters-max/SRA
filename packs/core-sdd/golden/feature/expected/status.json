@@ -40,9 +40,9 @@
     "risk_level": "MEDIUM",
     "sources": [
       "kernel@{CLI_VERSION}",
-      "core-sdd@0.3.2:overlay/core-default@1.0.0",
-      "core-sdd@0.3.2:profile/feature@1.0.0",
-      "core-sdd@0.3.2:overlay/risk-medium@1.0.0"
+      "core-sdd@0.3.3:overlay/core-default@1.0.0",
+      "core-sdd@0.3.3:profile/feature@1.0.0",
+      "core-sdd@0.3.3:overlay/risk-medium@1.0.0"
     ]
   },
   "stale": [],

@@ -201,8 +201,8 @@ export class OpenSpecCli implements OpenSpecPort {
     }
   }
 
-  async archive(change: string): Promise<OpenspecAct> {
-    return act(await run(["archive", change, "--yes", "--json"], this.root));
+  async archive(change: string, root: string = this.root): Promise<OpenspecAct> {
+    return act(await run(["archive", change, "--yes", "--json"], root));
   }
 
   async newChange(name: string, schema: string): Promise<OpenspecAct> {

@@ -35,6 +35,9 @@ argument-hint: "<change>"
    Весь JSON вывода — промптом субагенту `warrant-reviewer` (`.claude/agents/warrant-reviewer.md`); envelope он сдаёт
    сам (`warrant run submit`) и возвращает `evidence`, `status`, находки по `severity`. Файлы Run, `.result.json` и
    evidence — коммитом `<change>: review <RUN> — <status>`. `BLOCKER` — правка spec, коммит, шаг 3 заново.
+   `PROVEN` с `MAJOR` — не новый раунд (правка `specs/**` делает review `STALE`): строка backlog, исправление — в
+   impl-PR по [ADR-0024](../../../docs/adr/WARRANT-ADR-0024-spec-approved-contract.md) п. 4 (строка I-N, правка delta
+   spec, waiver на `spec-approved`, активирует maintainer; [ADR-0038](../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md)).
 4. Gates `PROPOSED->SPECIFIED`:
    ```bash
    $W verify <change>
@@ -45,7 +48,8 @@ argument-hint: "<change>"
    ```
    Waivers нет — сразу шаг 6 до PR.
 5. PR — шаги 1–3 `git-land`. Тело начинается разделом «Waivers на решение»: WAV, gate, risk, reason, expires и
-   строка «merge #N = активация этих waivers (ADR-0033 п. 4)», затем находки review. CI зелёный — «жду merge #N».
+   строка «merge #N = активация этих waivers (ADR-0033 п. 4)», затем находки review. CI (`test`, job `warrant` —
+   `kind: spec`, правило путей) зелёный — «жду merge #N».
 6. По «merge #N» — активация, проверка, переход; коммит `<change>: waivers WAV-…, verify PROPOSED->SPECIFIED,
    transition SPECIFIED`, push:
    ```bash

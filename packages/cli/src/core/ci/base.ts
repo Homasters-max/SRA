@@ -21,7 +21,7 @@ import { readJson } from "../fs.js";
 import { isPlainObject } from "../json.js";
 import { LOCK_REL, packContentHash } from "../packs/hash.js";
 import { loadPacks } from "../packs/loader.js";
-import { FACTORY_PROFILE, policyPaths } from "../packs/objects.js";
+import { policyPaths } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import type { ChangeRecord } from "../record/read.js";
 import type { Classification } from "../resolve/index.js";
@@ -92,9 +92,7 @@ export function changedBundledPacks(base: BaseContext): string[] {
 /**
  * The profiles the record on HEAD must hold (SCN-VER-107): those of the record
  * of the base and those `classify` with the packs of the base derives from the
- * paths of the diff; the own state of the Change takes no part (N27). A
- * bundled pack changed against the lock of the base adds `factory-change`
- * (I-179).
+ * paths of the diff; the own state of the Change takes no part (N27).
  */
 export function requiredProfiles(
   base: BaseContext,
@@ -110,7 +108,5 @@ export function requiredProfiles(
     profiles: collectProfileMatches(base.loaded.objects),
     ...(previous === undefined ? {} : { previous: { profiles: previous.profiles ?? [] } })
   });
-  const profiles = result.classification.profiles ?? [];
-  if (changedBundledPacks(base).length > 0 && !profiles.includes(FACTORY_PROFILE)) return [...profiles, FACTORY_PROFILE];
-  return profiles;
+  return result.classification.profiles ?? [];
 }

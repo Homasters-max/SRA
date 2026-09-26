@@ -124,6 +124,13 @@ function scope(result: Result): string[] {
   return result.errors.filter((e) => e.code === "SCOPE_VIOLATION").map((e) => e.path as string);
 }
 
+/** The lock holds another hash of core-sdd than the bundled pack: the law the pull request is judged by differs (I-179). */
+function stale(p: ProjectBuilder): void {
+  const lock = p.json(".warrant/warrant.lock.json");
+  lock.packs["core-sdd"].hash = HASH;
+  p.write(".warrant/warrant.lock.json", lock);
+}
+
 describe("warrant ci: path rules by kind", () => {
   it("spec-PR: only code is out of scope; the Run, evidence, docs and the Change are its own (SCN-VER-073)", async () => {
     const build = async (withCode: boolean): Promise<Result> => {
@@ -149,6 +156,23 @@ describe("warrant ci: path rules by kind", () => {
     expect(clean.exitCode).toBe(0);
     expect(clean.data["transitions"]).toEqual([{ to: "PROPOSED", at: "2026-09-22T09:00:00Z" }]);
     expect(clean.data["gates"]).toBeDefined();
+  });
+
+  it("spec-PR that drops paths.src from warrant.json: its code is judged by paths.src of the base (SCN-VER-073, I-171)", async () => {
+    const p = await repo((b) => b.write(".warrant/warrant.json", { ...b.json(".warrant/warrant.json"), paths: { src: "src" } }));
+    p.branch("spec/add-search", "main");
+    p.withChange("add-search", { design: "# Design\n", tasks: "# Tasks\n", specs: { search: [] } }).withRecord("add-search", "PROPOSED", CHORE);
+    const config = p.json(".warrant/warrant.json");
+    delete config.paths;
+    p.write(".warrant/warrant.json", config);
+    p.write("src/app.py", "print(1)\n");
+    pullRequest(p, "spec/add-search", () => undefined);
+    const result = await ci(p);
+    expect(result.data["kind"]).toBe("spec");
+    // warrant.json itself is a policy path (factory-change of the base); src/app.py is code by the base, not by the PR.
+    expect(scope(result)).toEqual([".warrant/warrant.json", "src/app.py"]);
+    expect(result.data["skipped"].filter((s: Data) => s["rule"] === "code")).toEqual([]);
+    expect(result.exitCode).toBe(1);
   });
 
   it("main specs without a Change: kind none, SCOPE_VIOLATION (SCN-VER-074)", async () => {
@@ -250,12 +274,35 @@ describe("warrant ci: the structure of the record", () => {
     expect(result.exitCode).toBe(1);
   });
 
+  it("an impl-PR that narrows match.paths of a profile of the project layer: the path only the base covers derives it (SCN-VER-107, I-171)", async () => {
+    // The project layer is read from the tree, unlike the bundled pack: the base and the PR hold different profiles.
+    const INFRA = ".warrant/local/profiles/infra.json";
+    const infra = (paths: string[]): Record<string, unknown> => ({
+      $schema: "warrant://profile/1",
+      id: "infra",
+      version: "1.0.0",
+      description: "Infrastructure of the project.",
+      match: { paths }
+    });
+    const p = await changeRepo("IMPLEMENTING", { classification: { profiles: ["feature", "factory-change"] } }, (b) =>
+      b.write(INFRA, infra(["infra/**", "deploy/**"]))
+    );
+    pullRequest(p, "worktree/add-search", (b) => {
+      b.write(INFRA, infra(["deploy/**"]));
+      b.write("infra/main.tf", "resource {}\n");
+      advance(b, "VERIFYING");
+    });
+    const result = await ci(p, CI_ENV);
+    const mismatch = result.errors.filter((e) => e.code === "RECORD_MISMATCH");
+    // factory-change (the path of the layer itself) is held; infra/main.tf derives infra only by the paths of the base.
+    expect(mismatch).toHaveLength(1);
+    expect(mismatch[0]?.message).toContain("classification");
+    expect(mismatch[0]?.message).toContain("lack infra,");
+    expect(mismatch[0]?.message).not.toContain("factory-change");
+    expect(result.exitCode).toBe(1);
+  });
+
   it("a bundled pack not held by the lock of the base is the law changed: factory-change required in impl, SCOPE_VIOLATION elsewhere (I-179)", async () => {
-    const stale = (b: ProjectBuilder): void => {
-      const lock = b.json(".warrant/warrant.lock.json");
-      lock.packs["core-sdd"].hash = HASH;
-      b.write(".warrant/warrant.lock.json", lock);
-    };
     const impl = await changeRepo("IMPLEMENTING");
     stale(impl);
     impl.commit("base: a lock of another core-sdd");
@@ -272,19 +319,35 @@ describe("warrant ci: the structure of the record", () => {
     expect(scope(result)).toEqual([".warrant/warrant.lock.json"]);
     expect(result.exitCode).toBe(1);
   });
+
+  it("an abandon-PR over a bundled pack not held by the lock of the base: only SCOPE_VIOLATION of the lock, no RECORD_MISMATCH (I-179)", async () => {
+    const p = await changeRepo("SPECIFIED");
+    stale(p);
+    p.commit("base: a lock of another core-sdd");
+    pullRequest(p, "abandon/add-search", (b) => {
+      advance(b, "ABANDONED");
+      b.remove("openspec/changes/add-search");
+    });
+    const result = await ci(p);
+    expect(result.data["kind"]).toBe("abandon");
+    expect(codes(result)).toEqual(["SCOPE_VIOLATION"]);
+    expect(scope(result)).toEqual([".warrant/warrant.lock.json"]);
+    expect(result.exitCode).toBe(1);
+  });
 });
 
 /**
  * The spec-PR merged by `S` (pull 5), then an impl-PR whose first commit records
  * `APPROVED` with the ref of the spec-PR and `IMPLEMENTING` (SCN-VER-090).
  */
-async function firstImplCommit(mergedBy: string): Promise<ProjectBuilder> {
-  const p = await changeRepo("PROPOSED");
+async function firstImplCommit(mergedBy: string, extra: Record<string, unknown> = CHORE, work?: (p: ProjectBuilder) => void): Promise<ProjectBuilder> {
+  const p = await changeRepo("PROPOSED", extra);
   const spec = pullRequest(p, "spec/add-search", (b) => advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } }));
   p.withForge({ pulls: [fakePull(5, { mergeCommit: spec.merge, headSha: spec.head, mergedBy, author: "kat" })] });
   pullRequest(p, "worktree/add-search", (b) => {
     advance(b, "APPROVED", { gates: { "human-approval": "PASS" }, ref: SPEC_PR });
     advance(b, "IMPLEMENTING", { gates: { "branch-isolated": "PASS" } });
+    work?.(b);
   });
   return p;
 }
@@ -315,6 +378,23 @@ describe("warrant ci: refs through the forge", () => {
     expect(ref[0]?.message).toContain("merged_by");
     expect(ref[0]?.path).toBe(`${RECORD}#/transitions/2/ref`);
     expect(result.data["findings"].filter((f: Data) => f["code"] === "APPROVER_IS_AUTHOR")).toEqual([]);
+    expect(result.data["findings"].filter((f: Data) => f["code"] === "ROLES_CHANGED")).toEqual([]);
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("the pull request adds the login that merged the spec-PR to roles: REF_NOT_VERIFIED merged_by by the roles of the base, ROLES_CHANGED (SCN-VER-081, I-171)", async () => {
+    // factory-change is held: warrant.json is a policy path, so only roles are judged here.
+    const p = await firstImplCommit("mallory", { classification: { profiles: ["chore", "factory-change"] } }, (b) =>
+      b.write(".warrant/warrant.json", { ...b.json(".warrant/warrant.json"), roles: { maintainer: ["kat", "mallory"] } })
+    );
+    const result = await ci(p);
+    expect(result.data["kind"]).toBe("impl");
+    expect(codes(result)).not.toContain("RECORD_MISMATCH");
+    const ref = result.errors.filter((e) => e.code === "REF_NOT_VERIFIED");
+    expect(ref).toHaveLength(1);
+    expect(ref[0]?.message).toContain("merged_by");
+    expect(ref[0]?.path).toBe(`${RECORD}#/transitions/2/ref`);
+    expect(result.data["findings"].filter((f: Data) => f["code"] === "ROLES_CHANGED")).toHaveLength(1);
     expect(result.exitCode).toBe(1);
   });
 });

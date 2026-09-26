@@ -14,14 +14,14 @@ import type { Ctx } from "../ctx.js";
 import { cliError, type CliError } from "../errors.js";
 import { isPlainObject, strings } from "../json.js";
 import { PASSING_VERDICTS, MERGE_TRANSITION, type Verdict } from "../gates/types.js";
-import { gateDefinitions } from "../packs/objects.js";
+import { FACTORY_PROFILE, gateDefinitions } from "../packs/objects.js";
 import { isFrozen, transitionKind, type PrKind } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
 import { RISK_LEVELS } from "../resolve/index.js";
 import { ownState } from "../run/state.js";
 import { validateFile } from "../schemas/semantic.js";
 import type { Json } from "../schemas/loader.js";
-import { basePolicy, requiredProfiles, type BaseContext } from "./base.js";
+import { basePolicy, changedBundledPacks, requiredProfiles, type BaseContext } from "./base.js";
 import { jsonAt, recordRel, type CiSubject } from "./kind.js";
 
 /** Schema every evidence record of a transition must be valid by. */
@@ -164,6 +164,8 @@ function classificationRule(
 ): CliError[] {
   const changed = subject.diff.flatMap((e) => (e.from === undefined ? [e.path] : [e.path, e.from]));
   const required = requiredProfiles(base, changed, ownState(ctx.root, change, env), subject.baseRecord);
+  // The law changed by the pull request itself (I-179): an impl-PR answers by factory-change, other kinds by SCOPE_VIOLATION (paths.ts).
+  if (subject.kind === "impl" && changedBundledPacks(base).length > 0 && !required.includes(FACTORY_PROFILE)) required.push(FACTORY_PROFILE);
   const classification = isPlainObject(head["classification"]) ? head["classification"] : {};
   const held = new Set(strings(classification["profiles"]));
   const missing = required.filter((p) => !held.has(p));

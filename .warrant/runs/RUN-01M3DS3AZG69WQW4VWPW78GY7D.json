@@ -1,0 +1,16 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01M3DS3AZG69WQW4VWPW78GY7D",
+  "change": "phase-4c",
+  "operation": "review",
+  "write_scope": [],
+  "scope": [],
+  "branch": "spec/phase-4c",
+  "started_at": "2026-09-26T02:35:52.210Z",
+  "finished_at": "2026-09-26T02:53:32.262Z",
+  "run_state": "FAILED",
+  "context_hash": "sha256:3a970e1b25830241b4dc87a0dd2e8adc8789f58acb1524dd9476470bb9907424",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "spec_tree": "sha256:ac429a770fc348dc1949c0cb0326fa50a302bfeb8435b1bb55659ed3924dc5f7",
+  "guard_events": []
+}

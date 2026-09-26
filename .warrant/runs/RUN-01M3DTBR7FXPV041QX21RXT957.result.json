@@ -1,0 +1,218 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3DTBR7FXPV041QX21RXT957",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "BLOCKER",
+      "category": "hidden-assumption",
+      "statement": "Replay recomputes gates on the evaluated commit (worktreeAt) but does not say where evidence, waivers and evidence[] existence are read. Honest archive-PR: evidence-complete of MERGED in tree M^2 has no test-report (ci fetch adds it later, as in phase-4b): recorded PASS, replay FAIL, RECORD_MISMATCH. Same for APPROVED human-approval (SCN-VER-090).",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-090",
+        "SCN-VER-091"
+      ],
+      "recommendation": "Code from evaluated commit; evidence, waivers, evidence[] existence from HEAD."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "ADR-0010 p.3: CI uses only evidence of the same run. impl kind picks the freshest admissible record among all in the working copy: a committed ci test-report with commit HEAD^2, tree of HEAD and later created_at gives PASS with failing tests.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-003"
+      ],
+      "recommendation": "impl kind: only records with attestation.ref of the current run."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": ".warrant/waivers/** is not own state and is a policy path: forbidden in spec-PR, no-Change PR and feature impl-PR (scope-valid). A feature Change cannot commit a waiver, yet REQ-KRN-033 and SCN-VER-047 rely on waivers.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-KRN-033",
+        "REQ-VER-004"
+      ],
+      "recommendation": "Allow waivers of the own Change as own state."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "archive kind has no path rule besides openspec/specs/**; feature has no scope-valid on MERGED->ARCHIVED, so code and policy paths pass.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Path rule per REQ-VER-004 MERGED->ARCHIVED."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "Replay of evidence gates checks existence and admissibility only; recorded verdict vs evidence_status and waivers, missing or extra gates, effective_policy_hash are not compared.",
+      "targets": [
+        "REQ-VER-011"
+      ]
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Run ref has no attempt; Re-run (ADR-0037 p.3) reuses the URL, so attempts share attestation.ref with different trees; which attempt artifact and conclusion count is unstated.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-012"
+      ]
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Archive check and ci fetch accept any successful run with the artifact; workflow path and dispatch branch unchecked, while pull_request runs execute the workflow of the PR and .github/** is not a policy path.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-012"
+      ]
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "Replay takes the MERGED commit per REQ-VER-007 (freshest Change record); in an archive-PR that is a record on the archive branch, not M^2, giving COMMIT_NOT_MERGED.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-007"
+      ]
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Parent of the commit introducing a transition assumes linear unrewritten history: merge commits, rebase after APPROVED (human-approval STALE), edits committed with the transition are not covered.",
+      "targets": [
+        "REQ-VER-011"
+      ]
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "merged_by is not compared with --by of human-approval.",
+      "targets": [
+        "REQ-VER-011"
+      ]
+    },
+    {
+      "id": "F-11",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "impl gate violation has no error code; SCN-VER-076 cannot assert it.",
+      "targets": [
+        "SCN-VER-076"
+      ]
+    },
+    {
+      "id": "F-12",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "impl kind not in VERIFYING: whether checks run and artifact is emitted is unstated.",
+      "targets": [
+        "REQ-VER-011"
+      ]
+    },
+    {
+      "id": "F-13",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Record with both spec_tree and tree: prefilter precedence undefined.",
+      "targets": [
+        "REQ-VER-003",
+        "REQ-KRN-012"
+      ]
+    },
+    {
+      "id": "F-14",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "openspec archive replay assumes the lock OpenSpec version; mismatch gives false SPECS_NOT_ARCHIVED.",
+      "targets": [
+        "REQ-VER-011"
+      ]
+    },
+    {
+      "id": "F-15",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-072 requires PASS and CONFLICT findings at once.",
+      "targets": [
+        "SCN-VER-072"
+      ]
+    },
+    {
+      "id": "F-16",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "tasks 5.2 recomputes MERGED->ARCHIVED on HEAD, spec only in replay.",
+      "targets": [
+        "openspec/changes/phase-4c/tasks.md"
+      ]
+    },
+    {
+      "id": "F-17",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "owner/repo source is only in ADR-0037 p.6, not in spec.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-012"
+      ]
+    },
+    {
+      "id": "F-18",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "ci fetch does not check the PR is an impl-PR; spec-PR gets a wrong dispatch hint.",
+      "targets": [
+        "REQ-VER-012"
+      ]
+    },
+    {
+      "id": "F-19",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Tree check applies only to records with tree; CI records without tree bypass R-12.",
+      "targets": [
+        "REQ-VER-003"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:5e69de4d268f00754a9990eead605627ffdf06359cd9a79abebed43f447a5c42",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-26T12:00:00Z",
+    "finished_at": "2026-09-26T12:55:00Z"
+  }
+}

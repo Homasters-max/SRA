@@ -1,0 +1,107 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3DWVTTX2B2GJ9XFN2X8VXZF",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "SCN-VER-090 expects code 0 for the first impl-PR commit (record on HEAD in IMPLEMENTING), but REQ-VER-011 impl kind runs VERIFYING->MERGED checks at any change_state and raises CHANGE_NOT_VERIFYING (code 1). The branch-isolated remark in THEN is a leftover of the removed replay.",
+      "targets": [
+        "SCN-VER-090",
+        "REQ-VER-011"
+      ],
+      "recommendation": "THEN: no RECORD_MISMATCH or REF_NOT_VERIFIED, errors has CHANGE_NOT_VERIFYING, code 1 (or add VERIFYING to WHEN); drop the branch-isolated remark."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Source of roles and approvals[] for the ref check (merged_by) and for waiver approved_by in impl gates is not named. Read from HEAD, a factory-change impl-PR (every WARRANT Change) can add a login to roles in .warrant/warrant.json and pass its own ref and waiver checks.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Take roles and approvals[] for REF_NOT_VERIFIED and waiver approvers from HEAD^1; a diff that changes roles is a finding or violation."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Verdicts of past transitions are not recomputed: past can be read as base-record transitions only, implying new transitions of the PR are recomputed.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Say: no transition of the record is recomputed, new ones included."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "The trust list (ref, impl merge verdict, archive CI evidence) covers neither a new ARCHIVED (MERGED->ARCHIVED gates) nor ABANDONED; design 5 accepts this, spec and Non-Goals do not state it.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/phase-4c/proposal.md"
+      ],
+      "recommendation": "State the residual risk for ARCHIVED and ABANDONED in REQ-VER-011 or Non-Goals."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Output data.transitions[]{to, commit, gates}: commit is undefined after replay removal.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Define commit (the commit introducing the transition) or drop it."
+    },
+    {
+      "id": "F-6",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-VER-003 says tree = HEAD tree when ci evaluates the next transition of impl-PR; REQ-VER-011 evaluates VERIFYING->MERGED at any change_state. Evaluated commit and base of informational SPECIFIED->APPROVED gates in spec kind are not named.",
+      "targets": [
+        "REQ-VER-003",
+        "REQ-VER-011"
+      ],
+      "recommendation": "Say VERIFYING->MERGED in impl kind; name evaluated commit and base for spec kind."
+    },
+    {
+      "id": "F-7",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "Proposal BREAKING: old CI evidence without tree is judged the old way on MERGED; REQ-VER-011 archive requires subject.tree = tree M, so such a Change passes transition MERGED but its archive-PR gets EVIDENCE_NOT_VERIFIED.",
+      "targets": [
+        "openspec/changes/phase-4c/proposal.md",
+        "REQ-VER-011"
+      ],
+      "recommendation": "Say in proposal that archive-PR needs new-form evidence or a dispatch recovery run."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Record check for a new record (no record in base): chain start from change_state of base is undefined.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-073"
+      ],
+      "recommendation": "Without base record the first transition is PROPOSED."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:06a9c8f3bd3feb6d2a5906f327f64da4e25b1ad4847064fb884d5c94672bf57a",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-26T03:42:00Z",
+    "finished_at": "2026-09-26T03:58:00Z"
+  }
+}

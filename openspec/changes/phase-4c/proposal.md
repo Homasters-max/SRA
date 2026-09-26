@@ -86,6 +86,8 @@ design.md).
   сигнал maintainer'у, а не замок форжа.
 - **PR без Change, правящий `.github/workflows/**`**: run `pull_request` исполняет workflow из самого PR и может не вызвать
   `warrant ci`; у Changes цепочку держат `factory-change` и `human-approval`, у такого PR — только глаза maintainer'а.
+- **Ref у `ARCHIVED` и `ABANDONED`**: их держат локальный `warrant`, повтор archive и merge maintainer'а; verdicts переходов
+  `warrant ci` не пересчитывает (N44 сужен).
 - **Автоматическое evidence на каждый push в `main`** — только ручной `workflow_dispatch` для восстановления (ADR-0037 п. 4).
 - **Разбор ID в тестах по названиям или маркерам; `paths.tests` этого репозитория** — I-169 закрыт статус-кво (ADR-0037 п. 7).
 - **Изменение таблицы gates по переходам** (04 §5) — правило путей spec-PR держит `warrant ci`, а не gate `scope-valid`.
@@ -114,4 +116,5 @@ design.md).
 - **BREAKING** (внешних пользователей нет, ADR-0013):
   - `transition MERGED --ref` — URL impl-PR вместо URL CI-run;
   - job `evidence` заменён job'ом `warrant`;
-  - evidence CI старого вида (без `tree`) на `MERGED` судится по-старому, по `commit` и `base_commit`.
+  - evidence CI старого вида (без `tree`) `transition MERGED` судит по-старому, по `commit` и `base_commit`, но `warrant ci`
+    archive-PR требует у CI-записей `subject.tree`: такому Change нужен run восстановления (`workflow_dispatch`).

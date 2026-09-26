@@ -55,8 +55,8 @@ merge ([REQ-VER-011](#requirement-команда-ci)), SHALL нести `subject
 `subject.base_commit` ≠ текущий base (у записи с `subject.spec_tree` вместо этих двух сравнений — `spec_tree` ≠ hash дерева
 `{proposal.md, specs/**}` каталога Change на оцениваемом commit, тот же набор, что у `spec-approved`, с `reason: "spec_tree"`;
 [ADR-0036](../../../../docs/adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 3; у записи с `subject.tree` вместо сравнения
-`base_commit` — `tree` ≠ дерево результата merge оцениваемого commit с `reason: "tree"`: в `warrant ci` при оценке следующего перехода
-impl-PR (оцениваемый commit — HEAD^2) — дерево HEAD, во всех остальных случаях (`transition`, `gate`, `verify`) — дерево merge-коммита M на
+`base_commit` — `tree` ≠ дерево результата merge оцениваемого commit с `reason: "tree"`: в `warrant ci` при оценке `VERIFYING->MERGED` в виде
+impl (оцениваемый commit — HEAD^2) — дерево HEAD, во всех остальных случаях (`transition`, `gate`, `verify`) — дерево merge-коммита M на
 first-parent линии HEAD, чей второй родитель — оцениваемый commit;
 такого M нет — `STALE` с `reason: "tree"` и причиной;
 [ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 1–2), `metrics.threshold` ≠ effective param, `limitations` содержит `scoped:` или waiver `ACTIVE`,
@@ -303,20 +303,25 @@ ID «определён», если он объявлен в main specs или �
 
 **Record.** Новые переходы — те, которых нет в record базы. SHALL выполняться, иначе `RECORD_MISMATCH` с переходом и причиной:
 - `transitions[]` record на HEAD начинается с `transitions[]` record базы, а `change_state` равен `to` последнего перехода;
-- новые переходы идут допустимой цепочкой состояний ([04 §2](../../../../docs/04-lifecycle.md)) от `change_state` базы;
+- новые переходы идут допустимой цепочкой состояний ([04 §2](../../../../docs/04-lifecycle.md)) от `change_state` базы, а без
+  record в базе — начиная с `PROPOSED`;
 - у каждого нового перехода вперёд, кроме `PROPOSED`, есть `effective_policy_hash`, а все значения `gates` — `PASS`, `WAIVED` или
   `NOT_APPLICABLE`;
 - каждый id его `evidence[]` — файл `.warrant/evidence/<change>/<id>.json` на HEAD, валидный по `evidence/1`.
-Verdicts прошлых переходов `warrant ci` заново SHALL NOT вычислять. Доверие к ним держат другие проверки
+Verdicts ни одного перехода record, в том числе новых, `warrant ci` заново SHALL NOT вычислять. Доверие к ним держат другие
+проверки
 ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md), N44 уточнён review spec):
 - ref подтверждений (ниже): maintainer слил spec-PR до `APPROVED` и impl-PR до `MERGED`;
 - merge-вердикт impl-PR, пересчитанный из evidence своего run;
 - проверка CI-evidence по ссылке на archive-PR.
+У `ARCHIVED` и `ABANDONED` ref нет: их держат локальный `warrant`, повтор archive для `openspec/specs/**` и merge PR
+maintainer'ом — остаточный риск MVP.
 
 **Ref.** `ref` нового перехода `APPROVED` или `MERGED` SHALL верифицироваться через API форджа
 ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 5):
 - pull request этого репозитория, слит, `merged_by` входит в `roles[<role>]` для роли из `approvals[]` перехода в effective policy
-  Change, а при пустом `approvals[]` — в `roles.maintainer`;
+  Change, а при пустом `approvals[]` — в `roles.maintainer`; `roles` и `approvals[]` берутся из дерева HEAD^1 (базы), а не из
+  PR: иначе PR вписал бы себе подтверждающего;
 - для `APPROVED` — merge-коммит PR вносит в record этого Change переход `SPECIFIED`;
 - для `MERGED` — merge-коммит PR равен M, а head PR — второму родителю M. M — merge-коммит на first-parent линии HEAD^1, чей
   второй родитель равен общему `subject.commit` записей `attestation.type: "ci"` из `evidence[]` перехода; таких записей нет
@@ -336,7 +341,8 @@ archive (ниже), иначе `SCOPE_VIOLATION` (R-16). Правила путе
   policy-пути (`match.paths` profile `factory-change`) вне собственного состояния и waivers этого Change
   (`.warrant/waivers/*.json` с `change` этого Change — spec-PR их и активирует, ADR-0033 п. 4), иначе `SCOPE_VIOLATION` с путями. Без
   `paths.src` и `paths.tests` проверка кода SHALL пропускаться с причиной в `data.skipped[]`. Остальные пути (документы)
-  разрешены. Gates `SPECIFIED->APPROVED` SHALL вычисляться и выводиться без влияния на код выхода.
+  разрешены. Gates `SPECIFIED->APPROVED` SHALL вычисляться на оцениваемом commit HEAD^2 с base `merge-base(HEAD^1, HEAD^2)`
+  и выводиться без влияния на код выхода.
 - **impl**: оцениваемый commit — HEAD^2, base — `merge-base(HEAD^1, HEAD^2)`, дерево результата merge — дерево HEAD.
   - SHALL выполнить checks перехода `VERIFYING->MERGED` на рабочем дереве HEAD при любом `change_state`, записать evidence
     ([REQ-VER-001](#requirement-хранение-evidence-и-attestation-по-окружению)) в `<state>/evidence/<change>/` рабочей копии и
@@ -350,6 +356,8 @@ archive (ниже), иначе `SCOPE_VIOLATION` (R-16). Правила путе
     `data.deferred[]`;
   - вне GitHub Actions «текущий run» — этот вызов: его записи несут `attestation.type: "none"`, и gates L1 перехода дают
     `BLOCKED` с `ATTESTATION_REQUIRED` (REQ-VER-003), код 1 — ожидаемый исход локальной отладки;
+  - approver'ы waivers (`approved_by` ∈ `roles`, REQ-VER-003) — по `roles` из дерева HEAD^1; правка `roles` в diff —
+    информационная находка `ROLES_CHANGED`;
   - `change_state` не `VERIFYING` — нарушение `CHANGE_NOT_VERIFYING`;
   - ошибки checks (`CHECK_TIMEOUT`, `BUSY`, `CHECK_NOT_CONFIGURED`, `CHECK_LOCAL_FORBIDDEN`) — в `errors[]`, код выхода 3, как
     в [REQ-VER-006](#requirement-команда-verify);
@@ -372,8 +380,8 @@ archive (ниже), иначе `SCOPE_VIOLATION` (R-16). Правила путе
 - **none**: diff SHALL NOT трогать `openspec/changes/**`, `.warrant/changes/**`, `.warrant/evidence/**`, `.warrant/runs/**` и
   policy-пути, иначе `SCOPE_VIOLATION`.
 
-**Вывод** — `data{ kind, change?, transitions[]{ to, commit, gates }, gates?, deferred[]?, findings[], skipped[], evidence[]?,
-artifact? }`.
+**Вывод** — `data{ kind, change?, transitions[]{ to, at, ref? }, gates?, deferred[]?, findings[], skipped[], evidence[]?,
+artifact? }`; `transitions[]` — новые переходы.
 
 **Код выхода:**
 - 0 — нарушений нет;
@@ -452,7 +460,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 #### Scenario: Первый коммит impl-PR с двумя переходами
 <!-- id: SCN-VER-090 -->
 - **WHEN** impl-PR вносит одним коммитом переходы `APPROVED` (ref — слитый maintainer'ом spec-PR этого Change) и `IMPLEMENTING`, в CI ветки нет (detached HEAD)
-- **THEN** структура record и `evidence[]` обоих переходов в порядке, verdicts не пересчитываются (ветки в CI нет — `branch-isolated` не нужен), ref `APPROVED` подтверждён, код 0
+- **THEN** `errors[]` не содержит `RECORD_MISMATCH` и `REF_NOT_VERIFIED` (структура record и ref `APPROVED` в порядке), но содержит `CHANGE_NOT_VERIFYING`, код 1: impl-PR до `VERIFYING` не готов к merge
 
 #### Scenario: Честный archive-PR
 <!-- id: SCN-VER-091 -->

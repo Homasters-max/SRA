@@ -329,6 +329,12 @@ verdicts убран, `ci` проверяет структуру record (§4). О
 локальный `ci` на impl ожидаемо даёт `ATTESTATION_REQUIRED`; F-9 — проверка `by` только при записи `human-approval`; F-10,
 F-11 — сняты сужением.
 
+Пятый review (`RUN-01M3DWVTTX2B2GJ9XFN2X8VXZF`, `EVID-01M3DX73FH30QJVTT11PVMJDJZ`, `NOT_PROVEN`): 1 BLOCKER, 1 MAJOR, 6 MINOR.
+F-1 — SCN-VER-090 ждёт `CHANGE_NOT_VERIFYING`; F-2 — `roles` и `approvals[]` для ref и waivers — из HEAD^1, правка `roles` —
+`ROLES_CHANGED`; F-3 — «ни одного перехода»; F-4 — остаточный риск `ARCHIVED`, `ABANDONED`; F-5 — `transitions[]{ to, at, ref }`;
+F-6 — дерево HEAD только для `VERIFYING->MERGED` impl, commit и base информационных gates spec; F-7 — evidence без `tree` в
+proposal; F-8 — record без базы начинается с `PROPOSED`.
+
 ## Решения по ходу реализации
 
 | # | Решение | Где |

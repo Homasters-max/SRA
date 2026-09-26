@@ -9,15 +9,18 @@
 ## Готовый запрос
 
 ```text
-Фаза 4c закрыта (archive-PR phase-4c, тег v0.7.0). Дальше — vertical slice MVP (13 §1) в репозитории
-Homasters-max/warrant-slice (Python + pytest): сначала grilling объёма slice и его Change, затем spec-PR первого Change
-slice. Перед spec-PR — architecture-audit и repo-hygiene.
+Фаза 4c закрыта. Дальше — vertical slice MVP (13 §1) в репозитории Homasters-max/warrant-slice (Python + pytest).
+1. Навык architecture-audit --against docs/process/audits/2026-09-26-phase-4b.json — снимок устарел (до v0.7.0,
+   новый модуль core/ci), аудит обязателен; затем repo-hygiene.
+2. Grilling объёма slice: какой Change проходит slice от intent до archive, как slice ставит CLI (pin версии
+   в workflow — policy-путь, ADR-0038 п. 3), job warrant в slice; вход — открытая A-5 и строки backlog с «Куда» slice.
+3. Spec-PR первого Change slice (навык change-spec-pr).
+Спросить maintainer'а: создан ли warrant-slice.
 ```
 
 ## Открытые вопросы
 
-- Sample-проект `Homasters-max/warrant-slice` создаёт maintainer до slice — создан ли.
-- Как slice ставит CLI: pin версии в workflow slice (policy-путь, ADR-0038 п. 3) или `npm link` локально.
+- Создан ли sample-проект `Homasters-max/warrant-slice`.
 
 ## Не забыть
 
@@ -25,4 +28,4 @@ slice. Перед spec-PR — architecture-audit и repo-hygiene.
 - BL-46: envelope субагента длиннее ~8 тыс. символов не сдаётся одним heredoc — просить короткие формулировки.
 - BL-45: `classify` по diff spec-PR не видит путей реализации — `--paths` планом.
 - `npm test` целиком на Windows под нагрузкой падает по таймаутам (BL-31, BL-37) — прогонять уровни по очереди.
-- Review spec: `PROVEN` с MAJOR — решение в impl-PR по ADR-0024 п. 4 (I-176, навык `change-spec-pr`), не новый раунд.
+- Review spec `PROVEN` с MAJOR — решение в impl-PR по ADR-0024 п. 4 (I-176, навык `change-spec-pr`), не новый раунд.

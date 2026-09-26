@@ -335,6 +335,12 @@ F-1 — SCN-VER-090 ждёт `CHANGE_NOT_VERIFYING`; F-2 — `roles` и `approva
 F-6 — дерево HEAD только для `VERIFYING->MERGED` impl, commit и base информационных gates spec; F-7 — evidence без `tree` в
 proposal; F-8 — record без базы начинается с `PROPOSED`.
 
+Шестой review (`RUN-01M3DX9M9GHCB00NASQ7GNRZSF`, `EVID-01M3DXQD6T3VF0Q5SNPEGWKXMR`, `PROVEN`): 0 BLOCKER, 3 MAJOR, 5 MINOR;
+maintainer решил исправить до седьмого review. F-1 — классификация на HEAD не слабее базы (SCN-VER-105); F-2 — повтор archive
+только при новом `ARCHIVED` (SCN-VER-106); F-3 — M из ref PR, если у `MERGED` нет CI-записей; F-4 — merge-коммит spec-PR на
+first-parent линии HEAD^1; F-5 — замороженный record не меняется; F-6 — `WARRANT_STATE_DIR` в `ci` — `USAGE`; F-7 — ref без
+попытки — попытка 1; F-8 — kinds checks `VERIFYING->MERGED` только из текущей попытки.
+
 ## Решения по ходу реализации
 
 | # | Решение | Где |

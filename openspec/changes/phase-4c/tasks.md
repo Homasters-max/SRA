@@ -81,9 +81,10 @@
   - unit на SCN-VER-077, SCN-VER-083;
   - `GitPort.parents` — адаптер, `FakeGit`, контракт соответствия.
 - [ ] 4.2 `core/ci/record.ts` (N44 суженный, §4): префикс `transitions[]`, `change_state`, цепочка состояний, gates новых
-  переходов вперёд, файлы и схема `evidence[]`; `RECORD_MISMATCH`. Verdicts прошлых переходов не пересчитываются.
+  переходов вперёд, файлы и схема `evidence[]`, замороженный record, классификация не слабее базы; `RECORD_MISMATCH`. Verdicts
+  прошлых переходов не пересчитываются.
 
-  Проверка: app на SCN-VER-078, SCN-VER-090.
+  Проверка: app на SCN-VER-078, SCN-VER-090, SCN-VER-105.
 - [ ] 4.3 `core/ci/refs.ts` — `ref` новых переходов через `ForgePort.pullRequest`: `REF_NOT_VERIFIED`, `APPROVER_IS_AUTHOR`.
 
   Проверка: app на SCN-VER-081, SCN-VER-093 с `FakeForge`.
@@ -116,7 +117,7 @@
 - [ ] 5.2 R-16: повтор `openspec archive` в `worktreeAt(HEAD^1)` и сравнение `openspec/specs/**`, `SPECS_NOT_ARCHIVED`;
   правило путей archive-PR; `GitPort.worktreeAt(commit)` — адаптер, `FakeGit`, контракт соответствия, `dispose` при ошибке.
 
-  Проверка: app на SCN-VER-080, SCN-VER-091.
+  Проверка: app на SCN-VER-080, SCN-VER-091, SCN-VER-106.
 - [ ] 5.3 `core/ci/fetch.ts` и `warrant ci fetch <pr> [--dry-run]`:
   - выбор run по дереву M;
   - `importRecords` в `core/evidence/store.ts`;

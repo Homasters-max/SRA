@@ -1,0 +1,125 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3DXWE8EJSKMX2XVYRSQHD31",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Record check accepts a new MERGED whose gates{} is empty or whose evidence[] has no ci records: M then comes from ref and no CI evidence is checked. The premise (policy needs no CI evidence) is never verified, so the stated trust holder is bypassed (ADR-0010 p.2).",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-091",
+        "SCN-VER-106"
+      ],
+      "recommendation": "Require gates keys = gates of the transition in effective policy and a ci record per PASS L1 gate of MERGED; or list as residual risk next to ARCHIVED/ABANDONED."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Only roles and approvals[] are fixed to HEAD^1. The tree for policy paths (match.paths of factory-change), paths.src/paths.tests and the effective policy of the classification check is unstated; read from HEAD, a PR shrinking factory-change match.paths and editing packs/** passes spec and none rules.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "State that policy paths, paths.* and the risk_level comparison use packs and warrant.json of HEAD^1; add a scenario with a PR shrinking match.paths."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "SCN-VER-081 expects exit 0 with APPROVER_IS_AUTHOR for a PR with a new APPROVED; such a PR is kind impl with change_state APPROVED and gets CHANGE_NOT_VERIFYING, exit 1 (SCN-VER-090). WHEN lacks the VERIFYING context that makes 0 reachable.",
+      "targets": [
+        "SCN-VER-081",
+        "SCN-VER-090"
+      ],
+      "recommendation": "Put the Change in VERIFYING with passing gates in WHEN, or assert only absence of REF_NOT_VERIFIED and presence of APPROVER_IS_AUTHOR."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-SDD-005 adds .github/workflows/** because a PR workflow would replace the CI evidence producer. Job warrant installs the CLI from the PR checkout (design 8, npm i -g .), so packages/cli/src/** does the same yet is no policy path: a feature impl-PR can alter warrant ci or checks and get a verified green run.",
+      "targets": [
+        "REQ-SDD-005",
+        "openspec/changes/phase-4c/design.md"
+      ],
+      "recommendation": "Add packages/cli/src/** and package manifests to factory-change, or run the verdict with a CLI built from HEAD^1, or record as residual risk in Non-Goals."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "ci output shape data{... evidence[]? ...} does not define evidence[] (records written in impl or verified in archive) and omits dry_run and would_write[] required by --dry-run.",
+      "targets": [
+        "REQ-VER-011"
+      ]
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "ci fetch adds ids to the manifest by REQ-VER-001, which updates manifest.commit and versions on each write; the value for imported records (HEAD, M^2 or the record) is unstated.",
+      "targets": [
+        "REQ-VER-012",
+        "SCN-VER-089"
+      ]
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "ci fetch promises nothing written on input errors, but an IO failure mid-import and a concurrent ci fetch or check on the same Change (lock, BUSY) are not described.",
+      "targets": [
+        "REQ-VER-012"
+      ]
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "warrant ci rejects WARRANT_STATE_DIR, but ci fetch writes to <state>: with the variable set, records land outside .warrant and the archive-PR cannot carry them; no USAGE or hint.",
+      "targets": [
+        "REQ-VER-012",
+        "REQ-VER-011"
+      ]
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Candidates are run attempts, but listRuns in design 6 returns runs with their latest attempt; an earlier successful attempt on tree M needs a per-attempt lookup not shown in ForgePort.",
+      "targets": [
+        "REQ-VER-012",
+        "openspec/changes/phase-4c/design.md"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Gates of VERIFYING->MERGED taken from packs/core-sdd profiles: branch-isolated is only on APPROVED->IMPLEMENTING, so detached HEAD in CI does not affect the impl verdict."
+    },
+    {
+      "id": "A-2",
+      "statement": "Round-6 fixes F-1..F-8 (classification, repeat archive only with ARCHIVED, M from ref, first-parent spec-PR merge, frozen record, WARRANT_STATE_DIR USAGE, attempt 1 default, current-attempt kinds) are present in the delta text; no regression found."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:fe2ee0a3a0460bfb7b0c2c858c24c437be7da0ac5eae8c17835b17abc601c001",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-26T12:00:00Z",
+    "finished_at": "2026-09-26T12:40:00Z"
+  }
+}

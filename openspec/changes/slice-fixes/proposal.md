@@ -31,17 +31,19 @@ N59–N66, [ADR-0040](../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md).
 - **`warrant unknown add | resolve`** (BL-59, [02 §1](../../../docs/02-vocabulary.md)):
   - запись и закрытие UNKNOWN в record;
   - `UNK-<AREA>-NNN` — следующий номер по spec, Changes и records;
-  - закрытие `--as decision | fact | assumption`, решение (`decision`) — с `--ref` на комментарий PR;
+  - закрытие `--as decision | fact | assumption`; blocking UNKNOWN закрывает только решение (`decision`) с `--ref` на
+    комментарий maintainer'а, в тексте которого стоит id UNKNOWN;
+  - только в `PROPOSED` и `SPECIFIED`: вопрос реализации — строка `I-N`;
   - `--dry-run`.
 - **Схема `change-record/1`:** у `unknowns[]` необязательные `resolved_as` и `ref` (аддитивно).
-- **Gate `blocking-unknowns-resolved`:** решение без `ref` — не закрытие.
+- **Gate `blocking-unknowns-resolved`:** blocking UNKNOWN без решения с `ref` — не закрыт.
 - **`warrant ci` проверяет решения UNKNOWN через форж:**
-  - автор комментария — maintainer;
+  - автор комментария — maintainer, текст называет id UNKNOWN;
   - комментарий — в spec-PR, который несёт ref `APPROVED`;
   - `ForgePort` получает метод чтения комментария.
 - **`write_scope` операции `implement`** += `design.md` и `specs/**` Change (BL-63): ADR-0024 п. 4 исполним под guard.
 - **Мелкие правки:**
-  - `classify` проверяет `--propose` до записи (BL-60) и предупреждает, когда база позади upstream (BL-58);
+  - `classify` проверяет `--propose` до записи (BL-60) и отказывает до записи, когда база позади upstream (BL-58);
   - dry-run `archive` называет каталог датой настоящего прогона (BL-64);
   - guard сверяет команду check с `-m <модуль>` (BL-61);
   - `hint` у `AREA_UNKNOWN` и у `deny` пути без операции записи (BL-56);
@@ -75,8 +77,8 @@ N59–N66, [ADR-0040](../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md).
 
 - **`warrant assumption add`** — BL-66: ASSUMPTION пишется только закрытием UNKNOWN.
 - **Перенос `unknowns[]` envelope `run submit` в record** — отложен 07 §4.
-- **Blocking UNKNOWN после `APPROVED`:** gate стоит только на `SPECIFIED->APPROVED`, controller покажет `WAIT`, но переходы
-  impl-PR он не остановит.
+- **UNKNOWN после `APPROVED`:** `warrant unknown` в реализации недоступен; вопрос реализации — строка `I-N` с решением
+  maintainer'а, как и прежде.
 - **Операция записи для `.warrant/local/**` и `.github/workflows/**`** — BL-56. Pin-Change в slice ведёт maintainer руками
   (ADR-0040 п. 7).
 - **Привязка `factory-golden-passed` к check golden** — BL-57, по failure mode.

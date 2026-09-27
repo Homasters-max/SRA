@@ -73,10 +73,10 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 - `edit` без активного Run — `deny` с hint `warrant run start <change> --operation …` для путей под `paths.src`, `paths.tests`,
   `openspec/changes/**` и policy-путями (`match.paths` профиля `factory-change`); иначе `allow` с той же подсказкой
   ([ADR-0022](../../../../docs/adr/WARRANT-ADR-0022-path-rules.md) п. 7);
-- путь, который не пишет ни одна операция Run (вне `paths.src`, `paths.tests` и `openspec/changes/**`: например
-  `.warrant/local/**`, `.github/workflows/**`), в `deny` обоих случаев выше SHALL получать вместо `warrant run start` и
+- policy-путь, который не лежит под `paths.src`, `paths.tests` и `openspec/changes/**` (его не пишет ни одна операция Run:
+  например `.warrant/local/**`, `.github/workflows/**`), в `deny` обоих случаев выше SHALL получать вместо `warrant run start` и
   `warrant run finish` hint: правку делает человек (maintainer) вне сессии агента, в Change `factory-change`
-  ([ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 7);
+  ([ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 7); остальные пути (например `docs/**`) — прежние подсказки;
 - `shell` при активном Run `review` — `allow`, только если каждая простая команда строки после shell-разбора начинается с
   `warrant run submit`, иначе `deny` с hint `warrant run submit`;
 - `shell` в остальных случаях — `deny`, если простая команда строки после shell-разбора начинается с одного из
@@ -140,5 +140,5 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 
 #### Scenario: Путь без операции записи
 <!-- id: SCN-ENF-038 -->
-- **WHEN** без активного Run guard получает `pre` `edit` пути `.warrant/local/areas.json`; при активном Run `implement` — `pre` `edit` пути `.github/workflows/ci.yml`
-- **THEN** оба — `deny`; `hints[]` называет правку человеком в Change `factory-change` и не содержит `warrant run start` и `warrant run finish`
+- **WHEN** без активного Run guard получает `pre` `edit` пути `.warrant/local/areas.json`; при активном Run `implement` — `pre` `edit` пути `.github/workflows/ci.yml`, затем `docs/notes.md`
+- **THEN** первые два — `deny`, `hints[]` называет правку человеком в Change `factory-change` и не содержит `warrant run start` и `warrant run finish`; `docs/notes.md` — `deny` с прежним hint `warrant run finish`

@@ -51,13 +51,17 @@ waiver [ADR-0024](WARRANT-ADR-0024-spec-approved-contract.md) п. 4 не про�
      `--as decision` без `--ref` — `USAGE` с `hint`; закрытый UNKNOWN повторно не закрывается;
    - элемент `unknowns[]` `change-record/1` получает необязательные `resolved_as` и `ref` (аддитивно, major тот же),
      `resolution` — текст ответа;
-   - в любом нетерминальном состоянии, перехода не пишет; открытый blocking UNKNOWN — `warrant status` `WAIT`, next
-     `clarify`. Локально gate `blocking-unknowns-resolved` проверяет форму: DECISION без `ref` — `FAIL`.
+   - только в `PROPOSED` и `SPECIFIED` (вопрос реализации — строка `I-N` с решением maintainer'а), перехода не пишет;
+     открытый blocking UNKNOWN — `warrant status` `WAIT`, next `clarify`;
+   - blocking UNKNOWN закрывает только DECISION с `ref` (`fact` и `assumption` — для не-blocking); локально gate
+     `blocking-unknowns-resolved` проверяет форму: blocking без DECISION с `ref` — `FAIL`.
+   Состояния и закрытие blocking — решения maintainer'а по review 1 spec `slice-fixes` (2026-09-27).
    Контракт вывода и exit-коды — design Change по линзе `cli-contract`. `warrant assumption add` — не в этом Change
    (строка backlog).
 3. **Ref DECISION в `warrant ci`** (N61). На impl-PR вместе с ref `APPROVED` (`judgeRefs`), на spec-PR — информационно:
    ref — URL комментария PR `#issuecomment-<id>` или `#pullrequestreview-<id>` (строчные `#discussion_r…` — нет);
-   автор ∈ `roles.maintainer`; комментарий — в том PR, который несёт ref `APPROVED` (spec-PR Change). `ForgePort`
+   автор ∈ `roles.maintainer`; текст комментария содержит id UNKNOWN (review 1 spec, решение maintainer'а); комментарий — в
+   том PR, который несёт ref `APPROVED` (spec-PR Change). `ForgePort`
    получает пятый метод — комментарий по URL → автор и PR (уточняет ADR-0037 п. 6). Без этой проверки агент снимает
    `WAIT` сам.
 4. **Правка spec в `IMPLEMENTING`** (N62; BL-63). `write_scope` `implement` += `openspec/changes/<change>/design.md` и

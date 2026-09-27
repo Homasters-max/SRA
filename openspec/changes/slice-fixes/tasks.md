@@ -59,13 +59,14 @@
 
 ## 3. Решения UNKNOWN в warrant ci, A-37, BL-53 (REQ-VER-013)
 
-- [ ] 3.1 `ForgePort.comment`, `CommentRef`, `Comment`; `ForgeGh` — issue comment и review; `FakeForge.addComment` (§4).
+- [ ] 3.1 `ForgePort.comment`, `CommentRef`, `Comment` (`author`, `pullRequest`, `body`); `ForgeGh` — issue comment и review;
+  `FakeForge.addComment` (§4).
 
   Проверка: unit разбора ответов `gh api` на записанных телах; `architecture.test.ts` зелёный.
 - [ ] 3.2 `parseCommentUrl`, `core/ci/decisions.ts` — `judgeDecisions`, `RefReason` `decision`, находка
   `DECISION_NOT_VERIFIED`; вызов из `judgePullRequest` (§4, REQ-VER-013).
 
-  Проверка: app `ci` на SCN-VER-111…114; прежние SCN-VER `ci` без правок.
+  Проверка: app `ci` на SCN-VER-111…115; прежние SCN-VER `ci` без правок.
 - [ ] 3.3 Контракт `forge.contract.test.ts` — комментарий maintainer'а и review в spec-PR `slice-fixes` (§4).
 
   Проверка: `test:contract` зелёный на настоящем GitHub; `comment` несуществующего id — `null`.
@@ -102,7 +103,7 @@
 - [ ] 5.4 BL-61: `defaultPrefix` с `-m <модуль>` (§6).
 
   Проверка: app `guard` на SCN-ENF-037; SCN-ENF-013 без правок.
-- [ ] 5.5 BL-56: `writableByRun` и hint `deny` пути без операции записи (§6).
+- [ ] 5.5 BL-56: `humanOnly` и hint `deny` policy-пути без операции записи (§6).
 
   Проверка: app `guard` на SCN-ENF-038; SCN-ENF-011, SCN-ENF-012 без правок.
 
@@ -113,6 +114,7 @@
 
   Проверка: `dev-context.test.ts`.
 - [ ] 6.2 Документы (§7):
+  - 02 §1 — blocking UNKNOWN закрывает только DECISION с ref; `warrant unknown` — до `APPROVED`;
   - 04 §10 — `warrant unknown`;
   - 06 §4 — `blocking-unknowns-resolved`;
   - `backlog.md` — закрыть A-31…A-33, A-36, A-37, BL-53, BL-59…BL-61, BL-63, BL-64; сузить A-35, BL-56, BL-58; строка

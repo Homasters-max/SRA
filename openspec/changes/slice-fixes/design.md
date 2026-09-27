@@ -51,8 +51,8 @@
 | # | Решение |
 |---|---|
 | N59 | Один Change, пять групп; CLI 0.8.0, `core-sdd` 0.3.4 (`kernel <0.9`) |
-| N60 | `warrant unknown add \| resolve` по 02 §1; `resolved_as`, `ref` в `unknowns[]`; `assumption add` — BL-66 |
-| N61 | Ref решения проверяет `warrant ci` через форж: форма, автор ∈ `roles.maintainer`, PR — spec-PR из ref `APPROVED`; пятый метод `ForgePort` |
+| N60 | `warrant unknown add \| resolve` по 02 §1; `resolved_as`, `ref` в `unknowns[]`; `assumption add` — BL-66. Review 1 (maintainer 2026-09-27): только в `PROPOSED` / `SPECIFIED` (D-2); blocking закрывает только `decision` с `ref` (D-1) |
+| N61 | Ref решения проверяет `warrant ci` через форж: форма, автор ∈ `roles.maintainer`, текст содержит id UNKNOWN (review 1, F-4), PR — spec-PR из ref `APPROVED`; пятый метод `ForgePort` |
 | N62 | `write_scope` `implement` += `design.md`, `specs/**`; контроль — gate `spec-approved` + waiver |
 | N63 | `MERGED` без `--by`; gate `human-approval` на `VERIFYING->MERGED` не вводится |
 | N64 | Швы A-31, A-32, A-35, A-36; A-33 — строкой I-N; A-37 и BL-53 с группой 3; мелкие BL-60, BL-58, BL-64, BL-61, hint BL-56 |
@@ -96,24 +96,30 @@
 
 - **Модуль** `core/unknowns/` (R2, строка рангов `architecture.json`):
   - `addUnknown(record, { id, text, blocking })` и `resolveUnknown(record, id, { as, text, ref? })` — чистые функции над
-    record, ошибки `UNKNOWN_NOT_FOUND` (hint — открытые id), `UNKNOWN_RESOLVED`;
+    record, ошибки `UNKNOWN_NOT_FOUND` (hint — открытые id), `UNKNOWN_RESOLVED` (закрыт — непустой `resolution`), `USAGE` для
+    `fact` / `assumption` у blocking;
+  - состояния — `PROPOSED`, `SPECIFIED` (`STATE_INVALID` с hint «строка `I-N` в `design.md`»); record нет — `CHANGE_NOT_FOUND`;
   - id — `allocateSpecLevel(root, "UNK", area)`. Он уже учитывает records, поэтому номер уникален и для UNKNOWN, записанных
     раньше.
 - **Команда** `commands/unknown.ts`, регистрация подкомандами `unknown add` и `unknown resolve` (как `run start`):
   - `readChangeRecord`, проверка состояния (`STATE_INVALID` с `hint`, `assertNotFrozen`), `writeRecord`, `withDryRun`;
   - вывод `data{ change, unknown, open_blocking[] }`;
   - `--help` с примером на каждую подкоманду.
-  Порядок проверок `resolve`: форма (`--as`, `--ref`) → record → элемент → состояние. Ошибки формы не читают файлов.
+  Порядок проверок `resolve`: форма (`--as`, `--ref`, непустой `--text`) → record → состояние → элемент (`blocking` и
+  `--as`). Ошибки формы не читают файлов. Hint `--as decision` без `--ref` называет форму ref и id UNKNOWN в тексте
+  комментария.
 - **Контракт CLI** (навык `cli-contract`):
-  - коды: 0 — записано; 3 — `USAGE`, `AREA_UNKNOWN`, `UNKNOWN_NOT_FOUND`, `UNKNOWN_RESOLVED`, `STATE_INVALID`,
-    `RECORD_FROZEN`;
+  - коды: 0 — записано; 3 — `USAGE`, `AREA_UNKNOWN`, `CHANGE_NOT_FOUND`, `UNKNOWN_NOT_FOUND`, `UNKNOWN_RESOLVED`,
+    `STATE_INVALID`, `RECORD_FROZEN`;
+  - `--replace` переписывает закрытый элемент — исправить ref или ответ до `APPROVED` (иначе `UNKNOWN_RESOLVED` с hint);
   - каждая ошибка называет исправление в `hint`;
   - JSON стабилен и покрыт app-тестами SCN-KRN-148…153;
   - `--dry-run` печатает тот же `data.unknown`.
 - **Схема** `change-record.1.schema.json`: у элемента `unknowns[]` появляются `resolved_as` (`enum` `decision`, `fact`,
   `assumption`), `ref` (`format: uri`, `^https?://`) и `dependentRequired: { resolved_as: [resolution], ref: [resolution] }`.
   Копия — `warrant sync`, golden — `npm run golden:update`.
-- **Gate** `blocking-unknowns-resolved`: второй список `decisionsWithoutRef` → finding `DECISION_WITHOUT_REF`.
+- **Gate** `blocking-unknowns-resolved`: второй список `decisionsWithoutRef` — blocking-элементы с `resolution`, но без
+  `resolved_as: "decision"` и `ref` → finding `DECISION_WITHOUT_REF`; не-blocking не судятся.
   `openBlockingUnknowns` не меняется, поэтому вход controller `blocking_unknowns` тот же. Решение без ref даёт `FAIL` gate,
   но не `WAIT clarify`: вопрос уже отвечен, не хватает доказательства.
 - **`AREA_UNKNOWN`** в `allocate.ts` (два места) и `checkAreas` (`scan.ts`) получает `hint` — объявленные AREA и правку
@@ -127,18 +133,20 @@
 
 - **`ForgePort.comment(ref: CommentRef) → Promise<Comment | null>`**:
   - вход — `CommentRef { repository, pullRequest, kind: "issue" | "review", id }`;
-  - выход — `Comment { author, pullRequest }`;
-  - `ForgeGh`: `issue` — `gh api repos/<r>/issues/comments/<id>` (`user.login`, номер из `issue_url`); `review` —
-    `gh api repos/<r>/pulls/<N>/reviews/<id>` (`user.login`, номер из `pull_request_url`); 404 → `null`.
+  - выход — `Comment { author, pullRequest, body }`;
+  - `ForgeGh`: `issue` — `gh api repos/<r>/issues/comments/<id>` (`user.login`, `body`, номер из `issue_url`); `review` —
+    `gh api repos/<r>/pulls/<N>/reviews/<id>` (`user.login`, `body`, номер из `pull_request_url`); 404 → `null`.
   Уточняет ADR-0037 п. 6 (ADR-0040 п. 3).
 - **`parseCommentUrl`** — рядом с `parsePullUrl` в `core/ci/refs.ts`: `…/pull/<N>#issuecomment-<id>` и
   `#pullrequestreview-<id>`; остальное → `form`.
 - **`core/ci/decisions.ts`** — `judgeDecisions(ctx, subject, base, record, approvedPr?)`:
   - вызывается из `judgePullRequest` после `judgeRefs`;
   - `approvedPr` — номер PR из ref нового `APPROVED` (карта A-32);
-  - проверяет элементы `blocking` + `resolved_as: "decision"`, причины `form`, `repository`, `missing`, `author`,
-    `pull_request`;
-  - с новым `APPROVED` — ошибки `REF_NOT_VERIFIED` (`RefReason` += `decision`), иначе — находки `DECISION_NOT_VERIFIED`;
+  - проверяет элементы `blocking` + `resolved_as: "decision"`, детали `form`, `repository`, `missing`, `author`, `text`
+    (id UNKNOWN в `body`), `pull_request`;
+  - с новым `APPROVED` — ошибки `REF_NOT_VERIFIED` (`RefReason` += `decision`; `message` —
+    `unknowns/<i> (<UNK>) ref <URL>: decision: <деталь>`), `FORGE_UNAVAILABLE` пробрасывается; иначе — находки
+    `{ code: "DECISION_NOT_VERIFIED", message }`, недоступный форж — деталь `forge`;
   - `roles.maintainer` — из базы требований (ADR-0038).
 - **Права job:** `issues: read` в `.github/workflows/ci.yml`. Комментарии PR — ресурс issues API, а `pull-requests: read`
   на него может не распространяться. В slice та же строка едет pin-Change'ем (ADR-0040 п. 7).
@@ -186,9 +194,10 @@
 - **BL-61** (`core/guard/shell.ts`) — `defaultPrefix` сохраняет `-m <модуль>` сразу после первого слова (SCN-ENF-037);
   `guard_prefixes` проекта по-прежнему сильнее.
 - **BL-56 hint** (`core/guard/decide.ts`):
-  - `writableByRun(path, config)` — под `codeScope` или `openspec/changes/**` вне `archive/`;
-  - для `deny` пути вне него `editWithRun` и `editWithoutRun` дают hint «правку делает человек (maintainer) в Change
-    `factory-change`, ADR-0040 п. 7» вместо `run start` / `run finish` (SCN-ENF-038).
+  - `humanOnly(path, config, policyPaths)` — policy-путь не под `codeScope` и не под `openspec/changes/**`;
+  - для `deny` такого пути `editWithRun` и `editWithoutRun` дают hint «правку делает человек (maintainer) в Change
+    `factory-change`, ADR-0040 п. 7» вместо `run start` / `run finish`; прочие пути (`docs/**`) — прежние hints
+    (SCN-ENF-038, review 1 F-2, F-13).
 - Коды `BASE_BEHIND_UPSTREAM` — в `core/errors.ts`; находки `DECISION_WITHOUT_REF`, `DECISION_NOT_VERIFIED` — в реестре кодов
   находок, если он есть у владельца gate / `ci`.
 
@@ -197,10 +206,11 @@
 - Bump первой задачей: CLI `0.8.0`; pack `core-sdd` `0.3.4` с `kernel: ">=0.1 <0.9"`; 7 fixture-packs, `.warrant/warrant.json`
   `kernel: "0.8"`, `warrant.lock.json` репозитория и golden-фикстур — как задача 1.1 `phase-4c` (REQ-SDD-001).
 - Навыки:
-  - `change-spec-pr` — blocking UNKNOWN: `warrant unknown add --blocking`, решение — комментарий maintainer'а в PR, затем
-    `unknown resolve --as decision --ref`;
+  - `change-spec-pr` — blocking UNKNOWN: `warrant unknown add --blocking`, решение — комментарий maintainer'а в spec-PR с id
+    UNKNOWN, затем `unknown resolve --as decision --ref`;
   - `change-impl-pr` — правка spec в Run `implement` по ADR-0024 п. 4.
 - Документы:
+  - 02 §1 — blocking UNKNOWN закрывает только DECISION с ref, `warrant unknown` — до `APPROVED`;
   - 04 §10 — синтаксис `warrant unknown`, `assumption add` — позже;
   - 06 §4 — `blocking-unknowns-resolved` с `ref` решения;
   - `backlog.md` — закрыть A-31…A-33, A-35…A-37, BL-53, BL-59…BL-61, BL-63, BL-64; сузить A-35 (14 мест), BL-56 (без hint),
@@ -221,8 +231,10 @@
 
 - [`GITHUB_TOKEN` без `issues: read` не читает комментарий] → строка прав в `ci.yml` и в pin-Change slice; сбой — `FORGE_UNAVAILABLE`,
   не ложный `PASS`.
-- [Решение в review-комментарии без текста] → `pullrequestreview` принимается: review — тоже решение maintainer'а, текст
-  ответа хранит `resolution`.
+- [Решение review'ем без текста] → `pullrequestreview` принимается, только если его текст содержит id UNKNOWN (деталь
+  `text`); ответ хранит `resolution`.
+- [Maintainer забыл id UNKNOWN в комментарии] → на spec-PR — находка `DECISION_NOT_VERIFIED` `decision: text`; исправление —
+  новый комментарий и `unknown resolve --replace` до `APPROVED`. Hint `resolve` и навык называют id заранее.
 - [Комментарий maintainer'а удалён после `APPROVED`] → причина `missing` на следующем impl-PR; ref переходов прошлого PR
   `warrant ci` не пересчитывает (N44), остаточный риск тот же.
 - [Отказ `BASE_BEHIND_UPSTREAM` без сети] → проверка только по локальному upstream: устаревший `origin/main` не ловится, но

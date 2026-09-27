@@ -4,36 +4,44 @@
 <!-- id: REQ-VER-013 -->
 
 `warrant ci` ([REQ-VER-011](#requirement-команда-ci)) SHALL проверять через форж каждый элемент `unknowns[]` record Change на HEAD
-с `blocking: true` и `resolved_as: "decision"` ([ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 3):
-- `ref` — URL комментария pull request этого репозитория: `https://<host>/<owner>/<repo>/pull/<N>#issuecomment-<id>` или
-  `…#pullrequestreview-<id>`; другая форма, в том числе `#discussion_r…`, — причина `form`, чужой репозиторий — `repository`;
-- комментарий существует, а его автор входит в `roles.maintainer` базы требований (HEAD^1) — причины `missing` и `author`;
-- если PR вносит новый переход `APPROVED`, `<N>` SHALL быть номером PR из `ref` этого перехода — spec-PR Change (причина
-  `pull_request`).
-В PR с новым переходом `APPROVED` нарушение — ошибка `REF_NOT_VERIFIED` с причиной `decision`, деталью и `path`
-`.warrant/changes/<change>.json#/unknowns/<i>/ref`, код 1. В остальных видах PR нарушение — информационная находка
-`DECISION_NOT_VERIFIED` в `data.findings[]` (решение ещё не судит переход). Недоступный форж — `FORGE_UNAVAILABLE`, как у
-остальных ref.
+с `blocking: true` и `resolved_as: "decision"` ([ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 3). Деталь нарушения:
+- `form` — `ref` не URL комментария pull request вида `https://<host>/<owner>/<repo>/pull/<N>#issuecomment-<id>` или
+  `…#pullrequestreview-<id>` (в том числе `#discussion_r…`);
+- `repository` — `<owner>/<repo>` не репозиторий форжа;
+- `missing` — комментария нет;
+- `author` — автор комментария не входит в `roles.maintainer` базы требований (HEAD^1);
+- `text` — текст комментария не содержит id этого UNKNOWN;
+- `pull_request` — PR вносит новый переход `APPROVED`, а `<N>` не номер PR из `ref` этого перехода (spec-PR Change).
+В PR с новым переходом `APPROVED` нарушение SHALL быть ошибкой `REF_NOT_VERIFIED`: `message` начинается с
+`unknowns/<i> (<UNK>) ref <URL>: decision: <деталь>`, `path` — `.warrant/changes/<change>.json#/unknowns/<i>/ref`, код 1;
+недоступный форж — `FORGE_UNAVAILABLE`, как у ref переходов. В остальных видах PR решение ещё не судит переход: нарушение и
+недоступный форж (деталь `forge`) SHALL быть находкой `{ code: "DECISION_NOT_VERIFIED", message }` в `data.findings[]` с тем же
+началом `message`, код выхода от неё не меняется.
 
 #### Scenario: Решение maintainer'а в spec-PR
 <!-- id: SCN-VER-111 -->
-- **WHEN** impl-PR вносит переход `APPROVED` с `ref` `https://github.com/o/r/pull/7`, а record содержит blocking UNKNOWN с `resolved_as: "decision"` и `ref` `https://github.com/o/r/pull/7#issuecomment-11`, комментарий которого оставил `kat` из `roles.maintainer` базы
+- **WHEN** impl-PR вносит переход `APPROVED` с `ref` `https://github.com/o/r/pull/7`, а record содержит blocking `UNK-SRC-004` с `resolved_as: "decision"` и `ref` `https://github.com/o/r/pull/7#issuecomment-11`; комментарий оставил `kat` из `roles.maintainer` базы, его текст содержит `UNK-SRC-004`
 - **THEN** `REF_NOT_VERIFIED` нет, код 0
 
-#### Scenario: Решение не maintainer'а
+#### Scenario: Решение не maintainer'а или не о том
 <!-- id: SCN-VER-112 -->
-- **WHEN** тот же impl-PR, но автор комментария `issuecomment-11` — `bob` вне `roles.maintainer` базы
-- **THEN** `errors[]` содержит `REF_NOT_VERIFIED` с причиной `decision`, деталью `author` и `path` `.warrant/changes/add-search.json#/unknowns/0/ref`, код 1
+- **WHEN** тот же impl-PR, но автор комментария `issuecomment-11` — `bob` вне `roles.maintainer` базы; либо автор `kat`, а текст не содержит `UNK-SRC-004`
+- **THEN** `errors[]` содержит `REF_NOT_VERIFIED` с `message`, начинающимся с `unknowns/0 (UNK-SRC-004) ref https://github.com/o/r/pull/7#issuecomment-11: decision: author` (во втором случае — `decision: text`), `path` `.warrant/changes/add-search.json#/unknowns/0/ref`, код 1
 
-#### Scenario: Решение в чужом PR
+#### Scenario: Решение в чужом PR или не комментарий
 <!-- id: SCN-VER-113 -->
-- **WHEN** ref решения — `https://github.com/o/r/pull/5#issuecomment-3` (комментарий maintainer'а), а ref перехода `APPROVED` — PR 7; либо ref решения — `https://github.com/o/r/pull/7#discussion_r9`
-- **THEN** `REF_NOT_VERIFIED` с причиной `decision` и деталью `pull_request`, во втором случае — `form`, код 1
+- **WHEN** ref решения — `https://github.com/o/r/pull/5#issuecomment-3` (комментарий `kat` с id UNKNOWN), а ref перехода `APPROVED` — PR 7; либо ref решения — `https://github.com/o/r/pull/7#discussion_r9`
+- **THEN** `REF_NOT_VERIFIED` с деталью `decision: pull_request`, во втором случае — `decision: form`, код 1
+
+#### Scenario: Нет комментария или чужой репозиторий
+<!-- id: SCN-VER-115 -->
+- **WHEN** форж отвечает, что комментария `issuecomment-11` нет; либо ref решения — `https://github.com/x/y/pull/7#issuecomment-11` при репозитории `o/r`
+- **THEN** `REF_NOT_VERIFIED` с деталью `decision: missing`, во втором случае — `decision: repository`, код 1
 
 #### Scenario: Решение в spec-PR до approval
 <!-- id: SCN-VER-114 -->
-- **WHEN** spec-PR закрывает blocking UNKNOWN решением с `ref` на комментарий `bob` вне `roles.maintainer`
-- **THEN** `data.findings[]` содержит `DECISION_NOT_VERIFIED` с деталью `author`, `errors[]` без `REF_NOT_VERIFIED` по решению, код не меняется от этой находки
+- **WHEN** spec-PR закрывает blocking UNKNOWN решением с `ref` на комментарий `bob` вне `roles.maintainer`; либо форж недоступен
+- **THEN** `data.findings[]` содержит `{ code: "DECISION_NOT_VERIFIED" }` с `message`, содержащим `decision: author` (во втором случае — `decision: forge`), `errors[]` без `REF_NOT_VERIFIED` и `FORGE_UNAVAILABLE` по решению, код не меняется от этой находки
 
 ## MODIFIED Requirements
 
@@ -42,9 +50,11 @@
 
 Gates без `requires_evidence` SHALL вычисляться CLI из состояния проекта: `required-artifacts-present` — каждый artifact
 `artifacts.required` effective policy имеет статус `done` по `openspec status --json` (для `chore` со `skip_specs` — `skipped`
-засчитывается для `specs`); `ids-valid` — проверка (5) `validate` без находок; `blocking-unknowns-resolved` — в record нет `unknowns[]`
-с `blocking: true` без непустого `resolution` (finding `BLOCKING_UNKNOWN`) и нет такого элемента с `resolved_as: "decision"` без
-`ref` (finding `DECISION_WITHOUT_REF`; автора решения проверяет `warrant ci`, [REQ-VER-013](#requirement-решения-unknown-в-warrant-ci)); `branch-isolated` — текущая ветка git существует и не равна base (`main`); `evidence-complete` —
+засчитывается для `specs`); `ids-valid` — проверка (5) `validate` без находок; `blocking-unknowns-resolved` — в record нет элемента `unknowns[]`
+с `blocking: true` без непустого `resolution` (finding `BLOCKING_UNKNOWN`) и нет blocking-элемента с непустым `resolution`,
+но без `resolved_as: "decision"` и `ref` (finding `DECISION_WITHOUT_REF`; blocking UNKNOWN закрывает только решение
+maintainer'а, автора проверяет `warrant ci`, [REQ-VER-013](#requirement-решения-unknown-в-warrant-ci)); не-blocking элементы gate
+не судит; `branch-isolated` — текущая ветка git существует и не равна base (`main`); `evidence-complete` —
 для каждого kind из `evidence.required` у Change есть хотя бы одна запись этого kind на любом commit в статусе `PROVEN` или
 `NOT_APPLICABLE` (свежесть проверяют gates, читающие этот kind; I-96, R-8), либо на waivable gate, требующий этот kind в
 `requires_evidence`, есть waiver этого Change, который засчитывается по правилам [REQ-VER-003](#requirement-команда-gate-и-алгоритм-verdict)
@@ -129,7 +139,7 @@ Gates без `requires_evidence` SHALL вычисляться CLI из сост�
 - **WHEN** diff impl-PR содержит `src/app.py` и файлы Run Change `add-search`, profiles `["feature"]` без `factory-change`, gate `scope-valid` на `VERIFYING->MERGED`
 - **THEN** `gates["scope-valid"]` равен `PASS`: файлы Run своего Change не считаются policy-путём `.warrant/**`
 
-#### Scenario: Решение без ref
+#### Scenario: Blocking без решения
 <!-- id: SCN-VER-110 -->
-- **WHEN** record содержит `unknowns: [{ "id": "UNK-SRC-001", "text": "…", "blocking": true, "resolution": "Нет", "resolved_as": "decision" }]` без `ref`
-- **THEN** `gates["blocking-unknowns-resolved"]` равен `FAIL` с finding `DECISION_WITHOUT_REF`, перечисляющим `UNK-SRC-001`; с `ref` или с `resolved_as: "fact"` — `PASS`
+- **WHEN** record содержит `unknowns: [{ "id": "UNK-SRC-001", "text": "…", "blocking": true, "resolution": "Нет", "resolved_as": "decision" }]` без `ref`, либо тот же элемент с `resolved_as: "fact"`
+- **THEN** `gates["blocking-unknowns-resolved"]` равен `FAIL` с finding `DECISION_WITHOUT_REF`, перечисляющим `UNK-SRC-001`; с `resolved_as: "decision"` и `ref` — `PASS`; не-blocking элемент с `resolved_as: "fact"` без `ref` — `PASS`

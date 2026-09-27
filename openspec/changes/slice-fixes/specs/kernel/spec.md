@@ -6,15 +6,21 @@
 `warrant unknown add <change> --area <AREA> --text <вопрос> [--blocking] [--dry-run]` SHALL добавить в `unknowns[]` record
 `{ id, text, blocking }`: `id` — `UNK-<AREA>-NNN` по правилу [REQ-KRN-024](#requirement-команда-id) (`AREA_UNKNOWN` с `hint`),
 `blocking` — `true` только с `--blocking` ([02 §1](../../../../docs/02-vocabulary.md)).
-`warrant unknown resolve <change> <UNK> --as decision|fact|assumption --text <ответ> [--ref <url>] [--dry-run]` SHALL записать
-в элемент `resolution` (текст ответа), `resolved_as` и `ref`. Ошибки — код 3, record не изменён, каждая с `hint`:
-- `--as decision` без `--ref` — `USAGE`; `hint` называет ref — URL комментария maintainer'а в PR
-  (`…/pull/<N>#issuecomment-<id>` или `…/pull/<N>#pullrequestreview-<id>`); `--ref` не http(s) URL или `--as` вне трёх
-  значений — `USAGE`;
+`warrant unknown resolve <change> <UNK> --as decision|fact|assumption --text <ответ> [--ref <url>] [--replace] [--dry-run]` SHALL записать
+в элемент `resolution` (текст ответа), `resolved_as` и `ref`. Элемент закрыт, если его `resolution` непуст. Blocking UNKNOWN
+закрывается только решением maintainer'а — `--as decision` с `--ref` на комментарий, текст которого содержит id UNKNOWN
+([ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 2, 3); `fact` и `assumption` закрывают только не-blocking UNKNOWN, `--as assumption` элемент `assumptions[]`
+не добавляет. Обе команды допустимы только при `change_state` `PROPOSED` или `SPECIFIED`: вопрос, возникший в реализации, —
+строка `I-N` в `design.md` с решением maintainer'а. Ошибки — код 3, record не изменён, каждая с `hint`:
+- `--as decision` без `--ref`, `--as fact` или `assumption` у blocking UNKNOWN — `USAGE`; `hint` называет ref — URL
+  комментария maintainer'а в PR (`…/pull/<N>#issuecomment-<id>` или `…/pull/<N>#pullrequestreview-<id>`), в тексте которого
+  стоит id UNKNOWN; `--ref` не http(s) URL, `--as` вне трёх значений, пустой или пробельный `--text` — `USAGE`;
+- record Change нет — `CHANGE_NOT_FOUND`;
 - `<UNK>` нет в record — `UNKNOWN_NOT_FOUND`, `hint` перечисляет открытые UNKNOWN Change;
-- элемент уже закрыт — `UNKNOWN_RESOLVED`;
-- `change_state` не из `PROPOSED`, `SPECIFIED`, `APPROVED`, `IMPLEMENTING`, `VERIFYING` — `STATE_INVALID` (`RECORD_FROZEN` для
-  `ARCHIVED` и `ABANDONED`).
+- элемент уже закрыт, а `--replace` не задан — `UNKNOWN_RESOLVED`, `hint` называет `--replace`: он переписывает ответ,
+  `resolved_as` и `ref` закрытого элемента (например, ref на новый комментарий maintainer'а);
+- `change_state` не `PROPOSED` и не `SPECIFIED` — `STATE_INVALID`, `hint` называет строку `I-N` в `design.md`
+  (`RECORD_FROZEN` для `ARCHIVED` и `ABANDONED`).
 Обе команды SHALL NOT писать переход и SHALL записывать record только документом, который проходит `warrant://change-record/1`.
 Вывод — `data{ change, unknown, open_blocking[] }`: записанный элемент и id открытых blocking UNKNOWN Change после записи;
 `--dry-run` — по [REQ-KRN-034](#requirement-режим---dry-run-меняющих-команд).
@@ -29,20 +35,20 @@
 - **WHEN** `warrant unknown resolve add-search UNK-SRC-004 --as decision --text "Часы назад — метка сдвигается" --ref https://github.com/o/r/pull/7#issuecomment-11`
 - **THEN** элемент содержит `resolution`, `resolved_as: "decision"` и `ref`, `data.open_blocking` пуст, код 0
 
-#### Scenario: Решение без ref
+#### Scenario: Blocking без решения
 <!-- id: SCN-KRN-150 -->
-- **WHEN** `warrant unknown resolve add-search UNK-SRC-004 --as decision --text "…"` без `--ref`
-- **THEN** `errors[0].code` равен `USAGE`, `hint` содержит `#issuecomment-`, record не изменён, код 3; с `--as fact` без `--ref` — элемент закрыт, код 0
+- **WHEN** `warrant unknown resolve add-search UNK-SRC-004 --as decision --text "…"` без `--ref`; затем `--as fact --text "…"` для того же blocking `UNK-SRC-004`
+- **THEN** оба — `errors[0].code` равен `USAGE`, `hint` содержит `#issuecomment-` и `UNK-SRC-004`, record не изменён, код 3; `--as fact` без `--ref` для не-blocking `UNK-SRC-005` — элемент закрыт, `assumptions[]` не изменён, код 0
 
-#### Scenario: Нет такого UNKNOWN или он закрыт
+#### Scenario: Нет такого UNKNOWN, он закрыт или ответ пуст
 <!-- id: SCN-KRN-151 -->
-- **WHEN** `warrant unknown resolve add-search UNK-SRC-009 --as fact --text "…"`, а в record есть только открытый `UNK-SRC-004`; затем тот же вызов для уже закрытого `UNK-SRC-004`
-- **THEN** первый — `UNKNOWN_NOT_FOUND` с `hint`, содержащим `UNK-SRC-004`; второй — `UNKNOWN_RESOLVED`; record не изменён, код 3
+- **WHEN** `warrant unknown resolve add-search UNK-SRC-009 --as fact --text "…"`, а в record есть только не-blocking `UNK-SRC-005`; тот же вызов для уже закрытого `UNK-SRC-005`; вызов с `--text "  "`; вызов для Change без record
+- **THEN** `UNKNOWN_NOT_FOUND` с `hint`, содержащим `UNK-SRC-005`; `UNKNOWN_RESOLVED` с `hint`, содержащим `--replace`; `USAGE`; `CHANGE_NOT_FOUND`; record не изменён, код 3; с `--replace` закрытый `UNK-SRC-005` получает новый `resolution`, код 0
 
-#### Scenario: UNKNOWN после merge
+#### Scenario: UNKNOWN после approval
 <!-- id: SCN-KRN-152 -->
-- **WHEN** `warrant unknown add add-search --area SRC --text "…"` при `change_state: MERGED`
-- **THEN** `errors[0].code` равен `STATE_INVALID`, record не изменён, код 3
+- **WHEN** `warrant unknown add add-search --area SRC --text "…"` при `change_state: APPROVED`
+- **THEN** `errors[0].code` равен `STATE_INVALID`, `hint` называет строку `I-N` в `design.md`, record не изменён, код 3
 
 #### Scenario: Пробная запись UNKNOWN
 <!-- id: SCN-KRN-153 -->

@@ -2,41 +2,43 @@
 
 ## Цель
 
-Фаза 4 — MVP frontend по нарезке [ADR-0034](../adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 6, уточнённой
-[ADR-0036](../adr/WARRANT-ADR-0036-phase-4b-producers.md) и [ADR-0037](../adr/WARRANT-ADR-0037-phase-4c-ci.md): `phase-4a`,
-`phase-4b`, `phase-4c` закрыты → vertical slice по [ADR-0039](../adr/WARRANT-ADR-0039-vertical-slice.md) — критерий MVP
-([13 §1](../13-roadmap.md)). Bootstrap `Homasters-max/warrant-slice` сделан корневым коммитом (`3430f5a`), клон —
-`D:/project/warrant-slice`; находки bootstrap — BL-52…BL-55.
+Закрыть фазу 4 приёмкой MVP ([13 §1](../13-roadmap.md), [ADR-0039](../adr/WARRANT-ADR-0039-vertical-slice.md) п. 8).
+Change `rate-limiter` в slice прошёл три PR на v0.7.0, но не проверил `WAIT` (BL-59) и путь waiver ADR-0024 п. 4
+(BL-63). Остались: Change WARRANT по отказам slice → тег и pin в slice → второй малый Change slice → отчёт приёмки.
 
 ## Готовый запрос
 
-Сессия slice — новая сессия Claude Code, открытая в `D:/project/warrant-slice` (hooks `warrant guard` из её
-`.claude/settings.json`); `warrant --version` там — 0.7.0, как pin workflow:
-
 ```text
-Проведи Change rate-limiter этого репозитория от intent до archive по процессу AGENTS.md — три PR, каждый шаг
-только через warrant. Содержание: библиотека rate_limiter — token-bucket на stdlib с внедряемыми часами;
-REQ «не больше N запросов за окно» и «пополнение со временем»; SCN «лимит исчерпан», «пополнение», «независимые
-ключи»; blocking UNKNOWN — поведение при часах, идущих назад (решаю я); риск — от себя через
-warrant classify --propose; тесты pytest с токеном SCN-… своего сценария. Merge PR делаю я. Начни со spec-PR и
-остановись, когда PR открыт и job warrant прошёл, — дай ссылку. Отказ warrant или нехватку подсказки не обходи:
-опиши failure mode (команда, вывод, чего не хватило).
+Поток phase-4, worktree D:/project/SRA-phase-4, ветка process/phase-4. Grilling объёма Change WARRANT по
+отказам slice (навык grilling). Прочитай: ADR-0039 (п. 5, 7, 8), ADR-0024 п. 4, ADR-0034, строки docs/backlog.md
+с источником slice (BL-56…BL-65) и A-31…A-37, аудит docs/process/audits/2026-09-26-phase-4c.md — снимок
+актуален: код CLI после v0.7.0 не менялся, повторный аудит не нужен. Вопросы раунда 1:
+(1) BL-59 — команда записи и закрытия UNKNOWN: classify --propose с unknowns[] или отдельная warrant unknown;
+(2) BL-63 — design.md и delta spec в IMPLEMENTING под guard: write_scope операции implement или операция amend;
+    пересмотр ADR-0024 п. 4 для проектов под guard;
+(3) объём: в тот же Change мелкие BL-56, BL-58, BL-60, BL-61, BL-64 или отдельный fix-Change; BL-57 — до
+    первого Change slice, правящего .warrant/local/**;
+(4) BL-65 — решение maintainer'а: убрать --by у MERGED из AGENTS.md (sync) и навыка change-archive-pr или gate
+    human-approval на VERIFYING->MERGED;
+(5) правит ли Change core/ci — тогда первой группой A-31 + A-32 (ADR-0039 п. 7);
+(6) версия после Change (0.7.x или 0.8.0) и смена pin в slice — Change factory-change там (ADR-0039 п. 5).
+После раунда — сводка, ADR, Change WARRANT навыками change-spec-pr → change-impl-pr → change-archive-pr, тег,
+pin и npm link. Затем передача сессии slice на второй малый Change (WAIT по blocking UNKNOWN, текст spec
+rate-limiter по F-1 через путь waiver) и отчёт приёмки в строке 4c 13 §2: guard_events[] без обойдённых deny,
+нет FRONTEND_HOOKS_INACTIVE, refs переходов в CI, WAIT и waiver.
 ```
-
-После slice — в сессии WARRANT: failure modes — строками backlog с источником `slice`, исправления — Change WARRANT
-(первым, что правит `core/ci`, — группа A-31 + A-32), отчёт приёмки по критерию 13 §1 — в строке 4c 13 §2
-(ADR-0039 п. 7, 8).
 
 ## Открытые вопросы
 
-- Форма установки CLI: ADR-0034 п. 7 и ADR-0039 п. 5 называют `npm i -g github:…#<тег>`, факт — BL-52 (workflow slice
-  ставит через `npm pack`); уточнить новым ADR или по второму проекту.
+- BL-65: `--by` у `MERGED` — убрать из текстов или добавить gate `human-approval`.
+- BL-52: форма установки CLI (`npm i -g github:…#<тег>` в ADR против `npm pack` по факту) — новый ADR до второго
+  проекта под WARRANT; в этот Change или отдельно.
 
 ## Не забыть
 
-- Глобальный `warrant` — `npm link` из основного checkout (`D:/project/SRA`, `main` на `v0.7.0` + документы): после
-  нового тега CLI — pin в workflow slice и `npm link` одной версии.
+- Глобальный `warrant` — `npm link` из основного checkout на теге; после нового тега — pin в workflow slice и
+  `npm link` одной версии.
+- Сессия slice — отдельная сессия Claude Code в `D:/project/warrant-slice`; навыки WARRANT туда не копируются
+  (ADR-0039 п. 3), нехватка подсказки — failure mode строкой backlog.
+- `npm test` целиком на Windows падает по таймаутам (BL-31, BL-37) — прогонять уровни по очереди.
 - BL-46: envelope субагента длиннее ~8 тыс. символов не сдаётся одним heredoc — просить короткие формулировки.
-- BL-45: `classify` по diff spec-PR не видит путей реализации — `--paths` планом.
-- `npm test` целиком на Windows под нагрузкой падает по таймаутам (BL-31, BL-37) — прогонять уровни по очереди.
-- Review spec `PROVEN` с MAJOR — решение в impl-PR по ADR-0024 п. 4 (I-176), не новый раунд.

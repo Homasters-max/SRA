@@ -62,6 +62,13 @@ export interface GitPort {
   diffNameStatus(base: string, commit: string): Promise<GitAnswer<DiffEntry[]>>;
   /** `git diff --name-only <base>...HEAD`: changed paths from the top of the repository. */
   diffNames(base: string): Promise<GitAnswer<string[]>>;
+  /**
+   * The upstream of the branch `base` (`git rev-parse --abbrev-ref <base>@{upstream}`)
+   * and how many of its commits are not in `base` (`git rev-list --count
+   * <base>..<upstream>`); null when `base` has no upstream, the upstream does
+   * not resolve (its branch is missing) or git could not compare them (I-192).
+   */
+  upstreamAhead(base: string): Promise<{ upstream: string; ahead: number } | null>;
   /** Blobs of `git ls-tree -r <rev> -- <paths>`, paths relative to the project. */
   tree(rev: string, paths: string[]): Promise<GitAnswer<BlobTree>>;
   /** `git ls-tree -r --name-only --full-name <rev> -- <paths>`: file paths from the top of the repository; null on failure. */

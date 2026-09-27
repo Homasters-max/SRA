@@ -2,7 +2,7 @@
  * `warrant archive` in the test process (REQ-VER-008): the archive of a
  * `MERGED` Change — SCN-VER-036 —, the refusal outside `MERGED` — SCN-VER-037
  * — the refusal when `spec-valid` fails — SCN-VER-038 — and `--dry-run` —
- * SCN-KRN-137. Moved from e2e
+ * SCN-KRN-137, SCN-KRN-147 (the local date names the archive). Moved from e2e
  * (ADR-0025, task 5.4); the parse of argv, the exit codes of the binary and
  * the archive by the real `openspec` (the delta merged into the main spec) stay
  * in `e2e/archive.test.ts`.
@@ -183,6 +183,26 @@ describe("warrant archive --dry-run (REQ-KRN-034)", () => {
     const real = await archive(p);
     expect(real.exitCode).toBe(0);
     expect(withoutDryRun(run.data)).toEqual(withoutDryRun(real.data));
+    expect(writtenBeyond(before, p.tree(), run.data["would_write"])).toEqual([]);
+  });
+
+  it("names the archive by the local date of the process, as the real run does (SCN-KRN-147)", async () => {
+    const p = await repo("MERGED");
+    // UTC+3 at 2026-09-26T22:54:00Z: the UTC date is the 26th, the local date the 27th.
+    p.clock.set("2026-09-26").setLocal("2026-09-27");
+    const before = p.tree();
+
+    const run: Result = await invoke(() => runArchive(p.dryRun(), "add-search", LOCAL));
+    expect(run.errors).toEqual([]);
+    const archived = "openspec/changes/archive/2026-09-27-add-search";
+    expect(run.data["archive"]).toBe(archived);
+    expect(run.data["would_write"]).toContain(archived);
+    expect(p.tree()).toEqual(before);
+
+    const real = await archive(p);
+    expect(real.exitCode).toBe(0);
+    expect(real.data["archive"]).toBe(archived);
+    expect(existsSync(path.join(p.root, archived, "proposal.md"))).toBe(true);
     expect(writtenBeyond(before, p.tree(), run.data["would_write"])).toEqual([]);
   });
 

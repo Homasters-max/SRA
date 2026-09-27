@@ -22,6 +22,7 @@ import { loadPacks } from "../packs/loader.js";
 import type { LoadedRule, LoadResult } from "../packs/types.js";
 import { UNREADABLE_EXIT, type FrontendAdapter, type FrontendResponse, type GuardEvent, type GuardResult } from "../ports/frontend.js";
 import { appendGuardEvent } from "../run/lifecycle.js";
+import { cliWrittenState } from "../run/state.js";
 import { readCurrent } from "../run/store.js";
 import type { GuardEventRecord, Run } from "../run/types.js";
 import { runFileChecks, validateRun } from "../validate/registry.js";
@@ -29,11 +30,13 @@ import {
   editWithoutRun,
   editWithRun,
   guardedChecks,
+  pathClasses,
   reviewShellAnswer,
   RUN_START_HINT,
   shellAnswer,
   VALIDATE_HINT,
-  type Answer
+  type Answer,
+  type PathClasses
 } from "./decide.js";
 import { parseEvent } from "./event.js";
 
@@ -121,9 +124,14 @@ function eventRecord(event: GuardEvent, files: string[], answer: Answer, finding
 }
 
 /** The answer before the action; what fails in it is a refusal (F9). */
-function decidePre(ctx: Ctx, event: GuardEvent, files: readonly string[], run: Run | undefined): Answer {
+function decidePre(ctx: Ctx, event: GuardEvent, files: readonly string[], run: Run | undefined, env: NodeJS.ProcessEnv): Answer {
   try {
-    if (event.action === "edit") return run !== undefined ? editWithRun(run, files) : editWithoutRun(loadPolicy(ctx.root), files);
+    const classes = (loaded: LoadResult): PathClasses => pathClasses(loaded, cliWrittenState(ctx.root, env));
+    if (event.action === "edit" && run !== undefined) return editWithRun(run, files, () => classes(loadPolicy(ctx.root)));
+    if (event.action === "edit") {
+      const loaded = loadPolicy(ctx.root);
+      return editWithoutRun(loaded, files, classes(loaded));
+    }
     if (event.action === "shell" && run?.operation === "review") return reviewShellAnswer(event.argv, run);
     if (event.action === "shell") return shellAnswer(event.argv, guardedChecks(loadPolicy(ctx.root)), run?.change);
     return { decision: "allow", hints: [] };
@@ -135,7 +143,7 @@ function decidePre(ctx: Ctx, event: GuardEvent, files: readonly string[], run: R
 async function pre(ctx: Ctx, event: GuardEvent, env: NodeJS.ProcessEnv): Promise<GuardResult> {
   const files = projectFiles(ctx.root, event);
   const run = activeRun(ctx.root, env);
-  const answer = decidePre(ctx, event, files, run);
+  const answer = decidePre(ctx, event, files, run, env);
   // A lock not taken is a refusal too: `deny` BUSY, the event lost (F18).
   if (run !== undefined) await appendGuardEvent(ctx, run, env, () => ({ record: eventRecord(event, files, answer, [], []), picked: undefined }));
   return result(answer);

@@ -8,9 +8,13 @@
  * `core/classify` — та же, что проверяют unit-тесты. Собственное состояние
  * Change (`ownState`, N27) в сверку с floor rules и `match.paths` не входит.
  *
- * Запись идёт через `writeJsonFile`, `transitions[]` не трогается: classify —
- * не переход (04 §9). Если изменённые пути получить нечем, ничего не пишется
- * вовсе (SCN-KRN-076).
+ * Запись идёт через `writeRecord` (проверка схемы, `ctx.writes`), `transitions[]`
+ * не трогается: classify — не переход (04 §9). Если изменённые пути получить
+ * нечем, ничего не пишется вовсе (SCN-KRN-076). `--propose` проверяется до
+ * записи: значение risk — по порядку измерения (05 §4), profile — по
+ * объявленным profiles; иначе `USAGE` с допустимыми значениями (SCN-KRN-145).
+ * База позади своего upstream — `BASE_BEHIND_UPSTREAM` до записи
+ * (SCN-KRN-146); upstream не задан или не разрешается — проверки нет (I-192).
  *
  * `--set <dim>=<value>` / `--set profile=<id>` (repeatable) with `--by <login>`
  * are the human source (P-5): the login must hold a role in `roles` of
@@ -28,7 +32,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { writeJsonFile } from "../core/canon/format-json.js";
 import { classify, dimensionValueOrder, type HumanValues, type Proposal } from "../core/classify/index.js";
 import { collectFloors, collectProfileMatches } from "../core/classify/packs.js";
 import type { Ctx } from "../core/ctx.js";
@@ -40,7 +43,7 @@ import { packObjects } from "../core/packs/objects.js";
 import type { LoadResult } from "../core/packs/types.js";
 import { BELOW_FLOOR_APPROVABLE_STATES, CONFIRMED_BY } from "../core/record/lifecycle.js";
 import { readChangeRecord } from "../core/record/read.js";
-import { assertNotFrozen } from "../core/record/write.js";
+import { assertNotFrozen, writeRecord } from "../core/record/write.js";
 import { ownState } from "../core/run/state.js";
 import { resolveForProject, RISK_DIMENSIONS, type Classification, type RiskDimension } from "../core/resolve/index.js";
 import { approvalRoles, checkRef, FALLBACK_ROLE, roleMembers } from "../core/roles.js";
@@ -166,11 +169,47 @@ function parseProposal(raw: string): Proposal {
       if (typeof value !== "string") {
         throw new WarrantError("USAGE", `--propose: risk.${key} must be a string`);
       }
+      const allowed = dimensionValueOrder(key as RiskDimension);
+      if (!allowed.includes(value)) {
+        throw new WarrantError("USAGE", `--propose: risk.${key} must be one of the values of ${key}, not "${value}"`, {
+          hint: `values of ${key}, lowest first: ${allowed.join(", ")}`
+        });
+      }
       values[key as RiskDimension] = value;
     }
     proposal.risk = values;
   }
   return proposal;
+}
+
+/** Profiles of `--propose` must be declared by the enabled packs or `.warrant/local/` (BL-60). */
+function checkProposedProfiles(loaded: LoadResult, profiles: readonly string[]): void {
+  const declared = packObjects(loaded, "profile").map((o) => o.id);
+  const unknown = profiles.filter((id) => !declared.includes(id));
+  if (unknown.length === 0) return;
+  throw new WarrantError("USAGE", `--propose: no profile ${unknown.map((id) => `"${id}"`).join(", ")} in the enabled packs or .warrant/local/`, {
+    hint: `declared profiles: ${[...declared].sort().join(", ")}`
+  });
+}
+
+/**
+ * Changed paths of `git diff <base>...HEAD`, refused while the base lags behind
+ * its own upstream (REQ-KRN-028, BL-58): the diff of a stale base takes in
+ * commits of others, and a later `classify` cannot weaken what it wrote. No
+ * upstream, an upstream that does not resolve, or no answer from git — no
+ * check (I-192).
+ */
+async function changedFromBase(ctx: Ctx, base: string): Promise<string[]> {
+  const changed = await changedFromGit(ctx, base);
+  const upstream = await ctx.git.upstreamAhead(base);
+  if (upstream !== null && upstream.ahead > 0) {
+    throw new WarrantError(
+      "BASE_BEHIND_UPSTREAM",
+      `base "${base}" is behind its upstream "${upstream.upstream}" by ${upstream.ahead} commit(s): the diff would take in commits that are not in the base`,
+      { hint: `pass --base ${upstream.upstream}, or bring "${base}" up to date with "${upstream.upstream}" first` }
+    );
+  }
+  return changed;
 }
 
 export async function runClassify(ctx: Ctx, change: string, opts: ClassifyOptions = {}): Promise<CommandResult> {
@@ -207,10 +246,11 @@ export async function runClassify(ctx: Ctx, change: string, opts: ClassifyOption
   const changed =
     opts.paths !== undefined && opts.paths !== ""
       ? changedFromFile(root, opts.paths)
-      : await changedFromGit(ctx, opts.base !== undefined && opts.base !== "" ? opts.base : "main");
+      : await changedFromBase(ctx, opts.base !== undefined && opts.base !== "" ? opts.base : "main");
 
   const loaded = loadPacks(root);
   if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
+  if (proposal?.profiles !== undefined) checkProposedProfiles(loaded, proposal.profiles);
   if (ref !== undefined && login !== undefined) {
     const { roles, errors } = belowFloorRoles(loaded, record);
     if (errors.length > 0) return failures(errors, EXIT.CONFIG, {}, change);
@@ -244,8 +284,7 @@ export async function runClassify(ctx: Ctx, change: string, opts: ClassifyOption
     return failures(errors, EXIT.CONFIG, { changed, below_floor: result.belowFloor }, change);
   }
 
-  const updated = { ...record, classification: result.classification };
-  writeJsonFile(path.join(root, ".warrant", "changes", `${change}.json`), updated);
+  writeRecord(ctx, change, record, { ...record, classification: result.classification });
 
   const { result: resolved, errors } = resolveForProject(loaded, result.classification);
   const data: Record<string, unknown> = {

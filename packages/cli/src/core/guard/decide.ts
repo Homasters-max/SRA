@@ -9,6 +9,9 @@
  * - `edit` without one — `deny` for the paths of code, tests, Changes and the
  *   policy paths, `allow` for the rest, both with the hint `run start`
  *   (ADR-0022 п. 7);
+ * - in both `deny` of an edit, the state the CLI writes gets the hint of its
+ *   commands (I-190), a policy path no Run writes the hint of a human edit in
+ *   a `factory-change` Change (BL-56), instead of `run start` / `run finish`;
  * - `shell` — `deny` for a simple command that starts with a `guard_prefixes`
  *   entry of a check that must not run directly (ADR-0017 п. 5, F8).
  */
@@ -47,8 +50,60 @@ const SUBMIT_PATH_RE = /^(?!-)[\p{L}\p{N}_./\\:@+,~-]+$/u;
 /** `hint` of a refusal under a `review` Run. */
 export const SUBMIT_HINT = "a review Run only reads; hand in its result with `warrant run submit` (envelope warrant://skill-result/1)";
 
-/** `pre` `edit` with the active Run: every path inside `write_scope` and a non-empty `scope`; none under a `review` Run. */
-export function editWithRun(run: Run, files: readonly string[]): Answer {
+/** `hint` of a `deny` for the state the CLI writes (I-190): its commands, not a Run. */
+export const CLI_STATE_HINT =
+  "records, evidence, Runs and waivers are written by the CLI, not by hand: `warrant transition`, `warrant unknown`, `warrant check`, `warrant waive`, `warrant run`";
+
+/** `hint` of a `deny` for a policy path no Run operation writes (BL-56, ADR-0040 п. 7). */
+export const HUMAN_ONLY_HINT =
+  "no Run operation writes this path: the edit is made by a human (maintainer) outside the agent session, in a Change with the profile `factory-change` (ADR-0040 п. 7)";
+
+/** `hint` of an edit outside the `write_scope` of the active Run. */
+export const RUN_SWITCH_HINT =
+  "edit only inside the write_scope of the Run; for other paths `warrant run finish`, then `warrant run start` with the operation that writes them";
+
+/** Classes of a denied path whose way out is not a Run (REQ-ENF-004). */
+export interface PathClasses {
+  /** State the CLI writes: records, waivers, `<state>/evidence/**`, `<state>/runs/**` (I-190). */
+  cliState(file: string): boolean;
+  /** A policy path outside `paths.src`, `paths.tests` and `openspec/changes/**`: no Run operation writes it (BL-56). */
+  humanOnly(file: string): boolean;
+}
+
+/**
+ * The classes of paths over the loaded project; `cliState` is the matcher of
+ * `<state>` of the process (`cliWrittenState`), and wins over `humanOnly`.
+ */
+export function pathClasses(loaded: LoadResult, cliState: (file: string) => boolean): PathClasses {
+  const policy = pathMatcher(policyPaths(loaded));
+  const runWritten = pathMatcher([...codeScope(loaded.config), "openspec/changes/**"]);
+  return {
+    cliState,
+    humanOnly: (file) => !cliState(file) && policy(file) && !runWritten(file)
+  };
+}
+
+/**
+ * Hints of a `deny` of `files`: the CLI commands for its state, the human for
+ * a path no Run writes, and `fallback` for the rest — each once, only for a
+ * class present among `files`.
+ */
+function denyHints(files: readonly string[], classes: PathClasses, fallback: string): string[] {
+  const hints = new Set<string>();
+  for (const file of files) {
+    if (classes.cliState(file)) hints.add(CLI_STATE_HINT);
+    else if (classes.humanOnly(file)) hints.add(HUMAN_ONLY_HINT);
+    else hints.add(fallback);
+  }
+  return [...hints];
+}
+
+/**
+ * `pre` `edit` with the active Run: every path inside `write_scope` and a
+ * non-empty `scope`; none under a `review` Run. `classes` is asked only for a
+ * refusal outside the `write_scope`.
+ */
+export function editWithRun(run: Run, files: readonly string[], classes: () => PathClasses): Answer {
   if (run.operation === "review" && files.length > 0) {
     return {
       decision: "deny",
@@ -63,7 +118,7 @@ export function editWithRun(run: Run, files: readonly string[]): Answer {
   return {
     decision: "deny",
     reason: `${outside.join(", ")} outside the Run ${run.id} of ${run.change}: write_scope: ${run.write_scope.join(", ")}${narrowed}`,
-    hints: ["edit only inside the write_scope of the Run; for other paths `warrant run finish`, then `warrant run start` with the operation that writes them"]
+    hints: denyHints(outside, classes(), RUN_SWITCH_HINT)
   };
 }
 
@@ -73,7 +128,7 @@ export function guardedWithoutRun(loaded: LoadResult): string[] {
 }
 
 /** `pre` `edit` without an active Run. */
-export function editWithoutRun(loaded: LoadResult, files: readonly string[]): Answer {
+export function editWithoutRun(loaded: LoadResult, files: readonly string[], classes: PathClasses): Answer {
   const guarded = guardedWithoutRun(loaded);
   const matches = pathMatcher(guarded);
   const denied = files.filter((file) => matches(file));
@@ -81,7 +136,7 @@ export function editWithoutRun(loaded: LoadResult, files: readonly string[]): An
   return {
     decision: "deny",
     reason: `no active Run in this worktree: ${denied.join(", ")} under ${guarded.join(", ")} is edited only in a Run`,
-    hints: [RUN_START_HINT]
+    hints: denyHints(denied, classes, RUN_START_HINT)
   };
 }
 

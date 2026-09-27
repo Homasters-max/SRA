@@ -1,6 +1,6 @@
 /**
  * `warrant guard` without `--frontend` in the test process (REQ-ENF-004,
- * SCN-ENF-011…016, F8, F9, F16, F18): the normalised event, `pre` of an edit
+ * SCN-ENF-011…016, SCN-ENF-037…039, F8, F9, F16, F18): the normalised event, `pre` of an edit
  * with and without a Run, `pre` of a shell command against `guard_prefixes`,
  * the hints of `post`, the failures that close `pre` and open `post`, the
  * events in `guard_events[]` and the lock of the Run. Exit 0 whatever the
@@ -133,6 +133,55 @@ describe("warrant guard: pre edit with an active Run", () => {
   });
 });
 
+describe("warrant guard: a deny whose way out is not a Run (BL-56, I-190)", () => {
+  const joined = (result: Result): string => (result.data["hints"] as string[]).join("\n");
+
+  it("a policy path no Run writes: the hint names a human edit in factory-change, not run start or run finish (SCN-ENF-038)", async () => {
+    const p = await repo("IMPLEMENTING");
+    const areas = await guard(p, { phase: "pre", action: "edit", paths: [".warrant/local/areas.json"] });
+    expect(areas.data["decision"]).toBe("deny");
+    expect(joined(areas)).toContain("maintainer");
+    expect(joined(areas)).toContain("factory-change");
+    expect(joined(areas)).not.toContain("warrant run start");
+    expect(joined(areas)).not.toContain("warrant run finish");
+
+    await started(p);
+    const workflow = await guard(p, { phase: "pre", action: "edit", paths: [".github/workflows/ci.yml"] });
+    expect(workflow.data["decision"]).toBe("deny");
+    expect(workflow.data["hints"]).toEqual(areas.data["hints"]);
+    const docs = await guard(p, { phase: "pre", action: "edit", paths: ["docs/notes.md"] });
+    expect(docs.data["decision"]).toBe("deny");
+    expect(docs.data["hints"]).toEqual([expect.stringContaining("warrant run finish")]);
+  });
+
+  it("the state the CLI writes: the hint names its commands, not factory-change, run start or run finish (SCN-ENF-039)", async () => {
+    const p = await repo("IMPLEMENTING");
+    const record = await guard(p, { phase: "pre", action: "edit", paths: [".warrant/changes/add-search.json"] });
+    await started(p);
+    const waiver = await guard(p, { phase: "pre", action: "edit", paths: [".warrant/waivers/WAV-2026-001.json"] });
+    for (const result of [record, waiver]) {
+      expect(result.data["decision"]).toBe("deny");
+      for (const command of ["warrant transition", "warrant unknown", "warrant waive"]) expect(joined(result)).toContain(command);
+      for (const absent of ["factory-change", "warrant run start", "warrant run finish"]) expect(joined(result)).not.toContain(absent);
+    }
+  });
+
+  it("paths of several classes: one hint per class present; <state> follows WARRANT_STATE_DIR", async () => {
+    const p = await repo("IMPLEMENTING");
+    const mixed = await guard(p, { phase: "pre", action: "edit", paths: [".warrant/evidence/add-search/manifest.json", ".warrant/local/areas.json", "src/app.py"] });
+    expect(mixed.data["hints"]).toHaveLength(3);
+    expect(joined(mixed)).toContain("warrant transition");
+    expect(joined(mixed)).toContain("factory-change");
+    expect(joined(mixed)).toContain("warrant run start");
+
+    const input = JSON.stringify({ phase: "pre", action: "edit", paths: ["state/runs/x.json", ".warrant/evidence/add-search/manifest.json"], cwd: p.root });
+    const moved = await invoke(() => runGuard(p.ctx, input, { WARRANT_STATE_DIR: "state" }));
+    // `state/**` is under no guarded glob; `.warrant/evidence` is no longer where the CLI writes: a policy path.
+    expect(moved.data["decision"]).toBe("deny");
+    expect(moved.data["hints"]).toEqual([expect.stringContaining("factory-change")]);
+  });
+});
+
 describe("warrant guard: pre edit without a Run", () => {
   it("code is denied with the hint run start; docs are allowed with the same hint (SCN-ENF-012)", async () => {
     const p = await repo("IMPLEMENTING");
@@ -230,6 +279,17 @@ describe("warrant guard: pre shell", () => {
   it("a check that may run directly is not guarded", async () => {
     const p = await repo("IMPLEMENTING", (b) => testsCheck(b, { exclusive: false, local: "allowed" }));
     expect((await guard(p, { phase: "pre", action: "shell", argv: ["pytest"] })).data["decision"]).toBe("allow");
+  });
+
+  it("the prefix of python -m pytest keeps -m pytest: python - is allowed, python -m pytest denied (SCN-ENF-037)", async () => {
+    const p = await repo("IMPLEMENTING", (b) =>
+      b.withCheck("python", { output: "" }, { id: "tests-passed", args: ["-m", "pytest", "--junitxml={out}"] })
+    );
+    const stdin = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", "python - <<'EOF'"] });
+    expect(stdin.data["decision"]).toBe("allow");
+    const pytest = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", "python -m pytest tests/"] });
+    expect(pytest.data["decision"]).toBe("deny");
+    expect(pytest.data["hints"]).toEqual(["warrant check <change> tests-passed"]);
   });
 });
 

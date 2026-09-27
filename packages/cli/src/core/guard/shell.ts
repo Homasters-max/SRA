@@ -79,12 +79,18 @@ function split(words: readonly string[], dropAssignments = true): string[][] {
 /**
  * The default `guard_prefixes` entry of a check (ADR-0017 п. 5): the words of
  * `run.command` before the first that starts with `-` or holds a placeholder
- * `{…}` — `["pytest", "-q"]` → `["pytest"]`.
+ * `{…}` — `["pytest", "-q"]` → `["pytest"]`. The pair `-m <module>` right
+ * after the first word belongs to the prefix: `python -m pytest` is the
+ * check, `python` alone would also forbid `python -` (BL-61, SCN-ENF-037).
  */
 export function defaultPrefix(command: readonly string[]): string[] {
-  const out: string[] = [];
-  for (const word of command) {
-    if (word.startsWith("-") || word.includes("{")) break;
+  const plain = (word: string | undefined): word is string => word !== undefined && !word.startsWith("-") && !word.includes("{");
+  const [first, flag, module] = command;
+  if (!plain(first)) return [];
+  const withModule = flag === "-m" && plain(module);
+  const out = withModule ? [first, flag, module] : [first];
+  for (const word of command.slice(out.length)) {
+    if (!plain(word)) break;
     out.push(word);
   }
   return out;

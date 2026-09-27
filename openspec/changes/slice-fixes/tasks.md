@@ -96,19 +96,19 @@
 
 ## 5. Мелкие правки (REQ-KRN-028, REQ-KRN-034, REQ-ENF-004)
 
-- [ ] 5.1 BL-60: проверка `--propose` по порядку измерений и profiles; запись `classify` через `writeRecord` (§6).
+- [x] 5.1 BL-60: проверка `--propose` по порядку измерений и profiles; запись `classify` через `writeRecord` (§6).
 
   Проверка: app `classify` на SCN-KRN-145; SCN-KRN-073…077, SCN-KRN-105…107, SCN-KRN-116, SCN-KRN-117, SCN-KRN-138 без правок.
-- [ ] 5.2 BL-58: `GitPort.upstreamAhead`, отказ `BASE_BEHIND_UPSTREAM` (§6); upstream не разрешается — проверка пропускается (I-192).
+- [x] 5.2 BL-58: `GitPort.upstreamAhead`, отказ `BASE_BEHIND_UPSTREAM` (§6); upstream не разрешается — проверка пропускается (I-192).
 
   Проверка: контракт `GitPort` на временном репозитории с upstream; app `classify` на SCN-KRN-146.
-- [ ] 5.3 BL-64: `ClockPort.localToday`, `archivePlan` по локальной дате (§6).
+- [x] 5.3 BL-64: `ClockPort.localToday`, `archivePlan` по локальной дате (§6).
 
   Проверка: unit в дочернем процессе с `TZ=Etc/GMT-3`; app `archive --dry-run` на SCN-KRN-137, SCN-KRN-147.
-- [ ] 5.4 BL-61: `defaultPrefix` с `-m <модуль>` (§6).
+- [x] 5.4 BL-61: `defaultPrefix` с `-m <модуль>` (§6).
 
   Проверка: app `guard` на SCN-ENF-037; SCN-ENF-013 без правок.
-- [ ] 5.5 BL-56: `humanOnly` и hint `deny` policy-пути без операции записи (§6); состояние, которое пишет CLI, — hint с его
+- [x] 5.5 BL-56: `humanOnly` и hint `deny` policy-пути без операции записи (§6); состояние, которое пишет CLI, — hint с его
   командами (I-190).
 
   Проверка: app `guard` на SCN-ENF-038, SCN-ENF-039; SCN-ENF-011, SCN-ENF-012 без правок.

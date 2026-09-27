@@ -27,6 +27,11 @@ interface Repo {
   branch(name: string, from?: string): void;
   checkout(name: string): void;
   merge(name: string, label: string, ff: "no" | "only"): void;
+  /**
+   * `origin/<remote>` becomes the upstream of the local `branch`; the
+   * remote-tracking branch is made at `at`, or left missing without it.
+   */
+  upstream(branch: string, remote: string, at?: string): void;
   /** The commit id recorded under `label`. */
   sha(label: string): string;
 }
@@ -76,6 +81,14 @@ class RealRepo implements Repo {
     this.shas.set(label, this.git("rev-parse", "HEAD"));
   }
 
+  upstream(branch: string, remote: string, at?: string): void {
+    this.git("config", "remote.origin.url", "https://example.invalid/origin.git");
+    this.git("config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*");
+    this.git("config", `branch.${branch}.remote`, "origin");
+    this.git("config", `branch.${branch}.merge`, `refs/heads/${remote}`);
+    if (at !== undefined) this.git("update-ref", `refs/remotes/origin/${remote}`, at);
+  }
+
   sha(label: string): string {
     const sha = this.shas.get(label);
     if (sha === undefined) throw new Error(`no commit ${label}`);
@@ -109,6 +122,11 @@ class FakeRepo implements Repo {
 
   merge(name: string, label: string, ff: "no" | "only"): void {
     this.shas.set(label, this.builder.merge(name, { label, ff }));
+  }
+
+  upstream(branch: string, remote: string, at?: string): void {
+    this.builder.git.setUpstream(branch, `origin/${remote}`);
+    if (at !== undefined) this.builder.git.setRemoteBranch(`origin/${remote}`, at);
   }
 
   sha(label: string): string {
@@ -235,6 +253,33 @@ describe.each(CASES)("GitPort contract: $side, project prefix '$prefix'", ({ mak
       value: [top("del.txt"), top("mod.txt"), top("new/add.txt"), top("z-dst.txt")]
     });
     expect((await r.port.diffNameStatus("no-such-ref", "HEAD")).ok).toBe(false);
+  });
+
+  it("upstream of a base: commits of the upstream not in the base; null without an upstream or its branch (I-192)", async () => {
+    const r = repo();
+    expect(await r.port.upstreamAhead("main")).toBeNull();
+    r.builder.write("a.txt", "a\n");
+    r.commit("base");
+    r.branch("fetched");
+    r.builder.write("b.txt", "b\n");
+    r.commit("up-1");
+    r.builder.write("c.txt", "c\n");
+    r.commit("up-2");
+    r.checkout("main");
+
+    expect(await r.port.upstreamAhead("main")).toBeNull();
+    r.upstream("main", "main", r.sha("up-2"));
+    expect(await r.port.upstreamAhead("main")).toEqual({ upstream: "origin/main", ahead: 2 });
+    expect(await r.port.upstreamAhead("HEAD")).toEqual({ upstream: "origin/main", ahead: 2 });
+    // A remote-tracking branch has no upstream of its own.
+    expect(await r.port.upstreamAhead("origin/main")).toBeNull();
+    // Up to date: the upstream has nothing the base lacks.
+    r.upstream("fetched", "main");
+    expect(await r.port.upstreamAhead("fetched")).toEqual({ upstream: "origin/main", ahead: 0 });
+    // The upstream is set, but its remote-tracking branch is missing.
+    r.upstream("fetched", "gone");
+    expect(await r.port.upstreamAhead("fetched")).toBeNull();
+    expect(await r.port.upstreamAhead("no-such-branch")).toBeNull();
   });
 
   it("trees, file lists and contents at a revision; a commit of some paths only", async () => {

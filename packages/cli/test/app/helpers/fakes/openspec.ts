@@ -184,7 +184,8 @@ export class FakeOpenSpec implements OpenSpecPort {
     const failed: OpenspecAct = { ok: false, output: `Change '${change}' not found` };
     return this.answer(`archive ${change} --yes`, "archive", () => {
       const own = root === this.root;
-      const target = `${this.clock.today()}-${change}`;
+      // openspec names the archive by the local date of the process (`formatLocalDate`, BL-64).
+      const target = `${this.clock.localToday()}-${change}`;
       const from = path.join(root, "openspec", "changes", change);
       const to = path.join(root, "openspec", "changes", "archive", target);
       if (own ? !this.changes.has(change) : !existsSync(from)) return failed;

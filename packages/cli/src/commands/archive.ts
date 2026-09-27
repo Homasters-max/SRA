@@ -98,8 +98,9 @@ async function archive(ctx: Ctx, change: string, env: NodeJS.ProcessEnv): Promis
   }
   for (const error of run.errors) warn(`archive: ${error.code}: ${error.message}\n`);
 
-  // Under --dry-run `openspec archive` is not called: the move is the one it would make.
-  const plan = archivePlan(root, change, ctx.clock.today());
+  // Under --dry-run `openspec archive` is not called: the move is the one it would make,
+  // dated as openspec dates it — the local date of the process, not UTC (BL-64).
+  const plan = archivePlan(root, change, ctx.clock.localToday());
   const archived = await ctx.writes.write(plan.targets, () => ctx.openspec.archive(change));
   const location = archived === undefined ? { where: "archive", path: plan.archive } : findChangeDir(root, change);
   // The move is the act: once the directory is in archive/, the transition is written.

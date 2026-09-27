@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "slice-fixes",
-  "commit": "faaee670f56353cfcf272b6cce4413066d0ec6b0",
+  "commit": "f31fc7e1c4c49d3420eed199834faddbe7053cd7",
   "versions": {
     "warrant": "0.7.0",
     "openspec": "1.13.1",
@@ -9,6 +9,7 @@
     "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829"
   },
   "evidence": [
-    "EVID-01M3HHP1E0RNGE9JPCV03ZR218"
+    "EVID-01M3HHP1E0RNGE9JPCV03ZR218",
+    "EVID-01M3HJ6QTYW3TE8KP4ZH7830HS"
   ]
 }

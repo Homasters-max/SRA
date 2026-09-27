@@ -62,8 +62,10 @@ waiver [ADR-0024](WARRANT-ADR-0024-spec-approved-contract.md) п. 4 не про�
    ref — URL комментария PR `#issuecomment-<id>` или `#pullrequestreview-<id>` (строчные `#discussion_r…` — нет);
    автор ∈ `roles.maintainer`; текст комментария содержит id UNKNOWN (review 1 spec, решение maintainer'а); комментарий — в
    том PR, который несёт ref `APPROVED` (spec-PR Change). `ForgePort`
-   получает пятый метод — комментарий по URL → автор и PR (уточняет ADR-0037 п. 6). Без этой проверки агент снимает
-   `WAIT` сам.
+   получает пятый метод — комментарий по URL → автор, PR и текст (уточняет ADR-0037 п. 6). Без этой проверки агент снимает
+   `WAIT` сам. PR после `SPECIFIED` не удаляет элемент `unknowns[]` record базы и не ослабляет его (`blocking`, `resolution`,
+   `resolved_as`, `ref`) — `RECORD_MISMATCH` (решение maintainer'а по review 2 spec, F-1, 2026-09-27; в impl-PR `slice-fixes`
+   — строкой `I-N` и правкой delta spec по ADR-0024 п. 4).
 4. **Правка spec в `IMPLEMENTING`** (N62; BL-63). `write_scope` `implement` += `openspec/changes/<change>/design.md` и
    `openspec/changes/<change>/specs/**`; `proposal.md` — нет (правка REQ-ENF-002). Контроль — gate `spec-approved`:
    правка spec даёт `SPEC_CHANGED_AFTER_APPROVAL`, пока maintainer не активирует waiver. ADR-0024 п. 4 исполним и под

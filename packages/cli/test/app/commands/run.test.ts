@@ -1,6 +1,6 @@
 /**
  * `warrant run start` / `run finish` in the test process (REQ-ENF-001…003,
- * SCN-ENF-002, 004…010, 023): the Run file and `current`, `write_scope` by
+ * SCN-ENF-002, 004…010, 023, 036): the Run file and `current`, `write_scope` by
  * operation, the Context Pack, one active Run per worktree, `--dry-run`, the
  * lock of the Run file (F18) and a `hint` on every error (REQ-KRN-002).
  */
@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { runGuard } from "../../../src/commands/guard.js";
 import { runFinish, runStart, type RunFinishOptions, type RunStartOptions } from "../../../src/commands/run.js";
 import { canonicalText } from "../../../src/core/canon/format-json.js";
 import { specTreeHash } from "../../../src/core/git/facts.js";
@@ -24,6 +25,14 @@ const project = useProjectBuilder();
 const ENV: NodeJS.ProcessEnv = {};
 const RUNS = ".warrant/runs";
 const CURRENT = `${RUNS}/current`;
+/** `write_scope` of `implement` on `add-search` with `paths.src: src`, `paths.tests: tests` (REQ-ENF-002). */
+const IMPLEMENT_SCOPE = [
+  "src/**",
+  "tests/**",
+  "openspec/changes/add-search/tasks.md",
+  "openspec/changes/add-search/design.md",
+  "openspec/changes/add-search/specs/**"
+];
 
 type Data = Record<string, any>;
 type Result = CommandResult & { data: Data };
@@ -148,12 +157,26 @@ describe("warrant run start", () => {
     });
     const run = await start(p, "add-search", { operation: "implement", scope: "src/search/**" });
     expect(run.errors).toEqual([]);
-    expect(run.data["write_scope"]).toEqual(["src/**", "tests/**", "openspec/changes/add-search/tasks.md"]);
+    expect(run.data["write_scope"]).toEqual(IMPLEMENT_SCOPE);
     expect(run.data["scope"]).toEqual(["src/search/**"]);
     expect(run.data["rules"]).toEqual([{ id: "search-api", paths: ["src/search/**"], text: "Rule search-api." }]);
     const stored = readRun(p, run.data["run"]);
     expect(stored["write_scope"]).toEqual(run.data["write_scope"]);
     expect(stored["scope"]).toEqual(["src/search/**"]);
+  });
+
+  it("implement in IMPLEMENTING: write_scope holds tasks.md, design.md and specs/** of the Change, not proposal.md; guard allows the spec, denies the proposal (SCN-ENF-036)", async () => {
+    const p = await repo("IMPLEMENTING");
+    const run = await start(p, "add-search", { operation: "implement" });
+    expect(run.errors).toEqual([]);
+    expect(run.data["write_scope"]).toEqual(IMPLEMENT_SCOPE);
+    expect(readRun(p, run.data["run"])["write_scope"]).toEqual(IMPLEMENT_SCOPE);
+    const edit = async (file: string): Promise<unknown> => {
+      const event = JSON.stringify({ phase: "pre", action: "edit", paths: [file], cwd: p.root });
+      return (await invoke(() => runGuard(p.ctx, event, ENV))).data["decision"];
+    };
+    expect(await edit("openspec/changes/add-search/specs/search/spec.md")).toBe("allow");
+    expect(await edit("openspec/changes/add-search/proposal.md")).toBe("deny");
   });
 
   it("implement without paths.src and paths.tests: CONFIG_INVALID with a hint, nothing written", async () => {

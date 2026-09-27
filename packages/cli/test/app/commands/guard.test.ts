@@ -81,7 +81,7 @@ describe("warrant guard: pre edit with an active Run", () => {
     ]);
   });
 
-  it("inside write_scope: allow without hints; a path from cwd, an absolute one and tasks.md exactly", async () => {
+  it("inside write_scope: allow without hints; a path from cwd, an absolute one, tasks.md, design.md and specs/** of the Change, not proposal.md (SCN-ENF-036)", async () => {
     const p = await repo("IMPLEMENTING");
     const id = await started(p);
     const relative = await guard(p, { phase: "pre", action: "edit", paths: ["app.py"], cwd: path.join(p.root, "src") });
@@ -91,12 +91,18 @@ describe("warrant guard: pre edit with an active Run", () => {
     const tasks = await guard(p, { phase: "pre", action: "edit", paths: ["openspec/changes/add-search/tasks.md"] });
     expect(tasks.data["decision"]).toBe("allow");
     const design = await guard(p, { phase: "pre", action: "edit", paths: ["openspec/changes/add-search/design.md"] });
-    expect(design.data["decision"]).toBe("deny");
+    expect(design.data["decision"]).toBe("allow");
+    const spec = await guard(p, { phase: "pre", action: "edit", paths: ["openspec/changes/add-search/specs/search/spec.md"] });
+    expect(spec.data["decision"]).toBe("allow");
+    const proposal = await guard(p, { phase: "pre", action: "edit", paths: ["openspec/changes/add-search/proposal.md"] });
+    expect(proposal.data["decision"]).toBe("deny");
     expect(events(p, id).map((e) => [e["paths"], e["decision"]])).toEqual([
       [["src/app.py"], "allow"],
       [["tests/test_app.py"], "allow"],
       [["openspec/changes/add-search/tasks.md"], "allow"],
-      [["openspec/changes/add-search/design.md"], "deny"]
+      [["openspec/changes/add-search/design.md"], "allow"],
+      [["openspec/changes/add-search/specs/search/spec.md"], "allow"],
+      [["openspec/changes/add-search/proposal.md"], "deny"]
     ]);
   });
 

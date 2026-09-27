@@ -89,7 +89,7 @@
 
 ## 4. write_scope implement (REQ-ENF-002)
 
-- [ ] 4.1 `writeScopeOf("implement")` += `design.md`, `specs/**` Change (§5).
+- [x] 4.1 `writeScopeOf("implement")` += `design.md`, `specs/**` Change (§5).
 
   Проверка: app `run` на SCN-ENF-036; ожидания `write_scope` в `run.test.ts`, `guard.test.ts`, `frontend-claude.contract.test.ts`,
   `frontend-lifecycle.test.ts` — по delta; SCN-ENF-004…008, SCN-ENF-011 без других правок.

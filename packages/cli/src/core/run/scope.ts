@@ -17,9 +17,10 @@ function directory(value: string | undefined): string | undefined {
 
 /**
  * `write_scope` of `operation` on `change`: `specify` — the Change directory;
- * `implement` — `<paths.src>/**`, `<paths.tests>/**` and `tasks.md` of the
- * Change; `review` — nothing, a review only reads (REQ-ENF-002). `implement`
- * without either path is `CONFIG_INVALID`.
+ * `implement` — `<paths.src>/**`, `<paths.tests>/**`, `tasks.md`, `design.md`
+ * and `specs/**` of the Change, not `proposal.md` (a spec edit after approval is
+ * judged by gate `spec-approved`, ADR-0040 п. 4); `review` — nothing, a review
+ * only reads (REQ-ENF-002). `implement` without either path is `CONFIG_INVALID`.
  */
 export function writeScopeOf(operation: RunOperation, change: string, config: WarrantConfig): string[] {
   const dir = `openspec/changes/${change}`;
@@ -32,7 +33,7 @@ export function writeScopeOf(operation: RunOperation, change: string, config: Wa
       hint: 'set "paths": { "src": "<dir>", "tests": "<dir>" } in .warrant/warrant.json, then `warrant validate`'
     });
   }
-  return code.concat(`${dir}/tasks.md`);
+  return code.concat(`${dir}/tasks.md`, `${dir}/design.md`, `${dir}/specs/**`);
 }
 
 /** `<paths.src>/**` and `<paths.tests>/**` of `warrant.json`, those that are set: the code and tests of the project. */

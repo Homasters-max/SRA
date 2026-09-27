@@ -1,0 +1,12 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "lattice-fixes",
+  "change_state": "PROPOSED",
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-09-27T23:47:36.728Z",
+      "by": "cli:local"
+    }
+  ]
+}

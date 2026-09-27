@@ -69,6 +69,17 @@ function ciRef(json: unknown): string | undefined {
   return attestation.type === "ci" ? attestation.ref : undefined;
 }
 
+/**
+ * The recovery run on M (ADR-0037 п. 4, BL-53): `gh workflow run` of the
+ * workflow file of `run` — a run of the head of the pull request — or, without
+ * one, a placeholder for the workflow file of the job `warrant`: the file is
+ * the project's own, not a literal of the CLI.
+ */
+export function recoveryRun(m: string, run: WorkflowRun | null | undefined): string {
+  const file = run === null || run === undefined ? "<workflow file of the job warrant>" : path.posix.basename(run.workflowPath);
+  return `gh workflow run ${file} -f merge_commit=${m}`;
+}
+
 /** The committed CI records of `change` on HEAD, by id, with their text. */
 async function committedRecords(ctx: Pick<Ctx, "git">, subject: CiSubject, change: string): Promise<Map<string, string>> {
   const dir = evidenceRel(change);
@@ -129,25 +140,28 @@ export async function verifyCiEvidence(
         fail("commit", `no merge commit M on the first-parent line of the base has ${String(recorded?.commit)}, the subject.commit of the record, as its head`);
         continue;
       }
+      const parsed = parseCiRef(ref);
+      const runOf = (at: NonNullable<typeof parsed>): Promise<WorkflowRun | null> => {
+        const key = `${at.id} ${at.attempt}`;
+        if (!runs.has(key)) runs.set(key, ctx.forge.workflowRun(at.id, at.attempt));
+        return runs.get(key) as Promise<WorkflowRun | null>;
+      };
       const tree = await ctx.git.treeId(m);
       if (recorded.tree === undefined || recorded.tree !== tree) {
         fail(
           "tree",
           recorded.tree === undefined ? `the record has no subject.tree: evidence on the result of the merge M ${m} is required` : `subject.tree ${recorded.tree} is not ${String(tree)}, the tree of M ${m}`,
-          `run the job on M: gh workflow run ci.yml -f merge_commit=${m}, then warrant ci fetch <impl-PR>`
+          `run the job on M: ${recoveryRun(m, parsed === null ? null : await runOf(parsed))}, then warrant ci fetch <impl-PR>`
         );
         continue;
       }
 
-      const parsed = parseCiRef(ref);
       if (parsed === null) {
         fail("ref", `attestation.ref ${ref} is not the URL of a run attempt of GitHub Actions`);
         continue;
       }
-      const key = `${parsed.id} ${parsed.attempt}`;
-      if (!runs.has(key)) runs.set(key, ctx.forge.workflowRun(parsed.id, parsed.attempt));
-      const run = await runs.get(key);
-      if (run === null || run === undefined) {
+      const run = await runOf(parsed);
+      if (run === null) {
         fail("run", `no attempt ${parsed.attempt} of run ${parsed.id} in the repository of the forge`);
         continue;
       }
@@ -180,7 +194,7 @@ export async function verifyCiEvidence(
       if (!artifacts.has(artifactKey)) artifacts.set(artifactKey, ctx.forge.downloadArtifact(run.id, name));
       const files = await artifacts.get(artifactKey);
       if (files === null || files === undefined) {
-        fail("artifact", `run ${run.id} has no artifact ${name} (expired after 90 days, or never uploaded)`, `run the job on M: gh workflow run ci.yml -f merge_commit=${m}, then warrant ci fetch <impl-PR>`);
+        fail("artifact", `run ${run.id} has no artifact ${name} (expired after 90 days, or never uploaded)`, `run the job on M: ${recoveryRun(m, run)}, then warrant ci fetch <impl-PR>`);
         continue;
       }
       const attempt = runAttemptKey(parsed);

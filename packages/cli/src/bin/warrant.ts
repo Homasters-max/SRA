@@ -359,7 +359,7 @@ register(
       .addHelpText(
         "after",
         examples(["warrant ci fetch 57", "warrant ci fetch https://github.com/<owner>/<repo>/pull/57 --dry-run"]) +
-          "\nNo run on the tree of the merge commit M (main moved before the merge): gh workflow run ci.yml -f merge_commit=<M>, then fetch again.\n" +
+          "\nNo run on the tree of the merge commit M (main moved before the merge): gh workflow run <workflow file of the job warrant> -f merge_commit=<M> (the hint of NO_CI_EVIDENCE names it), then fetch again.\n" +
           "Exit codes: 0 imported or already present; 3 USAGE, PR_NOT_FOUND, PR_NOT_MERGED, PR_NOT_IMPL, NO_CI_EVIDENCE, EVIDENCE_CONFLICT, BUSY, FORGE_UNAVAILABLE — nothing written.\n"
       ),
   ciCommand

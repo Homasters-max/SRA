@@ -14,7 +14,7 @@
  * `archive`, `warrant ci` of the archive-PR; the binary on the real git —
  * `test/e2e/ci-lifecycle.test.ts` (I-185).
  */
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -26,6 +26,7 @@ import { acquireLock, lockPath } from "../../../src/core/check/lock.js";
 import type { Ctx } from "../../../src/core/ctx.js";
 import type { Json } from "../../../src/core/schemas/loader.js";
 import type { CommandResult } from "../../../src/io/output.js";
+import { advance, artifactOf, AT, pullRequest, RECORD } from "../helpers/ci.js";
 import { FAKE_REPOSITORY, fakePull, fakeRun, type FakeArtifact } from "../helpers/fakes/forge.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
@@ -35,10 +36,7 @@ const project = useProjectBuilder();
 type Data = Record<string, any>;
 type Result = CommandResult & { data: Data };
 
-const RECORD = ".warrant/changes/add-search.json";
 const EVIDENCE = ".warrant/evidence/add-search";
-const HASH = `sha256:${"0".repeat(64)}`;
-const AT = "2026-09-25T10:00:00Z";
 const RUNS = `https://github.com/${FAKE_REPOSITORY}/actions/runs`;
 const CI_ENV: NodeJS.ProcessEnv = {
   GITHUB_ACTIONS: "true",
@@ -54,34 +52,6 @@ const junit =
 
 function fetch(p: ProjectBuilder, pr = "9", env: NodeJS.ProcessEnv = {}, ctx: Ctx = p.ctx): Promise<Result> {
   return invoke(() => runCiFetch(ctx, pr, env)) as Promise<Result>;
-}
-
-/** Appends a transition to the record of `add-search` in the working tree. */
-function advance(p: ProjectBuilder, to: string, fields: Record<string, unknown> = {}): void {
-  const record = p.json(RECORD);
-  record.transitions.push({ to, at: AT, by: "cli:local", effective_policy_hash: HASH, gates: {}, ...fields });
-  record.change_state = to;
-  p.write(RECORD, record);
-}
-
-/** Branch `name` from `main`, `work` on it, one commit; `main` merges it with a merge commit. */
-function pullRequest(p: ProjectBuilder, name: string, work: (p: ProjectBuilder) => void): { head: string; merge: string } {
-  p.branch(name, "main");
-  work(p);
-  const head = p.commit(`${name}: head`);
-  p.checkout("main", { force: true });
-  return { head, merge: p.merge(name, { label: `Merge ${name}` }) };
-}
-
-/** Files of the directory `rel`, as `actions/upload-artifact` uploads them. */
-function artifactOf(p: ProjectBuilder, rel: string): Record<string, Buffer> {
-  const dir = path.join(p.root, rel);
-  const out: Record<string, Buffer> = {};
-  for (const entry of readdirSync(dir, { recursive: true }) as string[]) {
-    const file = path.join(dir, entry);
-    if (statSync(file).isFile()) out[entry.split(path.sep).join("/")] = readFileSync(file);
-  }
-  return out;
 }
 
 interface Merged {
@@ -196,6 +166,24 @@ describe("warrant ci fetch: the run on the tree of M", () => {
     expect(result.errors[0]?.hint).toContain(`gh workflow run ci.yml -f merge_commit=${m}`);
     expect(result.exitCode).toBe(3);
     expect(p.tree()).toEqual(before);
+  });
+
+  it("the recovery hint names the workflow of the run, not a literal; without a run of the job — a placeholder (BL-53)", async () => {
+    const { p, m, head, files } = await merged();
+    p.withForge({
+      pulls: [fakePull(9, { mergeCommit: m, headSha: head })],
+      runs: [fakeRun(43, { headSha: head, workflowPath: ".github/workflows/warrant.yml" })],
+      artifacts: [artifact(43, 1, remade(files, `${RUNS}/43/attempts/1`, OTHER_TREE))]
+    });
+    const named = await fetch(p);
+    expect(named.errors[0]?.code).toBe("NO_CI_EVIDENCE");
+    expect(named.errors[0]?.hint).toBe(`gh workflow run warrant.yml -f merge_commit=${m}, wait for it, then warrant ci fetch 9`);
+
+    const bare = await merged();
+    bare.p.withForge({ pulls: [fakePull(9, { mergeCommit: bare.m, headSha: bare.head })] });
+    const result = await fetch(bare.p);
+    expect(result.errors[0]?.code).toBe("NO_CI_EVIDENCE");
+    expect(result.errors[0]?.hint).toBe(`gh workflow run <workflow file of the job warrant> -f merge_commit=${bare.m}, wait for it, then warrant ci fetch 9`);
   });
 
   it("a recovery workflow_dispatch run from main after the merge, head sha the tip of main (SCN-VER-096)", async () => {

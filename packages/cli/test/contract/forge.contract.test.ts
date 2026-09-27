@@ -4,7 +4,9 @@
  * `FakeForge` filled with the same objects give the same answers. The objects
  * are historical and stay: PR #53 (the impl-PR of phase-4b, merged by a merge
  * commit), its run 36203233664 and the run 36205628647 with three attempts
- * (Re-run, I-175). Artifacts live 90 days, so `downloadArtifact` reads the
+ * (Re-run, I-175); the maintainer's issue comment and review naming
+ * UNK-KRN-999 in PR #68, the spec-PR of slice-fixes (design slice-fixes §4,
+ * task 3.3). Artifacts live 90 days, so `downloadArtifact` reads the
  * latest successful run of the head of the latest merged impl-PR, found from the
  * records of this checkout.
  *
@@ -17,7 +19,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { ForgeGh } from "../../src/adapters/forge-gh.js";
 import { FORGE_HINT, WarrantError } from "../../src/core/errors.js";
-import type { ForgePort, PullRequest, WorkflowRun } from "../../src/core/ports/forge.js";
+import type { Comment, CommentRef, ForgePort, PullRequest, WorkflowRun } from "../../src/core/ports/forge.js";
 import { FakeForge } from "../app/helpers/fakes/forge.js";
 import { makeTempDir, removeDir, REPO_ROOT } from "../helpers/cli.js";
 
@@ -46,6 +48,7 @@ const RUN: WorkflowRun = {
   headBranch: "worktree/phase-4b",
   headSha: PR_53.headSha,
   conclusion: "success",
+  workflowPath: ".github/workflows/ci.yml",
   createdAt: "2026-09-26T00:01:11Z"
 };
 
@@ -63,8 +66,20 @@ const RETRIED: WorkflowRun[] = [
   headBranch: "archive/phase-4b",
   headSha: "f818f322d3d90b52b12ae354e8ab2551e5830614",
   conclusion: conclusion as string,
+  workflowPath: ".github/workflows/ci.yml",
   createdAt: createdAt as string
 }));
+
+/** The issue comment and the review of PR #68 as `parseCommentUrl` reads their URLs (repository in lower case). */
+const ISSUE_COMMENT: CommentRef = { repository: REPOSITORY.toLowerCase(), pullRequest: 68, kind: "issue", id: 5856576133 };
+const REVIEW: CommentRef = { repository: REPOSITORY.toLowerCase(), pullRequest: 68, kind: "review", id: 5330605727 };
+
+/** What both answer: the same author, pull request and text. */
+const DECISION: Comment = {
+  author: "Homasters-max",
+  pullRequest: 68,
+  body: "Contract fixture for ForgePort.comment (slice-fixes, task 3.3); UNK-KRN-999"
+};
 
 interface MergedImpl {
   change: string;
@@ -124,7 +139,11 @@ function fakeForge(): FakeForge {
   return new FakeForge().add({
     pulls: [PR_53],
     runs: [RUN, ...RETRIED, implRun],
-    artifacts: [{ runId: 7, name: `evidence-${MERGED_IMPL.change}-1`, files }]
+    artifacts: [{ runId: 7, name: `evidence-${MERGED_IMPL.change}-1`, files }],
+    comments: [
+      { ...DECISION, kind: "issue", id: ISSUE_COMMENT.id, repository: REPOSITORY },
+      { ...DECISION, kind: "review", id: REVIEW.id, repository: REPOSITORY }
+    ]
   });
 }
 
@@ -186,6 +205,15 @@ describe.each(SIDES)("ForgePort contract: $side", ({ port: portOf }) => {
     expect(await ids({ headSha: PR_53.headSha, event: "workflow_dispatch" })).toEqual([]);
     const retried = (await port.listRuns({ headSha: RETRIED[0]?.headSha as string })).find((r) => r.id === RETRIED_ID);
     expect(retried).toEqual({ ...RETRIED[2], createdAt: RETRIED[0]?.createdAt });
+  });
+
+  it("comment: an issue comment and a review of the maintainer; null for no such id, a review under another PR, another repository", async () => {
+    expect(await port.comment(ISSUE_COMMENT)).toEqual(DECISION);
+    expect(await port.comment(REVIEW)).toEqual(DECISION);
+    expect(await port.comment({ ...ISSUE_COMMENT, id: 1 })).toBeNull();
+    expect(await port.comment({ ...REVIEW, id: 1 })).toBeNull();
+    expect(await port.comment({ ...REVIEW, pullRequest: 67 })).toBeNull();
+    expect(await port.comment({ ...ISSUE_COMMENT, repository: "octocat/hello-world" })).toBeNull();
   });
 
   it("downloadArtifact: the evidence of the latest successful run of the latest merged impl-PR; null for no such artifact", async () => {

@@ -5,7 +5,9 @@
  * policy hash and passing verdicts, name evidence files valid on HEAD; a frozen
  * record does not change; the classification is not weaker than the base and
  * than what `classify` by the base derives from the diff (I-171); a new
- * `MERGED` holds the policy of the base and CI evidence behind its gates (I-172).
+ * `MERGED` holds the policy of the base and CI evidence behind its gates (I-172);
+ * from `SPECIFIED` of the base on, no UNKNOWN of the base is removed or
+ * weakened (I-188).
  * What each rule requires comes from the base; no verdict is computed again.
  */
 import { canonicalHash } from "../canon/hash.js";
@@ -17,13 +19,14 @@ import { evidenceRel } from "../evidence/store.js";
 import { isPlainObject, strings } from "../json.js";
 import { PASSING_VERDICTS, MERGE_TRANSITION, type Verdict } from "../gates/types.js";
 import { FACTORY_PROFILE, gateDefinitions } from "../packs/objects.js";
-import { isFrozen, isMergeKind, transitionKind } from "../record/lifecycle.js";
+import { isFrozen, isMergeKind, transitionKind, UNKNOWNS_HELD_STATES } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
 import { recordPath } from "../record/write.js";
 import { RISK_LEVELS } from "../resolve/index.js";
 import { ownState } from "../run/state.js";
 import { validateFile } from "../schemas/semantic.js";
 import type { Json } from "../schemas/loader.js";
+import { isClosed, unknownsOf } from "../unknowns/state.js";
 import { basePolicy, changedBundledPacks, requiredProfiles, type BaseContext } from "./base.js";
 import { jsonAt, type CiSubject } from "./kind.js";
 
@@ -58,7 +61,8 @@ export type MismatchReason =
   | "frozen"
   | "classification"
   | "policy"
-  | "ci_evidence";
+  | "ci_evidence"
+  | "unknowns";
 
 function transitionsOf(record: ChangeRecord | undefined): Record<string, unknown>[] {
   const list = record?.["transitions"];
@@ -190,6 +194,48 @@ function classificationRule(
 }
 
 /**
+ * The UNKNOWNs of the record of the base in `SPECIFIED` or later, kept on HEAD
+ * (REQ-VER-011 «Record», I-188): the same id, `blocking: true` stays true, a
+ * non-empty `resolution` stays non-empty, `resolved_as` and `ref` once set are
+ * not removed and `resolved_as` does not change; a blocking element closed on
+ * HEAD is closed as `decision` — its ref `decisions.ts` judges. Otherwise a
+ * pull request would lift `WAIT` without the maintainer: the verdict of
+ * `blocking-unknowns-resolved` is not computed again.
+ */
+function unknownsRule(change: string, head: ChangeRecord, base: ChangeRecord | undefined): CliError[] {
+  const state = base?.["change_state"];
+  if (base === undefined || typeof state !== "string" || !UNKNOWNS_HELD_STATES.has(state)) return [];
+  const after = unknownsOf(head);
+  const errors: CliError[] = [];
+  for (const [i, before] of unknownsOf(base).entries()) {
+    if (!isPlainObject(before) || typeof before["id"] !== "string") continue;
+    const id = before["id"];
+    const index = after.findIndex((e) => isPlainObject(e) && e["id"] === id);
+    const now = after[index];
+    const fail = (detail: string, pointer: string): void => {
+      errors.push(mismatch(change, `unknowns/${i} (${id})`, "unknowns", `${id} ${detail} (record of the base in ${state})`, pointer));
+    };
+    if (index < 0 || !isPlainObject(now)) {
+      fail("is removed from unknowns[]", "#/unknowns");
+      continue;
+    }
+    const at = `#/unknowns/${index}`;
+    const weakened: string[] = [];
+    if (before["blocking"] === true && now["blocking"] !== true) weakened.push("blocking is no longer true");
+    if (isClosed(before) && !isClosed(now)) weakened.push("its resolution is emptied");
+    if (before["resolved_as"] !== undefined && now["resolved_as"] !== before["resolved_as"]) {
+      weakened.push(`resolved_as ${String(before["resolved_as"])} is ${now["resolved_as"] === undefined ? "removed" : `changed to ${String(now["resolved_as"])}`}`);
+    }
+    if (before["ref"] !== undefined && now["ref"] === undefined) weakened.push("its ref is removed");
+    if (now["blocking"] === true && isClosed(now) && now["resolved_as"] !== "decision") {
+      weakened.push(`a blocking UNKNOWN is closed as ${String(now["resolved_as"] ?? "(none)")}, only a decision closes it`);
+    }
+    if (weakened.length > 0) fail(`is weakened: ${weakened.join("; ")}`, at);
+  }
+  return errors;
+}
+
+/**
  * Judges the record of the Change of `subject` (REQ-VER-011 «Record»).
  * `RECORD_MISMATCH` errors name the transition and the reason.
  */
@@ -248,6 +294,7 @@ export async function judgeRecord(
     }
   }
 
+  errors.push(...unknownsRule(change, head, subject.baseRecord));
   if (isMergeKind(subject.kind)) {
     errors.push(...classificationRule(ctx, subject, change, head, base, env));
   }

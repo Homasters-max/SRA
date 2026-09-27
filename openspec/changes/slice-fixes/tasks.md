@@ -59,30 +59,30 @@
 
 ## 3. Решения UNKNOWN в warrant ci, A-37, BL-53 (REQ-VER-013, REQ-VER-011)
 
-- [ ] 3.1 `ForgePort.comment`, `CommentRef`, `Comment` (`author`, `pullRequest`, `body`); `ForgeGh` — issue comment и review;
+- [x] 3.1 `ForgePort.comment`, `CommentRef`, `Comment` (`author`, `pullRequest`, `body`); `ForgeGh` — issue comment и review;
   `FakeForge.addComment` (§4).
 
   Проверка: unit разбора ответов `gh api` на записанных телах; `architecture.test.ts` зелёный.
-- [ ] 3.2 `parseCommentUrl`, `core/ci/decisions.ts` — `judgeDecisions`, `RefReason` `decision`, находка
+- [x] 3.2 `parseCommentUrl`, `core/ci/decisions.ts` — `judgeDecisions`, `RefReason` `decision`, находка
   `DECISION_NOT_VERIFIED`; вызов из `judgePullRequest` (§4, REQ-VER-013); деталь `pull_request` — и по PR комментария из ответа
   форжа (I-189).
 
   Проверка: app `ci` на SCN-VER-111…115; прежние SCN-VER `ci` без правок.
-- [ ] 3.3 Контракт `forge.contract.test.ts` — комментарий maintainer'а и review в spec-PR `slice-fixes` (§4).
+- [x] 3.3 Контракт `forge.contract.test.ts` — комментарий maintainer'а и review в spec-PR `slice-fixes` (§4).
 
   Проверка: `test:contract` зелёный на настоящем GitHub; `comment` несуществующего id — `null`.
-- [ ] 3.4 A-37: `test/app/helpers/ci.ts` (`advance`, `pullRequest`, `artifactOf`), `codes` e2e — из `helpers/synced.ts`; строки
+- [x] 3.4 A-37: `test/app/helpers/ci.ts` (`advance`, `pullRequest`, `artifactOf`), `codes` e2e — из `helpers/synced.ts`; строки
   `test_helpers`.
 
   Проверка: `cs dups` по тестам `ci` — без копий; тесты `ci`, `ci fetch`, e2e без правок ожидаемых значений.
-- [ ] 3.5 BL-53: `WorkflowRun.workflowPath`, hints восстановления и help `ci fetch` без литерала `ci.yml` (§4).
+- [x] 3.5 BL-53: `WorkflowRun.workflowPath`, hints восстановления и help `ci fetch` без литерала `ci.yml` (§4).
 
   Проверка: app `ci fetch` (`NO_CI_EVIDENCE`) и archive-PR — hint называет workflow run; `cs grep 'ci.yml' --fixed --in
   packages/cli/src` — пусто.
-- [ ] 3.6 `.github/workflows/ci.yml`: `permissions` += `issues: read` (§4).
+- [x] 3.6 `.github/workflows/ci.yml`: `permissions` += `issues: read` (§4).
 
   Проверка: CI impl-PR зелёный.
-- [ ] 3.7 `RECORD_MISMATCH` с причиной `unknowns`: при record базы в `SPECIFIED` и дальше элемент `unknowns[]` базы не удалён и
+- [x] 3.7 `RECORD_MISMATCH` с причиной `unknowns`: при record базы в `SPECIFIED` и дальше элемент `unknowns[]` базы не удалён и
   не ослаблен (I-188, REQ-VER-011).
 
   Проверка: app `ci` на SCN-VER-116; прежние SCN-VER `ci` без правок.

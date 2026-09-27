@@ -29,7 +29,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { makeTempDir, removeDir, runCli, type CliRun } from "../helpers/cli.js";
 import { git } from "../helpers/git.js";
-import { PACKS, recordDoc, useSyncedProject, write } from "../helpers/synced.js";
+import { codes, PACKS, recordDoc, useSyncedProject, write } from "../helpers/synced.js";
 
 // `openspec` and the checks of VERIFYING->MERGED run in every step; slow on Windows.
 const TIMEOUT = 180_000;
@@ -88,10 +88,6 @@ The system SHALL return every item whose title contains the query.
 
 function cli(root: string, args: string[], env: NodeJS.ProcessEnv = LOCAL): Promise<CliRun> {
   return runCli(args, root, env);
-}
-
-function codes(run: CliRun): string[] {
-  return ((run.json?.errors ?? []) as { code: string }[]).map((e) => e.code);
 }
 
 /** `main` with the Change in IMPLEMENTING; the impl-PR branch `worktree/add-search` with head H; HEAD on main. */

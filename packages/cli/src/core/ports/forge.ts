@@ -1,8 +1,10 @@
 /**
  * Port to the forge (ADR-0037 п. 6, design phase-4c §6): the pull requests,
- * workflow runs and artifacts of this repository on GitHub. Four methods, the
- * ones `warrant ci` and `ci fetch` use; `reviews` is not introduced (ADR-0025:
- * a port has only the methods in use). The adapter (`adapters/forge-gh.ts`)
+ * workflow runs, artifacts and pull request comments of this repository on
+ * GitHub. Five methods, the ones `warrant ci` and `ci fetch` use — `comment`
+ * reads the maintainer's decision of an UNKNOWN (ADR-0040 п. 3, design
+ * slice-fixes §4); `reviews` is not introduced (ADR-0025: a port has only the
+ * methods in use). The adapter (`adapters/forge-gh.ts`)
  * talks through `gh`: the repository is `GITHUB_REPOSITORY` or the URL of the
  * remote `origin`, the token is `gh`'s own (N45). A failure of authorisation,
  * of the network or of `gh` itself throws `FORGE_UNAVAILABLE` with a `hint`
@@ -47,6 +49,11 @@ export interface WorkflowRun {
   /** `success`, `failure`, …; null while the attempt is not completed. */
   conclusion: string | null;
   /**
+   * `path` of the workflow file the run ran, `.github/workflows/<file>` (BL-53):
+   * the recovery `gh workflow run <file>` names it.
+   */
+  workflowPath: string;
+  /**
    * ISO `created_at` as GitHub answers it: of the run in `listRuns` and
    * `workflowRun(id)`, of the attempt in `workflowRun(id, n)`.
    */
@@ -59,6 +66,34 @@ export interface RunFilter {
   event?: string;
   /** ISO time: runs created (their first attempt) at or after it (GitHub `created=>=`). */
   createdAfter?: string;
+}
+
+/**
+ * A comment of a pull request named by URL (REQ-VER-013): `…/pull/<N>#issuecomment-<id>`
+ * — a comment of the conversation (issues API) — or `…#pullrequestreview-<id>`
+ * — a review.
+ */
+export interface CommentRef {
+  /** `<owner>/<repo>` the URL names, lower case. */
+  repository: string;
+  /** `<N>` the URL names. */
+  pullRequest: number;
+  kind: "issue" | "review";
+  id: number;
+}
+
+/** A comment of a pull request as the forge answers it. */
+export interface Comment {
+  /** Login of the author. */
+  author: string;
+  /**
+   * Number of the pull request the comment belongs to, by the answer of the
+   * forge: the id of an issue comment is unique in the repository, not in the
+   * pull request, so `<N>` of the URL is not a fact (I-189).
+   */
+  pullRequest: number;
+  /** Text; `""` for a review without one. */
+  body: string;
 }
 
 export interface ForgePort {
@@ -79,4 +114,10 @@ export interface ForgePort {
    * artifact or it expired.
    */
   downloadArtifact(runId: number, name: string): Promise<Map<string, Buffer> | null>;
+  /**
+   * The comment `ref` of this repository; null when there is none — no such
+   * id, a review of another pull request, or `ref.repository` not the
+   * repository of the forge.
+   */
+  comment(ref: CommentRef): Promise<Comment | null>;
 }

@@ -105,6 +105,9 @@
       { "name": "started", "owner": "app/helpers/run.ts" },
       { "name": "fakePull", "owner": "app/helpers/fakes/forge.ts" },
       { "name": "fakeRun", "owner": "app/helpers/fakes/forge.ts" },
+      { "name": "advance", "owner": "app/helpers/ci.ts" },
+      { "name": "pullRequest", "owner": "app/helpers/ci.ts" },
+      { "name": "artifactOf", "owner": "app/helpers/ci.ts" },
       { "name": "recordedVersions", "owner": "helpers/claude-hooks.ts" },
       { "name": "recordedHook", "owner": "helpers/claude-hooks.ts" },
       { "name": "recordedInputIn", "owner": "helpers/claude-hooks.ts" }

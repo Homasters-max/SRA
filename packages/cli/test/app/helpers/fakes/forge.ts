@@ -1,11 +1,12 @@
 /**
  * `FakeForge` (ADR-0025 п. 3, design phase-4c §6): the pull requests, run
- * attempts and artifacts of one repository as a model, answered as `ForgeGh`
- * answers GitHub (contract `forge`). `ProjectBuilder.withForge` fills it;
- * `fakePull` and `fakeRun` build the objects with defaults of that repository.
+ * attempts, artifacts and comments of one repository as a model, answered as
+ * `ForgeGh` answers GitHub (contract `forge`). `ProjectBuilder.withForge` fills
+ * it; `fakePull` and `fakeRun` build the objects with defaults of that
+ * repository, `addComment` adds a comment.
  */
 import { forgeUnavailable } from "../../../../src/core/errors.js";
-import type { ForgePort, PullRequest, RunFilter, WorkflowRun } from "../../../../src/core/ports/forge.js";
+import type { Comment, CommentRef, ForgePort, PullRequest, RunFilter, WorkflowRun } from "../../../../src/core/ports/forge.js";
 
 /** Repository of the fake forge unless the model names another. */
 export const FAKE_REPOSITORY = "kat/project";
@@ -38,6 +39,7 @@ export function fakeRun(id: number, fields: Partial<WorkflowRun> = {}, repositor
     headBranch: "worktree/add-search",
     headSha: "b".repeat(40),
     conclusion: "success",
+    workflowPath: ".github/workflows/ci.yml",
     createdAt: "2026-09-24T09:00:00Z",
     ...fields
   };
@@ -50,20 +52,30 @@ export interface FakeArtifact {
   files: Record<string, string | Buffer>;
 }
 
+/** A comment of the model: `kind` and `id` of its URL, the answer, the repository (default {@link FAKE_REPOSITORY}). */
+export interface FakeComment extends Comment {
+  kind: CommentRef["kind"];
+  id: number;
+  repository?: string;
+}
+
 /** What `ProjectBuilder.withForge` adds: every attempt of a run is its own entry of `runs`. */
 export interface ForgeModel {
   pulls?: PullRequest[];
   runs?: WorkflowRun[];
   artifacts?: FakeArtifact[];
+  comments?: FakeComment[];
 }
 
 export class FakeForge implements ForgePort {
-  /** The calls made: `pullRequest 9`, `workflowRun 7 2`, `listRuns {"headSha":…}`, `downloadArtifact 7 evidence-…`. */
+  /** The calls made: `pullRequest 9`, `workflowRun 7 2`, `listRuns {"headSha":…}`, `downloadArtifact 7 evidence-…`, `comment issue 11`. */
   readonly calls: string[] = [];
   readonly pulls = new Map<number, PullRequest>();
   /** Attempts of the runs, by run id. */
   readonly runs = new Map<number, WorkflowRun[]>();
   readonly artifacts = new Map<string, FakeArtifact>();
+  /** Comments by `<repository lower case> <kind> <id>`. */
+  readonly comments = new Map<string, Comment>();
   /** When set, every call fails as `ForgeGh` without a token: `FORGE_UNAVAILABLE` with the `hint`. */
   unavailable = false;
 
@@ -74,6 +86,14 @@ export class FakeForge implements ForgePort {
       this.runs.set(run.id, [...attempts, run].sort((a, b) => a.attempt - b.attempt));
     }
     for (const artifact of model.artifacts ?? []) this.artifacts.set(`${artifact.runId} ${artifact.name}`, artifact);
+    for (const comment of model.comments ?? []) this.addComment(comment);
+    return this;
+  }
+
+  /** Adds the comment `…#issuecomment-<id>` (`kind: "issue"`) or `…#pullrequestreview-<id>` (`"review"`) of its pull request. */
+  addComment(comment: FakeComment): this {
+    const { kind, id, repository = FAKE_REPOSITORY, ...answer } = comment;
+    this.comments.set(`${repository.toLowerCase()} ${kind} ${id}`, answer);
     return this;
   }
 
@@ -108,6 +128,15 @@ export class FakeForge implements ForgePort {
       const artifact = this.artifacts.get(`${runId} ${name}`);
       if (artifact === undefined) return null;
       return new Map(Object.entries(artifact.files).map(([file, content]) => [file, Buffer.from(content)]));
+    });
+  }
+
+  comment(ref: CommentRef): Promise<Comment | null> {
+    return this.answer(`comment ${ref.kind} ${ref.id}`, () => {
+      const comment = this.comments.get(`${ref.repository.toLowerCase()} ${ref.kind} ${ref.id}`);
+      // A review is read under its pull request (`pulls/<N>/reviews/<id>`): under another one GitHub answers 404.
+      if (comment === undefined || (ref.kind === "review" && comment.pullRequest !== ref.pullRequest)) return null;
+      return { ...comment };
     });
   }
 

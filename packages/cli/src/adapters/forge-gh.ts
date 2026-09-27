@@ -1,6 +1,7 @@
 /**
  * `ForgePort` over the GitHub CLI `gh` (ADR-0037 п. 6, design phase-4c §6),
- * through `exec`: `gh api` for pull requests, runs and the artifact list,
+ * through `exec`: `gh api` for pull requests, runs, the artifact list and
+ * comments (issue comments and reviews, design slice-fixes §4),
  * `gh run download` for the files — `gh` unpacks the zip, so the CLI has no
  * zip dependency. The repository is `GITHUB_REPOSITORY`, else the GitHub URL
  * of the remote `origin` (https or ssh), resolved on the first call; the token
@@ -14,7 +15,7 @@ import path from "node:path";
 
 import { forgeUnavailable } from "../core/errors.js";
 import { isPlainObject } from "../core/json.js";
-import type { ForgePort, PullRequest, RunFilter, WorkflowRun } from "../core/ports/forge.js";
+import type { Comment, CommentRef, ForgePort, PullRequest, RunFilter, WorkflowRun } from "../core/ports/forge.js";
 import { exec } from "./exec.js";
 
 const OWNER_REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -84,6 +85,7 @@ export function parseWorkflowRun(body: unknown): WorkflowRun {
     headBranch: field(run.head_branch, isStringOrNull, "head_branch") ?? "",
     headSha: field(run.head_sha, isString, "head_sha"),
     conclusion: field(run.conclusion, isStringOrNull, "conclusion"),
+    workflowPath: field(run.path, isString, "path"),
     createdAt: field(run.created_at, isString, "created_at")
   };
 }
@@ -99,6 +101,29 @@ export function parseLiveArtifacts(body: unknown): string[] {
     .map((a) => objectOf(a, "artifact"))
     .filter((a) => field(a.expired, isBoolean, "expired") === false)
     .map((a) => field(a.name, isString, "name"));
+}
+
+/** The number at the end of an API URL of an issue (`…/issues/<n>`) or a pull request (`…/pulls/<n>`). */
+function numberOf(url: string, collection: "issues" | "pulls", what: string): number {
+  const match = new RegExp(`/${collection}/([1-9][0-9]*)$`).exec(url);
+  if (match === null) throw forgeUnavailable(`gh answered with \`${what}\` ${url}, not the URL of one of ${collection}`);
+  return Number.parseInt(match[1] as string, 10);
+}
+
+/**
+ * The body of `GET repos/{owner}/{repo}/issues/comments/{id}` (`kind: "issue"`,
+ * the pull request from `issue_url`) or of `GET …/pulls/{n}/reviews/{id}`
+ * (`kind: "review"`, from `pull_request_url`; a review without text has
+ * `body` null or `""`).
+ */
+export function parseComment(body: unknown, kind: CommentRef["kind"]): Comment {
+  const comment = objectOf(body, "comment");
+  const key = kind === "issue" ? "issue_url" : "pull_request_url";
+  return {
+    author: loginOf(comment.user, "user"),
+    pullRequest: numberOf(field(comment[key], isString, key), kind === "issue" ? "issues" : "pulls", key),
+    body: field(comment.body, isStringOrNull, "body") ?? ""
+  };
 }
 
 /** First line of what a failed `gh` call printed; `gh` that did not start prints nothing. */
@@ -170,6 +195,14 @@ export class ForgeGh implements ForgePort {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  }
+
+  async comment(ref: CommentRef): Promise<Comment | null> {
+    const repo = await this.repository();
+    if (ref.repository.toLowerCase() !== repo.toLowerCase()) return null;
+    const endpoint = ref.kind === "issue" ? `repos/${repo}/issues/comments/${ref.id}` : `repos/${repo}/pulls/${ref.pullRequest}/reviews/${ref.id}`;
+    const body = await this.api(endpoint, ref.kind === "issue" ? `issue comment ${ref.id}` : `review ${ref.id} of pull request #${ref.pullRequest}`);
+    return body === null ? null : parseComment(body, ref.kind);
   }
 
   /** `<owner>/<repo>`: `GITHUB_REPOSITORY`, else the GitHub URL of `origin`; once per adapter. */

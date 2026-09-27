@@ -5,14 +5,15 @@
  * 099, 100 — the merge verdict of an impl-PR — SCN-VER-068, 075, 076, 082, 095,
  * 098 — the forge unavailable and `--dry-run` — SCN-VER-084, 085 — the CI
  * evidence and the repeated archive of an archive-PR (group 5) — SCN-VER-079,
- * 080, 091, 096, 102, 106.
+ * 080, 091, 096, 102, 106. Decisions of UNKNOWNs through the forge and the
+ * UNKNOWNs of the base kept (slice-fixes, group 3) — SCN-VER-111…116.
  *
  * Each case builds the synced core-sdd project on `main` of `FakeGit`, opens a
  * pull request on a branch and merges it into `main` with a merge commit: HEAD
  * is the result of the merge, as the job `warrant` makes it. `tests-passed` is
  * overridden with a fake command writing junit into `{out}`.
  */
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -22,7 +23,8 @@ import { runCi, type CiOptions } from "../../../src/commands/ci.js";
 import { runTransition } from "../../../src/commands/transition.js";
 import type { WorkflowRun } from "../../../src/core/ports/forge.js";
 import type { CommandResult } from "../../../src/io/output.js";
-import { FAKE_REPOSITORY, fakePull, fakeRun } from "../helpers/fakes/forge.js";
+import { advance, artifactOf, AT, HASH, pullRequest, RECORD } from "../helpers/ci.js";
+import { FAKE_REPOSITORY, fakePull, fakeRun, type FakeComment } from "../helpers/fakes/forge.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
 import { started } from "../helpers/run.js";
@@ -32,10 +34,7 @@ const project = useProjectBuilder();
 type Data = Record<string, any>;
 type Result = CommandResult & { data: Data };
 
-const RECORD = ".warrant/changes/add-search.json";
 const EVIDENCE = ".warrant/evidence/add-search";
-const HASH = `sha256:${"0".repeat(64)}`;
-const AT = "2026-09-25T10:00:00Z";
 const SPEC_PR = `https://github.com/${FAKE_REPOSITORY}/pull/5`;
 const IMPL_PR = `https://github.com/${FAKE_REPOSITORY}/pull/9`;
 const LOCAL: NodeJS.ProcessEnv = {};
@@ -95,25 +94,6 @@ async function changeRepo(state: string, extra: Record<string, unknown> = CHORE,
     fakeTests(p);
     setup?.(p);
   });
-}
-
-/** Appends a transition to the record of `add-search` in the working tree. */
-function advance(p: ProjectBuilder, to: string, fields: Record<string, unknown> = {}): void {
-  const record = p.json(RECORD);
-  const forward = to !== "ABANDONED";
-  record.transitions.push({ to, at: AT, by: "cli:local", ...(forward ? { effective_policy_hash: HASH, gates: {} } : {}), ...fields });
-  record.change_state = to;
-  p.write(RECORD, record);
-}
-
-/** A pull request: branch `name` from `main`, `work` on it, one commit; `main` merges it with a merge commit. */
-function pullRequest(p: ProjectBuilder, name: string, work: (p: ProjectBuilder) => void): { head: string; merge: string } {
-  if (p.git.current !== name) p.branch(name, "main");
-  work(p);
-  const head = p.commit(`${name}: head`);
-  p.checkout("main", { force: true });
-  const merge = p.merge(name, { label: `Merge ${name}` });
-  return { head, merge };
 }
 
 function codes(result: Result): string[] {
@@ -337,12 +317,21 @@ describe("warrant ci: the structure of the record", () => {
 });
 
 /**
- * The spec-PR merged by `S` (pull 5), then an impl-PR whose first commit records
- * `APPROVED` with the ref of the spec-PR and `IMPLEMENTING` (SCN-VER-090).
+ * The spec-PR merged by `S` (pull 5) — `specWork` edits it — then an impl-PR
+ * whose first commit records `APPROVED` with the ref of the spec-PR and
+ * `IMPLEMENTING` (SCN-VER-090).
  */
-async function firstImplCommit(mergedBy: string, extra: Record<string, unknown> = CHORE, work?: (p: ProjectBuilder) => void): Promise<ProjectBuilder> {
+async function firstImplCommit(
+  mergedBy: string,
+  extra: Record<string, unknown> = CHORE,
+  work?: (p: ProjectBuilder) => void,
+  specWork?: (p: ProjectBuilder) => void
+): Promise<ProjectBuilder> {
   const p = await changeRepo("PROPOSED", extra);
-  const spec = pullRequest(p, "spec/add-search", (b) => advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } }));
+  const spec = pullRequest(p, "spec/add-search", (b) => {
+    advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } });
+    specWork?.(b);
+  });
   p.withForge({ pulls: [fakePull(5, { mergeCommit: spec.merge, headSha: spec.head, mergedBy, author: "kat" })] });
   pullRequest(p, "worktree/add-search", (b) => {
     advance(b, "APPROVED", { gates: { "human-approval": "PASS" }, ref: SPEC_PR });
@@ -399,6 +388,144 @@ describe("warrant ci: refs through the forge", () => {
   });
 });
 
+const UNK = "UNK-SRC-004";
+/** The maintainer's comment in the spec-PR (pull 5). */
+const DECISION_REF = `${SPEC_PR}#issuecomment-11`;
+
+/** A blocking UNKNOWN closed by the maintainer's decision `ref`. */
+function decided(id: string, ref: string): Record<string, unknown> {
+  return { id, text: "Which index does search use?", blocking: true, resolution: "The inverted index.", resolved_as: "decision", ref };
+}
+
+/** Writes `unknowns[]` into the record of `add-search` in the working tree. */
+function withUnknowns(p: ProjectBuilder, unknowns: Record<string, unknown>[]): void {
+  p.write(RECORD, { ...p.json(RECORD), unknowns });
+}
+
+/** A comment `issuecomment-<id>` of pull request `pr` of the fake forge. */
+function issueComment(id: number, author: string, body: string, pr = 5): FakeComment {
+  return { kind: "issue", id, author, pullRequest: pr, body };
+}
+
+/** The first commit of the impl-PR over a spec-PR whose record closes {@link UNK} by `ref`; `comments` are on the forge. */
+async function decisionPr(ref: string, comments: FakeComment[], work?: (p: ProjectBuilder) => void): Promise<ProjectBuilder> {
+  const p = await firstImplCommit("kat", CHORE, work, (b) => withUnknowns(b, [decided(UNK, ref)]));
+  p.withForge({ comments });
+  return p;
+}
+
+/** Messages of `REF_NOT_VERIFIED` of the decisions. */
+function decisionErrors(result: Result): string[] {
+  return result.errors.filter((e) => e.code === "REF_NOT_VERIFIED" && e.message.startsWith("unknowns/")).map((e) => e.message);
+}
+
+/** Messages of `RECORD_MISMATCH` of a result. */
+function mismatches(result: Result): string[] {
+  return result.errors.filter((e) => e.code === "RECORD_MISMATCH").map((e) => e.message);
+}
+
+describe("warrant ci: decisions of UNKNOWNs through the forge (REQ-VER-013)", () => {
+  it("the maintainer's comment in the spec-PR of APPROVED names the UNKNOWN: no REF_NOT_VERIFIED, exit 0 (SCN-VER-111)", async () => {
+    const p = await decisionPr(DECISION_REF, [issueComment(11, "kat", `Decision on ${UNK}: the inverted index.`)], (b) =>
+      advance(b, "VERIFYING", { gates: { "tests-passed": "PASS" } })
+    );
+    const result = await ci(p, CI_ENV);
+    expect(result.errors).toEqual([]);
+    expect(result.data["findings"].filter((f: Data) => f["code"] === "DECISION_NOT_VERIFIED")).toEqual([]);
+    expect(result.exitCode).toBe(0);
+    expect(p.forge.calls).toContain("comment issue 11");
+  });
+
+  it("a comment of a login outside roles.maintainer of the base, or one not naming the UNKNOWN: REF_NOT_VERIFIED author / text (SCN-VER-112)", async () => {
+    const bob = await ci(await decisionPr(DECISION_REF, [issueComment(11, "bob", `Decision on ${UNK}.`)]));
+    const errors = bob.errors.filter((e) => e.code === "REF_NOT_VERIFIED");
+    expect(errors.map((e) => e.path)).toEqual([`${RECORD}#/unknowns/0/ref`]);
+    expect(errors[0]?.message.startsWith(`unknowns/0 (${UNK}) ref ${DECISION_REF}: decision: author`)).toBe(true);
+    expect(bob.exitCode).toBe(1);
+    const silent = await ci(await decisionPr(DECISION_REF, [issueComment(11, "kat", "Decided: the inverted index.")]));
+    expect(decisionErrors(silent)).toEqual([expect.stringContaining(`ref ${DECISION_REF}: decision: text`)]);
+    expect(silent.exitCode).toBe(1);
+  });
+
+  it("a comment in another PR than the spec-PR of APPROVED, a comment the forge places in another PR, a review comment: pull_request / form (SCN-VER-113)", async () => {
+    const other = `https://github.com/${FAKE_REPOSITORY}/pull/4#issuecomment-3`;
+    const elsewhere = await decisionPr(other, [issueComment(3, "kat", `Decision on ${UNK}.`, 4)]);
+    elsewhere.withForge({ pulls: [fakePull(4)] });
+    const first = await ci(elsewhere);
+    expect(decisionErrors(first)).toEqual([expect.stringContaining(`ref ${other}: decision: pull_request`)]);
+    expect(first.exitCode).toBe(1);
+
+    const moved = `${SPEC_PR}#issuecomment-3`;
+    const second = await ci(await decisionPr(moved, [issueComment(3, "kat", `Decision on ${UNK}.`, 4)]));
+    expect(decisionErrors(second)).toEqual([expect.stringContaining(`ref ${moved}: decision: pull_request`)]);
+    expect(second.exitCode).toBe(1);
+
+    const review = `${SPEC_PR}#discussion_r9`;
+    const form = await ci(await decisionPr(review, []));
+    expect(decisionErrors(form)).toEqual([expect.stringContaining(`ref ${review}: decision: form`)]);
+    expect(form.exitCode).toBe(1);
+  });
+
+  it("no such comment on the forge, a comment of another repository: missing / repository (SCN-VER-115)", async () => {
+    const missing = await ci(await decisionPr(DECISION_REF, []));
+    expect(decisionErrors(missing)).toEqual([expect.stringContaining(`ref ${DECISION_REF}: decision: missing`)]);
+    expect(missing.exitCode).toBe(1);
+    const foreign = "https://github.com/x/y/pull/5#issuecomment-11";
+    const result = await ci(await decisionPr(foreign, [issueComment(11, "kat", `Decision on ${UNK}.`)]));
+    expect(decisionErrors(result)).toEqual([expect.stringContaining(`ref ${foreign}: decision: repository`)]);
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("a spec-PR before approval: a finding DECISION_NOT_VERIFIED — author, or forge when it is unavailable — not an error (SCN-VER-114)", async () => {
+    for (const [unavailable, detail] of [
+      [false, "author"],
+      [true, "forge"]
+    ] as const) {
+      const p = await changeRepo("PROPOSED");
+      pullRequest(p, "spec/add-search", (b) => {
+        advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } });
+        withUnknowns(b, [decided(UNK, DECISION_REF)]);
+      });
+      p.withForge({ pulls: [fakePull(5)], comments: [issueComment(11, "bob", `Decision on ${UNK}.`)] });
+      p.forge.unavailable = unavailable;
+      const result = await ci(p);
+      expect(result.data["kind"]).toBe("spec");
+      const findings = result.data["findings"].filter((f: Data) => f["code"] === "DECISION_NOT_VERIFIED");
+      expect(findings.map((f: Data) => f["message"])).toEqual([expect.stringContaining(`ref ${DECISION_REF}: decision: ${detail}`)]);
+      expect(codes(result)).toEqual([]);
+      expect(result.exitCode).toBe(0);
+    }
+  });
+
+  it("the record of the base in SPECIFIED: a decided UNKNOWN removed or weakened on HEAD — RECORD_MISMATCH unknowns; an open one closed by a decision — none (SCN-VER-116)", async () => {
+    const open = { id: "UNK-SRC-005", text: "Which tokenizer?", blocking: true };
+    const closed = decided("UNK-SRC-005", `${SPEC_PR}#issuecomment-12`);
+    const judged = async (head: Record<string, unknown>[]): Promise<Result> => {
+      const p = await firstImplCommit(
+        "kat",
+        CHORE,
+        (b) => withUnknowns(b, head),
+        (b) => withUnknowns(b, [decided(UNK, DECISION_REF), open])
+      );
+      p.withForge({ comments: [issueComment(11, "kat", `Decision on ${UNK}.`), issueComment(12, "kat", "Decision on UNK-SRC-005.")] });
+      return ci(p);
+    };
+    for (const head of [
+      [closed],
+      [{ ...decided(UNK, DECISION_REF), blocking: false }, closed],
+      [{ ...decided(UNK, DECISION_REF), resolved_as: "fact" }, closed]
+    ]) {
+      const result = await judged(head);
+      expect(mismatches(result)).toEqual([expect.stringMatching(new RegExp(`^unknowns/0 \\(${UNK}\\): unknowns: ${UNK} `))]);
+      expect(result.errors.find((e) => e.code === "RECORD_MISMATCH")?.path).toMatch(/^\.warrant\/changes\/add-search\.json#\/unknowns/);
+      expect(result.exitCode).toBe(1);
+    }
+    const kept = await judged([decided(UNK, DECISION_REF), closed]);
+    expect(mismatches(kept)).toEqual([]);
+    expect(decisionErrors(kept)).toEqual([]);
+  });
+});
+
 /**
  * The whole way to an archive-PR: `main` with the record in `IMPLEMENTING`; the
  * impl-PR records `VERIFYING` and is merged by M; `warrant ci` on M writes the
@@ -448,17 +575,6 @@ async function archivePr(
   p.checkout("main", { force: true });
   p.merge("archive/add-search", { label: "Merge archive" });
   return { p, m: impl.merge, head: impl.head, evidence };
-}
-
-/** The files of the directory `rel` as `actions/upload-artifact` uploads it: POSIX path → bytes. */
-function artifactOf(p: ProjectBuilder, rel: string): Record<string, Buffer> {
-  const dir = path.join(p.root, rel);
-  const out: Record<string, Buffer> = {};
-  for (const entry of readdirSync(dir, { recursive: true }) as string[]) {
-    const file = path.join(dir, entry);
-    if (statSync(file).isFile()) out[entry.split(path.sep).join("/")] = readFileSync(file);
-  }
-  return out;
 }
 
 describe("warrant ci: archive-PR", () => {
@@ -594,6 +710,12 @@ describe("warrant ci: CI evidence and the repeated archive of an archive-PR", ()
     const result = await ci(expired.p);
     expect(unverified(result)).toEqual(expired.evidence.map((id) => `${id}: artifact`));
     expect(result.errors[0]?.hint).toContain("gh workflow run ci.yml -f merge_commit=");
+  });
+
+  it("the recovery hint of an expired artifact names the workflow of the run, not a literal (BL-53)", async () => {
+    const { p, m } = await archivePr({ artifact: false, run: { workflowPath: ".github/workflows/warrant.yml" } });
+    const result = await ci(p);
+    expect(result.errors[0]?.hint).toBe(`run the job on M: gh workflow run warrant.yml -f merge_commit=${m}, then warrant ci fetch <impl-PR>`);
   });
 });
 

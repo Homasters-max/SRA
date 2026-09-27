@@ -38,8 +38,9 @@ export function validateCli(root: string): Promise<CliRun> {
   return runCli(["validate"], root, { WARRANT_PACKS_DIR: PACKS });
 }
 
+/** Codes of `errors[]` of a run; none when it printed no JSON. */
 export function codes(run: CliRun): string[] {
-  return (run.json?.errors as { code: string }[]).map((e) => e.code);
+  return ((run.json?.errors ?? []) as { code: string }[]).map((e) => e.code);
 }
 
 export function findError(run: CliRun, code: string): { code: string; message: string; path: string } | undefined {

@@ -25,10 +25,13 @@ on:
 
 # actions and pull-requests: the contract of ForgePort and `warrant ci` read
 # PRs, runs and artifacts of this repository through gh (phase-4c, design §6, §8).
+# issues: the comments of a PR are a resource of the issues API — the decision
+# of an UNKNOWN `warrant ci` reads (slice-fixes, design §4).
 permissions:
   contents: read
   actions: read
   pull-requests: read
+  issues: read
 
 # A recovery run has its own group: it neither cancels nor is cancelled by a
 # push to main or another recovery run.

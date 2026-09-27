@@ -16,6 +16,7 @@ import { subjectOf } from "../evidence/record.js";
 import type { Finding } from "../gates/types.js";
 import { mergeOfHead } from "../git/facts.js";
 import { isPlainObject, strings } from "../json.js";
+import type { CommentRef } from "../ports/forge.js";
 import { confirmationOf, type Confirmation } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
 import { recordPath } from "../record/write.js";
@@ -24,8 +25,8 @@ import { basePolicy, type BaseContext } from "./base.js";
 import { jsonAt, type CiSubject } from "./kind.js";
 import type { NewTransition } from "./record.js";
 
-/** Reasons of `REF_NOT_VERIFIED` (REQ-VER-011). */
-export type RefReason = "repository" | "merged" | "merged_by" | "change" | "merge_commit" | "by";
+/** Reasons of `REF_NOT_VERIFIED` (REQ-VER-011); `decision` — the ref of a decision of an UNKNOWN (REQ-VER-013, `decisions.ts`). */
+export type RefReason = "repository" | "merged" | "merged_by" | "change" | "merge_commit" | "by" | "decision";
 
 export interface RefJudgement {
   errors: CliError[];
@@ -43,6 +44,30 @@ export function parsePullUrl(ref: string): { repository: string; number: number 
   const match = /^\/([^/]+)\/([^/]+)\/pull\/([1-9][0-9]*)\/?$/.exec(url.pathname);
   if (match === null) return null;
   return { repository: `${match[1] as string}/${match[2] as string}`.toLowerCase(), number: Number.parseInt(match[3] as string, 10) };
+}
+
+/**
+ * The comment a pull request comment URL names (REQ-VER-013 `form`):
+ * `https://<host>/<owner>/<repo>/pull/<N>#issuecomment-<id>` or
+ * `…#pullrequestreview-<id>`, the repository in lower case; null for any other
+ * URL — a review comment `#discussion_r…` included.
+ */
+export function parseCommentUrl(ref: string): CommentRef | null {
+  let url: URL;
+  try {
+    url = new URL(ref);
+  } catch {
+    return null;
+  }
+  const pull = parsePullUrl(`${url.origin}${url.pathname}`);
+  const anchor = /^#(issuecomment|pullrequestreview)-([1-9][0-9]*)$/.exec(url.hash);
+  if (!/^https?:$/.test(url.protocol) || url.search !== "" || pull === null || anchor === null) return null;
+  return {
+    repository: pull.repository,
+    pullRequest: pull.number,
+    kind: anchor[1] === "issuecomment" ? "issue" : "review",
+    id: Number.parseInt(anchor[2] as string, 10)
+  };
 }
 
 /** Targets of the transitions `rev` adds to the record of `change` against its first parent. */

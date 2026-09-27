@@ -49,6 +49,13 @@ export const LINKABLE_STATES: readonly ChangeState[] = ["PROPOSED", "SPECIFIED"]
 /** States in which `warrant unknown` adds or closes an UNKNOWN: before approval (REQ-KRN-035). */
 export const UNKNOWN_STATES: readonly ChangeState[] = ["PROPOSED", "SPECIFIED"];
 
+/**
+ * States of the record of the base from which a pull request keeps every
+ * element of `unknowns[]` and does not weaken it: `SPECIFIED` and later
+ * (REQ-VER-011 «Record», I-188).
+ */
+export const UNKNOWNS_HELD_STATES: ReadonlySet<string> = new Set(FORWARD_CHAIN.slice(FORWARD_CHAIN.indexOf("SPECIFIED")));
+
 /** States a Change must be in to stand in `amends[]` of another (ADR-0021 point 5). */
 export const AMENDS_TARGET_STATES: readonly ChangeState[] = ["MERGED", "ARCHIVED"];
 

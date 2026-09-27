@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3HHP1E0RNGE9JPCV03ZR218",
+  "claim": {
+    "text": "specification/adversarial-review@0.2.0 reviewed the spec of slice-fixes: 1 BLOCKER, 6 MAJOR, 7 MINOR, 0 INFO",
+    "targets": []
+  },
+  "kind": "review",
+  "level": "L2",
+  "evidence_status": "NOT_PROVEN",
+  "subject": {
+    "commit": "faaee670f56353cfcf272b6cce4413066d0ec6b0",
+    "spec_revision": "openspec/changes/slice-fixes@faaee670f56353cfcf272b6cce4413066d0ec6b0",
+    "spec_tree": "sha256:4bd5e8088d452e95a4b2d774653ad6ce9fd3d94583b268a335276f34dd4efb2a",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "skill",
+    "id": "specification/adversarial-review",
+    "version": "0.2.0",
+    "run": "RUN-01M3HHEF0RFDVM9R49PMQX3CEK"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:8e9417cbe9fa47a3cbf8fb43f7474ed544964cd788b3769cc9ea09908d3dc672",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-27T13:43:14.113Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/runs/RUN-01M3HHEF0RFDVM9R49PMQX3CEK.result.json",
+      "sha256": "sha256:5a414768f1570bfdcfc0664d40f1efd26e0fa4a047bf1d1b1d609bfc4ae5b7fc"
+    }
+  ],
+  "limitations": [
+    "produced locally, unattested",
+    "same model family as author"
+  ],
+  "metrics": {
+    "BLOCKER": 1,
+    "INFO": 0,
+    "MAJOR": 6,
+    "MINOR": 7
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3HJ0A7PK8AHGWP4DWGTS9KS",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-013 checks only HEAD elements with blocking:true and resolved_as:decision; unknowns[] is not compared with base, and ci does not recompute gate verdicts. An impl-PR can delete a base blocking UNKNOWN, flip it to blocking:false or close it as fact (record written via shell), lifting WAIT without the maintainer.",
+      "targets": [
+        "REQ-VER-013",
+        "REQ-VER-004"
+      ],
+      "recommendation": "With a new APPROVED, require every blocking id of the base record to stay blocking on HEAD and be closed by a verified decision; name the error and add a scenario."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Detail pull_request compares only <N> from the ref URL. Issue comment ids are repo-global, so ref .../pull/7#issuecomment-3 pointing at a comment on PR 5 passes.",
+      "targets": [
+        "REQ-VER-013",
+        "SCN-VER-113"
+      ],
+      "recommendation": "Require the PR of the comment returned by the forge to equal <N> (detail pull_request); add a scenario."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "The human-only hint covers every policy path outside src/tests/openspec/changes, i.e. all of .warrant/**, including the own record, waivers, evidence and runs that the CLI writes. An agent editing the record gets 'maintainer in factory-change' instead of warrant unknown/transition.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-038"
+      ],
+      "recommendation": "Exclude CLI-written Change state and waivers from the hint (or name the CLI command there); add a scenario for .warrant/changes/<change>.json."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-ENF-038 expects the 'previous hint warrant run finish' for a deny under an active Run, but neither delta nor main REQ-ENF-004 text names the hints of that deny.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-038"
+      ],
+      "recommendation": "State in the REQ text the hints of an active-Run deny (run finish, run start)."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "The proposal says a blocking UNKNOWN without a decision with ref is 'not closed'; REQ-KRN-035 says an element is closed when resolution is non-empty, so open_blocking excludes it.",
+      "targets": [
+        "openspec/changes/slice-fixes/proposal.md",
+        "REQ-KRN-035",
+        "REQ-VER-004"
+      ],
+      "recommendation": "Reword the proposal: closed, but the gate FAILs with DECISION_WITHOUT_REF."
+    },
+    {
+      "id": "F-6",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-KRN-035 says a blocking UNKNOWN closes only with --ref to a maintainer comment containing the id. It does not say the command checks only the http(s) form and leaves author and text to warrant ci, as REQ-KRN-028 does for its ref.",
+      "targets": [
+        "REQ-KRN-035"
+      ],
+      "recommendation": "Add: resolve checks the ref form only; author, text and PR are verified by warrant ci (REQ-VER-013)."
+    },
+    {
+      "id": "F-7",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-VER-011 (not modified) keeps a closed list of REF_NOT_VERIFIED reasons and says an unavailable forge gives exit code 3. REQ-VER-013 adds reason decision and makes forge failure a finding in non-APPROVED PRs.",
+      "targets": [
+        "REQ-VER-013"
+      ],
+      "recommendation": "Modify REQ-VER-011 or state the exception explicitly in both places."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "UNK ids allocated in records on parallel branches can collide. id renumber covers only openspec/changes/<name>/** and tests, not records, and the text check would accept a comment about the other Change's id.",
+      "targets": [
+        "REQ-KRN-035",
+        "REQ-KRN-024"
+      ],
+      "recommendation": "State the collision behavior (finding, renumber of the record) or record it as accepted residual risk."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "BASE_BEHIND_UPSTREAM does not say what happens when an upstream is configured but gone, or when git fails while the upstream is resolved.",
+      "targets": [
+        "REQ-KRN-028"
+      ],
+      "recommendation": "State skip or a named error for an unresolvable upstream."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Guard judges shell commands only by check prefixes, so an agent can write the record through shell under guard (REQ-ENF-004)."
+    },
+    {
+      "id": "A-2",
+      "statement": "The RECORD_MISMATCH rules of REQ-VER-011 do not cover unknowns[]."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Should warrant ci compare unknowns[] of an impl-PR with the base record (removal, blocking flip, closure without decision)?",
+      "options": [
+        "Yes, as REF_NOT_VERIFIED/RECORD_MISMATCH",
+        "No, accepted residual risk recorded in ADR-0040"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:4cd7135dfebc038d8a1e002a2e837a12b4e2d0024ec0495c16d7af450c1fbe3b",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-27T11:00:00Z",
+    "finished_at": "2026-09-27T11:30:00Z"
+  }
+}

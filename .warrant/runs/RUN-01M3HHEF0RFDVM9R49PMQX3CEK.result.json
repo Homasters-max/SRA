@@ -1,0 +1,205 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3HHEF0RFDVM9R49PMQX3CEK",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "ambiguity",
+      "statement": "REQ-VER-013 and SCN-VER-112..114 check a 'detail' (author, form, pull_request) of REF_NOT_VERIFIED/DECISION_NOT_VERIFIED, but no JSON field for it exists in the error/finding shape; DECISION_NOT_VERIFIED shape is undefined.",
+      "targets": [
+        "REQ-VER-013",
+        "SCN-VER-112",
+        "SCN-VER-113",
+        "SCN-VER-114"
+      ],
+      "recommendation": "Name the field (e.g. reason: decision, detail: author) and the DECISION_NOT_VERIFIED finding shape {code, unknown, detail, path}."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "'Path no Run operation writes' is defined as outside paths.src, paths.tests, openspec/changes/**, so docs/** under an active Run (SCN-ENF-011) gets the 'human in factory-change' hint, though SCN-ENF-012 allows docs edits without a Run.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-038",
+        "SCN-ENF-011"
+      ],
+      "recommendation": "Limit the hint to policy paths (match.paths of factory-change); keep run finish/run start hint for other paths; add a docs scenario."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "unknown add/resolve is allowed in APPROVED..VERIFYING, but REQ-VER-013 requires the decision comment in the spec-PR of APPROVED; a decision commented in the impl-PR fails with pull_request.",
+      "targets": [
+        "REQ-KRN-035",
+        "REQ-VER-013"
+      ],
+      "recommendation": "Define which PR may hold decisions for UNKNOWN raised after APPROVED, or forbid add after APPROVED; add a scenario."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Any maintainer comment in the spec-PR is accepted; its content is not tied to the UNK id, so an agent can cite an unrelated comment and lift WAIT itself.",
+      "targets": [
+        "REQ-VER-013"
+      ],
+      "recommendation": "Require the comment body to contain the UNK id, or state this as accepted residual risk."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "A blocking UNKNOWN can be closed by the agent with --as fact|assumption without ref (SCN-VER-110 PASS), bypassing the maintainer check that ADR-0040 p.3 motivates.",
+      "targets": [
+        "REQ-KRN-035",
+        "REQ-VER-004",
+        "SCN-VER-110"
+      ],
+      "recommendation": "Decide explicitly whether blocking UNKNOWN may be closed without DECISION and record it in spec."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "resolve with empty --text is not covered, and 'closed' is undefined for UNKNOWN_RESOLVED; the gate treats empty resolution as open.",
+      "targets": [
+        "REQ-KRN-035",
+        "REQ-VER-004"
+      ],
+      "recommendation": "Empty --text/--area/--text on add -> USAGE; define closed as non-empty resolution, as the gate does."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "FORGE_UNAVAILABLE 'as for other refs' means code 3 even in PRs without new APPROVED, where the decision check is only informational; a spec-PR may fail on it.",
+      "targets": [
+        "REQ-VER-013"
+      ],
+      "recommendation": "State whether forge failure in PRs without new APPROVED is code 3 or a finding."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "No error is named for unknown add/resolve on a Change without a record.",
+      "targets": [
+        "REQ-KRN-035"
+      ],
+      "recommendation": "Name the existing record-not-found code with hint."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Unclear whether resolve --as assumption also appends an ASM item to assumptions[]; proposal says ASSUMPTION is written only by closing UNKNOWN.",
+      "targets": [
+        "REQ-KRN-035",
+        "openspec/changes/slice-fixes/proposal.md"
+      ],
+      "recommendation": "State that assumptions[] is not written (or how ASM id is allocated)."
+    },
+    {
+      "id": "F-10",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "DECISION_WITHOUT_REF: 'such element' may mean blocking-only or any element; REQ-VER-013 checks only blocking.",
+      "targets": [
+        "REQ-VER-004"
+      ],
+      "recommendation": "Say explicitly whether non-blocking decisions without ref fail the gate."
+    },
+    {
+      "id": "F-11",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "Proposal says classify 'warns' when base is behind upstream; REQ-KRN-028 refuses with BASE_BEHIND_UPSTREAM.",
+      "targets": [
+        "openspec/changes/slice-fixes/proposal.md",
+        "REQ-KRN-028"
+      ],
+      "recommendation": "Update proposal What Changes to the refusal."
+    },
+    {
+      "id": "F-12",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "ADR-0040 p.2 allows unknown in any non-terminal state; REQ-KRN-035 and SCN-KRN-152 reject MERGED.",
+      "targets": [
+        "REQ-KRN-035",
+        "SCN-KRN-152"
+      ],
+      "recommendation": "Align ADR wording or spec state list."
+    },
+    {
+      "id": "F-13",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "Spec counts openspec/changes/archive/** as Run-writable (under openspec/changes/**); design writableByRun excludes archive/.",
+      "targets": [
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Exclude openspec/changes/archive/** in spec text."
+    },
+    {
+      "id": "F-14",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "No scenarios for details missing (comment 404) and repository (foreign repo).",
+      "targets": [
+        "REQ-VER-013"
+      ],
+      "recommendation": "Add scenarios for missing and repository."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "REF_NOT_VERIFIED 'reason' maps to an existing JSON field; only 'detail' is new."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "May a blocking UNKNOWN be closed as fact/assumption without maintainer ref?",
+      "options": [
+        "Yes, per 02 s1 (document residual risk)",
+        "No, blocking requires decision with ref"
+      ]
+    },
+    {
+      "id": "D-2",
+      "question": "Where must the decision comment live for UNKNOWN raised after APPROVED?",
+      "options": [
+        "spec-PR only (comment on merged PR)",
+        "spec-PR or the judged impl-PR",
+        "forbid add after APPROVED"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:8e9417cbe9fa47a3cbf8fb43f7474ed544964cd788b3769cc9ea09908d3dc672",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-27T10:00:00Z",
+    "finished_at": "2026-09-27T10:25:00Z"
+  }
+}

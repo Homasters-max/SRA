@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01M3HHEF0RFDVM9R49PMQX3CEK",
+  "change": "slice-fixes",
+  "operation": "review",
+  "skill": "specification/adversarial-review@0.2.0",
+  "model": "claude-opus-5-5",
+  "write_scope": [],
+  "scope": [],
+  "branch": "spec/slice-fixes",
+  "started_at": "2026-09-27T13:39:05.923Z",
+  "finished_at": "2026-09-27T13:43:14.915Z",
+  "run_state": "SUCCEEDED",
+  "context_hash": "sha256:8e9417cbe9fa47a3cbf8fb43f7474ed544964cd788b3769cc9ea09908d3dc672",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "spec_tree": "sha256:4bd5e8088d452e95a4b2d774653ad6ce9fd3d94583b268a335276f34dd4efb2a",
+  "evidence": [
+    "EVID-01M3HHP1E0RNGE9JPCV03ZR218"
+  ],
+  "guard_events": []
+}

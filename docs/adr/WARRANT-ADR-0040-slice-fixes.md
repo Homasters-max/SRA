@@ -51,13 +51,17 @@ waiver [ADR-0024](WARRANT-ADR-0024-spec-approved-contract.md) п. 4 не про�
      `--as decision` без `--ref` — `USAGE` с `hint`; закрытый UNKNOWN повторно не закрывается;
    - элемент `unknowns[]` `change-record/1` получает необязательные `resolved_as` и `ref` (аддитивно, major тот же),
      `resolution` — текст ответа;
-   - в любом нетерминальном состоянии, перехода не пишет; открытый blocking UNKNOWN — `warrant status` `WAIT`, next
-     `clarify`. Локально gate `blocking-unknowns-resolved` проверяет форму: DECISION без `ref` — `FAIL`.
+   - только в `PROPOSED` и `SPECIFIED` (вопрос реализации — строка `I-N` с решением maintainer'а), перехода не пишет;
+     открытый blocking UNKNOWN — `warrant status` `WAIT`, next `clarify`;
+   - blocking UNKNOWN закрывает только DECISION с `ref` (`fact` и `assumption` — для не-blocking); локально gate
+     `blocking-unknowns-resolved` проверяет форму: blocking без DECISION с `ref` — `FAIL`.
+   Состояния и закрытие blocking — решения maintainer'а по review 1 spec `slice-fixes` (2026-09-27).
    Контракт вывода и exit-коды — design Change по линзе `cli-contract`. `warrant assumption add` — не в этом Change
    (строка backlog).
 3. **Ref DECISION в `warrant ci`** (N61). На impl-PR вместе с ref `APPROVED` (`judgeRefs`), на spec-PR — информационно:
    ref — URL комментария PR `#issuecomment-<id>` или `#pullrequestreview-<id>` (строчные `#discussion_r…` — нет);
-   автор ∈ `roles.maintainer`; комментарий — в том PR, который несёт ref `APPROVED` (spec-PR Change). `ForgePort`
+   автор ∈ `roles.maintainer`; текст комментария содержит id UNKNOWN (review 1 spec, решение maintainer'а); комментарий — в
+   том PR, который несёт ref `APPROVED` (spec-PR Change). `ForgePort`
    получает пятый метод — комментарий по URL → автор и PR (уточняет ADR-0037 п. 6). Без этой проверки агент снимает
    `WAIT` сам.
 4. **Правка spec в `IMPLEMENTING`** (N62; BL-63). `write_scope` `implement` += `openspec/changes/<change>/design.md` и
@@ -69,7 +73,8 @@ waiver [ADR-0024](WARRANT-ADR-0024-spec-approved-contract.md) п. 4 не про�
 6. **Швы и мелкие правки** (N64). Первой группой — A-31, A-32 (ADR-0039 п. 7) и строки, чьё «Куда» срабатывает на тех же
    файлах: A-35, A-36; A-33 — ручная сборка `judgeImpl` строкой `I-N`, мёртвая опция `EvaluateOptions.admit` уходит.
    С группой ref DECISION — A-37 и BL-53 (имя workflow в `hint` — не литерал `ci.yml`). Мелкие одной группой: BL-60
-   (проверка `--propose` по схеме до записи), BL-58 (предупреждение, когда `main` позади upstream; пересчёта записи нет),
+   (проверка `--propose` по схеме до записи), BL-58 (отказ `BASE_BEHIND_UPSTREAM` до записи, когда база позади своего upstream: повторный `classify`
+   запись не ослабляет, поэтому предупреждение после записи бесполезно; пересчёта записи нет),
    BL-64 (dry-run `archive` — дата каталога по правилу настоящего прогона), BL-61 (guard сверяет полную команду check),
    BL-56 — только `hint` у `AREA_UNKNOWN` и у `deny` guard для пути, который никакой Run не пишет. Вне Change: BL-57
    (п. Context — строка переписывается, по failure mode), BL-62, BL-54, BL-55, A-34.

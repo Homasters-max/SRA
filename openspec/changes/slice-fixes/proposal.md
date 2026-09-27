@@ -36,10 +36,12 @@ N59–N66, [ADR-0040](../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md).
   - только в `PROPOSED` и `SPECIFIED`: вопрос реализации — строка `I-N`;
   - `--dry-run`.
 - **Схема `change-record/1`:** у `unknowns[]` необязательные `resolved_as` и `ref` (аддитивно).
-- **Gate `blocking-unknowns-resolved`:** blocking UNKNOWN без решения с `ref` — не закрыт.
+- **Gate `blocking-unknowns-resolved`:** blocking UNKNOWN, закрытый не решением с `ref`, — `FAIL` с `DECISION_WITHOUT_REF`
+  (ответ записан, доказательства нет).
 - **`warrant ci` проверяет решения UNKNOWN через форж:**
   - автор комментария — maintainer, текст называет id UNKNOWN;
   - комментарий — в spec-PR, который несёт ref `APPROVED`;
+  - PR после `SPECIFIED` не удаляет и не ослабляет UNKNOWN record базы — `RECORD_MISMATCH`;
   - `ForgePort` получает метод чтения комментария.
 - **`write_scope` операции `implement`** += `design.md` и `specs/**` Change (BL-63): ADR-0024 п. 4 исполним под guard.
 - **Мелкие правки:**

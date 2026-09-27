@@ -57,14 +57,15 @@
 
   Проверка: app `id` на SCN-KRN-057 (переписан по delta) и SCN-KRN-144.
 
-## 3. Решения UNKNOWN в warrant ci, A-37, BL-53 (REQ-VER-013)
+## 3. Решения UNKNOWN в warrant ci, A-37, BL-53 (REQ-VER-013, REQ-VER-011)
 
 - [ ] 3.1 `ForgePort.comment`, `CommentRef`, `Comment` (`author`, `pullRequest`, `body`); `ForgeGh` — issue comment и review;
   `FakeForge.addComment` (§4).
 
   Проверка: unit разбора ответов `gh api` на записанных телах; `architecture.test.ts` зелёный.
 - [ ] 3.2 `parseCommentUrl`, `core/ci/decisions.ts` — `judgeDecisions`, `RefReason` `decision`, находка
-  `DECISION_NOT_VERIFIED`; вызов из `judgePullRequest` (§4, REQ-VER-013).
+  `DECISION_NOT_VERIFIED`; вызов из `judgePullRequest` (§4, REQ-VER-013); деталь `pull_request` — и по PR комментария из ответа
+  форжа (I-189).
 
   Проверка: app `ci` на SCN-VER-111…115; прежние SCN-VER `ci` без правок.
 - [ ] 3.3 Контракт `forge.contract.test.ts` — комментарий maintainer'а и review в spec-PR `slice-fixes` (§4).
@@ -81,6 +82,10 @@
 - [ ] 3.6 `.github/workflows/ci.yml`: `permissions` += `issues: read` (§4).
 
   Проверка: CI impl-PR зелёный.
+- [ ] 3.7 `RECORD_MISMATCH` с причиной `unknowns`: при record базы в `SPECIFIED` и дальше элемент `unknowns[]` базы не удалён и
+  не ослаблен (I-188, REQ-VER-011).
+
+  Проверка: app `ci` на SCN-VER-116; прежние SCN-VER `ci` без правок.
 
 ## 4. write_scope implement (REQ-ENF-002)
 
@@ -94,7 +99,7 @@
 - [ ] 5.1 BL-60: проверка `--propose` по порядку измерений и profiles; запись `classify` через `writeRecord` (§6).
 
   Проверка: app `classify` на SCN-KRN-145; SCN-KRN-073…077, SCN-KRN-105…107, SCN-KRN-116, SCN-KRN-117, SCN-KRN-138 без правок.
-- [ ] 5.2 BL-58: `GitPort.upstreamAhead`, отказ `BASE_BEHIND_UPSTREAM` (§6).
+- [ ] 5.2 BL-58: `GitPort.upstreamAhead`, отказ `BASE_BEHIND_UPSTREAM` (§6); upstream не разрешается — проверка пропускается (I-192).
 
   Проверка: контракт `GitPort` на временном репозитории с upstream; app `classify` на SCN-KRN-146.
 - [ ] 5.3 BL-64: `ClockPort.localToday`, `archivePlan` по локальной дате (§6).
@@ -103,9 +108,10 @@
 - [ ] 5.4 BL-61: `defaultPrefix` с `-m <модуль>` (§6).
 
   Проверка: app `guard` на SCN-ENF-037; SCN-ENF-013 без правок.
-- [ ] 5.5 BL-56: `humanOnly` и hint `deny` policy-пути без операции записи (§6).
+- [ ] 5.5 BL-56: `humanOnly` и hint `deny` policy-пути без операции записи (§6); состояние, которое пишет CLI, — hint с его
+  командами (I-190).
 
-  Проверка: app `guard` на SCN-ENF-038; SCN-ENF-011, SCN-ENF-012 без правок.
+  Проверка: app `guard` на SCN-ENF-038, SCN-ENF-039; SCN-ENF-011, SCN-ENF-012 без правок.
 
 ## 6. Навыки, документы, сквозная проверка
 
@@ -118,7 +124,8 @@
   - 04 §10 — `warrant unknown`;
   - 06 §4 — `blocking-unknowns-resolved`;
   - `backlog.md` — закрыть A-31…A-33, A-36, A-37, BL-53, BL-59…BL-61, BL-63, BL-64; сузить A-35, BL-56, BL-58; строка
-    «ключи объектных литералов в проверке `enum`» (A-32).
+    «ключи объектных литералов в проверке `enum`» (A-32); BL-67 закрыть, строка F-8 — коллизия `UNK` id records параллельных
+    веток (I-193).
 
   Проверка: `dev-context.test.ts`, `hygiene.js` без битых ссылок.
 - [ ] 6.3 `warrant analyze slice-fixes` на ветке impl-PR — без находок.

@@ -255,7 +255,8 @@ SHALL доходить целиком (B4).
 (`profiles[]`, `risk` — измерение → `{ "value", "from", "ref"? }` где `from` соответствует `floor`, `proposer:<id>` или `human:<login>`,
 а `ref` (URL) допустим только при `from: human:<login>` и фиксирует approval понижения ниже floor ([REQ-KRN-028](#requirement-команда-classify));
 `risk_level`), `transitions[]` (`to`, `at` (RFC 3339), `by`, `effective_policy_hash`?, `gates`?, `evidence`?, `ref`? (URL)),
-`unknowns[]` (`id` `UNK-AREA-NNN`, `text`, `blocking`, `resolution`?), `assumptions[]` (`id` `ASM-AREA-NNN`, `text`),
+`unknowns[]` (`id` `UNK-AREA-NNN`, `text`, `blocking`, `resolution`? — текст ответа, `resolved_as`? — `decision`, `fact` или
+`assumption`, `ref`? — URL; `resolved_as` и `ref` допустимы только вместе с `resolution`, [REQ-KRN-035](#requirement-команда-unknown)), `assumptions[]` (`id` `ASM-AREA-NNN`, `text`),
 необязательные `amends[]` и `supersedes[]` (kebab-case имена Changes, [ADR-0021](../../../../docs/adr/WARRANT-ADR-0021-archive-immutability.md)).
 
 #### Scenario: Пример из документации
@@ -277,6 +278,11 @@ SHALL доходить целиком (B4).
 <!-- id: SCN-KRN-110 -->
 - **WHEN** `classification.risk.blast_radius` равен `{ "value": "LOCAL", "from": "human:kat", "ref": "https://github.com/o/r/pull/7#issuecomment-1" }`
 - **THEN** файл валиден; тот же `ref` при `from: "floor:core-sdd:2"` — невалиден с указанием `/classification/risk/blast_radius`
+
+#### Scenario: Закрытый UNKNOWN
+<!-- id: SCN-KRN-143 -->
+- **WHEN** элемент `unknowns[]` равен `{ "id": "UNK-SRC-001", "text": "Можно ли переписывать историю?", "blocking": true, "resolution": "Нет", "resolved_as": "decision", "ref": "https://github.com/o/r/pull/7#issuecomment-1" }`
+- **THEN** файл валиден; тот же элемент с `resolved_as: "guess"` или с `ref` без `resolution` — невалиден с указанием `/unknowns/0`
 
 ### Requirement: Схема evidence
 <!-- id: REQ-KRN-012 -->
@@ -657,8 +663,10 @@ SHALL отказывать кодом 3, если имя уже есть в `.wa
 <!-- id: REQ-KRN-024 -->
 
 `warrant id <PREFIX> <AREA>` для `REQ`, `SCN`, `TASK`, `UNK`, `ASM` SHALL выдать `PREFIX-AREA-NNN`, где `NNN` =
-максимум по `openspec/specs/**` и `openspec/changes/**` (включая archive) + 1, три цифры с ведущими нулями;
-AREA SHALL быть в `.warrant/local/areas.json`. `warrant id EVID` и `warrant id RUN` SHALL выдать `PREFIX-<ULID>`.
+максимум по `openspec/specs/**`, `openspec/changes/**` (включая archive) и `unknowns[]` / `assumptions[]` records
+`.warrant/changes/*.json` + 1, три цифры с ведущими нулями; AREA SHALL быть в `.warrant/local/areas.json`, иначе
+`AREA_UNKNOWN`, код 3, с `hint`: объявленные AREA и то, что новую AREA объявляет человек правкой
+`.warrant/local/areas.json` — policy-пути, который не пишет ни одна операция Run ([ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 6). `warrant id EVID` и `warrant id RUN` SHALL выдать `PREFIX-<ULID>`.
 `warrant id WAV` SHALL выдать `WAV-<год>-NNN`. `warrant id renumber <old> <new> --change <name>` SHALL переписать
 все вхождения `<old>` внутри `openspec/changes/<name>/**` и `paths.tests`, отказывая кодом 3, если `<new>` уже
 существует где-либо в проекте или record Change в состоянии `MERGED` / `ARCHIVED` ([ADR-0012](../../../../docs/adr/WARRANT-ADR-0012-id-allocation.md)).
@@ -671,7 +679,7 @@ AREA SHALL быть в `.warrant/local/areas.json`. `warrant id EVID` и `warran
 #### Scenario: Неизвестная AREA
 <!-- id: SCN-KRN-057 -->
 - **WHEN** `warrant id REQ ZZZ` и `ZZZ` не в реестре
-- **THEN** `errors[0].code` равен `AREA_UNKNOWN`, код выхода 3
+- **THEN** `errors[0].code` равен `AREA_UNKNOWN`, код выхода 3; `errors[0].hint` перечисляет объявленные AREA и называет `.warrant/local/areas.json`
 
 #### Scenario: Сквозной ID
 <!-- id: SCN-KRN-058 -->
@@ -687,6 +695,11 @@ AREA SHALL быть в `.warrant/local/areas.json`. `warrant id EVID` и `warran
 <!-- id: SCN-KRN-060 -->
 - **WHEN** record Change в состоянии `MERGED`
 - **THEN** `renumber` отказывает с `ID_IMMUTABLE`, код выхода 3, файлы не изменены
+
+#### Scenario: Номер UNKNOWN с учётом records
+<!-- id: SCN-KRN-144 -->
+- **WHEN** в `openspec/**` максимум `UNK-SRC-002`, а `unknowns[]` record `.warrant/changes/add-search.json` содержит `UNK-SRC-004`
+- **THEN** `warrant id UNK SRC` возвращает `UNK-SRC-005`
 
 ### Requirement: Команда sync
 <!-- id: REQ-KRN-025 -->
@@ -827,10 +840,14 @@ unenforced }` — число правил `rule/1` и число правил б
 
 `warrant classify <change>` SHALL вычислить `classification` Change из детерминированных источников и записать её в
 `.warrant/changes/<change>.json`: (1) список изменённых путей — `git diff --name-only <base>...HEAD` с `--base` (по умолчанию `main`)
-или `--paths <file>` (по строке на путь; без git); (2) floor rules (`warrant://risk-floor/1`) всех подключённых packs — минимальное
+или `--paths <file>` (по строке на путь; без git); если у ветки базы есть upstream (`<base>@{upstream}`) и в нём есть коммиты,
+которых нет в базе, — `BASE_BEHIND_UPSTREAM`, код 3, record не изменён, `hint` называет `--base <upstream>` (diff устаревшей базы
+захватил бы чужие коммиты, а повторный `classify` запись не ослабит); upstream не задан, не разрешается (его ветки нет) или git
+не сравнил базу с ним — проверка пропускается без отказа; (2) floor rules (`warrant://risk-floor/1`) всех подключённых packs — минимальное
 значение измерения по совпавшим путям; (3) `match.paths` profiles — предлагаемые profiles; собственное состояние Change (record, каталог evidence, файлы Run этого Change и их
 `.result.json` — [REQ-VER-004](../verification/spec.md)) SHALL NOT участвовать в сверке с `match.paths` и floor rules; (4) `--propose <json>` — profiles и значения
-измерений от proposer'а; (5) `--set <dim>=<value>` и `--set profile=<id>` (повторяемые) — значения человека, требуют `--by <login>`,
+измерений от proposer'а; значение вне порядка измерения [05 §4](../../../../docs/05-policy.md) или profile, не объявленный
+подключёнными packs, SHALL давать `USAGE`, код 3, record не изменён, `hint` перечисляет допустимые значения; (5) `--set <dim>=<value>` и `--set profile=<id>` (повторяемые) — значения человека, требуют `--by <login>`,
 где `login` входит хотя бы в одну роль `roles` `warrant.json` (иначе `ROLE_REQUIRED`, код 3), и записываются с `from: human:<login>`.
 Итог измерения = максимум по порядку значений [05 §4](../../../../docs/05-policy.md) из floor, proposer и human; каждое значение
 SHALL нести `from` (`floor:<pack>:<rule-index>`, `proposer`, `human:<login>`, ранее записанное — `record`). `--set` ниже floor без
@@ -840,7 +857,8 @@ SHALL нести `from` (`floor:<pack>:<rule-index>`, `proposer`, `human:<login>
 `PROPOSED` или `SPECIFIED` (иначе `STATE_INVALID`, код 3); значение записывается как `{ value, from: "human:<login>", ref }`, и
 последующие `classify` SHALL сохранять его, пока нет нового `--set` этого измерения: floor по этому измерению попадает в `data.ignored[]`
 с причиной `approved-below-floor`. `ref` не верифицируется до `warrant ci` (фаза 4). Повторный `classify` SHALL NOT понижать ранее
-записанное значение измерения и SHALL NOT удалять ранее записанный profile. `risk_level` SHALL NOT записываться: его вычисляет resolver.
+записанное значение измерения и SHALL NOT удалять ранее записанный profile. `risk_level` SHALL NOT записываться: его вычисляет resolver. Record SHALL записываться только документом, который проходит
+`warrant://change-record/1`.
 Измерения без значения SHALL остаться отсутствующими (resolver трактует их как `UNKNOWN`). Команда SHALL печатать итоговую
 `classification` и `effective_policy` из `resolve` в `data`.
 
@@ -898,6 +916,16 @@ SHALL нести `from` (`floor:<pack>:<rule-index>`, `proposer`, `human:<login>
 <!-- id: SCN-KRN-138 -->
 - **WHEN** diff содержит только `src/search.py`, `.warrant/changes/add-search.json`, `.warrant/evidence/add-search/EVID-….json` и файл Run с `change: "add-search"`
 - **THEN** `profiles` не содержит `factory-change`, floor по `.warrant/**` не применён; при добавлении `.warrant/local/areas.json` — `factory-change` и floor, как в SCN-KRN-073
+
+#### Scenario: Proposer вне перечисления
+<!-- id: SCN-KRN-145 -->
+- **WHEN** `warrant classify add-search --propose '{"risk":{"compatibility":"NONE"}}'`, а порядок `compatibility` не содержит `NONE`
+- **THEN** `errors[0].code` равен `USAGE`, `hint` перечисляет допустимые значения `compatibility`, record не изменён, код 3
+
+#### Scenario: База позади upstream
+<!-- id: SCN-KRN-146 -->
+- **WHEN** `warrant classify add-search` без `--base`, а `origin/main` — upstream `main` — содержит коммит, которого нет в `main`
+- **THEN** `errors[0].code` равен `BASE_BEHIND_UPSTREAM`, `hint` содержит `--base origin/main`, record не изменён, код 3; с `--base origin/main` — classification записана, код 0; upstream `main` задан, но ветки `origin/main` нет — classification записана, код 0
 
 ### Requirement: Схема rule
 <!-- id: REQ-KRN-029 -->
@@ -1080,10 +1108,13 @@ NOT запускать дочерних процессов, кроме одно�
 ### Requirement: Режим --dry-run меняющих команд
 <!-- id: REQ-KRN-034 -->
 
-`warrant transition`, `warrant archive`, `warrant waive`, `warrant run start` и `warrant run finish` с `--dry-run` SHALL
+`warrant transition`, `warrant archive`, `warrant waive`, `warrant run start`, `warrant run finish`, `warrant unknown add` и
+`warrant unknown resolve` с `--dry-run` SHALL
 выполнить те же проверки и напечатать тот же JSON, что настоящий запуск, с `data.dry_run: true` и `data.would_write[]` (пути
 файлов, которые были бы созданы или изменены), завершиться тем же кодом и SHALL NOT менять ни одного файла.
-`archive --dry-run` SHALL выполнить `openspec validate --strict` и gates `MERGED->ARCHIVED`, но не `openspec archive`.
+`archive --dry-run` SHALL выполнить `openspec validate --strict` и gates `MERGED->ARCHIVED`, но не `openspec archive`; каталог
+архива в `would_write[]` SHALL называться по тому же правилу, что его создаёт `openspec archive`: локальная дата процесса
+`YYYY-MM-DD` и имя Change.
 
 #### Scenario: Пробный переход
 <!-- id: SCN-KRN-135 -->
@@ -1098,4 +1129,65 @@ NOT запускать дочерних процессов, кроме одно�
 #### Scenario: Пробный archive
 <!-- id: SCN-KRN-137 -->
 - **WHEN** `warrant archive add-search --dry-run` при `change_state: MERGED`
-- **THEN** `openspec archive` не вызван, каталог Change на месте, `data.would_write[]` содержит record и каталог `openspec/changes/archive/<дата>-add-search/`
+- **THEN** `openspec archive` не вызван, каталог Change на месте, `data.would_write[]` содержит record и каталог `openspec/changes/archive/<дата>-add-search/`, где `<дата>` — локальная дата процесса
+
+#### Scenario: Пробный archive на границе суток
+<!-- id: SCN-KRN-147 -->
+- **WHEN** `warrant archive add-search --dry-run` в процессе с часовым поясом UTC+3 в момент `2026-09-26T22:54:00Z`
+- **THEN** `data.would_write[]` содержит `openspec/changes/archive/2026-09-27-add-search/` — тот же каталог, что создаёт настоящий прогон в этот момент
+
+### Requirement: Команда unknown
+<!-- id: REQ-KRN-035 -->
+
+`warrant unknown add <change> --area <AREA> --text <вопрос> [--blocking] [--dry-run]` SHALL добавить в `unknowns[]` record
+`{ id, text, blocking }`: `id` — `UNK-<AREA>-NNN` по правилу [REQ-KRN-024](#requirement-команда-id) (`AREA_UNKNOWN` с `hint`),
+`blocking` — `true` только с `--blocking` ([02 §1](../../../../docs/02-vocabulary.md)).
+`warrant unknown resolve <change> <UNK> --as decision|fact|assumption --text <ответ> [--ref <url>] [--replace] [--dry-run]` SHALL записать
+в элемент `resolution` (текст ответа), `resolved_as` и `ref`. Элемент закрыт, если его `resolution` непуст. Blocking UNKNOWN
+закрывается только решением maintainer'а — `--as decision` с `--ref` на комментарий, текст которого содержит id UNKNOWN
+([ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 2, 3); `fact` и `assumption` закрывают только не-blocking UNKNOWN, `--as assumption` элемент `assumptions[]`
+не добавляет. У `--ref` команда проверяет только форму (http(s) URL); автора, текст и PR комментария проверяет `warrant ci`
+([REQ-VER-013](../verification/spec.md)). Обе команды допустимы только при `change_state` `PROPOSED` или `SPECIFIED`: вопрос, возникший в реализации, —
+строка `I-N` в `design.md` с решением maintainer'а. Ошибки — код 3, record не изменён, каждая с `hint`:
+- `--as decision` без `--ref`, `--as fact` или `assumption` у blocking UNKNOWN — `USAGE`; `hint` называет ref — URL
+  комментария maintainer'а в PR (`…/pull/<N>#issuecomment-<id>` или `…/pull/<N>#pullrequestreview-<id>`), в тексте которого
+  стоит id UNKNOWN; `--ref` не http(s) URL, `--as` вне трёх значений, пустой или пробельный `--text` — `USAGE`;
+- record Change нет — `CHANGE_NOT_FOUND`;
+- `<UNK>` нет в record — `UNKNOWN_NOT_FOUND`, `hint` перечисляет открытые UNKNOWN Change;
+- элемент уже закрыт, а `--replace` не задан — `UNKNOWN_RESOLVED`, `hint` называет `--replace`: он переписывает ответ,
+  `resolved_as` и `ref` закрытого элемента (например, ref на новый комментарий maintainer'а);
+- `change_state` не `PROPOSED` и не `SPECIFIED` — `STATE_INVALID`, `hint` называет строку `I-N` в `design.md`
+  (`RECORD_FROZEN` для `ARCHIVED` и `ABANDONED`).
+Обе команды SHALL NOT писать переход и SHALL записывать record только документом, который проходит `warrant://change-record/1`.
+Вывод — `data{ change, unknown, open_blocking[] }`: записанный элемент и id открытых blocking UNKNOWN Change после записи;
+`--dry-run` — по [REQ-KRN-034](#requirement-режим---dry-run-меняющих-команд).
+
+#### Scenario: Blocking UNKNOWN
+<!-- id: SCN-KRN-148 -->
+- **WHEN** `warrant unknown add add-search --area SRC --text "Что делать при часах, идущих назад?" --blocking` при `change_state: PROPOSED` и максимуме `UNK-SRC-003`
+- **THEN** record содержит `{ "id": "UNK-SRC-004", "text": "Что делать при часах, идущих назад?", "blocking": true }`, `data.open_blocking` равен `["UNK-SRC-004"]`, переходов не добавлено, код 0; `warrant status add-search` при gates перехода без `FAIL` даёт `controller_action: WAIT`, `next: clarify`
+
+#### Scenario: Решение maintainer'а
+<!-- id: SCN-KRN-149 -->
+- **WHEN** `warrant unknown resolve add-search UNK-SRC-004 --as decision --text "Часы назад — метка сдвигается" --ref https://github.com/o/r/pull/7#issuecomment-11`
+- **THEN** элемент содержит `resolution`, `resolved_as: "decision"` и `ref`, `data.open_blocking` пуст, код 0
+
+#### Scenario: Blocking без решения
+<!-- id: SCN-KRN-150 -->
+- **WHEN** `warrant unknown resolve add-search UNK-SRC-004 --as decision --text "…"` без `--ref`; затем `--as fact --text "…"` для того же blocking `UNK-SRC-004`
+- **THEN** оба — `errors[0].code` равен `USAGE`, `hint` содержит `#issuecomment-` и `UNK-SRC-004`, record не изменён, код 3; `--as fact` без `--ref` для не-blocking `UNK-SRC-005` — элемент закрыт, `assumptions[]` не изменён, код 0
+
+#### Scenario: Нет такого UNKNOWN, он закрыт или ответ пуст
+<!-- id: SCN-KRN-151 -->
+- **WHEN** `warrant unknown resolve add-search UNK-SRC-009 --as fact --text "…"`, а в record есть только не-blocking `UNK-SRC-005`; тот же вызов для уже закрытого `UNK-SRC-005`; вызов с `--text "  "`; вызов для Change без record
+- **THEN** `UNKNOWN_NOT_FOUND` с `hint`, содержащим `UNK-SRC-005`; `UNKNOWN_RESOLVED` с `hint`, содержащим `--replace`; `USAGE`; `CHANGE_NOT_FOUND`; record не изменён, код 3; с `--replace` закрытый `UNK-SRC-005` получает новый `resolution`, код 0
+
+#### Scenario: UNKNOWN после approval
+<!-- id: SCN-KRN-152 -->
+- **WHEN** `warrant unknown add add-search --area SRC --text "…"` при `change_state: APPROVED`
+- **THEN** `errors[0].code` равен `STATE_INVALID`, `hint` называет строку `I-N` в `design.md`, record не изменён, код 3
+
+#### Scenario: Пробная запись UNKNOWN
+<!-- id: SCN-KRN-153 -->
+- **WHEN** `warrant unknown add add-search --area SRC --text "…" --dry-run`
+- **THEN** `data.dry_run: true`, `data.unknown.id` — id, который выдал бы настоящий запуск, `data.would_write[]` содержит `.warrant/changes/add-search.json`, record не изменён, код 0

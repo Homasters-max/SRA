@@ -27,6 +27,7 @@
  * Step 4 applies to `BLOCKED` as well as to `FAIL`: a waiver is how a gate
  * without a producer passes (SCN-VER-015, P-16).
  */
+import { attestationOf } from "../evidence/attestation.js";
 import { pathMatcher } from "../glob.js";
 import { isPlainObject, strings } from "../json.js";
 import { CALCULATORS, type L0Result } from "./l0/index.js";
@@ -78,8 +79,7 @@ export function attestationAccepted(gate: Record<string, unknown> | undefined, t
   if (transition !== MERGE_TRANSITION) return () => true;
   const declared = Array.isArray(gate?.["accepts_attestation"]) ? strings(gate?.["accepts_attestation"]) : undefined;
   return (record) => {
-    const attestation = record.json["attestation"];
-    const type = isPlainObject(attestation) && typeof attestation["type"] === "string" ? attestation["type"] : "none";
+    const type = attestationOf(record.json).type;
     return declared === undefined ? type !== "none" : declared.includes(type);
   };
 }

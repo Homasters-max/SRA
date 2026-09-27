@@ -11,24 +11,21 @@
 import type { Ctx } from "../ctx.js";
 import { cliError, type CliError } from "../errors.js";
 import { HUMAN_APPROVAL } from "../evidence/approval.js";
+import { attestationOf } from "../evidence/attestation.js";
 import { subjectOf } from "../evidence/record.js";
 import type { Finding } from "../gates/types.js";
 import { mergeOfHead } from "../git/facts.js";
 import { isPlainObject, strings } from "../json.js";
+import { confirmationOf, type Confirmation } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
+import { recordPath } from "../record/write.js";
 import { approvalRoles, roleMembers } from "../roles.js";
 import { basePolicy, type BaseContext } from "./base.js";
-import { jsonAt, recordRel, type CiSubject } from "./kind.js";
+import { jsonAt, type CiSubject } from "./kind.js";
 import type { NewTransition } from "./record.js";
 
 /** Reasons of `REF_NOT_VERIFIED` (REQ-VER-011). */
 export type RefReason = "repository" | "merged" | "merged_by" | "change" | "merge_commit" | "by";
-
-/** The transition whose approval each verified target records. */
-const APPROVAL_AT: Readonly<Record<string, string>> = { APPROVED: "SPECIFIED->APPROVED", MERGED: "VERIFYING->MERGED" };
-
-/** The transition the pull request of the ref brings into the record: the spec-PR `SPECIFIED`, the impl-PR `VERIFYING`. */
-const BROUGHT_BY_PR: Readonly<Record<string, string>> = { APPROVED: "SPECIFIED", MERGED: "VERIFYING" };
 
 export interface RefJudgement {
   errors: CliError[];
@@ -51,8 +48,8 @@ export function parsePullUrl(ref: string): { repository: string; number: number 
 /** Targets of the transitions `rev` adds to the record of `change` against its first parent. */
 async function broughtTransitions(ctx: Pick<Ctx, "git">, rev: string, change: string): Promise<string[]> {
   const parent = (await ctx.git.parents(rev))[0];
-  const after = await jsonAt(ctx, rev, recordRel(change));
-  const before = parent === undefined ? undefined : await jsonAt(ctx, parent, recordRel(change));
+  const after = await jsonAt(ctx, rev, recordPath(change));
+  const before = parent === undefined ? undefined : await jsonAt(ctx, parent, recordPath(change));
   const list = (r: unknown): unknown[] => (isPlainObject(r) && Array.isArray(r["transitions"]) ? r["transitions"] : []);
   return list(after)
     .slice(list(before).length)
@@ -72,7 +69,7 @@ export async function judgeRefs(
 ): Promise<RefJudgement> {
   const change = subject.change as string;
   const out: RefJudgement = { errors: [], findings: [] };
-  const verified = transitions.filter((t) => APPROVAL_AT[t.to] !== undefined);
+  const verified = transitions.filter((t) => confirmationOf(t.to) !== undefined);
   if (verified.length === 0) return out;
   const line = new Set((await ctx.git.firstParents(subject.base)) ?? []);
   const resolved = basePolicy(base, change, subject.record as ChangeRecord);
@@ -81,7 +78,7 @@ export async function judgeRefs(
     const ref = typeof t.entry["ref"] === "string" ? t.entry["ref"] : "";
     const where = `transition ${t.index} (${t.to}) ref ${ref === "" ? "(none)" : ref}`;
     const fail = (reason: RefReason, detail: string): void => {
-      out.errors.push(cliError("REF_NOT_VERIFIED", `${where}: ${reason}: ${detail}`, { path: `${recordRel(change)}#/transitions/${t.index}/ref` }));
+      out.errors.push(cliError("REF_NOT_VERIFIED", `${where}: ${reason}: ${detail}`, { path: `${recordPath(change)}#/transitions/${t.index}/ref` }));
     };
     const parsed = parsePullUrl(ref);
     if (parsed === null) {
@@ -98,7 +95,8 @@ export async function judgeRefs(
       fail("merged", `pull request ${pr.number} is not merged`);
       continue;
     }
-    const transition = APPROVAL_AT[t.to] as string;
+    const confirmation = confirmationOf(t.to) as Confirmation;
+    const transition = confirmation.transition;
     const roles = resolved.ok ? approvalRoles(resolved.policy, transition) : approvalRoles({ approvals: [] }, transition);
     if (!roleMembers(base.loaded.config, roles).has(pr.mergedBy)) {
       fail("merged_by", `${pr.mergedBy} merged pull request ${pr.number}, not a member of roles ${roles.join(", ")} of the base`);
@@ -109,7 +107,7 @@ export async function judgeRefs(
       const json = evidence.get(id);
       return json === undefined ? [] : [json];
     });
-    const ci = records.filter((json) => isPlainObject(json["attestation"]) && json["attestation"]["type"] === "ci");
+    const ci = records.filter((json) => attestationOf(json).type === "ci");
     const heads = [...new Set(ci.map((json) => subjectOf(json)?.commit ?? ""))];
     if (t.to === "MERGED" && heads.length > 0) {
       if (heads.length > 1) {
@@ -132,7 +130,7 @@ export async function judgeRefs(
         fail("merge_commit", `merge commit ${pr.mergeCommit} of pull request ${pr.number} is not on the first-parent line of the base`);
         continue;
       }
-      const brought = BROUGHT_BY_PR[t.to] as string;
+      const brought = confirmation.broughtBy;
       if (!(await broughtTransitions(ctx, pr.mergeCommit, change)).includes(brought)) {
         fail("change", `merge commit ${pr.mergeCommit} of pull request ${pr.number} does not bring the transition ${brought} into the record of ${change}`);
         continue;

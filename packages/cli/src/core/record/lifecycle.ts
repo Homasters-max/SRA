@@ -52,11 +52,37 @@ export const AMENDS_TARGET_STATES: readonly ChangeState[] = ["MERGED", "ARCHIVED
 /** States in which `status` reports `FRONTEND_HOOKS_INACTIVE`: `IMPLEMENTING` and later (REQ-VER-009). */
 export const HOOKS_LIVENESS_STATES: readonly ChangeState[] = ["IMPLEMENTING", "VERIFYING", "MERGED", "ARCHIVED"];
 
-/** States whose transition needs `--ref`, the URL of a pull request: the spec-PR of `APPROVED`, the impl-PR of `MERGED` (P-6, ADR-0037 п. 5). */
-export const REF_REQUIRED_STATES: readonly ChangeState[] = ["APPROVED", "MERGED"];
-
 /** Kind of a pull request (REQ-VER-011): by `change_state` of the one record its diff changes, `none` without one. */
 export type PrKind = "spec" | "impl" | "archive" | "abandon" | "none";
+
+/** How the entry into a state is confirmed by the merge of a pull request (A-32). */
+export interface Confirmation {
+  /** The transition whose approval the merge records. */
+  transition: string;
+  /** The transition the pull request brings into the record: the one it is the merge of. */
+  broughtBy: ChangeState;
+  /** The kind of that pull request; its URL is the `--ref` of the transition. */
+  pr: Extract<PrKind, "spec" | "impl">;
+}
+
+/**
+ * The states whose transition is confirmed by a merged pull request (P-6,
+ * ADR-0037 п. 5, A-32): `APPROVED` by the spec-PR that brought `SPECIFIED`,
+ * `MERGED` by the impl-PR that brought `VERIFYING`. `transition` needs `--ref`
+ * for them, `warrant ci` verifies that ref through the forge.
+ */
+export const CONFIRMED_BY = {
+  APPROVED: { transition: "SPECIFIED->APPROVED", broughtBy: "SPECIFIED", pr: "spec" },
+  MERGED: { transition: "VERIFYING->MERGED", broughtBy: "VERIFYING", pr: "impl" }
+} as const satisfies Partial<Record<ChangeState, Confirmation>>;
+
+/** The {@link Confirmation} of the entry into `state`, or undefined when no pull request confirms it. */
+export function confirmationOf(state: string): Confirmation | undefined {
+  return isChangeState(state) ? (CONFIRMED_BY as Partial<Record<ChangeState, Confirmation>>)[state] : undefined;
+}
+
+/** States whose transition needs `--ref`, the URL of a pull request: the keys of {@link CONFIRMED_BY}. */
+export const REF_REQUIRED_STATES: readonly ChangeState[] = Object.keys(CONFIRMED_BY) as ChangeState[];
 
 /** {@link PrKind} of a pull request whose record ends in the state (REQ-VER-011, N33). */
 export const PR_KIND_OF_STATE: Readonly<Record<ChangeState, Exclude<PrKind, "none">>> = {
@@ -69,6 +95,14 @@ export const PR_KIND_OF_STATE: Readonly<Record<ChangeState, Exclude<PrKind, "non
   ARCHIVED: "archive",
   ABANDONED: "abandon"
 };
+
+/** The kinds of a pull request after the spec-PR (A-36): the record is past `SPECIFIED`, its classification is judged (SCN-VER-105). */
+const MERGE_KINDS: ReadonlySet<PrKind> = new Set(["impl", "archive", "abandon"]);
+
+/** Whether `kind` is a pull request after the spec-PR: `impl`, `archive` or `abandon` (A-36). */
+export function isMergeKind(kind: PrKind): boolean {
+  return MERGE_KINDS.has(kind);
+}
 
 export type TransitionKind = "forward" | "backward" | "abandon";
 

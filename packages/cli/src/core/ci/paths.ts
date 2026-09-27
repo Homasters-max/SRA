@@ -8,6 +8,7 @@
  */
 import type { Ctx } from "../ctx.js";
 import { cliError, type CliError } from "../errors.js";
+import { evidenceRel } from "../evidence/store.js";
 import { pathMatcher } from "../glob.js";
 import { isPlainObject } from "../json.js";
 import { LOCK_REL } from "../packs/hash.js";
@@ -31,7 +32,7 @@ export interface PathJudgement {
 const SPECS = "openspec/specs/";
 
 /** State of any Change a pull request without a Change must not touch (N47, kind `none`). */
-const CHANGE_STATE_PATHS = ["openspec/changes/**", ".warrant/changes/**", ".warrant/evidence/**", ".warrant/runs/**"];
+const CHANGE_STATE_PATHS = ["openspec/changes/**", ".warrant/changes/**", evidenceRel("**"), ".warrant/runs/**"];
 
 const WAIVER_RE = /^\.warrant\/waivers\/[^/]+\.json$/;
 

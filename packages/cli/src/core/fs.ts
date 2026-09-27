@@ -1,7 +1,7 @@
 /**
  * Paths and file-system walking shared by every module (ADR-0030 point 1, A-3):
- * the one owner of `posix`, `projectPath`, `reportPath`, `walkFiles`, `readJson`,
- * `stateDir` and `projectUri` (A-27). A local copy of any of them is an error
+ * the one owner of `posix`, `projectPath`, `absolutePath` (A-35), `reportPath`,
+ * `walkFiles`, `readJson`, `stateDir` and `projectUri` (A-27). A local copy of any of them is an error
  * of `test/unit/meta/architecture.test.ts` (`helper` rule).
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -29,6 +29,11 @@ export function projectPath(
   const rel = platform.relative(root, absolute);
   if (platform.isAbsolute(rel) || rel === ".." || rel.startsWith(`..${platform.sep}`)) return undefined;
   return rel.split(platform.sep).join("/");
+}
+
+/** The inverse of {@link projectPath}: `rel` (POSIX, relative to `root`) as an absolute path; empty and `.` segments dropped. */
+export function absolutePath(root: string, rel: string): string {
+  return path.join(root, ...rel.split("/").filter((s) => s !== "" && s !== "."));
 }
 
 /** Path as it appears in `errors[].path`: relative to the project root, POSIX separators; absolute outside it. */

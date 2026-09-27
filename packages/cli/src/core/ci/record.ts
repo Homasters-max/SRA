@@ -12,17 +12,20 @@ import { canonicalHash } from "../canon/hash.js";
 import { checksForTransition, effectiveCheck } from "../check/execute.js";
 import type { Ctx } from "../ctx.js";
 import { cliError, type CliError } from "../errors.js";
+import { attestationOf } from "../evidence/attestation.js";
+import { evidenceRel } from "../evidence/store.js";
 import { isPlainObject, strings } from "../json.js";
 import { PASSING_VERDICTS, MERGE_TRANSITION, type Verdict } from "../gates/types.js";
 import { FACTORY_PROFILE, gateDefinitions } from "../packs/objects.js";
-import { isFrozen, transitionKind, type PrKind } from "../record/lifecycle.js";
+import { isFrozen, isMergeKind, transitionKind } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
+import { recordPath } from "../record/write.js";
 import { RISK_LEVELS } from "../resolve/index.js";
 import { ownState } from "../run/state.js";
 import { validateFile } from "../schemas/semantic.js";
 import type { Json } from "../schemas/loader.js";
 import { basePolicy, changedBundledPacks, requiredProfiles, type BaseContext } from "./base.js";
-import { jsonAt, recordRel, type CiSubject } from "./kind.js";
+import { jsonAt, type CiSubject } from "./kind.js";
 
 /** Schema every evidence record of a transition must be valid by. */
 const EVIDENCE_SCHEMA = "warrant://evidence/1";
@@ -63,7 +66,7 @@ function transitionsOf(record: ChangeRecord | undefined): Record<string, unknown
 }
 
 function mismatch(change: string, where: string, reason: MismatchReason, detail: string, pointer = ""): CliError {
-  return cliError("RECORD_MISMATCH", `${where}: ${reason}: ${detail}`, { path: `${recordRel(change)}${pointer}` });
+  return cliError("RECORD_MISMATCH", `${where}: ${reason}: ${detail}`, { path: `${recordPath(change)}${pointer}` });
 }
 
 function label(t: NewTransition): string {
@@ -140,8 +143,7 @@ function mergedRules(
     for (const kind of requiredKinds(base, gate).filter((k) => produced.has(k))) {
       const backed = ids.some((id) => {
         const json = evidence.get(id);
-        const attestation = isPlainObject(json?.["attestation"]) ? json["attestation"] : {};
-        return json?.["kind"] === kind && attestation["type"] === "ci";
+        return json?.["kind"] === kind && attestationOf(json).type === "ci";
       });
       if (!backed) {
         errors.push(
@@ -234,7 +236,7 @@ export async function judgeRecord(
       }
     }
     for (const id of strings(t.entry["evidence"])) {
-      const rel = `.warrant/evidence/${change}/${id}.json`;
+      const rel = `${evidenceRel(change)}/${id}.json`;
       const json = await jsonAt(ctx, subject.merge, rel);
       if (!isPlainObject(json)) {
         errors.push(mismatch(change, label(t), "evidence", `${id}: ${json === undefined ? `no file ${rel} on HEAD` : `${rel} is not JSON`}`, `#/transitions/${t.index}/evidence`));
@@ -246,7 +248,7 @@ export async function judgeRecord(
     }
   }
 
-  if ((["impl", "archive", "abandon"] as PrKind[]).includes(subject.kind)) {
+  if (isMergeKind(subject.kind)) {
     errors.push(...classificationRule(ctx, subject, change, head, base, env));
   }
   for (const t of transitions.filter((x) => x.to === "MERGED")) {

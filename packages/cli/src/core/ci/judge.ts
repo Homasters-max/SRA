@@ -12,6 +12,7 @@ import { EXIT, WarrantError, type CliError, type ExitCode } from "../errors.js";
 import { evidenceDir } from "../evidence/store.js";
 import { reportPath } from "../fs.js";
 import { MERGE_TRANSITION, type Finding } from "../gates/types.js";
+import { CONFIRMED_BY } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
 import { evaluate, prepare } from "../transition/evaluate.js";
 import { createWrites } from "../writes.js";
@@ -23,8 +24,8 @@ import { judgePaths, type Skipped } from "./paths.js";
 import { judgeRecord, type NewTransition } from "./record.js";
 import { judgeRefs } from "./refs.js";
 
-/** The transition whose gates a spec-PR shows. */
-const APPROVAL_TRANSITION = "SPECIFIED->APPROVED";
+/** The transition whose gates a spec-PR shows: the one its merge confirms. */
+const APPROVAL_TRANSITION = CONFIRMED_BY.APPROVED.transition;
 
 export interface CiVerdict {
   /** `data` in the order of REQ-VER-011. */

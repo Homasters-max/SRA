@@ -18,6 +18,11 @@ describe("ciRunOf", () => {
     expect(ciRunOf([ci("EVID-1", RUN), ci("EVID-2", `${RUN}/`), local])).toEqual({ ref: RUN });
   });
 
+  it("takes a ref without an attempt for attempt 1 of the run, not for another attempt (A-31)", () => {
+    expect(ciRunOf([ci("EVID-1", RUN), ci("EVID-2", `${RUN}/attempts/1`)])).toEqual({ ref: RUN });
+    expect(ciRunOf([ci("EVID-1", RUN), ci("EVID-2", `${RUN}/attempts/2`)])).toEqual({ mismatched: ["EVID-1", "EVID-2"] });
+  });
+
   it("is null without CI records", () => {
     expect(ciRunOf([{ id: "EVID-1", json: { attestation: { type: "human-review", ref: RUN } } }])).toEqual({ ref: null });
     expect(ciRunOf([])).toEqual({ ref: null });

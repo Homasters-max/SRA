@@ -24,6 +24,15 @@ export const MANIFEST_FILE = "manifest.json";
 /** Record files are named by their id: `EVID-<ULID>.json`. */
 const RECORD_FILE_RE = /^EVID-[0-9A-HJKMNP-TV-Z]{26}\.json$/;
 
+/**
+ * Project path of the evidence of `change` as the repository commits it:
+ * `.warrant/evidence/<change>` whatever `WARRANT_STATE_DIR` (A-35) — what
+ * `warrant ci` reads from git; `**` for the evidence of every Change.
+ */
+export function evidenceRel(change: string): string {
+  return `.warrant/evidence/${change}`;
+}
+
 /** Absolute `<state>/evidence/<change>/`. */
 export function evidenceDir(root: string, change: string, env: NodeJS.ProcessEnv = process.env): string {
   return path.join(stateDir(root, env), "evidence", change);

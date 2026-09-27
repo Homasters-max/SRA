@@ -38,7 +38,7 @@ import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
 import { packObjects } from "../core/packs/objects.js";
 import type { LoadResult } from "../core/packs/types.js";
-import { BELOW_FLOOR_APPROVABLE_STATES } from "../core/record/lifecycle.js";
+import { BELOW_FLOOR_APPROVABLE_STATES, CONFIRMED_BY } from "../core/record/lifecycle.js";
 import { readChangeRecord } from "../core/record/read.js";
 import { assertNotFrozen } from "../core/record/write.js";
 import { ownState } from "../core/run/state.js";
@@ -62,8 +62,8 @@ export interface ClassifyOptions {
   ref?: string | undefined;
 }
 
-/** The transition whose approvers may approve a value below the floor (REQ-KRN-028). */
-export const BELOW_FLOOR_APPROVAL = "SPECIFIED->APPROVED";
+/** The transition whose approvers may approve a value below the floor (REQ-KRN-028): the approval of the spec. */
+export const BELOW_FLOOR_APPROVAL = CONFIRMED_BY.APPROVED.transition;
 
 /** Parsed `--set` values; `USAGE` for anything that is not `<dimension>=<value>` or `profile=<id>`. */
 export function parseSets(sets: readonly string[]): { profiles: string[]; risk: Partial<Record<RiskDimension, string>> } {

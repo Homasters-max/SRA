@@ -5,9 +5,8 @@
  * head of the impl-PR. Paths are POSIX, relative to the project root.
  */
 import { readFileSync, statSync } from "node:fs";
-import path from "node:path";
 
-import { reportPath, walkFiles } from "../fs.js";
+import { absolutePath, reportPath, walkFiles } from "../fs.js";
 import type { GitCtx } from "./facts.js";
 import { toProjectPaths } from "./paths.js";
 
@@ -18,16 +17,12 @@ export interface ProjectFiles {
   read(rel: string): string | undefined;
 }
 
-/** `rel` as an absolute path under `root`. */
-function absoluteOf(root: string, rel: string): string {
-  return path.join(root, ...rel.split("/").filter((s) => s !== "" && s !== "."));
-}
 
 /** The files of the working tree of the project `root`. */
 export function workingTreeFiles(root: string): ProjectFiles {
   return {
     list(rel) {
-      const absolute = absoluteOf(root, rel);
+      const absolute = absolutePath(root, rel);
       let stat;
       try {
         stat = statSync(absolute);
@@ -39,7 +34,7 @@ export function workingTreeFiles(root: string): ProjectFiles {
     },
     read(rel) {
       try {
-        return readFileSync(absoluteOf(root, rel), "utf8");
+        return readFileSync(absolutePath(root, rel), "utf8");
       } catch {
         return undefined;
       }

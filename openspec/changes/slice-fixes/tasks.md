@@ -9,25 +9,25 @@
 
 ## 1. Bump и швы core/ci (A-31, A-32, A-35, A-36, A-33)
 
-- [ ] 1.1 Bump (§7, REQ-SDD-001):
+- [x] 1.1 Bump (§7, REQ-SDD-001):
   - CLI `0.8.0`;
   - pack `core-sdd` `0.3.4` с `kernel: ">=0.1 <0.9"`: 7 fixture-packs, `.warrant/warrant.json` `kernel: "0.8"`,
     `warrant.lock.json` репозитория и golden-фикстур.
 
   Проверка: `npm run versions:check` зелёный; `core-sdd-catalog.test.ts` под новый диапазон.
-- [ ] 1.2 A-31 (§2): `core/evidence/attestation.ts` — `attestationOf`, `ciRunKey` на `parseCiRef`, `artifactName`; строки
+- [x] 1.2 A-31 (§2): `core/evidence/attestation.ts` — `attestationOf`, `ciRunKey` на `parseCiRef`, `artifactName`; строки
   `helpers`. Через них — семь читателей attestation, `ciRunOf`, запись и чтение artifact'а.
 
   Проверка:
   - `cs grep '["attestation"]' --fixed --in packages/cli/src` — только владелец;
   - app `transition MERGED`: `…/runs/7` и `…/runs/7/attempts/1` — один run, без `REF_MISMATCH`;
   - SCN-VER-029…035, SCN-VER-050…052 и тесты `ci`, `ci fetch` без правок ожидаемых значений.
-- [ ] 1.3 A-32 (§2): карта `CONFIRMED_BY` в `core/record/lifecycle.ts`; `REF_REQUIRED_STATES`, `APPROVAL_AT`, `BROUGHT_BY_PR`,
+- [x] 1.3 A-32 (§2): карта `CONFIRMED_BY` в `core/record/lifecycle.ts`; `REF_REQUIRED_STATES`, `APPROVAL_AT`, `BROUGHT_BY_PR`,
   `pullRequestOf` — через неё.
 
   Проверка: `cs grep 'SPECIFIED->APPROVED' --in packages/cli/src/core/ci packages/cli/src/commands` — без литералов карты;
   тесты `transition`, `ci` без правок ожидаемых значений.
-- [ ] 1.4 A-35, A-36 (§2):
+- [x] 1.4 A-35, A-36 (§2):
   - `recordPath` вместо `recordRel`;
   - `evidenceRel` в `core/evidence/store.ts`;
   - `absolutePath` в `core/fs.ts` для `absoluteOf` ×2;
@@ -36,7 +36,7 @@
 
   Проверка: `architecture.test.ts` зелёный без исключения `pr-kind`; `cs grep '.warrant/evidence/' --fixed --in
   packages/cli/src/core/ci` — пусто.
-- [ ] 1.5 A-33 (§2, I-187): удалить `EvaluateOptions.admit`.
+- [x] 1.5 A-33 (§2, I-187): удалить `EvaluateOptions.admit`.
 
   Проверка: `npm run typecheck`; тесты `ci` без правок ожидаемых значений.
 

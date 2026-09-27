@@ -50,6 +50,7 @@
     { "name": "strings", "owner": "core/json.ts" },
     { "name": "posix", "owner": "core/fs.ts" },
     { "name": "projectPath", "owner": "core/fs.ts" },
+    { "name": "absolutePath", "owner": "core/fs.ts" },
     { "name": "reportPath", "owner": "core/fs.ts" },
     { "name": "walkFiles", "owner": "core/fs.ts" },
     { "name": "readJson", "owner": "core/fs.ts" },
@@ -68,6 +69,11 @@
     { "name": "packSkills", "owner": "core/packs/objects.ts" },
     { "name": "evidenceSubject", "owner": "core/evidence/record.ts" },
     { "name": "subjectOf", "owner": "core/evidence/record.ts" },
+    { "name": "attestationOf", "owner": "core/evidence/attestation.ts" },
+    { "name": "ciRunKey", "owner": "core/evidence/attestation.ts" },
+    { "name": "runAttemptKey", "owner": "core/evidence/attestation.ts" },
+    { "name": "artifactName", "owner": "core/evidence/attestation.ts" },
+    { "name": "evidenceRel", "owner": "core/evidence/store.ts" },
     { "name": "buildEvidenceRecord", "owner": "core/evidence/record.ts" },
     { "name": "buildApprovalRecord", "owner": "core/evidence/approval.ts" },
     { "name": "startRun", "owner": "core/run/lifecycle.ts" },
@@ -119,7 +125,5 @@
     { "id": "finding-severity", "owner": "core/run/submit.ts", "doc": "docs/02-vocabulary.md", "values": ["BLOCKER", "MAJOR", "MINOR", "INFO"] },
     { "id": "pr-kind", "owner": "core/record/lifecycle.ts", "doc": "docs/04-lifecycle.md", "values": ["spec", "impl", "archive", "abandon", "none"] }
   ],
-  "exceptions": [
-    { "id": "A-36", "rule": "enum", "from": "core/ci/record.ts", "enum": "pr-kind" }
-  ]
+  "exceptions": []
 }

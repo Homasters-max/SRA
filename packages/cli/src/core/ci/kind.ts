@@ -13,6 +13,7 @@ import { changedPaths, type DiffEntry } from "../git/facts.js";
 import { isPlainObject } from "../json.js";
 import { isChangeState, PR_KIND_OF_STATE, type PrKind } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
+import { recordPath } from "../record/write.js";
 
 /** HEAD and its two parents. */
 export interface MergeHead {
@@ -38,11 +39,6 @@ export interface CiSubject extends MergeHead {
 }
 
 const RECORD_RE = /^\.warrant\/changes\/([^/]+)\.json$/;
-
-/** Path of the record of `change`, relative to the project. */
-export function recordRel(change: string): string {
-  return `.warrant/changes/${change}.json`;
-}
 
 /** How to make HEAD what `warrant ci` judges. */
 const MERGE_HINT =
@@ -130,19 +126,19 @@ export async function readSubjectOf(ctx: Pick<Ctx, "git">, heads: MergeHead): Pr
   for (const name of deleted) {
     subject.errors.push(
       cliError("RECORD_MISMATCH", `the record of ${name} is deleted: a record never leaves the repository (ADR-0021)`, {
-        path: recordRel(name),
-        hint: `restore ${recordRel(name)}; a Change ends in ARCHIVED or ABANDONED`
+        path: recordPath(name),
+        hint: `restore ${recordPath(name)}; a Change ends in ARCHIVED or ABANDONED`
       })
     );
   }
   if (subject.errors.length > 0) return subject;
 
-  const record = await jsonAt(ctx, heads.merge, recordRel(change));
+  const record = await jsonAt(ctx, heads.merge, recordPath(change));
   const state = isPlainObject(record) ? record["change_state"] : undefined;
   if (!isPlainObject(record) || typeof state !== "string" || !isChangeState(state)) {
     subject.errors.push(
       cliError("RECORD_MISMATCH", `the record of ${change} on HEAD is not a change record with a known change_state`, {
-        path: recordRel(change),
+        path: recordPath(change),
         hint: "run `warrant validate`"
       })
     );
@@ -150,7 +146,7 @@ export async function readSubjectOf(ctx: Pick<Ctx, "git">, heads: MergeHead): Pr
   }
   subject.record = record;
   subject.kind = PR_KIND_OF_STATE[state];
-  const base = await jsonAt(ctx, heads.base, recordRel(change));
+  const base = await jsonAt(ctx, heads.base, recordPath(change));
   if (isPlainObject(base)) subject.baseRecord = base;
   return subject;
 }

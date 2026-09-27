@@ -7,12 +7,12 @@
  */
 import type { Ctx } from "../ctx.js";
 import { WarrantError } from "../errors.js";
+import { attestationOf, ciRunKey } from "../evidence/attestation.js";
 import { subjectOf } from "../evidence/record.js";
 import { evidenceDir, readRecords } from "../evidence/store.js";
 import { isAncestor, notMergedHeadReason, resolveCommit } from "../git/facts.js";
 import type { EvidenceInput } from "../gates/types.js";
 import { freshest } from "../gates/verdict.js";
-import { isPlainObject } from "../json.js";
 import type { Evaluation } from "./gates.js";
 import { evidenceOf } from "./outcome.js";
 
@@ -60,34 +60,35 @@ export async function mergedCommit(
   return sha;
 }
 
-/** A ref without one trailing `/`: `…/runs/1/` and `…/runs/1` name the same run. */
-function normalRef(ref: string): string {
-  return ref.endsWith("/") ? ref.slice(0, -1) : ref;
-}
-
-/** The records attested by CI (`attestation.type: "ci"`) with their `attestation.ref`, normalised; a missing ref is null. */
+/** The records attested by CI (`attestation.type: "ci"`) with their `attestation.ref`; a missing ref is null. */
 function ciRefs(records: readonly EvidenceInput[]): { id: string; ref: string | null }[] {
   const out: { id: string; ref: string | null }[] = [];
   for (const record of records) {
-    const attestation = isPlainObject(record.json["attestation"]) ? record.json["attestation"] : {};
-    if (attestation["type"] !== "ci") continue;
-    const ref = attestation["ref"];
-    out.push({ id: record.id, ref: typeof ref === "string" ? normalRef(ref) : null });
+    const attestation = attestationOf(record.json);
+    if (attestation.type !== "ci") continue;
+    out.push({ id: record.id, ref: attestation.ref ?? null });
   }
   return out;
 }
 
+/** The run attempt of a ref ({@link ciRunKey}); a ref that is no URL of a run stands for itself. */
+function runOf(ref: string | null): string | null {
+  return ref === null ? null : (ciRunKey(ref) ?? ref);
+}
+
 /**
- * The CI run of `records` (R-6): the one `attestation.ref` every CI record
- * names — null when there is no CI record — or, when they name more than one
- * run or a record names none, the ids of every CI record, sorted.
+ * The CI run of `records` (R-6): the `attestation.ref` of the first CI record
+ * when every CI record names the same run attempt ({@link ciRunKey}: a
+ * trailing `/` or `/attempts/1` aside) — null when there is no CI record — or,
+ * when they name more than one run or a record names none, the ids of every
+ * CI record, sorted.
  */
 export function ciRunOf(records: readonly EvidenceInput[]): { ref: string | null } | { mismatched: string[] } {
   const refs = ciRefs(records);
   const first = refs[0];
   if (first === undefined) return { ref: null };
-  const run = first.ref;
-  if (run !== null && refs.every((r) => r.ref === run)) return { ref: run };
+  const run = runOf(first.ref);
+  if (run !== null && refs.every((r) => runOf(r.ref) === run)) return { ref: first.ref };
   return { mismatched: refs.map((r) => r.id).sort() };
 }
 

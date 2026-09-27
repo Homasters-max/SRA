@@ -19,7 +19,7 @@ amended_by: [WARRANT-ADR-0040]
 п. 6–7): Claude Code под hooks проводит одно FEATURE-изменение sample-проекта Python + pytest от intent до archive; в
 `guard_events[]` нет обойдённого `deny`, `FRONTEND_HOOKS_INACTIVE` отсутствует, ни одна транзиция не записана вне
 `warrant`. Вход grilling — аудит [2026-09-26-phase-4c](../process/audits/2026-09-26-phase-4c.md), открытые A-5, A-31,
-A-32, [handoff/phase-4.md](../handoff/phase-4.md).
+A-32, `docs/handoff/phase-4.md`.
 
 Факты на 2026-09-26:
 

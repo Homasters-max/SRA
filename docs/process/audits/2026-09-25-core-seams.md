@@ -3,7 +3,7 @@
 Метод — навык [architecture-audit](../../../.claude/skills/architecture-audit/SKILL.md). Базовый коммит — `3f7fe5f`
 (`main`, CLI 0.4.3, `core-seams` закрыт). Снимок — [2026-09-25-core-seams.json](2026-09-25-core-seams.json), разница —
 с [2026-09-25.json](2026-09-25.json) (`2824f34`): между ними только Change `core-seams` (37 файлов `src`, план §5
-[прошлого отчёта](2026-09-25.md)). Аудит — вход spec-PR Change 4a ([handoff/phase-4.md](../../handoff/phase-4.md)).
+[прошлого отчёта](2026-09-25.md)). Аудит — вход spec-PR Change 4a (`docs/handoff/phase-4.md`).
 Второй аудит того же дня — имя с темой; `hygiene.js` берёт последним `<дата>-<тема>.json`.
 
 ## 1. Область и заявленная архитектура

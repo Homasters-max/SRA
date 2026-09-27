@@ -5,7 +5,11 @@ adr_state: ACCEPTED
 date: 2026-09-23
 supersedes: []
 amends: [WARRANT-ADR-0020]
+amended_by: [WARRANT-ADR-0040]
 ---
+
+> Уточнено [ADR-0040](WARRANT-ADR-0040-slice-fixes.md): п. 4 исполним и под guard — строка `I-N` и правка delta spec пишутся внутри Run
+> `implement` (`write_scope` += `design.md`, `specs/**` Change).
 
 ## Context
 

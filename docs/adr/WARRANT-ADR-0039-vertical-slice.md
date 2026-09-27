@@ -5,7 +5,12 @@ adr_state: ACCEPTED
 date: 2026-09-26
 supersedes: []
 amends: [WARRANT-ADR-0034]
+amended_by: [WARRANT-ADR-0040]
 ---
+
+> Уточнено [ADR-0040](WARRANT-ADR-0040-slice-fixes.md): п. 5 — форма установки CLI `npm pack github:…#<тег>` → `npm i -g ./<tgz>` (BL-52);
+> pin-Change в slice проводит maintainer руками — агенту под guard пути `.warrant/local/**` и `.github/workflows/**`
+> не открыты.
 
 ## Context
 

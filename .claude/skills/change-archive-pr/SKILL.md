@@ -33,11 +33,12 @@ merge — `git-start`, `git-land`.
    gh run list --workflow ci --event workflow_dispatch --limit 1 --json databaseId,status,conclusion
    gh run watch <run>
    ```
-3. Коммит `<change>: ci fetch #<I>, transition MERGED --ref PR #<I> --by <maintainer>`; `--ref` — URL impl-PR (не
-   CI-run: run берётся из `attestation.ref` записей), оцениваемый commit — head из записей:
+3. Коммит `<change>: ci fetch #<I>, transition MERGED --ref PR #<I>`; `--ref` — URL impl-PR (не CI-run: run берётся
+   из `attestation.ref` записей), оцениваемый commit — head из записей; `--by` не передаётся — решение о merge доказывает
+   `merged_by` слитого PR (ADR-0040 п. 5):
    ```bash
    gh pr view <I> --json url,state --jq '.state + " " + .url'
-   $W transition <change> MERGED --ref <url impl-PR> --by <maintainer>
+   $W transition <change> MERGED --ref <url impl-PR>
    ```
 4. Коммит `<change>: warrant archive — …`: архив, затем файл передачи потока — удалить или заменить файлом
    следующего и снять `После: <поток>` у зависящих (ADR-0033 п. 4, 12):

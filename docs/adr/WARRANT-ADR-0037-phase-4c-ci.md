@@ -5,7 +5,11 @@ adr_state: ACCEPTED
 date: 2026-09-26
 supersedes: []
 amends: [WARRANT-ADR-0034, WARRANT-ADR-0010]
+amended_by: [WARRANT-ADR-0040]
 ---
+
+> Уточнено [ADR-0040](WARRANT-ADR-0040-slice-fixes.md): п. 6 — `ForgePort` получает пятый метод (комментарий PR по URL → автор и PR) для
+> проверки ref DECISION, закрывающего blocking UNKNOWN.
 
 ## Context
 

@@ -21,7 +21,7 @@ import path from "node:path";
 
 import { splitPaths } from "../core/check/placeholders.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, WarrantError, type CliError, type ErrorCode } from "../core/errors.js";
+import { EXIT, WarrantError, type ErrorCode } from "../core/errors.js";
 import { reportPath } from "../core/fs.js";
 import { allocateUlid } from "../core/ids/allocate.js";
 import { loadPacks } from "../core/packs/loader.js";
@@ -34,9 +34,9 @@ import { committedSpecTree } from "../core/run/review.js";
 import { writeScopeOf } from "../core/run/scope.js";
 import { submitReview, type SubmitInput } from "../core/run/submit.js";
 import { isFinalRunState, isRunOperation, type Run, type RunOperation } from "../core/run/types.js";
-import { failures, resultFromThrown, success, type CommandResult } from "../io/output.js";
+import { failures, success, type CommandResult } from "../io/output.js";
 import { readStdin } from "../io/stdin.js";
-import { requireConfigPath, withDryRun } from "./context.js";
+import { requireConfigPath, withDryRun, withHints } from "./context.js";
 
 export interface RunStartOptions {
   operation?: string | undefined;
@@ -70,25 +70,9 @@ const DEFAULT_HINTS: Partial<Record<ErrorCode, string>> = {
   CONFIG_MISSING: "run `warrant init` in the project root",
   CHANGE_NOT_FOUND: "check the name of the Change: `warrant status` lists them"
 };
-const VALIDATE_HINT = "run `warrant validate`";
-
-function hinted(error: CliError): CliError {
-  return error.hint !== undefined ? error : { ...error, hint: DEFAULT_HINTS[error.code] ?? VALIDATE_HINT };
-}
-
-/** The command's result, a thrown error turned into one as `bin` does, every error with a `hint`. */
-async function withHints(run: () => Promise<CommandResult>): Promise<CommandResult> {
-  let result: CommandResult;
-  try {
-    result = await run();
-  } catch (thrown) {
-    result = resultFromThrown(thrown);
-  }
-  return result.errors.length === 0 ? result : { ...result, errors: result.errors.map(hinted) };
-}
 
 export function runStart(ctx: Ctx, change: string | undefined, opts: RunStartOptions = {}, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
-  return withDryRun(ctx, () => withHints(() => start(ctx, change, opts, env)));
+  return withDryRun(ctx, () => withHints(DEFAULT_HINTS, () => start(ctx, change, opts, env)));
 }
 
 async function start(ctx: Ctx, change: string | undefined, opts: RunStartOptions, env: NodeJS.ProcessEnv): Promise<CommandResult> {
@@ -184,7 +168,7 @@ export function runSubmit(
   readInput: () => Promise<string> = readStdin,
   env: NodeJS.ProcessEnv = process.env
 ): Promise<CommandResult> {
-  return withDryRun(ctx, () => withHints(() => submit(ctx, opts, readInput, env)));
+  return withDryRun(ctx, () => withHints(DEFAULT_HINTS, () => submit(ctx, opts, readInput, env)));
 }
 
 async function submit(ctx: Ctx, opts: RunSubmitOptions, readInput: () => Promise<string>, env: NodeJS.ProcessEnv): Promise<CommandResult> {
@@ -212,7 +196,7 @@ async function submit(ctx: Ctx, opts: RunSubmitOptions, readInput: () => Promise
 }
 
 export function runFinish(ctx: Ctx, opts: RunFinishOptions = {}, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
-  return withDryRun(ctx, () => withHints(() => finish(ctx, opts, env)));
+  return withDryRun(ctx, () => withHints(DEFAULT_HINTS, () => finish(ctx, opts, env)));
 }
 
 async function finish(ctx: Ctx, opts: RunFinishOptions, env: NodeJS.ProcessEnv): Promise<CommandResult> {

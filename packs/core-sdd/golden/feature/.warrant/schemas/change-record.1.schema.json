@@ -259,11 +259,22 @@
             "type": "boolean"
           },
           "resolution": {
-            "description": "How the question was closed, once it was.",
+            "description": "The answer that closed the question, once it was; the element is closed when it is non-empty.",
             "type": "string"
+          },
+          "resolved_as": {
+            "description": "Kind of the answer (02 section 1): a blocking UNKNOWN is closed only by `decision` with `ref` (REQ-KRN-035).",
+            "enum": ["decision", "fact", "assumption"]
+          },
+          "ref": {
+            "description": "URL of the maintainer's pull request comment whose text names this UNKNOWN id; verified by `warrant ci` (REQ-VER-013).",
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://"
           }
         },
         "required": ["id", "text", "blocking"],
+        "dependentRequired": { "resolved_as": ["resolution"], "ref": ["resolution"] },
         "additionalProperties": false
       }
     },

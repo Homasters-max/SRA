@@ -53,11 +53,29 @@ describe("warrant id", () => {
     expect(run.errors).toEqual([]);
   });
 
-  it("reports AREA_UNKNOWN with exit code 3 (SCN-KRN-057)", async () => {
+  it("reports AREA_UNKNOWN with exit code 3 and a hint naming the declared AREAs and areas.json (SCN-KRN-057)", async () => {
     const run = await id(project(), ["REQ", "ZZZ"]);
     expect(run.exitCode).toBe(3);
     expect(run.ok).toBe(false);
     expect(run.errors[0]?.code).toBe("AREA_UNKNOWN");
+    expect(run.errors[0]?.hint).toContain("KRN");
+    expect(run.errors[0]?.hint).toContain(".warrant/local/areas.json");
+  });
+
+  it("counts the unknowns[] of records for the next UNK (SCN-KRN-144)", async () => {
+    const p = project()
+      .write(".warrant/local/areas.json", { $schema: "warrant://areas/1", SRC: { capability: "search" } })
+      .write("openspec/changes/add-search/proposal.md", "### Unknown: A\n<!-- id: UNK-SRC-002 -->\n\n?\n")
+      .write(".warrant/changes/add-search.json", {
+        $schema: "warrant://change-record/1",
+        change: "add-search",
+        change_state: "PROPOSED",
+        transitions: [],
+        unknowns: [{ id: "UNK-SRC-004", text: "?", blocking: false }]
+      });
+    const run = await id(p, ["UNK", "SRC"]);
+    expect(run.errors).toEqual([]);
+    expect(run.data["id"]).toBe("UNK-SRC-005");
   });
 
   it("gives two distinct Crockford ULIDs for EVID (SCN-KRN-058)", async () => {

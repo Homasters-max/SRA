@@ -37,8 +37,8 @@ describe("cli skeleton", () => {
     expect(r.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it("--help of transition, archive, waive, run start, run finish and run submit names --dry-run and gives an example with it (lens cli-contract)", async () => {
-    for (const command of ["transition", "archive", "waive", "run start", "run finish", "run submit"]) {
+  it("--help of transition, archive, waive, run start, run finish, run submit, unknown add and unknown resolve names --dry-run and gives an example with it (lens cli-contract)", async () => {
+    for (const command of ["transition", "archive", "waive", "run start", "run finish", "run submit", "unknown add", "unknown resolve"]) {
       const r = await runCli([...command.split(" "), "--help"], dir);
       expect(r.status).toBe(0);
       expect(r.stdout).toBe("");

@@ -9,7 +9,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 import type { Ctx } from "../ctx.js";
-import type { CliError } from "../errors.js";
+import { cliError, type CliError } from "../errors.js";
 import { posix } from "../fs.js";
 import { openspecAvailable } from "../openspec/version.js";
 
@@ -235,6 +235,16 @@ export function loadAreas(projectRoot: string): Set<string> {
   }
 }
 
+/**
+ * `hint` of `AREA_UNKNOWN` (REQ-KRN-024, BL-56): the declared AREAs, and that a
+ * new one is declared by a human editing `.warrant/local/areas.json` — a policy
+ * path no operation of a Run writes (ADR-0040 п. 6).
+ */
+export function areaHint(areas: ReadonlySet<string>): string {
+  const declared = areas.size === 0 ? "no AREA is declared yet" : `declared AREAs: ${[...areas].sort().join(", ")}`;
+  return `${declared}; a new AREA is declared by a human (maintainer) editing .warrant/local/areas.json, a policy path no Run operation writes`;
+}
+
 /** Check 5b: every AREA used is declared (SCN-KRN-047). */
 export function checkAreas(ids: FoundId[], areas: Set<string>): CliError[] {
   const seen = new Set<string>();
@@ -244,11 +254,12 @@ export function checkAreas(ids: FoundId[], areas: Set<string>): CliError[] {
     const key = `${found.area} ${found.file}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    errors.push({
-      code: "AREA_UNKNOWN",
-      message: `AREA "${found.area}" of ${found.id} is not declared in .warrant/local/areas.json`,
-      path: found.file
-    });
+    errors.push(
+      cliError("AREA_UNKNOWN", `AREA "${found.area}" of ${found.id} is not declared in .warrant/local/areas.json`, {
+        path: found.file,
+        hint: areaHint(areas)
+      })
+    );
   }
   return errors;
 }

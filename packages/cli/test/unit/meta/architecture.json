@@ -24,6 +24,7 @@
     { "id": "core/run", "path": "core/run", "rank": 2 },
     { "id": "core/liveness", "path": "core/liveness", "rank": 2 },
     { "id": "core/analyze", "path": "core/analyze", "rank": 2 },
+    { "id": "core/unknowns", "path": "core/unknowns", "rank": 2 },
     { "id": "core/gates", "path": "core/gates", "rank": 3 },
     { "id": "core/controller", "path": "core/controller", "rank": 3 },
     { "id": "core/check", "path": "core/check", "rank": 3 },

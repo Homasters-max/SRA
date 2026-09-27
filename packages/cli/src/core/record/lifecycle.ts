@@ -46,6 +46,9 @@ export const BELOW_FLOOR_APPROVABLE_STATES: readonly ChangeState[] = ["PROPOSED"
 /** States in which the links of a record may change (REQ-KRN-030). */
 export const LINKABLE_STATES: readonly ChangeState[] = ["PROPOSED", "SPECIFIED"];
 
+/** States in which `warrant unknown` adds or closes an UNKNOWN: before approval (REQ-KRN-035). */
+export const UNKNOWN_STATES: readonly ChangeState[] = ["PROPOSED", "SPECIFIED"];
+
 /** States a Change must be in to stand in `amends[]` of another (ADR-0021 point 5). */
 export const AMENDS_TARGET_STATES: readonly ChangeState[] = ["MERGED", "ARCHIVED"];
 

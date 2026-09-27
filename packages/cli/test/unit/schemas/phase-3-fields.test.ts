@@ -194,6 +194,35 @@ describe("phase-3b: ref of a risk value and approved_by of a PROPOSED waiver", (
   });
 });
 
+describe("slice-fixes: resolved_as and ref of an UNKNOWN", () => {
+  const unknown = {
+    id: "UNK-SRC-001",
+    text: "Можно ли переписывать историю?",
+    blocking: true,
+    resolution: "Нет",
+    resolved_as: "decision",
+    ref: "https://github.com/o/r/pull/7#issuecomment-1"
+  };
+  const withUnknown = (entry: Record<string, unknown>): Record<string, unknown> => ({
+    ...fixture("change-record", "valid-doc-example.json"),
+    unknowns: [entry]
+  });
+  const underFirst = (json: unknown): boolean => pointers(json).some((p) => p.startsWith("/unknowns/0"));
+
+  it("accepts a closed UNKNOWN with resolved_as and ref (SCN-KRN-143)", () => {
+    expectValid(withUnknown(unknown));
+  });
+
+  it("rejects resolved_as outside the enum and ref or resolved_as without resolution (SCN-KRN-143)", () => {
+    expect(underFirst(withUnknown({ ...unknown, resolved_as: "guess" }))).toBe(true);
+    const { resolution: _answer, ...open } = unknown;
+    expect(pointers(withUnknown(open))).toContain("/unknowns/0");
+    const { resolved_as: _kind, ...refOnly } = open;
+    expect(pointers(withUnknown(refOnly))).toContain("/unknowns/0");
+    expect(underFirst(withUnknown({ ...unknown, ref: "ftp://example.com/x" }))).toBe(true);
+  });
+});
+
 describe("rule/1", () => {
   it("accepts a rule with enforced_by (SCN-KRN-108)", () => {
     expectValid(fixture("rule", "valid-json-canonical.json"));

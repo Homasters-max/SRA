@@ -42,18 +42,18 @@
 
 ## 2. warrant unknown (REQ-KRN-011, REQ-KRN-024, REQ-KRN-034, REQ-KRN-035, REQ-VER-004)
 
-- [ ] 2.1 Схема `change-record.1.schema.json` — `resolved_as`, `ref`, `dependentRequired` (§3, REQ-KRN-011). Копия —
+- [x] 2.1 Схема `change-record.1.schema.json` — `resolved_as`, `ref`, `dependentRequired` (§3, REQ-KRN-011). Копия —
   `warrant sync`, golden — `npm run golden:update`.
 
   Проверка: unit схемы на SCN-KRN-143; SCN-KRN-022, SCN-KRN-023, SCN-KRN-091, SCN-KRN-110 без правок.
-- [ ] 2.2 `core/unknowns/` и `commands/unknown.ts` — `unknown add`, `unknown resolve`, `--dry-run`, `--help` с примерами (§3,
+- [x] 2.2 `core/unknowns/` и `commands/unknown.ts` — `unknown add`, `unknown resolve`, `--dry-run`, `--help` с примерами (§3,
   REQ-KRN-035, REQ-KRN-034); коды `UNKNOWN_NOT_FOUND`, `UNKNOWN_RESOLVED`; строки рангов `architecture.json`.
 
   Проверка: app на SCN-KRN-148…153; `architecture.test.ts`, `levels.test.ts` зелёные.
-- [ ] 2.3 Gate `blocking-unknowns-resolved` — finding `DECISION_WITHOUT_REF` (§3, REQ-VER-004).
+- [x] 2.3 Gate `blocking-unknowns-resolved` — finding `DECISION_WITHOUT_REF` (§3, REQ-VER-004).
 
   Проверка: app `gate` на SCN-VER-110; SCN-VER-022, SCN-VER-025 без правок.
-- [ ] 2.4 `hint` у `AREA_UNKNOWN` (`allocate.ts` ×2, `checkAreas`) (§3, REQ-KRN-024, BL-56).
+- [x] 2.4 `hint` у `AREA_UNKNOWN` (`allocate.ts` ×2, `checkAreas`) (§3, REQ-KRN-024, BL-56).
 
   Проверка: app `id` на SCN-KRN-057 (переписан по delta) и SCN-KRN-144.
 

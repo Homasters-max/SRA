@@ -260,6 +260,25 @@ describe("warrant gate", () => {
     expect(run.exitCode).toBe(2);
   });
 
+  it("a blocking UNKNOWN closed without a decision with ref fails with DECISION_WITHOUT_REF (SCN-VER-110)", async () => {
+    const closed = { id: "UNK-SRC-001", text: "…", blocking: true, resolution: "Нет" };
+    const ref = "https://github.com/o/r/pull/7#issuecomment-1";
+    const verdict = async (entry: Record<string, unknown>): Promise<Data> =>
+      (await gate(await repo("SPECIFIED", { ...FEATURE, unknowns: [entry] }), [], { transition: "SPECIFIED->APPROVED" })).data;
+
+    for (const entry of [{ ...closed, resolved_as: "decision" }, { ...closed, resolved_as: "fact" }]) {
+      const data = await verdict(entry);
+      expect(data["gates"]["blocking-unknowns-resolved"], entry.resolved_as).toBe("FAIL");
+      expect(data["findings"]).toContainEqual(
+        expect.objectContaining({ code: "DECISION_WITHOUT_REF", gate: "blocking-unknowns-resolved", items: ["UNK-SRC-001"] })
+      );
+      expect(data["findings"].map((f: Data) => f["code"])).not.toContain("BLOCKING_UNKNOWN");
+    }
+    expect((await verdict({ ...closed, resolved_as: "decision", ref }))["gates"]["blocking-unknowns-resolved"]).toBe("PASS");
+    const nonBlocking = { ...closed, blocking: false, resolved_as: "fact" };
+    expect((await verdict(nonBlocking))["gates"]["blocking-unknowns-resolved"]).toBe("PASS");
+  });
+
   it("branch-isolated fails on main (SCN-VER-023) and passes on a branch", async () => {
     const p = await repo("APPROVED", FEATURE);
     const onMain = await gate(p, [], { transition: "APPROVED->IMPLEMENTING" });

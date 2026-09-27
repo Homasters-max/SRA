@@ -31,6 +31,7 @@ import { runLink } from "../commands/link.js";
 import { runWaive } from "../commands/waive.js";
 import { runFinish, runStart, runSubmit } from "../commands/run.js";
 import { runGuard, runGuardFrontend } from "../commands/guard.js";
+import { runUnknownAdd, runUnknownResolve } from "../commands/unknown.js";
 import { readStdin } from "../io/stdin.js";
 import { UNREADABLE_EXIT, type FrontendAdapter } from "../core/ports/frontend.js";
 import { claudeFrontend } from "../adapters/frontend/claude.js";
@@ -466,6 +467,67 @@ register(
   runGroup
 );
 
+const unknownGroup = program
+  .command("unknown")
+  .description("add an UNKNOWN to the record of a change or close it with an answer, in PROPOSED or SPECIFIED (02 section 1)");
+register(
+  "add",
+  "append an UNKNOWN { id: UNK-<AREA>-NNN, text, blocking } to unknowns[] of the record; no transition",
+  (ctx, args, opts) =>
+    runUnknownAdd(ctx, args[0], {
+      ...(typeof opts["area"] === "string" ? { area: opts["area"] } : {}),
+      ...(typeof opts["text"] === "string" ? { text: opts["text"] } : {}),
+      blocking: opts["blocking"] === true
+    }),
+  (c) =>
+    c
+      .argument("[change]", "the change the question is about")
+      .option("--area <AREA>", "AREA of the id, declared in .warrant/local/areas.json (as in `warrant id UNK <AREA>`)")
+      .option("--text <question>", "the question itself")
+      .option("--blocking", "implementation is forbidden until the maintainer decides: the controller answers WAIT, next clarify")
+      .option("--dry-run", DRY_RUN)
+      .addHelpText(
+        "after",
+        examples([
+          'warrant unknown add add-search --area SRC --text "What if the clock goes backwards?" --blocking',
+          'warrant unknown add add-search --area SRC --text "Is the index rebuilt nightly?" --dry-run'
+        ])
+      ),
+  unknownGroup
+);
+register(
+  "resolve",
+  "close an UNKNOWN of the record: resolution, resolved_as and ref; a blocking one only by the maintainer's decision with --ref",
+  (ctx, args, opts) =>
+    runUnknownResolve(ctx, args[0], args[1], {
+      ...(typeof opts["as"] === "string" ? { as: opts["as"] } : {}),
+      ...(typeof opts["text"] === "string" ? { text: opts["text"] } : {}),
+      ...(typeof opts["ref"] === "string" ? { ref: opts["ref"] } : {}),
+      replace: opts["replace"] === true
+    }),
+  (c) =>
+    c
+      .argument("[change]", "the change the UNKNOWN belongs to")
+      .argument("[unk]", "the id of the UNKNOWN, UNK-<AREA>-NNN")
+      .option("--as <decision|fact|assumption>", "decision: the maintainer's answer (needs --ref); fact, assumption: an answer to a non-blocking UNKNOWN")
+      .option("--text <answer>", "the answer that closes the question")
+      .option(
+        "--ref <url>",
+        "URL of the maintainer's comment in the pull request whose text names the UNKNOWN (…/pull/<N>#issuecomment-<id> or #pullrequestreview-<id>); warrant ci verifies its author"
+      )
+      .option("--replace", "rewrite the answer, resolved_as and ref of an UNKNOWN already closed")
+      .option("--dry-run", DRY_RUN)
+      .addHelpText(
+        "after",
+        examples([
+          'warrant unknown resolve add-search UNK-SRC-004 --as decision --text "The mark moves back" --ref https://github.com/o/r/pull/7#issuecomment-11',
+          'warrant unknown resolve add-search UNK-SRC-005 --as fact --text "Nightly, at 02:00 UTC" --dry-run',
+          'warrant unknown resolve add-search UNK-SRC-004 --as decision --text "…" --ref <new comment URL> --replace'
+        ])
+      ),
+  unknownGroup
+);
+
 /**
  * `warrant guard --frontend <name>` (REQ-ENF-005): the native answer of the
  * adapter instead of the envelope; an unknown name is `USAGE` (exit 3) naming
@@ -513,6 +575,7 @@ program
 /** `hint` of a usage error Commander reports, for the commands born with hints (REQ-KRN-002). */
 function usageHint(command: string): string | undefined {
   if (command === "run") return "see `warrant run start --help`, `warrant run finish --help` or `warrant run submit --help`";
+  if (command === "unknown") return "see `warrant unknown add --help` or `warrant unknown resolve --help`";
   return command === "guard" ? "see `warrant guard --help`" : undefined;
 }
 

@@ -6,9 +6,10 @@
  * commit), its run 36203233664 and the run 36205628647 with three attempts
  * (Re-run, I-175); the maintainer's issue comment and review naming
  * UNK-KRN-999 in PR #68, the spec-PR of slice-fixes (design slice-fixes §4,
- * task 3.3). Artifacts live 90 days, so `downloadArtifact` reads the
- * latest successful run of the head of the latest merged impl-PR, found from the
- * records of this checkout.
+ * task 3.3). Artifacts live 90 days, so `downloadArtifact` reads the run
+ * attempt of the CI records of the latest `MERGED` transition of this checkout —
+ * the run `ci fetch` took them from (a Re-run of failed jobs or a recovery run
+ * holds them, not the latest pull_request attempt, BL-72).
  *
  * No `skipIf`: without a token `gh` has (`gh auth login` locally, `GH_TOKEN`
  * in CI) the real side fails with the `hint` of `FORGE_UNAVAILABLE`.
@@ -19,6 +20,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { ForgeGh } from "../../src/adapters/forge-gh.js";
 import { FORGE_HINT, WarrantError } from "../../src/core/errors.js";
+import { parseCiRef } from "../../src/core/evidence/attestation.js";
 import type { Comment, CommentRef, ForgePort, PullRequest, WorkflowRun } from "../../src/core/ports/forge.js";
 import { FakeForge } from "../app/helpers/fakes/forge.js";
 import { makeTempDir, removeDir, REPO_ROOT } from "../helpers/cli.js";
@@ -85,6 +87,8 @@ interface MergedImpl {
   change: string;
   /** Head of the impl-PR: `subject.commit` of the CI records of the transition `MERGED`. */
   head: string;
+  /** The run attempt of those records: their `attestation.ref`. */
+  run: { id: number; attempt: number };
   /** Committed evidence of the Change, file name → bytes. */
   evidence: Map<string, Buffer>;
 }
@@ -107,13 +111,17 @@ function latestMergedImpl(): MergedImpl {
   const evidence = new Map(readdirSync(dir).map((f) => [f, readFileSync(path.join(dir, f))]));
   const heads = new Set(
     latest.evidence
-      .map((id) => JSON.parse((evidence.get(`${id}.json`) ?? Buffer.from("{}")).toString("utf8")) as { attestation?: { type: string }; subject?: { commit: string } })
+      .map((id) => JSON.parse((evidence.get(`${id}.json`) ?? Buffer.from("{}")).toString("utf8")) as { attestation?: { type: string; ref?: string }; subject?: { commit: string } })
       .filter((e) => e.attestation?.type === "ci")
-      .map((e) => e.subject?.commit)
   );
-  const [head] = heads;
-  if (heads.size !== 1 || head === undefined) throw new Error(`the MERGED transition of ${latest.change} names no single CI head`);
-  return { change: latest.change, head, evidence };
+  const commits = new Set([...heads].map((e) => e.subject?.commit));
+  const runs = new Set([...heads].map((e) => e.attestation?.ref));
+  const [head] = commits;
+  const [ref] = runs;
+  const run = ref === undefined ? null : parseCiRef(ref);
+  if (commits.size !== 1 || head === undefined) throw new Error(`the MERGED transition of ${latest.change} names no single CI head`);
+  if (runs.size !== 1 || run === null) throw new Error(`the MERGED transition of ${latest.change} names no single CI run`);
+  return { change: latest.change, head, run: { id: run.id, attempt: run.attempt }, evidence };
 }
 
 const MERGED_IMPL = latestMergedImpl();
@@ -122,15 +130,15 @@ const MERGED_IMPL = latestMergedImpl();
 const artifactNames = (change: string, run: WorkflowRun): string[] => [`evidence-${change}-${run.attempt}`, `evidence-${change}`];
 
 /**
- * `FakeForge` with the same objects: the newest run of the latest merged
- * impl-PR (a later one than run 36203233664 when that is its head) uploaded the
- * committed evidence.
+ * `FakeForge` with the same objects: the run attempt of the CI records of the
+ * latest `MERGED` uploaded the committed evidence.
  */
 function fakeForge(): FakeForge {
   const implRun: WorkflowRun = {
     ...RUN,
-    id: 7,
-    url: `https://github.com/${REPOSITORY}/actions/runs/7/attempts/1`,
+    id: MERGED_IMPL.run.id,
+    attempt: MERGED_IMPL.run.attempt,
+    url: `https://github.com/${REPOSITORY}/actions/runs/${MERGED_IMPL.run.id}/attempts/${MERGED_IMPL.run.attempt}`,
     headSha: MERGED_IMPL.head,
     createdAt: "2026-09-26T00:30:00Z"
   };
@@ -139,7 +147,7 @@ function fakeForge(): FakeForge {
   return new FakeForge().add({
     pulls: [PR_53],
     runs: [RUN, ...RETRIED, implRun],
-    artifacts: [{ runId: 7, name: `evidence-${MERGED_IMPL.change}-1`, files }],
+    artifacts: [{ runId: MERGED_IMPL.run.id, name: `evidence-${MERGED_IMPL.change}-${MERGED_IMPL.run.attempt}`, files }],
     comments: [
       { ...DECISION, kind: "issue", id: ISSUE_COMMENT.id, repository: REPOSITORY },
       { ...DECISION, kind: "review", id: REVIEW.id, repository: REPOSITORY }
@@ -216,10 +224,9 @@ describe.each(SIDES)("ForgePort contract: $side", ({ port: portOf }) => {
     expect(await port.comment({ ...ISSUE_COMMENT, repository: "octocat/hello-world" })).toBeNull();
   });
 
-  it("downloadArtifact: the evidence of the latest successful run of the latest merged impl-PR; null for no such artifact", async () => {
-    const runs = await port.listRuns({ headSha: MERGED_IMPL.head, event: "pull_request" });
-    const run = runs.find((r) => r.conclusion === "success");
-    expect(run, `a successful pull_request run of ${MERGED_IMPL.change} (head ${MERGED_IMPL.head})`).toBeDefined();
+  it("downloadArtifact: the evidence of the run attempt of the CI records of the latest MERGED; null for no such artifact", async () => {
+    const run = await port.workflowRun(MERGED_IMPL.run.id, MERGED_IMPL.run.attempt);
+    expect(run?.conclusion, `run ${MERGED_IMPL.run.id} attempt ${MERGED_IMPL.run.attempt} of ${MERGED_IMPL.change} (head ${MERGED_IMPL.head})`).toBe("success");
     let files: Map<string, Buffer> | null = null;
     for (const name of artifactNames(MERGED_IMPL.change, run as WorkflowRun)) {
       files ??= await port.downloadArtifact((run as WorkflowRun).id, name);

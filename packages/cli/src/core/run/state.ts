@@ -92,3 +92,15 @@ export function otherState(root: string, env: NodeJS.ProcessEnv = process.env): 
     return runs !== null && p.startsWith(runs) && runIdOf(p.slice(runs.length)) !== undefined;
   };
 }
+
+/**
+ * Everything the CLI writes as state, for any Change (REQ-ENF-004, I-190):
+ * records `.warrant/changes/**`, waivers `.warrant/waivers/**`, and
+ * `<state>/evidence/**`, `<state>/runs/**` when `<state>` lies in the project.
+ * Nothing here is edited by hand: `guard` names the commands that write it.
+ */
+export function cliWrittenState(root: string, env: NodeJS.ProcessEnv = process.env): (p: string) => boolean {
+  const state = statePrefix(root, env);
+  const dirs = [".warrant/changes/", ".warrant/waivers/", ...(state === null ? [] : [`${state}evidence/`, `${state}runs/`])];
+  return (p) => dirs.some((dir) => p.startsWith(dir));
+}

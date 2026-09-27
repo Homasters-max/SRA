@@ -12,19 +12,24 @@ import { EXIT, WarrantError, type CliError, type ExitCode } from "../errors.js";
 import { evidenceDir } from "../evidence/store.js";
 import { reportPath } from "../fs.js";
 import { MERGE_TRANSITION, type Finding } from "../gates/types.js";
+import { CONFIRMED_BY } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
 import { evaluate, prepare } from "../transition/evaluate.js";
 import { createWrites } from "../writes.js";
 import { replayArchive, verifyCiEvidence } from "./archive.js";
 import type { BaseContext } from "./base.js";
+import { judgeDecisions } from "./decisions.js";
 import { judgeImpl, mergeFacts } from "./impl.js";
 import type { CiSubject } from "./kind.js";
 import { judgePaths, type Skipped } from "./paths.js";
 import { judgeRecord, type NewTransition } from "./record.js";
-import { judgeRefs } from "./refs.js";
+import { judgeRefs, parsePullUrl } from "./refs.js";
 
-/** The transition whose gates a spec-PR shows. */
-const APPROVAL_TRANSITION = "SPECIFIED->APPROVED";
+/** The transition whose gates a spec-PR shows: the one its merge confirms. */
+const APPROVAL_TRANSITION = CONFIRMED_BY.APPROVED.transition;
+
+/** The state whose ref names the spec-PR a decision of an UNKNOWN is written in. */
+const APPROVED = "APPROVED" satisfies keyof typeof CONFIRMED_BY;
 
 export interface CiVerdict {
   /** `data` in the order of REQ-VER-011. */
@@ -83,6 +88,17 @@ function transitionData(transitions: readonly NewTransition[]): Record<string, u
   });
 }
 
+/**
+ * The number of the pull request the ref of the new `APPROVED` names (the
+ * spec-PR, REQ-VER-013); null when it names none; undefined without a new `APPROVED`.
+ */
+function approvedPr(transitions: readonly NewTransition[]): number | null | undefined {
+  const approved = transitions.find((t) => t.to === APPROVED);
+  if (approved === undefined) return undefined;
+  const ref = approved.entry["ref"];
+  return typeof ref === "string" ? (parsePullUrl(ref)?.number ?? null) : null;
+}
+
 /** Judges the pull request of `subject` by the requirements of `base`. Throws `FORGE_UNAVAILABLE` (exit 3). */
 export async function judgePullRequest(ctx: Ctx, subject: CiSubject, base: BaseContext, env: NodeJS.ProcessEnv): Promise<CiVerdict> {
   const errors: CliError[] = [];
@@ -101,6 +117,9 @@ export async function judgePullRequest(ctx: Ctx, subject: CiSubject, base: BaseC
     const refs = await judgeRefs(ctx, subject, base, record.transitions, record.evidence);
     errors.push(...refs.errors);
     findings.push(...refs.findings);
+    const decisions = await judgeDecisions(ctx, subject, base, subject.record as ChangeRecord, approvedPr(record.transitions));
+    errors.push(...decisions.errors);
+    findings.push(...decisions.findings);
   }
   data["transitions"] = transitionData(transitions);
   const paths = await judgePaths(ctx, subject, base, transitions, env);

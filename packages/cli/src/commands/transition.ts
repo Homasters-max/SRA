@@ -43,7 +43,7 @@ import { HUMAN_APPROVAL } from "../core/evidence/approval.js";
 import { mergedCommitFacts, readGitFacts, type GitFacts } from "../core/git/facts.js";
 import { findChangeDir } from "../core/openspec/changes.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
-import { isChangeState, REF_REQUIRED_STATES, transitionKind } from "../core/record/lifecycle.js";
+import { confirmationOf, isChangeState, transitionKind } from "../core/record/lifecycle.js";
 import { appendTransition, assertNotFrozen, recordPath, stateOfRecord, type TransitionEntry } from "../core/record/write.js";
 import { checkPullRequestRef, checkRef } from "../core/roles.js";
 import { humanApproval } from "../core/transition/approval.js";
@@ -69,8 +69,8 @@ export interface TransitionOptions {
  * `MERGED`; undefined when `--ref` is not required.
  */
 function pullRequestOf(target: string): string | undefined {
-  if (!(REF_REQUIRED_STATES as readonly string[]).includes(target)) return undefined;
-  return target === "APPROVED" ? "spec-PR" : "impl-PR";
+  const confirmation = confirmationOf(target);
+  return confirmation === undefined ? undefined : `${confirmation.pr}-PR`;
 }
 
 /** `data` of a failed forward transition and of a passed one, before the record entry. */

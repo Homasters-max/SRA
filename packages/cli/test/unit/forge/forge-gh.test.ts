@@ -1,12 +1,13 @@
 /**
- * Parsing of `ForgeGh` (design phase-4c §6, task 3.2): the repository from the
- * URL of `origin` (https, ssh) and the answers of `gh api` on bodies recorded
- * from GitHub (trimmed to the keys around the ones read). The calls themselves
+ * Parsing of `ForgeGh` (design phase-4c §6, task 3.2; design slice-fixes §4,
+ * task 3.1): the repository from the URL of `origin` (https, ssh) and the
+ * answers of `gh api` on bodies recorded from GitHub (trimmed to the keys
+ * around the ones read). The calls themselves
  * are the contract's (`test/contract/forge.contract.test.ts`).
  */
 import { describe, expect, it } from "vitest";
 
-import { parseLiveArtifacts, parsePullRequest, parseRemoteUrl, parseRunPages, parseWorkflowRun } from "../../../src/adapters/forge-gh.js";
+import { parseComment, parseLiveArtifacts, parsePullRequest, parseRemoteUrl, parseRunPages, parseWorkflowRun } from "../../../src/adapters/forge-gh.js";
 import { FORGE_HINT, WarrantError } from "../../../src/core/errors.js";
 
 const USER = { id: 94626159, login: "Homasters-max", type: "User" };
@@ -58,6 +59,31 @@ const ARTIFACTS = {
     { id: 10893062043, name: "evidence-phase-4b", size_in_bytes: 60089, expired: false, expires_at: "2026-12-25T00:01:11Z" },
     { id: 10893062044, name: "evidence-old", size_in_bytes: 100, expired: true, expires_at: "2026-06-25T00:01:11Z" }
   ]
+};
+
+/** `gh api repos/Homasters-max/SRA/issues/comments/5856576133` (PR 68, the spec-PR of slice-fixes), trimmed. */
+const ISSUE_COMMENT = {
+  url: "https://api.github.com/repos/Homasters-max/SRA/issues/comments/5856576133",
+  html_url: "https://github.com/Homasters-max/SRA/pull/68#issuecomment-5856576133",
+  issue_url: "https://api.github.com/repos/Homasters-max/SRA/issues/68",
+  id: 5856576133,
+  user: USER,
+  created_at: "2026-09-27T14:08:35Z",
+  author_association: "OWNER",
+  body: "Contract fixture for ForgePort.comment (slice-fixes, task 3.3); UNK-KRN-999"
+};
+
+/** `gh api repos/Homasters-max/SRA/pulls/68/reviews/5330605727`, trimmed. */
+const REVIEW = {
+  id: 5330605727,
+  user: USER,
+  body: "Contract fixture for ForgePort.comment (slice-fixes, task 3.3); UNK-KRN-999",
+  state: "COMMENTED",
+  html_url: "https://github.com/Homasters-max/SRA/pull/68#pullrequestreview-5330605727",
+  pull_request_url: "https://api.github.com/repos/Homasters-max/SRA/pulls/68",
+  author_association: "OWNER",
+  submitted_at: "2026-09-27T14:08:36Z",
+  commit_id: "991b5fb3b4ac1d7f3440d40d05ea6eb77255996e"
 };
 
 function forgeError(fn: () => unknown): WarrantError {
@@ -142,6 +168,7 @@ describe("parseWorkflowRun: a run or one attempt of it", () => {
       headBranch: "archive/phase-4b",
       headSha: "f818f322d3d90b52b12ae354e8ab2551e5830614",
       conclusion: "failure",
+      workflowPath: ".github/workflows/ci.yml",
       createdAt: "2026-09-26T00:39:10Z"
     });
     const third = parseWorkflowRun({ ...RUN_ATTEMPT_1, run_attempt: 3, conclusion: "success" });
@@ -179,5 +206,30 @@ describe("parseLiveArtifacts: …/actions/runs/{id}/artifacts", () => {
   it("names of the artifacts not expired", () => {
     expect(parseLiveArtifacts(ARTIFACTS)).toEqual(["evidence-phase-4b"]);
     expect(parseLiveArtifacts({ total_count: 0, artifacts: [] })).toEqual([]);
+  });
+});
+
+describe("parseComment: issues/comments/{id} and pulls/{n}/reviews/{id}", () => {
+  it("an issue comment: the pull request from issue_url", () => {
+    expect(parseComment(ISSUE_COMMENT, "issue")).toEqual({
+      author: "Homasters-max",
+      pullRequest: 68,
+      body: "Contract fixture for ForgePort.comment (slice-fixes, task 3.3); UNK-KRN-999"
+    });
+  });
+
+  it("a review: the pull request from pull_request_url; a review without text has the body empty", () => {
+    expect(parseComment(REVIEW, "review")).toEqual({
+      author: "Homasters-max",
+      pullRequest: 68,
+      body: "Contract fixture for ForgePort.comment (slice-fixes, task 3.3); UNK-KRN-999"
+    });
+    expect(parseComment({ ...REVIEW, state: "APPROVED", body: null }, "review").body).toBe("");
+  });
+
+  it("a body without the URL of its pull request is FORGE_UNAVAILABLE naming the field", () => {
+    expect(forgeError(() => parseComment(REVIEW, "issue")).message).toContain("issue_url");
+    expect(forgeError(() => parseComment({ ...ISSUE_COMMENT, issue_url: "https://api.github.com/repos/o/r" }, "issue")).message).toContain("issue_url");
+    expect(forgeError(() => parseComment({ ...ISSUE_COMMENT, user: null }, "issue")).code).toBe("FORGE_UNAVAILABLE");
   });
 });

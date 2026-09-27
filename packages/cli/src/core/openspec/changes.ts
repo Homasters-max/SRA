@@ -54,8 +54,9 @@ export function archivedChangeDir(entries: readonly string[], name: string): str
 
 /**
  * What `openspec archive <name>` changes (REQ-KRN-034, `archive --dry-run`):
- * the active directory moves to `openspec/changes/archive/<today>-<name>`, and
- * every delta spec `specs/<capability>/spec.md` of the Change is merged into
+ * the active directory moves to `openspec/changes/archive/<today>-<name>`
+ * (`today` — the local date of the process, as openspec takes it), and every
+ * delta spec `specs/<capability>/spec.md` of the Change is merged into
  * `openspec/specs/<capability>/spec.md`.
  */
 export function archivePlan(root: string, name: string, today: string): { archive: string; targets: string[] } {

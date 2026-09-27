@@ -12,7 +12,7 @@ import path from "node:path";
 import { monotonicFactory } from "ulid";
 
 import { WarrantError } from "../errors.js";
-import { SPEC_LEVEL_PREFIXES, ULID_PREFIXES, loadAreas, scanIds } from "./scan.js";
+import { SPEC_LEVEL_PREFIXES, ULID_PREFIXES, areaHint, loadAreas, scanIds } from "./scan.js";
 
 export type SpecLevelPrefix = (typeof SPEC_LEVEL_PREFIXES)[number];
 
@@ -44,14 +44,17 @@ export function highestNumber(projectRoot: string, prefix: string, area: string)
 
 /** `PREFIX-AREA-NNN` for the next free number (SCN-KRN-056). */
 export function allocateSpecLevel(projectRoot: string, prefix: SpecLevelPrefix, area: string): string {
+  const areas = loadAreas(projectRoot);
   if (!AREA_RE.test(area)) {
     throw new WarrantError("AREA_UNKNOWN", `AREA "${area}" is not of the form [A-Z]{2,5}`, {
-      path: ".warrant/local/areas.json"
+      path: ".warrant/local/areas.json",
+      hint: areaHint(areas)
     });
   }
-  if (!loadAreas(projectRoot).has(area)) {
+  if (!areas.has(area)) {
     throw new WarrantError("AREA_UNKNOWN", `AREA "${area}" is not declared in .warrant/local/areas.json`, {
-      path: ".warrant/local/areas.json"
+      path: ".warrant/local/areas.json",
+      hint: areaHint(areas)
     });
   }
   const next = highestNumber(projectRoot, prefix, area) + 1;

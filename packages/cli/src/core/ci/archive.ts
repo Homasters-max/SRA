@@ -20,11 +20,12 @@ import path from "node:path";
 
 import type { Ctx } from "../ctx.js";
 import { cliError, EXIT, WarrantError, type CliError, type ExitCode } from "../errors.js";
-import { parseCiRef } from "../evidence/attestation.js";
+import { artifactName, attestationOf, ciRunKey, parseCiRef, runAttemptKey } from "../evidence/attestation.js";
 import { subjectOf } from "../evidence/record.js";
+import { evidenceRel } from "../evidence/store.js";
 import { walkFiles } from "../fs.js";
 import { mergeOfHead } from "../git/facts.js";
-import { isPlainObject, strings } from "../json.js";
+import { strings } from "../json.js";
 import { requireOpenspec } from "../openspec/version.js";
 import type { PullRequest, WorkflowRun } from "../ports/forge.js";
 import type { BaseContext } from "./base.js";
@@ -53,11 +54,6 @@ export interface ArchiveReplay {
   exitCode: ExitCode;
 }
 
-/** A ref without one trailing `/`. */
-function normalRef(ref: string): string {
-  return ref.endsWith("/") ? ref.slice(0, -1) : ref;
-}
-
 /** The parsed JSON of `text`, or undefined. */
 function parsedJson(text: string): unknown {
   try {
@@ -69,14 +65,24 @@ function parsedJson(text: string): unknown {
 
 /** `attestation.ref` of a CI record, or undefined. */
 function ciRef(json: unknown): string | undefined {
-  if (!isPlainObject(json)) return undefined;
-  const attestation = isPlainObject(json["attestation"]) ? json["attestation"] : {};
-  return attestation["type"] === "ci" && typeof attestation["ref"] === "string" ? normalRef(attestation["ref"]) : undefined;
+  const attestation = attestationOf(json);
+  return attestation.type === "ci" ? attestation.ref : undefined;
+}
+
+/**
+ * The recovery run on M (ADR-0037 п. 4, BL-53): `gh workflow run` of the
+ * workflow file of `run` — a run of the head of the pull request — or, without
+ * one, a placeholder for the workflow file of the job `warrant`: the file is
+ * the project's own, not a literal of the CLI.
+ */
+export function recoveryRun(m: string, run: WorkflowRun | null | undefined): string {
+  const file = run === null || run === undefined ? "<workflow file of the job warrant>" : path.posix.basename(run.workflowPath);
+  return `gh workflow run ${file} -f merge_commit=${m}`;
 }
 
 /** The committed CI records of `change` on HEAD, by id, with their text. */
 async function committedRecords(ctx: Pick<Ctx, "git">, subject: CiSubject, change: string): Promise<Map<string, string>> {
-  const dir = `.warrant/evidence/${change}`;
+  const dir = evidenceRel(change);
   const listed = await ctx.git.tree(subject.merge, [dir]);
   const files = listed.ok ? Object.keys(listed.value).filter((p) => RECORD_FILE_RE.test(path.posix.basename(p))) : [];
   const texts = await ctx.git.contents(subject.merge, files.map((f) => `./${f}`));
@@ -123,7 +129,7 @@ export async function verifyCiEvidence(
       const json = evidence.get(id);
       const ref = json === undefined ? undefined : ciRef(json);
       if (json === undefined || ref === undefined) continue;
-      const rel = `.warrant/evidence/${change}/${id}.json`;
+      const rel = `${evidenceRel(change)}/${id}.json`;
       const fail = (reason: EvidenceReason, detail: string, hint?: string): void => {
         out.errors.push(cliError("EVIDENCE_NOT_VERIFIED", `${id}: ${reason}: ${detail}`, { path: rel, ...(hint === undefined ? {} : { hint }) }));
       };
@@ -134,25 +140,28 @@ export async function verifyCiEvidence(
         fail("commit", `no merge commit M on the first-parent line of the base has ${String(recorded?.commit)}, the subject.commit of the record, as its head`);
         continue;
       }
+      const parsed = parseCiRef(ref);
+      const runOf = (at: NonNullable<typeof parsed>): Promise<WorkflowRun | null> => {
+        const key = `${at.id} ${at.attempt}`;
+        if (!runs.has(key)) runs.set(key, ctx.forge.workflowRun(at.id, at.attempt));
+        return runs.get(key) as Promise<WorkflowRun | null>;
+      };
       const tree = await ctx.git.treeId(m);
       if (recorded.tree === undefined || recorded.tree !== tree) {
         fail(
           "tree",
           recorded.tree === undefined ? `the record has no subject.tree: evidence on the result of the merge M ${m} is required` : `subject.tree ${recorded.tree} is not ${String(tree)}, the tree of M ${m}`,
-          `run the job on M: gh workflow run ci.yml -f merge_commit=${m}, then warrant ci fetch <impl-PR>`
+          `run the job on M: ${recoveryRun(m, parsed === null ? null : await runOf(parsed))}, then warrant ci fetch <impl-PR>`
         );
         continue;
       }
 
-      const parsed = parseCiRef(ref);
       if (parsed === null) {
         fail("ref", `attestation.ref ${ref} is not the URL of a run attempt of GitHub Actions`);
         continue;
       }
-      const key = `${parsed.id} ${parsed.attempt}`;
-      if (!runs.has(key)) runs.set(key, ctx.forge.workflowRun(parsed.id, parsed.attempt));
-      const run = await runs.get(key);
-      if (run === null || run === undefined) {
+      const run = await runOf(parsed);
+      if (run === null) {
         fail("run", `no attempt ${parsed.attempt} of run ${parsed.id} in the repository of the forge`);
         continue;
       }
@@ -180,33 +189,35 @@ export async function verifyCiEvidence(
         continue;
       }
 
-      const name = `evidence-${change}-${parsed.attempt}`;
+      const name = artifactName(change, parsed.attempt);
       const artifactKey = `${run.id} ${name}`;
       if (!artifacts.has(artifactKey)) artifacts.set(artifactKey, ctx.forge.downloadArtifact(run.id, name));
       const files = await artifacts.get(artifactKey);
       if (files === null || files === undefined) {
-        fail("artifact", `run ${run.id} has no artifact ${name} (expired after 90 days, or never uploaded)`, `run the job on M: gh workflow run ci.yml -f merge_commit=${m}, then warrant ci fetch <impl-PR>`);
+        fail("artifact", `run ${run.id} has no artifact ${name} (expired after 90 days, or never uploaded)`, `run the job on M: ${recoveryRun(m, run)}, then warrant ci fetch <impl-PR>`);
         continue;
       }
-      if (!compared.has(ref)) {
-        // Every committed record with this ref, not only those of evidence[]: each is one error.
+      const attempt = runAttemptKey(parsed);
+      if (!compared.has(attempt)) {
+        // Every committed record of this run attempt, not only those of evidence[]: each is one error.
         committed ??= await committedRecords(ctx, subject, change);
         const differ = new Set<string>();
         for (const [other, text] of committed) {
-          if (ciRef(parsedJson(text)) !== ref) continue;
+          const otherRef = ciRef(parsedJson(text));
+          if (otherRef === undefined || ciRunKey(otherRef) !== attempt) continue;
           const file = files.get(`${other}.json`);
           if (file === undefined || !file.equals(Buffer.from(text, "utf8"))) differ.add(other);
         }
-        compared.set(ref, differ);
+        compared.set(attempt, differ);
         for (const other of [...differ].sort()) {
           out.errors.push(
             cliError("EVIDENCE_NOT_VERIFIED", `${other}: content: the committed record is not byte for byte ${other}.json of artifact ${name} of ${ref}`, {
-              path: `.warrant/evidence/${change}/${other}.json`
+              path: `${evidenceRel(change)}/${other}.json`
             })
           );
         }
       }
-      if (compared.get(ref)?.has(id) === true) continue;
+      if (compared.get(attempt)?.has(id) === true) continue;
       out.verified.push(id);
     }
   }

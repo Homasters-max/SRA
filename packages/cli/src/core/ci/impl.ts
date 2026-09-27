@@ -14,6 +14,7 @@ import { loadConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
 import { cliError, EXIT, type CliError, type ExitCode } from "../errors.js";
 import { HUMAN_APPROVAL } from "../evidence/approval.js";
+import { artifactName } from "../evidence/attestation.js";
 import { evidenceDir } from "../evidence/store.js";
 import { reportPath } from "../fs.js";
 import { MERGE_TRANSITION, PASSING_VERDICTS, type Finding, type Verdict } from "../gates/types.js";
@@ -38,10 +39,10 @@ export interface ImplJudgement {
   exitCode: ExitCode;
 }
 
-/** `evidence-<change>-<attempt>`: the artifact the workflow uploads (`GITHUB_RUN_ATTEMPT`, else 1). */
-export function artifactName(change: string, env: NodeJS.ProcessEnv): string {
+/** The attempt of the run the workflow uploads the artifact of (`GITHUB_RUN_ATTEMPT`, else 1). */
+function runAttempt(env: NodeJS.ProcessEnv): string {
   const attempt = env["GITHUB_RUN_ATTEMPT"];
-  return `evidence-${change}-${attempt !== undefined && attempt !== "" ? attempt : "1"}`;
+  return attempt !== undefined && attempt !== "" ? attempt : "1";
 }
 
 /** Gates whose `requires_evidence` holds only kinds `warrant transition` writes (`human-approval`). */
@@ -129,7 +130,7 @@ export async function judgeImpl(ctx: Ctx, subject: CiSubject, base: BaseContext,
     deferred: deferred.sort(),
     findings,
     evidence: [...written].sort(),
-    artifact: { name: artifactName(change, env), path: reportPath(evidenceDir(ctx.root, change, env), ctx.root) },
+    artifact: { name: artifactName(change, runAttempt(env)), path: reportPath(evidenceDir(ctx.root, change, env), ctx.root) },
     errors,
     exitCode
   };

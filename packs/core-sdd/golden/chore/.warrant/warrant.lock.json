@@ -1,12 +1,12 @@
 {
   "$schema": "warrant://lock/1",
-  "kernel": "0.7.0",
+  "kernel": "0.8.0",
   "openspec": "1.13.1",
   "packs": {
     "core-sdd": {
-      "version": "0.3.3",
+      "version": "0.3.4",
       "source": "bundled",
-      "hash": "sha256:439d00dc60f5184c1d8ca064d1178394fc56d1cdd89d4ac1b8b83e8661243428"
+      "hash": "sha256:4ce391ef43fd6ff69d8f5166c42dd9e3625078e2d106ab1319216a74315b74f9"
     }
   },
   "skills": {
@@ -19,7 +19,7 @@
   },
   "generated": {
     ".warrant/schemas/areas.1.schema.json": "sha256:a6854309970294bb368334f9703918b011aaa73e6b68523be04b501300ea122d",
-    ".warrant/schemas/change-record.1.schema.json": "sha256:05b13a66b5b96a05edeb9d60cce8aa61a5c63291c2d107a62ee0cbf4396117a9",
+    ".warrant/schemas/change-record.1.schema.json": "sha256:01d1c260c093ffefd8406a7c73514a9094d89ac925bfa1180aa736fb1d7478dc",
     ".warrant/schemas/check.1.schema.json": "sha256:efce67f07adbcf41d37ea8a0940f3f988a1833e40864acd78e2cea5e33713676",
     ".warrant/schemas/common.1.schema.json": "sha256:207c36e2472cb1465ebe3c43c77dabdcc59ee895ebf76cffdaf097b596e05041",
     ".warrant/schemas/config.1.schema.json": "sha256:45b62c5db33a15f4d5d4b10ebb2e3c70aa5633ee0ea901683b51034b5dc3b7cd",

@@ -146,6 +146,15 @@ export class GitCli implements GitPort {
     return { ok: true, value: run.stdout.split("\n").map((line) => line.trim()).filter((line) => line !== "") };
   }
 
+  async upstreamAhead(base: string): Promise<{ upstream: string; ahead: number } | null> {
+    // Fails without an upstream, and when the upstream's remote-tracking branch is missing (I-192).
+    const upstream = answer(await this.git(["rev-parse", "--abbrev-ref", `${base}@{upstream}`]));
+    if (upstream === null) return null;
+    const count = answer(await this.git(["rev-list", "--count", `${base}..${upstream}`]));
+    const ahead = count === null ? Number.NaN : Number.parseInt(count, 10);
+    return Number.isInteger(ahead) ? { upstream, ahead } : null;
+  }
+
   async tree(rev: string, paths: string[]): Promise<GitAnswer<BlobTree>> {
     const run = await this.git(["ls-tree", "-r", "-z", rev, "--", ...paths]);
     if (!run.ok) return { ok: false, detail: detailOf(run) };

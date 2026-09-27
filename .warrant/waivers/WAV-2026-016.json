@@ -1,0 +1,17 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-2026-016",
+  "change": "slice-fixes",
+  "gate": "spec-approved",
+  "reason": "Spec delta amended after approval by I-188..I-192 (BL-67: 3 MAJOR and 5 MINOR of the second spec review; F-1 by maintainer decision of 2026-09-27, ADR-0040 p. 3), per ADR-0024 p. 4 instead of a third review round.",
+  "risk": "LOW",
+  "compensating_controls": [
+    "maintainer decisions on BL-67 in the session of 2026-09-27",
+    "review-impl checks the implementation against the amended spec",
+    "SPEC_CHANGED_AFTER_APPROVAL finding lists the changed paths for the impl-PR reviewer"
+  ],
+  "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
+  "expires_at": "2026-12-31",
+  "waiver_state": "ACTIVE"
+}

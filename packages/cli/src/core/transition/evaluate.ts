@@ -47,11 +47,6 @@ export interface EvaluateOptions {
   loaded?: LoadResult | undefined;
   /** The git facts, when the command computed them (`warrant ci`: the head of the PR inside its merge); `base` is then unused. */
   git?: GitFacts | undefined;
-  /**
-   * Which stored records the gates may read; absent — all. `warrant ci` counts
-   * the kinds its checks produce only from this run (REQ-VER-011, ADR-0010 п. 3).
-   */
-  admit?: ((record: EvidenceInput) => boolean) | undefined;
 }
 
 /**
@@ -74,6 +69,11 @@ export interface Prepared {
   only: string[] | undefined;
   paths: string[] | undefined;
   env: NodeJS.ProcessEnv;
+  /**
+   * Which stored records the gates may read; undefined — all. Set only by
+   * `judgeImpl`: `warrant ci` counts the kinds its checks produce only from
+   * this run (REQ-VER-011, ADR-0010 п. 3), so its assembly is by hand (I-187).
+   */
   admit: ((record: EvidenceInput) => boolean) | undefined;
 }
 
@@ -109,7 +109,7 @@ export function prepare(ctx: Ctx, change: string, opts: EvaluateOptions): Prepar
   const paths = opts.paths === undefined ? undefined : splitPaths(opts.paths);
   if (paths !== undefined && paths.length === 0) throw new WarrantError("USAGE", "--paths lists no path");
 
-  return { ok: true, loaded, record, transition, policy: resolved.policy, only, paths, env: opts.env, admit: opts.admit };
+  return { ok: true, loaded, record, transition, policy: resolved.policy, only, paths, env: opts.env, admit: undefined };
 }
 
 /**

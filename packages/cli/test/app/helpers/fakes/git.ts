@@ -11,8 +11,9 @@
  *
  * Limits of the model (the contract covers what is inside them): a rename is
  * found only for identical content (git: ≥ 50 % similar); refs are `HEAD`,
- * branch names, full or abbreviated (≥ 4) commit ids, each with `^N`/`~N`
- * suffixes; `dirty` knows no `.gitignore` and no index; `fail(method)` answers
+ * branch names, remote-tracking names (`origin/main`), full or abbreviated
+ * (≥ 4) commit ids, each with `^N`/`~N` suffixes; an upstream is a
+ * remote-tracking name; `dirty` knows no `.gitignore` and no index; `fail(method)` answers
  * as when the git call fails.
  */
 import { createHash } from "node:crypto";
@@ -99,6 +100,10 @@ function filesOnDisk(top: string, spec: string): string[] {
 export class FakeGit implements GitPort {
   readonly commits = new Map<string, FakeCommit>();
   readonly branches = new Map<string, string>();
+  /** Remote-tracking branches (`origin/main` → commit): set by {@link setRemoteBranch}, never checked out. */
+  readonly remoteBranches = new Map<string, string>();
+  /** Upstream of a local branch (`branch.<name>.merge`): a remote-tracking name, which may be missing. */
+  readonly upstreams = new Map<string, string>();
   /** The checked-out branch, or null when `HEAD` is detached at {@link detached}. */
   current: string | null = "main";
   detached: string | null = null;
@@ -163,6 +168,18 @@ export class FakeGit implements GitPort {
     this.branches.set(name, sha);
   }
 
+  /** `git update-ref refs/remotes/<name> <rev>`: the remote-tracking branch `name` (`origin/main`) at `rev`. */
+  setRemoteBranch(name: string, rev = "HEAD"): void {
+    const sha = this.resolve(rev);
+    if (sha === null) throw new Error(`FakeGit: cannot point ${name} at ${rev}`);
+    this.remoteBranches.set(name, sha);
+  }
+
+  /** `git config branch.<branch>.remote|merge`: `upstream` (`origin/main`) is the upstream of `branch`, present or not. */
+  setUpstream(branch: string, upstream: string): void {
+    this.upstreams.set(branch, upstream);
+  }
+
   /** Points `HEAD` at the branch `name`. */
   switchTo(name: string): void {
     if (!this.branches.has(name)) throw new Error(`FakeGit: no branch ${name}`);
@@ -216,6 +233,8 @@ export class FakeGit implements GitPort {
     if (name === "HEAD") return this.headCommit()?.sha ?? null;
     const branch = this.branches.get(name.replace(/^refs\/heads\//, ""));
     if (branch !== undefined) return branch;
+    const remote = this.remoteBranches.get(name.replace(/^refs\/remotes\//, ""));
+    if (remote !== undefined) return remote;
     if (!/^[0-9a-f]{4,40}$/.test(name)) return null;
     const hits = [...this.commits.keys()].filter((sha) => sha.startsWith(name));
     return hits.length === 1 ? (hits[0] as string) : null;
@@ -350,6 +369,18 @@ export class FakeGit implements GitPort {
     return this.answer("diffNames", [base], failed, () => {
       const entries = this.diff(base, "HEAD");
       return entries === null ? failed : { ok: true, value: entries.map((e) => e.path) };
+    });
+  }
+
+  upstreamAhead(base: string): Promise<{ upstream: string; ahead: number } | null> {
+    return this.answer("upstreamAhead", [base], null, () => {
+      const branch = base === "HEAD" ? this.current : base.replace(/^refs\/heads\//, "");
+      const upstream = this.repo && branch !== null && this.branches.has(branch) ? this.upstreams.get(branch) : undefined;
+      if (upstream === undefined) return null;
+      const [from, to] = [this.resolve(branch as string), this.remoteBranches.get(upstream) ?? null];
+      if (from === null || to === null) return null;
+      const inBase = this.ancestorsOf(from);
+      return { upstream, ahead: [...this.ancestorsOf(to)].filter((sha) => !inBase.has(sha)).length };
     });
   }
 

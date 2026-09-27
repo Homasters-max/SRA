@@ -60,9 +60,17 @@ PROPOSAL   → DECISION    только субъектом с authority
 
 ### Где хранятся UNKNOWN и ASSUMPTION
 
-Source of truth — Change record ([04 §9](04-lifecycle.md)): массивы `unknowns[]` и `assumptions[]`, запись через
-`warrant unknown add | resolve` и `warrant assumption add`. Gate `blocking-unknowns-resolved` читает только record.
-`DECISION`, закрывающий UNKNOWN, MUST нести `ref` на комментарий maintainer в PR; `FACT` / `ASSUMPTION` от агента ref не требуют.
+Source of truth — Change record ([04 §9](04-lifecycle.md)): массивы `unknowns[]` и `assumptions[]`. Запись —
+`warrant unknown add | resolve` ([04 §7](04-lifecycle.md)): закрытие пишет в элемент `resolution` (текст ответа),
+`resolved_as` (`decision`, `fact`, `assumption`) и `ref`; `warrant assumption add` — позже (BL-66), ASSUMPTION пока
+пишется только закрытием UNKNOWN. `warrant unknown` допустим только до `APPROVED` (`PROPOSED`, `SPECIFIED`): вопрос,
+возникший в реализации, — строка `I-N` в `design.md` с решением maintainer. Gate `blocking-unknowns-resolved` читает
+только record ([06 §4](06-verification.md)).
+
+- Blocking UNKNOWN закрывает только `DECISION` с `ref` — URL комментария maintainer в PR (`…/pull/<N>#issuecomment-<id>`
+  или `#pullrequestreview-<id>`), текст которого содержит id UNKNOWN; автора, текст и PR комментария проверяет
+  `warrant ci` ([ADR-0040](adr/WARRANT-ADR-0040-slice-fixes.md) п. 2, 3).
+- `FACT` / `ASSUMPTION` от агента закрывают только не-blocking UNKNOWN и ref не требуют.
 
 Запись в Markdown — projection для читателя, не источник:
 

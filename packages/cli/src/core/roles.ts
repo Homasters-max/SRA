@@ -13,6 +13,9 @@ export const FALLBACK_ROLE = "maintainer";
 /** Role whose members activate and revoke waivers (05 section 7). */
 export const WAIVER_ROLE = "maintainer";
 
+/** Role whose comment is the decision that closes a blocking UNKNOWN (ADR-0040 п. 3, REQ-VER-013). */
+export const DECISION_ROLE = "maintainer";
+
 /**
  * Logins named in `roles` of `warrant.json`: of the given roles only, or of
  * every role when `only` is omitted.

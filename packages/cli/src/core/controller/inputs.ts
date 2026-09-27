@@ -8,12 +8,12 @@
  * and everything else (`unevaluated_gates`).
  */
 import { HUMAN_APPROVAL } from "../evidence/approval.js";
-import { openBlockingUnknowns } from "../gates/l0/blocking-unknowns-resolved.js";
 import { missingArtifacts } from "../gates/l0/required-artifacts-present.js";
 import { requirementsOf, worstVerdict } from "../gates/verdict.js";
 import { MERGE_TRANSITION, type Availability, type Finding, type Verdict } from "../gates/types.js";
 import type { ArtifactStatuses } from "../ports/openspec.js";
 import type { EffectivePolicy } from "../resolve/types.js";
+import { openBlockingUnknowns } from "../unknowns/state.js";
 
 export interface ControllerInputs {
   policy_conflict: boolean;

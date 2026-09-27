@@ -241,6 +241,14 @@ describe("defaultPrefix and startsWithPrefix", () => {
     expect(defaultPrefix(["-x"])).toEqual([]);
   });
 
+  it("keeps the pair -m <module> right after the first word (BL-61, SCN-ENF-037)", () => {
+    expect(defaultPrefix(["python", "-m", "pytest", "--junitxml={out}"])).toEqual(["python", "-m", "pytest"]);
+    expect(defaultPrefix(["python3", "-m", "unittest", "discover", "-s", "tests"])).toEqual(["python3", "-m", "unittest", "discover"]);
+    expect(defaultPrefix(["python", "-m", "{module}"])).toEqual(["python"]);
+    expect(defaultPrefix(["python", "-X", "dev", "-m", "pytest"])).toEqual(["python"]);
+    expect(startsWithPrefix(["python", "-"], defaultPrefix(["python", "-m", "pytest"]))).toBe(false);
+  });
+
   it("a command matches a non-empty prefix word by word", () => {
     expect(startsWithPrefix(["pytest", "tests/"], ["pytest"])).toBe(true);
     expect(startsWithPrefix(["npm", "test"], ["npm", "test"])).toBe(true);

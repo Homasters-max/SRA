@@ -26,7 +26,16 @@ argument-hint: "<change> <номер spec-PR>"
    ```
    `--by` — maintainer из `roles`: доверие держит `--ref` на его merge (ADR-0033 п. 4).
 3. Группы `tasks.md` по порядку — навык `openspec-apply-change`; раздача субагентам — `change-coordinate`; каждая
-   группа — коммит навыка `group-done`.
+   группа — коммит навыка `group-done`. Правка spec после approval (MAJOR review spec, уточнение контракта) — по
+   [ADR-0024](../../../docs/adr/WARRANT-ADR-0024-spec-approved-contract.md) п. 4 внутри Run `implement` (его
+   `write_scope` — и `design.md`, и `specs/**` Change): строка `I-N` — навык `decision`, правка delta spec, коммит;
+   `spec-approved` — `FAIL` `SPEC_CHANGED_AFTER_APPROVAL`, пока waiver (`PROPOSED`, в тело PR) не активирует maintainer
+   по слову в PR:
+   ```bash
+   $W waive <change> spec-approved --reason "<I-N>: …" --risk LOW --control "<контроль>" --owner human:<maintainer> --expires <YYYY-MM-DD>
+   $W waive --activate <WAV> --by <maintainer>
+   ```
+   Вопрос реализации — не `warrant unknown` (только до `APPROVED`), а строка `I-N` с решением maintainer'а.
 4. Последний коммит — `<change>: transition VERIFYING — …`:
    ```bash
    $W verify <change>
@@ -34,10 +43,10 @@ argument-hint: "<change> <номер spec-PR>"
    ```
 5. Ревью до PR — навык `review-impl` (п. 6): 🔴 — исправить в этой ветке и снова шаг 4; 🟡 / 💭 — строками R-N в
    `docs/backlog.md`; отчёт — разделом «Ревью» в тело PR.
-6. PR — шаги 1–3 `git-land`; тело — группы, решения I-N, отчёт ревью. CI: `test` ubuntu + windows и job `warrant`
-   (`warrant ci` на результате merge с tip `main`: `kind: impl`, artifact `evidence-<change>-<attempt>`, `human-approval`
-   — в `deferred[]`). До коммита `VERIFYING` красный `CHANGE_NOT_VERIFYING` — штатно. Зелёный — «жду merge #N».
-   `main` сдвинулся до merge — Re-run job `warrant` пересчитает merge (иначе evidence `STALE` `tree`).
+6. PR — шаги 1–3 `git-land`; тело — группы, решения I-N, waivers, отчёт ревью. CI: `test` ubuntu + windows и job
+   `warrant` (`warrant ci` на результате merge с tip `main`: `kind: impl`, artifact `evidence-<change>-<attempt>`,
+   `human-approval` — в `deferred[]`). До коммита `VERIFYING` красный `CHANGE_NOT_VERIFYING` — штатно. Зелёный — «жду
+   merge #N». `main` сдвинулся до merge — Re-run job `warrant` пересчитает merge (иначе evidence `STALE` `tree`).
 7. По «merge #N» — шаги 4–5 `git-land` (только `--merge`, I-97). Затем навык `change-archive-pr <change>` с номером
    этого PR.
 

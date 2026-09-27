@@ -29,7 +29,7 @@ import { checkCanonical, isRawEvidencePath, SCHEMA_COPIES_PREFIX, WARRANT_DIR } 
 import type { WarrantConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
-import { projectPath, reportPath, walkFiles } from "../fs.js";
+import { absolutePath, projectPath, reportPath, walkFiles } from "../fs.js";
 import { checkImmutableFiles, checkImmutableIds } from "../ids/immutable.js";
 import { checkIds, checkIdsIn, loadAreas, scanIds, type FoundId, type ScanResult } from "../ids/scan.js";
 import { checkLock, LOCK_REL } from "../packs/hash.js";
@@ -91,10 +91,6 @@ export function validateRun(ctx: Ctx, loaded: LoadResult): ValidateRun {
 
 const none = (): boolean => false;
 
-/** Absolute path of a project path. */
-function absoluteOf(root: string, file: string): string {
-  return path.join(root, ...file.split("/"));
-}
 
 /** Findings whose `path` (without a `#pointer`) is one of `files`. */
 function findingsOf(errors: readonly CliError[], files: readonly string[]): CliError[] {
@@ -125,7 +121,7 @@ function underTests(file: string, config: WarrantConfig): boolean {
 function checkWarrantFiles(v: ValidateRun, files?: readonly string[]): CliError[] {
   const { root } = v.ctx;
   const errors: CliError[] = [];
-  const targets = files?.map((file) => absoluteOf(root, file)) ?? walkFiles(path.join(root, WARRANT_DIR));
+  const targets = files?.map((file) => absolutePath(root, file)) ?? walkFiles(path.join(root, WARRANT_DIR));
   for (const absolute of targets) {
     if (!absolute.toLowerCase().endsWith(".json")) continue;
     const reported = reportPath(absolute, root);
@@ -203,7 +199,7 @@ export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
     appliesTo: (file) => SECRET_SCAN_DIRS.some((dir) => file.startsWith(`${dir}/`)) && !isRawEvidencePath(file),
     run: async (v, files) => {
       const { root } = v.ctx;
-      const targets = files?.map((file) => absoluteOf(root, file));
+      const targets = files?.map((file) => absolutePath(root, file));
       return scanSecrets(
         root,
         (dir) =>
@@ -221,7 +217,7 @@ export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
     run: async (v, files) =>
       files === undefined
         ? checkCanonical(v.ctx.root)
-        : checkCanonical(v.ctx.root, files.map((file) => absoluteOf(v.ctx.root, file)))
+        : checkCanonical(v.ctx.root, files.map((file) => absolutePath(v.ctx.root, file)))
   },
   {
     // Path rules (ADR-0022); `id` = file name is a semantic rule of the loader.
@@ -278,7 +274,7 @@ export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
     run: async (v, files) =>
       files === undefined
         ? checkDangling(v.ctx.root, v.loaded.config, v.declared)
-        : checkDangling(v.ctx.root, v.loaded.config, v.scan().ids, files.map((file) => absoluteOf(v.ctx.root, file)))
+        : checkDangling(v.ctx.root, v.loaded.config, v.scan().ids, files.map((file) => absolutePath(v.ctx.root, file)))
   }
 ];
 
@@ -323,7 +319,7 @@ export async function runFileChecks(
     if (present.includes(file) || skipped.has(file)) continue;
     let isFile: boolean;
     try {
-      isFile = statSync(absoluteOf(root, file)).isFile();
+      isFile = statSync(absolutePath(root, file)).isFile();
     } catch {
       skipped.set(file, "missing");
       continue;

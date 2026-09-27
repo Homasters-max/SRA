@@ -46,18 +46,25 @@ argument-hint: "<change>"
    ```bash
    $W waive <change> <gate> --reason "<почему нет producer'а>" --risk HIGH --control "<контроль>" --owner human:<maintainer> --expires <YYYY-MM-DD>
    ```
-   Waivers нет — сразу шаг 6 до PR.
+   Waivers нет — сразу шаг 7 до PR.
 5. PR — шаги 1–3 `git-land`. Тело начинается разделом «Waivers на решение»: WAV, gate, risk, reason, expires и
    строка «merge #N = активация этих waivers (ADR-0033 п. 4)», затем находки review. CI (`test`, job `warrant` —
    `kind: spec`, правило путей) зелёный — «жду merge #N».
-6. По «merge #N» — активация, проверка, переход; коммит `<change>: waivers WAV-…, verify PROPOSED->SPECIFIED,
+6. Blocking UNKNOWN (ответ меняет spec): `$W unknown add <change> --area <AREA> --text "<вопрос>" --blocking` →
+   `$W status <change>` — `WAIT`, next `clarify`. Решение — комментарий maintainer'а в этом PR с id `UNK-…` в тексте:
+   ```bash
+   $W unknown resolve <change> <UNK> --as decision --text "<ответ>" --ref <URL …#issuecomment-<id> | …#pullrequestreview-<id>>
+   ```
+   Коммит `<change>: unknown <UNK> — decision`; исправить до `APPROVED` — тот же вызов с `--replace`. `warrant unknown`
+   — только в `PROPOSED` и `SPECIFIED` ([ADR-0040](../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 2, 3).
+7. По «merge #N» — активация, проверка, переход; коммит `<change>: waivers WAV-…, verify PROPOSED->SPECIFIED,
    transition SPECIFIED`, push:
    ```bash
    $W waive --activate <WAV> --by <maintainer>
    $W verify <change>
    $W transition <change> SPECIFIED
    ```
-7. CI и merge — шаги 3–4 `git-land`, после merge — шаг 5. Затем навык `change-impl-pr <change>` с номером этого PR.
+8. CI и merge — шаги 3–4 `git-land`, после merge — шаг 5. Затем навык `change-impl-pr <change>` с номером этого PR.
 
 ## Стоп
 
@@ -66,7 +73,7 @@ argument-hint: "<change>"
 - Gate не waivable — waiver невозможен: показать gate и спросить.
 - Субагент не сдал envelope (`warrant` не найден, отказ не guard'а) — `$W run finish --state FAILED`, показать причину;
   evidence руками не писать.
-- Нет «merge #N» — не активировать waivers и не сливать.
+- Нет «merge #N» или blocking UNKNOWN открыт — не активировать waivers и не сливать.
 
 ## Отчёт
 

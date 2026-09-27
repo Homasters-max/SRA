@@ -68,14 +68,18 @@ hash набора пар «путь → blob» файлов `proposal.md` и `sp
 paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-frontend-adapters.md) п. 2) и печатать
 `data{ decision: allow|deny, reason?, hints[] }`, код выхода 0 при любом решении. Пути события SHALL переводиться в пути проекта
 от `cwd`; путь вне проекта и проект без `.warrant/warrant.json` SHALL давать `allow`. Решение `pre`:
-- `edit` при активном Run — `deny` для пути вне `write_scope` или вне непустого `scope` (reason называет путь и scope), иначе
-  `allow`; при активном Run `review` (пустой `write_scope`) — `deny` любой правки с reason «Run review только читает»;
+- `edit` при активном Run — `deny` для пути вне `write_scope` или вне непустого `scope` (reason называет путь и scope; hint —
+  править внутри `write_scope`, а для других путей `warrant run finish`, затем `warrant run start` с операцией, которая их пишет),
+  иначе `allow`; при активном Run `review` (пустой `write_scope`) — `deny` любой правки с reason «Run review только читает»;
 - `edit` без активного Run — `deny` с hint `warrant run start <change> --operation …` для путей под `paths.src`, `paths.tests`,
   `openspec/changes/**` и policy-путями (`match.paths` профиля `factory-change`); иначе `allow` с той же подсказкой
   ([ADR-0022](../../../../docs/adr/WARRANT-ADR-0022-path-rules.md) п. 7);
-- policy-путь, который не лежит под `paths.src`, `paths.tests` и `openspec/changes/**` (его не пишет ни одна операция Run:
-  например `.warrant/local/**`, `.github/workflows/**`), в `deny` обоих случаев выше SHALL получать вместо `warrant run start` и
-  `warrant run finish` hint: правку делает человек (maintainer) вне сессии агента, в Change `factory-change`
+- состояние, которое пишет CLI, — records `.warrant/changes/**`, evidence `<state>/evidence/**`, Runs `<state>/runs/**` и waivers
+  `.warrant/waivers/**` — в `deny` обоих случаев выше SHALL получать вместо `warrant run start` и `warrant run finish` hint: файлы
+  пишут команды CLI (`warrant transition`, `warrant unknown`, `warrant check`, `warrant waive`, `warrant run`), правка руками не нужна;
+- остальной policy-путь, который не лежит под `paths.src`, `paths.tests` и `openspec/changes/**` (его не пишет ни одна операция
+  Run: например `.warrant/local/**`, `.github/workflows/**`), в `deny` обоих случаев выше SHALL получать вместо `warrant run start`
+  и `warrant run finish` hint: правку делает человек (maintainer) вне сессии агента, в Change `factory-change`
   ([ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 7); остальные пути (например `docs/**`) — прежние подсказки;
 - `shell` при активном Run `review` — `allow`, только если каждая простая команда строки после shell-разбора начинается с
   `warrant run submit`, иначе `deny` с hint `warrant run submit`;
@@ -142,3 +146,8 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 <!-- id: SCN-ENF-038 -->
 - **WHEN** без активного Run guard получает `pre` `edit` пути `.warrant/local/areas.json`; при активном Run `implement` — `pre` `edit` пути `.github/workflows/ci.yml`, затем `docs/notes.md`
 - **THEN** первые два — `deny`, `hints[]` называет правку человеком в Change `factory-change` и не содержит `warrant run start` и `warrant run finish`; `docs/notes.md` — `deny` с прежним hint `warrant run finish`
+
+#### Scenario: Состояние, которое пишет CLI
+<!-- id: SCN-ENF-039 -->
+- **WHEN** без активного Run guard получает `pre` `edit` пути `.warrant/changes/add-search.json`; при активном Run `implement` — `pre` `edit` пути `.warrant/waivers/WAV-2026-001.json`
+- **THEN** оба — `deny`, `hints[]` называет `warrant transition`, `warrant unknown` и `warrant waive` и не содержит `factory-change`, `warrant run start` и `warrant run finish`

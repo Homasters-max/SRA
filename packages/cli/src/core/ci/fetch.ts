@@ -15,12 +15,13 @@
 import type { Ctx } from "../ctx.js";
 import { cliError, EXIT, WarrantError, type CliError, type ExitCode } from "../errors.js";
 import { acquireLock, lockPath } from "../check/lock.js";
-import { parseCiRef } from "../evidence/attestation.js";
+import { artifactName, attestationOf, ciRunKey, runAttemptKey } from "../evidence/attestation.js";
 import { subjectOf } from "../evidence/record.js";
 import { importRecords } from "../evidence/store.js";
 import { manifestVersions } from "../evidence/write.js";
 import { isPlainObject } from "../json.js";
 import type { PullRequest, WorkflowRun } from "../ports/forge.js";
+import { recoveryRun } from "./archive.js";
 import { readSubjectOf } from "./kind.js";
 import { parsePullUrl } from "./refs.js";
 
@@ -77,9 +78,9 @@ function recordsOf(files: ReadonlyMap<string, Buffer>, run: WorkflowRun): Map<st
     } catch {
       continue;
     }
-    const attestation = isPlainObject(json) && isPlainObject(json["attestation"]) ? json["attestation"] : {};
-    const ref = attestation["type"] === "ci" && typeof attestation["ref"] === "string" ? parseCiRef(attestation["ref"]) : null;
-    if (isPlainObject(json) && ref !== null && ref.id === run.id && ref.attempt === run.attempt && ref.repository === run.repository.toLowerCase()) {
+    const attestation = attestationOf(json);
+    const key = attestation.type === "ci" && attestation.ref !== undefined ? ciRunKey(attestation.ref) : null;
+    if (isPlainObject(json) && key !== null && key === runAttemptKey(run)) {
       out.set(name, { bytes, json });
     }
   }
@@ -144,6 +145,8 @@ export async function fetchCiEvidence(ctx: Ctx, arg: string, env: NodeJS.Process
     skipped
   });
   let chosen: { run: WorkflowRun; files: Map<string, Buffer> } | undefined;
+  /** A run whose artifact of this Change exists: a run of the workflow of the job `warrant`, named by the recovery hint (BL-53). */
+  let ofJob: WorkflowRun | undefined;
   for (const listed of await candidateRuns(ctx, pr, head)) {
     for (let n = listed.attempt; n >= 1 && chosen === undefined; n -= 1) {
       const run = await ctx.forge.workflowRun(listed.id, n);
@@ -152,12 +155,13 @@ export async function fetchCiEvidence(ctx: Ctx, arg: string, env: NodeJS.Process
         skipped.push({ run: run.url, reason: `concluded ${String(run.conclusion)}` });
         continue;
       }
-      const name = `evidence-${change}-${n}`;
+      const name = artifactName(change, n);
       const artifact = await ctx.forge.downloadArtifact(run.id, name);
       if (artifact === null) {
         skipped.push({ run: run.url, reason: `no artifact ${name} (expired or not uploaded)` });
         continue;
       }
+      ofJob ??= run;
       const records = recordsOf(artifact, run);
       if (records.size === 0) {
         skipped.push({ run: run.url, reason: `artifact ${name} holds no record of this attempt` });
@@ -177,7 +181,7 @@ export async function fetchCiEvidence(ctx: Ctx, arg: string, env: NodeJS.Process
       data: data(),
       errors: [
         cliError("NO_CI_EVIDENCE", `no successful run attempt of pull request ${pr.number} or recovery run holds evidence on the tree ${String(tree)} of M ${m}`, {
-          hint: `gh workflow run ci.yml -f merge_commit=${m}, wait for it, then warrant ci fetch ${pr.number}`
+          hint: `${recoveryRun(m, ofJob)}, wait for it, then warrant ci fetch ${pr.number}`
         })
       ],
       exitCode: EXIT.CONFIG,

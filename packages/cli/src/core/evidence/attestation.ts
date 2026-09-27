@@ -4,7 +4,12 @@
  *
  * Under GitHub Actions the record is vouched for by the run that produced it;
  * everywhere else it is a local draft (`none`). Other CI systems are later.
+ *
+ * The one reader of `attestation` of a record ({@link attestationOf}), the
+ * identity of a CI run attempt ({@link ciRunKey}) and the name of its artifact
+ * ({@link artifactName}) — A-31, design §2 of slice-fixes.
  */
+import { isPlainObject } from "../json.js";
 
 /** `attestation.type` of a record (06a §3): owned here (registry `enums` of `architecture.json`); the schema holds the same values. */
 export const ATTESTATION_TYPES = ["ci", "human-review", "signature", "none"] as const;
@@ -63,4 +68,38 @@ export function parseCiRef(ref: string): CiRunRef | null {
     id: Number.parseInt(match[3] as string, 10),
     attempt: match[4] === undefined ? 1 : Number.parseInt(match[4], 10)
   };
+}
+
+/** `attestation` of a record as read: `type` (`none` when absent), `ref` when a string. */
+export interface RecordAttestation {
+  type: string;
+  ref?: string;
+}
+
+/** The `attestation` of the record `json` (06a §3): the one reader of the field. */
+export function attestationOf(json: unknown): RecordAttestation {
+  const attestation = isPlainObject(json) && isPlainObject(json["attestation"]) ? json["attestation"] : {};
+  const type = typeof attestation["type"] === "string" ? attestation["type"] : "none";
+  const ref = attestation["ref"];
+  return typeof ref === "string" ? { type, ref } : { type };
+}
+
+/** The key of a run attempt: the repository in lower case, the id and the attempt. */
+export function runAttemptKey(run: Readonly<CiRunRef>): string {
+  return `${run.repository.toLowerCase()}#${run.id}/${run.attempt}`;
+}
+
+/**
+ * The run attempt `ref` names, as a key ({@link parseCiRef}): `…/runs/7`,
+ * `…/runs/7/` and `…/runs/7/attempts/1` are one; null when `ref` is not the URL
+ * of a run of GitHub Actions.
+ */
+export function ciRunKey(ref: string): string | null {
+  const parsed = parseCiRef(ref);
+  return parsed === null ? null : runAttemptKey(parsed);
+}
+
+/** `evidence-<change>-<attempt>`: the artifact of a run attempt with the evidence of `change` (ADR-0037). */
+export function artifactName(change: string, attempt: number | string): string {
+  return `evidence-${change}-${attempt}`;
 }

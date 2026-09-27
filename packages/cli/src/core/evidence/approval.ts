@@ -7,6 +7,7 @@
 import { canonicalHash } from "../canon/hash.js";
 import type { Ctx } from "../ctx.js";
 import { isPlainObject } from "../json.js";
+import { attestationOf } from "./attestation.js";
 import { gateDefinitions } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import { buildEvidenceRecord, evidenceSubject } from "./record.js";
@@ -25,14 +26,14 @@ export const REF_NOT_VERIFIED = "ref not verified (phase 4: warrant ci)";
 /** A `PROVEN` `human-approval` record of `login` attested by `ref` (freshness is the pre-filter's). */
 export function isApprovalBy(json: Record<string, unknown>, login: string, ref: string): boolean {
   const producedBy = isPlainObject(json["produced_by"]) ? json["produced_by"] : {};
-  const attestation = isPlainObject(json["attestation"]) ? json["attestation"] : {};
+  const attestation = attestationOf(json);
   return (
     json["kind"] === HUMAN_APPROVAL &&
     json["evidence_status"] === "PROVEN" &&
     producedBy["type"] === "human" &&
     producedBy["id"] === login &&
-    attestation["type"] === "human-review" &&
-    attestation["ref"] === ref
+    attestation.type === "human-review" &&
+    attestation.ref === ref
   );
 }
 

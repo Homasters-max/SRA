@@ -4,7 +4,9 @@
  * without the own state of the Change (SCN-KRN-138), factory-change from CI
  * workflows and the CLI (SCN-SDD-026, 027),
  * monotonic runs (SCN-KRN-075), values set by a human (SCN-KRN-105, 106, 107)
- * and values below the floor with approval (SCN-KRN-116, 117). Moved from e2e
+ * and values below the floor with approval (SCN-KRN-116, 117), a proposal
+ * outside the order of a dimension (SCN-KRN-145) and a base behind its
+ * upstream (SCN-KRN-146). Moved from e2e
  * (ADR-0025, task 5.4); the parse of argv (`--base`, `--paths`, `--propose`,
  * repeatable `--set`, `--by`, `--ref`), the exit codes of the binary and the
  * diff of the real `git` stay in `e2e/classify.test.ts`.
@@ -203,6 +205,64 @@ describe("warrant classify", () => {
     const run = await classify(p, "demo", { paths: "changed.txt", propose: '{"risk":{"nope":"HIGH"}}' });
     expect(run.exitCode).toBe(3);
     expect(run.errors[0]?.code).toBe("USAGE");
+  });
+
+  it("refuses a proposed value outside the order of its dimension, and writes nothing (SCN-KRN-145)", async () => {
+    const p = project("add-search").write("changed.txt", "README.md\n");
+    const before = recordText(p, "add-search");
+
+    const run = await classify(p, "add-search", { paths: "changed.txt", propose: '{"risk":{"compatibility":"NONE"}}' });
+    expect(run.exitCode).toBe(3);
+    expect(run.errors[0]?.code).toBe("USAGE");
+    expect(run.errors[0]?.hint).toContain("COMPATIBLE, DEPRECATING, BREAKING, UNKNOWN");
+    expect(recordText(p, "add-search")).toBe(before);
+  });
+
+  it("refuses a proposed profile no enabled pack declares, and writes nothing (BL-60)", async () => {
+    const p = project("add-search").write("changed.txt", "README.md\n");
+    const before = recordText(p, "add-search");
+
+    const run = await classify(p, "add-search", { paths: "changed.txt", propose: '{"profiles":["featur"]}' });
+    expect(run.exitCode).toBe(3);
+    expect(run.errors[0]?.code).toBe("USAGE");
+    expect(run.errors[0]?.message).toContain('"featur"');
+    expect(run.errors[0]?.hint).toContain("feature");
+    expect(recordText(p, "add-search")).toBe(before);
+  });
+
+  it("refuses a base behind its upstream; passes with --base <upstream> or when the upstream is missing (SCN-KRN-146, I-192)", async () => {
+    const p = project("add-search");
+    p.commit("base");
+    // origin/main has a commit that the local main lacks: another Change merged and fetched.
+    p.branch("fetched");
+    p.write(".warrant/local/areas.json", { $schema: "warrant://areas/1", KRN: { capability: "kernel" } });
+    p.commit("other change");
+    p.git.setRemoteBranch("origin/main", "fetched");
+    p.checkout("main");
+    p.git.setUpstream("main", "origin/main");
+    // The work is rebased onto origin/main: the diff against the stale main would take in the other commit.
+    p.branch("work", "origin/main");
+    p.write("src/search.py", "print('search')\n");
+    p.commit("work");
+    const before = recordText(p, "add-search");
+
+    const stale = await classify(p, "add-search");
+    expect(stale.exitCode).toBe(3);
+    expect(stale.errors[0]?.code).toBe("BASE_BEHIND_UPSTREAM");
+    expect(stale.errors[0]?.hint).toContain("--base origin/main");
+    expect(recordText(p, "add-search")).toBe(before);
+
+    const upstream = await classify(p, "add-search", { base: "origin/main" });
+    expect(upstream.errors).toEqual([]);
+    expect(upstream.exitCode).toBe(0);
+    expect(upstream.data["changed"]).toEqual(["src/search.py"]);
+    expect(record(p, "add-search")["classification"].profiles ?? []).not.toContain("factory-change");
+
+    // The upstream of main is set, but its branch is missing: no check.
+    p.git.setUpstream("main", "origin/gone");
+    const missing = await classify(p, "add-search");
+    expect(missing.errors).toEqual([]);
+    expect(missing.exitCode).toBe(0);
   });
 
   it("records values and profiles set by a human with from human:<login> (SCN-KRN-105)", async () => {

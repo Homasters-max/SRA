@@ -24,6 +24,7 @@
     { "id": "core/run", "path": "core/run", "rank": 2 },
     { "id": "core/liveness", "path": "core/liveness", "rank": 2 },
     { "id": "core/analyze", "path": "core/analyze", "rank": 2 },
+    { "id": "core/unknowns", "path": "core/unknowns", "rank": 2 },
     { "id": "core/gates", "path": "core/gates", "rank": 3 },
     { "id": "core/controller", "path": "core/controller", "rank": 3 },
     { "id": "core/check", "path": "core/check", "rank": 3 },
@@ -50,6 +51,7 @@
     { "name": "strings", "owner": "core/json.ts" },
     { "name": "posix", "owner": "core/fs.ts" },
     { "name": "projectPath", "owner": "core/fs.ts" },
+    { "name": "absolutePath", "owner": "core/fs.ts" },
     { "name": "reportPath", "owner": "core/fs.ts" },
     { "name": "walkFiles", "owner": "core/fs.ts" },
     { "name": "readJson", "owner": "core/fs.ts" },
@@ -68,6 +70,11 @@
     { "name": "packSkills", "owner": "core/packs/objects.ts" },
     { "name": "evidenceSubject", "owner": "core/evidence/record.ts" },
     { "name": "subjectOf", "owner": "core/evidence/record.ts" },
+    { "name": "attestationOf", "owner": "core/evidence/attestation.ts" },
+    { "name": "ciRunKey", "owner": "core/evidence/attestation.ts" },
+    { "name": "runAttemptKey", "owner": "core/evidence/attestation.ts" },
+    { "name": "artifactName", "owner": "core/evidence/attestation.ts" },
+    { "name": "evidenceRel", "owner": "core/evidence/store.ts" },
     { "name": "buildEvidenceRecord", "owner": "core/evidence/record.ts" },
     { "name": "buildApprovalRecord", "owner": "core/evidence/approval.ts" },
     { "name": "startRun", "owner": "core/run/lifecycle.ts" },
@@ -98,6 +105,9 @@
       { "name": "started", "owner": "app/helpers/run.ts" },
       { "name": "fakePull", "owner": "app/helpers/fakes/forge.ts" },
       { "name": "fakeRun", "owner": "app/helpers/fakes/forge.ts" },
+      { "name": "advance", "owner": "app/helpers/ci.ts" },
+      { "name": "pullRequest", "owner": "app/helpers/ci.ts" },
+      { "name": "artifactOf", "owner": "app/helpers/ci.ts" },
       { "name": "recordedVersions", "owner": "helpers/claude-hooks.ts" },
       { "name": "recordedHook", "owner": "helpers/claude-hooks.ts" },
       { "name": "recordedInputIn", "owner": "helpers/claude-hooks.ts" }
@@ -119,7 +129,5 @@
     { "id": "finding-severity", "owner": "core/run/submit.ts", "doc": "docs/02-vocabulary.md", "values": ["BLOCKER", "MAJOR", "MINOR", "INFO"] },
     { "id": "pr-kind", "owner": "core/record/lifecycle.ts", "doc": "docs/04-lifecycle.md", "values": ["spec", "impl", "archive", "abandon", "none"] }
   ],
-  "exceptions": [
-    { "id": "A-36", "rule": "enum", "from": "core/ci/record.ts", "enum": "pr-kind" }
-  ]
+  "exceptions": []
 }

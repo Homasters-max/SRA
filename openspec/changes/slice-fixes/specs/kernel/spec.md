@@ -10,7 +10,8 @@
 в элемент `resolution` (текст ответа), `resolved_as` и `ref`. Элемент закрыт, если его `resolution` непуст. Blocking UNKNOWN
 закрывается только решением maintainer'а — `--as decision` с `--ref` на комментарий, текст которого содержит id UNKNOWN
 ([ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 2, 3); `fact` и `assumption` закрывают только не-blocking UNKNOWN, `--as assumption` элемент `assumptions[]`
-не добавляет. Обе команды допустимы только при `change_state` `PROPOSED` или `SPECIFIED`: вопрос, возникший в реализации, —
+не добавляет. У `--ref` команда проверяет только форму (http(s) URL); автора, текст и PR комментария проверяет `warrant ci`
+([REQ-VER-013](../verification/spec.md)). Обе команды допустимы только при `change_state` `PROPOSED` или `SPECIFIED`: вопрос, возникший в реализации, —
 строка `I-N` в `design.md` с решением maintainer'а. Ошибки — код 3, record не изменён, каждая с `hint`:
 - `--as decision` без `--ref`, `--as fact` или `assumption` у blocking UNKNOWN — `USAGE`; `hint` называет ref — URL
   комментария maintainer'а в PR (`…/pull/<N>#issuecomment-<id>` или `…/pull/<N>#pullrequestreview-<id>`), в тексте которого
@@ -143,7 +144,8 @@
 `.warrant/changes/<change>.json`: (1) список изменённых путей — `git diff --name-only <base>...HEAD` с `--base` (по умолчанию `main`)
 или `--paths <file>` (по строке на путь; без git); если у ветки базы есть upstream (`<base>@{upstream}`) и в нём есть коммиты,
 которых нет в базе, — `BASE_BEHIND_UPSTREAM`, код 3, record не изменён, `hint` называет `--base <upstream>` (diff устаревшей базы
-захватил бы чужие коммиты, а повторный `classify` запись не ослабит); (2) floor rules (`warrant://risk-floor/1`) всех подключённых packs — минимальное
+захватил бы чужие коммиты, а повторный `classify` запись не ослабит); upstream не задан, не разрешается (его ветки нет) или git
+не сравнил базу с ним — проверка пропускается без отказа; (2) floor rules (`warrant://risk-floor/1`) всех подключённых packs — минимальное
 значение измерения по совпавшим путям; (3) `match.paths` profiles — предлагаемые profiles; собственное состояние Change (record, каталог evidence, файлы Run этого Change и их
 `.result.json` — [REQ-VER-004](../verification/spec.md)) SHALL NOT участвовать в сверке с `match.paths` и floor rules; (4) `--propose <json>` — profiles и значения
 измерений от proposer'а; значение вне порядка измерения [05 §4](../../../../docs/05-policy.md) или profile, не объявленный
@@ -225,7 +227,7 @@ SHALL нести `from` (`floor:<pack>:<rule-index>`, `proposer`, `human:<login>
 #### Scenario: База позади upstream
 <!-- id: SCN-KRN-146 -->
 - **WHEN** `warrant classify add-search` без `--base`, а `origin/main` — upstream `main` — содержит коммит, которого нет в `main`
-- **THEN** `errors[0].code` равен `BASE_BEHIND_UPSTREAM`, `hint` содержит `--base origin/main`, record не изменён, код 3; с `--base origin/main` — classification записана, код 0
+- **THEN** `errors[0].code` равен `BASE_BEHIND_UPSTREAM`, `hint` содержит `--base origin/main`, record не изменён, код 3; с `--base origin/main` — classification записана, код 0; upstream `main` задан, но ветки `origin/main` нет — classification записана, код 0
 
 ### Requirement: Режим --dry-run меняющих команд
 <!-- id: REQ-KRN-034 -->

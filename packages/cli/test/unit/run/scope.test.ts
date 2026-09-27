@@ -47,13 +47,20 @@ describe("writeScopeOf (F1)", () => {
     expect(writeScopeOf("review", "add-search", config())).toEqual([]);
   });
 
-  it("implement: paths.src, paths.tests and tasks.md of the Change; `./` and trailing slashes dropped", () => {
+  it("implement: paths.src, paths.tests, tasks.md, design.md and specs/** of the Change; `./` and trailing slashes dropped (SCN-ENF-036)", () => {
     expect(writeScopeOf("implement", "add-search", config({ src: "./src/", tests: "tests" }))).toEqual([
       "src/**",
       "tests/**",
-      "openspec/changes/add-search/tasks.md"
+      "openspec/changes/add-search/tasks.md",
+      "openspec/changes/add-search/design.md",
+      "openspec/changes/add-search/specs/**"
     ]);
-    expect(writeScopeOf("implement", "add-search", config({ src: "src" }))).toEqual(["src/**", "openspec/changes/add-search/tasks.md"]);
+    expect(writeScopeOf("implement", "add-search", config({ src: "src" }))).toEqual([
+      "src/**",
+      "openspec/changes/add-search/tasks.md",
+      "openspec/changes/add-search/design.md",
+      "openspec/changes/add-search/specs/**"
+    ]);
   });
 
   it("implement without paths.src and paths.tests: CONFIG_INVALID with a hint", () => {

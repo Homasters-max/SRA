@@ -454,6 +454,46 @@ describe("warrant transition", () => {
     expect(p.json(RECORD).transitions.at(-1).evidence).toEqual([spec, tests].sort());
   });
 
+  it("takes …/runs/7 and …/runs/7/attempts/1 for one CI run: MERGED without REF_MISMATCH (A-31, SCN-VER-052)", async () => {
+    const p = await repo("VERIFYING", CHORE, (b) => {
+      waiver(b, "WAV-2026-001", "spec-approved");
+      fakeTests(b);
+      // tests-passed strengthened to two kinds, so its verdict rests on two records.
+      b.write(".warrant/local/gates/tests-passed.json", {
+        $schema: "warrant://gate/1",
+        id: "tests-passed",
+        version: "1.0.1",
+        overrides: "core-sdd:tests-passed",
+        level: "L1",
+        requires_evidence: [
+          { kind: "test-report", status: "PROVEN" },
+          { kind: "spec-report", status: "PROVEN" }
+        ],
+        waivable: false,
+        accepts_attestation: ["ci"]
+      });
+    });
+    p.branch("worktree/add-search");
+    p.write("src/search.ts", "export const search = 1;\n");
+    const implHead = p.commit("impl");
+    const env = { ...CI_ENV, GITHUB_RUN_ID: "7" };
+    const spec = (await invoke(() => runCheck(p.ctx, "add-search", ["openspec-validate"], {}, env))).data["checks"][0].evidence as string;
+    const tests = (await invoke(() => runCheck(p.ctx, "add-search", ["tests-passed"], {}, env))).data["checks"][0].evidence as string;
+    // The run without an attempt names attempt 1 (REQ-VER-011): the same run attempt as the explicit form.
+    const rel = `${EVIDENCE}/${spec}.json`;
+    expect(p.json(rel).attestation).toEqual({ type: "ci", ref: "https://github.com/o/r/actions/runs/7" });
+    p.write(rel, { ...p.json(rel), attestation: { type: "ci", ref: "https://github.com/o/r/actions/runs/7/attempts/1" } });
+    p.checkout("main");
+    p.merge("worktree/add-search", { label: "Merge impl" });
+    p.branch("archive/add-search");
+    p.commit("evidence from CI run 7");
+
+    const run = await transition(p, "MERGED", { ref: IMPL_PR, commit: implHead });
+    expect(run.errors).toEqual([]);
+    expect(run.data["change_state"]).toBe("MERGED");
+    expect(p.json(RECORD).transitions.at(-1).evidence).toEqual([spec, tests].sort());
+  });
+
   it("refuses a --ref of MERGED that is not a pull request with USAGE and a hint, writing nothing (SCN-VER-071)", async () => {
     const p = await repo("VERIFYING", CHORE, fakeTests);
     const before = p.read(RECORD);

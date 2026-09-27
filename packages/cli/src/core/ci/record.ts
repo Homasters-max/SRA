@@ -5,24 +5,30 @@
  * policy hash and passing verdicts, name evidence files valid on HEAD; a frozen
  * record does not change; the classification is not weaker than the base and
  * than what `classify` by the base derives from the diff (I-171); a new
- * `MERGED` holds the policy of the base and CI evidence behind its gates (I-172).
+ * `MERGED` holds the policy of the base and CI evidence behind its gates (I-172);
+ * from `SPECIFIED` of the base on, no UNKNOWN of the base is removed or
+ * weakened (I-188).
  * What each rule requires comes from the base; no verdict is computed again.
  */
 import { canonicalHash } from "../canon/hash.js";
 import { checksForTransition, effectiveCheck } from "../check/execute.js";
 import type { Ctx } from "../ctx.js";
 import { cliError, type CliError } from "../errors.js";
+import { attestationOf } from "../evidence/attestation.js";
+import { evidenceRel } from "../evidence/store.js";
 import { isPlainObject, strings } from "../json.js";
 import { PASSING_VERDICTS, MERGE_TRANSITION, type Verdict } from "../gates/types.js";
 import { FACTORY_PROFILE, gateDefinitions } from "../packs/objects.js";
-import { isFrozen, transitionKind, type PrKind } from "../record/lifecycle.js";
+import { isFrozen, isMergeKind, transitionKind, UNKNOWNS_HELD_STATES } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
+import { recordPath } from "../record/write.js";
 import { RISK_LEVELS } from "../resolve/index.js";
 import { ownState } from "../run/state.js";
 import { validateFile } from "../schemas/semantic.js";
 import type { Json } from "../schemas/loader.js";
+import { isClosed, unknownsOf } from "../unknowns/state.js";
 import { basePolicy, changedBundledPacks, requiredProfiles, type BaseContext } from "./base.js";
-import { jsonAt, recordRel, type CiSubject } from "./kind.js";
+import { jsonAt, type CiSubject } from "./kind.js";
 
 /** Schema every evidence record of a transition must be valid by. */
 const EVIDENCE_SCHEMA = "warrant://evidence/1";
@@ -55,7 +61,8 @@ export type MismatchReason =
   | "frozen"
   | "classification"
   | "policy"
-  | "ci_evidence";
+  | "ci_evidence"
+  | "unknowns";
 
 function transitionsOf(record: ChangeRecord | undefined): Record<string, unknown>[] {
   const list = record?.["transitions"];
@@ -63,7 +70,7 @@ function transitionsOf(record: ChangeRecord | undefined): Record<string, unknown
 }
 
 function mismatch(change: string, where: string, reason: MismatchReason, detail: string, pointer = ""): CliError {
-  return cliError("RECORD_MISMATCH", `${where}: ${reason}: ${detail}`, { path: `${recordRel(change)}${pointer}` });
+  return cliError("RECORD_MISMATCH", `${where}: ${reason}: ${detail}`, { path: `${recordPath(change)}${pointer}` });
 }
 
 function label(t: NewTransition): string {
@@ -140,8 +147,7 @@ function mergedRules(
     for (const kind of requiredKinds(base, gate).filter((k) => produced.has(k))) {
       const backed = ids.some((id) => {
         const json = evidence.get(id);
-        const attestation = isPlainObject(json?.["attestation"]) ? json["attestation"] : {};
-        return json?.["kind"] === kind && attestation["type"] === "ci";
+        return json?.["kind"] === kind && attestationOf(json).type === "ci";
       });
       if (!backed) {
         errors.push(
@@ -183,6 +189,48 @@ function classificationRule(
         mismatch(change, "classification", "classification", `risk_level ${now.policy.risk_level} on HEAD is below ${before.policy.risk_level} of the record of the base`, "#/classification")
       );
     }
+  }
+  return errors;
+}
+
+/**
+ * The UNKNOWNs of the record of the base in `SPECIFIED` or later, kept on HEAD
+ * (REQ-VER-011 «Record», I-188): the same id, `blocking: true` stays true, a
+ * non-empty `resolution` stays non-empty, `resolved_as` and `ref` once set are
+ * not removed and `resolved_as` does not change; a blocking element closed on
+ * HEAD is closed as `decision` — its ref `decisions.ts` judges. Otherwise a
+ * pull request would lift `WAIT` without the maintainer: the verdict of
+ * `blocking-unknowns-resolved` is not computed again.
+ */
+function unknownsRule(change: string, head: ChangeRecord, base: ChangeRecord | undefined): CliError[] {
+  const state = base?.["change_state"];
+  if (base === undefined || typeof state !== "string" || !UNKNOWNS_HELD_STATES.has(state)) return [];
+  const after = unknownsOf(head);
+  const errors: CliError[] = [];
+  for (const [i, before] of unknownsOf(base).entries()) {
+    if (!isPlainObject(before) || typeof before["id"] !== "string") continue;
+    const id = before["id"];
+    const index = after.findIndex((e) => isPlainObject(e) && e["id"] === id);
+    const now = after[index];
+    const fail = (detail: string, pointer: string): void => {
+      errors.push(mismatch(change, `unknowns/${i} (${id})`, "unknowns", `${id} ${detail} (record of the base in ${state})`, pointer));
+    };
+    if (index < 0 || !isPlainObject(now)) {
+      fail("is removed from unknowns[]", "#/unknowns");
+      continue;
+    }
+    const at = `#/unknowns/${index}`;
+    const weakened: string[] = [];
+    if (before["blocking"] === true && now["blocking"] !== true) weakened.push("blocking is no longer true");
+    if (isClosed(before) && !isClosed(now)) weakened.push("its resolution is emptied");
+    if (before["resolved_as"] !== undefined && now["resolved_as"] !== before["resolved_as"]) {
+      weakened.push(`resolved_as ${String(before["resolved_as"])} is ${now["resolved_as"] === undefined ? "removed" : `changed to ${String(now["resolved_as"])}`}`);
+    }
+    if (before["ref"] !== undefined && now["ref"] === undefined) weakened.push("its ref is removed");
+    if (now["blocking"] === true && isClosed(now) && now["resolved_as"] !== "decision") {
+      weakened.push(`a blocking UNKNOWN is closed as ${String(now["resolved_as"] ?? "(none)")}, only a decision closes it`);
+    }
+    if (weakened.length > 0) fail(`is weakened: ${weakened.join("; ")}`, at);
   }
   return errors;
 }
@@ -234,7 +282,7 @@ export async function judgeRecord(
       }
     }
     for (const id of strings(t.entry["evidence"])) {
-      const rel = `.warrant/evidence/${change}/${id}.json`;
+      const rel = `${evidenceRel(change)}/${id}.json`;
       const json = await jsonAt(ctx, subject.merge, rel);
       if (!isPlainObject(json)) {
         errors.push(mismatch(change, label(t), "evidence", `${id}: ${json === undefined ? `no file ${rel} on HEAD` : `${rel} is not JSON`}`, `#/transitions/${t.index}/evidence`));
@@ -246,7 +294,8 @@ export async function judgeRecord(
     }
   }
 
-  if ((["impl", "archive", "abandon"] as PrKind[]).includes(subject.kind)) {
+  errors.push(...unknownsRule(change, head, subject.baseRecord));
+  if (isMergeKind(subject.kind)) {
     errors.push(...classificationRule(ctx, subject, change, head, base, env));
   }
   for (const t of transitions.filter((x) => x.to === "MERGED")) {

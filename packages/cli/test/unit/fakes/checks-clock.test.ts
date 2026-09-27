@@ -67,4 +67,12 @@ describe("FakeClock", () => {
     expect(clock.set("2027-01-31").today()).toBe("2027-01-31");
     expect(() => clock.set("2027-1-31")).toThrow(/YYYY-MM-DD/);
   });
+
+  it("answers the UTC date as the local one until setLocal moves it (SCN-KRN-147)", () => {
+    const clock = new FakeClock("2026-09-26");
+    expect(clock.localToday()).toBe("2026-09-26");
+    expect(clock.setLocal("2026-09-27").localToday()).toBe("2026-09-27");
+    expect(clock.today()).toBe("2026-09-26");
+    expect(() => clock.setLocal("27.09.2026")).toThrow(/YYYY-MM-DD/);
+  });
 });

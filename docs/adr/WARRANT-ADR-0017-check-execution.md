@@ -5,11 +5,15 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: [WARRANT-ADR-0014]
-amended_by: [WARRANT-ADR-0020]
+amended_by: [WARRANT-ADR-0020, WARRANT-ADR-0042]
 ---
 
 > Уточнено [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md): замок `exclusive` и guard — механизмы локального режима;
 > внутри SEF допуск и ресурсы решает SEF, `execution` — только подсказка.
+
+> Уточнено [ADR-0042](WARRANT-ADR-0042-lattice-fixes.md) п. 3: префикс по умолчанию из одного слова-интерпретатора
+> (`node`, `deno`, `bun`, `python`, `python3`, `ruby`) дополняется флагами режима `run.command`, которые сверяются в любом
+> порядке.
 
 ## Context
 

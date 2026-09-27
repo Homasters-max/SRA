@@ -5,7 +5,11 @@ adr_state: ACCEPTED
 date: 2026-09-25
 supersedes: []
 amends: [WARRANT-ADR-0011, WARRANT-ADR-0031, WARRANT-ADR-0032]
+amended_by: [WARRANT-ADR-0042]
 ---
+
+> Уточнено [ADR-0042](WARRANT-ADR-0042-lattice-fixes.md) п. 6: `fix/` (п. 10) — только вне policy-путей `factory-change`;
+> правку судьи несёт PR Change ([ADR-0038](WARRANT-ADR-0038-pr-judged-by-base.md) п. 3).
 
 ## Context
 

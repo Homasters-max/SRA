@@ -14,7 +14,8 @@ Git разработки WARRANT — автоматический процесс
 ## Вход
 
 - `start <префикс>/<имя>` — префикс (п. 10): `spec/`, `worktree/`, `archive/` + Change (навыки `change-*`);
-  `process/` — ADR и реализация процесса; `docs/` — только документы; `fix/` — исправление вне Change. Имя
+  `process/` — ADR и реализация процесса; `docs/` — только документы; `fix/` — исправление вне Change, без
+  policy-путей `factory-change` (`packages/cli/src/**`, lock, `packs/**` — только Change, ADR-0042 п. 6). Имя
   kebab-case; имя потока — последний сегмент ветки.
 - `where` — перед любым коммитом и по просьбе; `commit` — закоммитить готовое. Пусто — `where`.
 

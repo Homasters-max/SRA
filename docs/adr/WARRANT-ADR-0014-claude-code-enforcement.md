@@ -4,12 +4,16 @@ title: Enforcement в frontend Claude Code — два слоя, review как su
 adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
-amended_by: [WARRANT-ADR-0017, WARRANT-ADR-0018, WARRANT-ADR-0020, WARRANT-ADR-0034]
+amended_by: [WARRANT-ADR-0017, WARRANT-ADR-0018, WARRANT-ADR-0020, WARRANT-ADR-0034, WARRANT-ADR-0042]
 ---
 
 > Уточнено [ADR-0034](WARRANT-ADR-0034-phase-4-frontend.md): решения этого ADR — адаптер `claude` фазы 4 (локальный режим), а не later. П. 4:
 > `.claude/settings.json` генерируется не целиком — `sync` владеет только своими deny и хуками, `validate` сверяет
 > это подмножество (п. 3). Review-субагент п. 3 — producer `adversarial-review` в MVP (п. 10).
+
+> Уточнено [ADR-0042](WARRANT-ADR-0042-lattice-fixes.md) п. 4: субагент review получает `Write` (без `Edit`,
+> `NotebookEdit`), хук frontmatter — `Bash|Write`; guard под Run `review` пускает запись только во временный каталог ОС —
+> envelope сдаётся `warrant run submit --file`.
 
 > Уточнено зондом Claude Code 2.1.263 (Change `phase-4a`, I-165): путевая запись `Write(<glob>)` в `permissions.deny`
 > не действует, а `Edit(<glob>)` отказывает и инструменту `Write` — п. 1 пишется как `Edit(/…)` на каждый путь (якорь `/`

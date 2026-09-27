@@ -1,0 +1,43 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3HWHSG061AXEZSMY4Z92K4R",
+  "claim": {
+    "text": "tests-passed passed for slice-fixes",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "8ec2d3c441d5e07dcbc00b693e06bc3fc0d15424",
+    "base_commit": "bb1b7166aed074bfa5e36038975132b01e1c48b1",
+    "spec_revision": "openspec/changes/slice-fixes@8ec2d3c441d5e07dcbc00b693e06bc3fc0d15424",
+    "tree": "647ec1f5dcda2e036414f01a8fbc15f330599772",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "ci",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/36334732107/attempts/1"
+  },
+  "context_hash": "sha256:5d1d97297364edaf183c361debaef11ec657d9dafa0c69ac6ec5cd48110c16c2",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-27T16:53:09.249Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/slice-fixes/raw/tests-passed/junit.xml",
+      "sha256": "sha256:262324b7ecac35ea0cb80aa4affb2f9a66f26ef10fc6a04c16c3fa72e6010cd0"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 1,
+    "tests": 1537
+  }
+}

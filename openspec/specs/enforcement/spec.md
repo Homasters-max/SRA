@@ -50,8 +50,10 @@
 
 `warrant run start <change> --operation <op> [--scope <globs>] [--task <label>] [--dry-run]` SHALL создать Run в
 `RUNNING` и записать его id в `<state>/runs/current`. `write_scope` SHALL определяться операцией: `specify` —
-`openspec/changes/<change>/**`, допустимо при `change_state: PROPOSED`; `implement` — `<paths.src>/**`, `<paths.tests>/**` и
-`openspec/changes/<change>/tasks.md`, допустимо при `IMPLEMENTING`; `review` — пустой, допустимо при `PROPOSED`
+`openspec/changes/<change>/**`, допустимо при `change_state: PROPOSED`; `implement` — `<paths.src>/**`, `<paths.tests>/**`,
+`openspec/changes/<change>/tasks.md`, `openspec/changes/<change>/design.md` и `openspec/changes/<change>/specs/**`, допустимо при
+`IMPLEMENTING` (`proposal.md` не входит; правку `specs/**` после `APPROVED` судит gate `spec-approved`, расхождение снимает waiver
+maintainer'а — [ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 4); `review` — пустой, допустимо при `PROPOSED`
 ([ADR-0036](../../../../docs/adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 3). Для `review` Run SHALL получать `spec_tree` —
 hash набора пар «путь → blob» файлов `proposal.md` и `specs/**` каталога Change на HEAD (тот же набор, что сравнивает gate
 `spec-approved`); если эти файлы в рабочем дереве отличаются от HEAD или не закоммичены — `SPEC_UNCOMMITTED` с `hint`
@@ -99,6 +101,11 @@ hash набора пар «путь → blob» файлов `proposal.md` и `sp
 - **WHEN** `openspec/changes/add-search/specs/search/spec.md` изменён в рабочем дереве, и вызван `warrant run start add-search --operation review`
 - **THEN** `errors[0].code` равен `SPEC_UNCOMMITTED`, `path` — этот файл, `hint` предлагает закоммитить spec; файлов Run нет, код 3
 
+#### Scenario: Реализация уточняет spec
+<!-- id: SCN-ENF-036 -->
+- **WHEN** `warrant run start add-search --operation implement` при `change_state: IMPLEMENTING`, `paths.src: "src"` и `paths.tests: "tests"`
+- **THEN** `write_scope` равен `["src/**", "tests/**", "openspec/changes/add-search/tasks.md", "openspec/changes/add-search/design.md", "openspec/changes/add-search/specs/**"]`; guard при этом Run даёт `allow` правке `openspec/changes/add-search/specs/search/spec.md` и `deny` правке `openspec/changes/add-search/proposal.md`
+
 ### Requirement: Команда run finish
 <!-- id: REQ-ENF-003 -->
 
@@ -123,16 +130,24 @@ hash набора пар «путь → blob» файлов `proposal.md` и `sp
 paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-frontend-adapters.md) п. 2) и печатать
 `data{ decision: allow|deny, reason?, hints[] }`, код выхода 0 при любом решении. Пути события SHALL переводиться в пути проекта
 от `cwd`; путь вне проекта и проект без `.warrant/warrant.json` SHALL давать `allow`. Решение `pre`:
-- `edit` при активном Run — `deny` для пути вне `write_scope` или вне непустого `scope` (reason называет путь и scope), иначе
-  `allow`; при активном Run `review` (пустой `write_scope`) — `deny` любой правки с reason «Run review только читает»;
+- `edit` при активном Run — `deny` для пути вне `write_scope` или вне непустого `scope` (reason называет путь и scope; hint —
+  править внутри `write_scope`, а для других путей `warrant run finish`, затем `warrant run start` с операцией, которая их пишет),
+  иначе `allow`; при активном Run `review` (пустой `write_scope`) — `deny` любой правки с reason «Run review только читает»;
 - `edit` без активного Run — `deny` с hint `warrant run start <change> --operation …` для путей под `paths.src`, `paths.tests`,
   `openspec/changes/**` и policy-путями (`match.paths` профиля `factory-change`); иначе `allow` с той же подсказкой
   ([ADR-0022](../../../../docs/adr/WARRANT-ADR-0022-path-rules.md) п. 7);
+- состояние, которое пишет CLI, — records `.warrant/changes/**`, evidence `<state>/evidence/**`, Runs `<state>/runs/**` и waivers
+  `.warrant/waivers/**` — в `deny` обоих случаев выше SHALL получать вместо `warrant run start` и `warrant run finish` hint: файлы
+  пишут команды CLI (`warrant transition`, `warrant unknown`, `warrant check`, `warrant waive`, `warrant run`), правка руками не нужна;
+- остальной policy-путь, который не лежит под `paths.src`, `paths.tests` и `openspec/changes/**` (его не пишет ни одна операция
+  Run: например `.warrant/local/**`, `.github/workflows/**`), в `deny` обоих случаев выше SHALL получать вместо `warrant run start`
+  и `warrant run finish` hint: правку делает человек (maintainer) вне сессии агента, в Change `factory-change`
+  ([ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 7); остальные пути (например `docs/**`) — прежние подсказки;
 - `shell` при активном Run `review` — `allow`, только если каждая простая команда строки после shell-разбора начинается с
   `warrant run submit`, иначе `deny` с hint `warrant run submit`;
 - `shell` в остальных случаях — `deny`, если простая команда строки после shell-разбора начинается с одного из
   `execution.guard_prefixes` check с `exclusive: true` или `local ≠ allowed` (по умолчанию — первые токены `run.command` до первого
-  флага или плейсхолдера), с hint `warrant check <change> <id> [--paths …]`; иначе `allow`
+  флага или плейсхолдера; пара `-m <модуль>` сразу после первого токена — часть префикса: `python -m pytest`, а не `python`), с hint `warrant check <change> <id> [--paths …]`; иначе `allow`
   ([ADR-0017](../../../../docs/adr/WARRANT-ADR-0017-check-execution.md) п. 5);
 - `other` — `allow`;
 - внутренний сбой (невалидное событие, битый Run, неразрешимая policy) — `deny` с reason и hint `warrant validate`.
@@ -183,6 +198,21 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 <!-- id: SCN-ENF-027 -->
 - **WHEN** при активном Run `review` guard получает `pre` `shell` с `argv: ["bash", "-c", "warrant run submit --file result.json"]`, затем с `argv: ["bash", "-c", "cat x && warrant run submit"]`
 - **THEN** первое — `allow`, второе — `deny` с hint `warrant run submit`
+
+#### Scenario: Префикс команды модуля
+<!-- id: SCN-ENF-037 -->
+- **WHEN** check `tests-passed` с `execution.exclusive: true` и `run.command: ["python", "-m", "pytest", "--junitxml={out}"]`, guard получает `pre` `shell` с `argv: ["bash", "-c", "python - <<'EOF'"]`, затем с `argv: ["bash", "-c", "python -m pytest tests/"]`
+- **THEN** первое — `allow`, второе — `deny` с hint `warrant check <change> tests-passed`
+
+#### Scenario: Путь без операции записи
+<!-- id: SCN-ENF-038 -->
+- **WHEN** без активного Run guard получает `pre` `edit` пути `.warrant/local/areas.json`; при активном Run `implement` — `pre` `edit` пути `.github/workflows/ci.yml`, затем `docs/notes.md`
+- **THEN** первые два — `deny`, `hints[]` называет правку человеком в Change `factory-change` и не содержит `warrant run start` и `warrant run finish`; `docs/notes.md` — `deny` с прежним hint `warrant run finish`
+
+#### Scenario: Состояние, которое пишет CLI
+<!-- id: SCN-ENF-039 -->
+- **WHEN** без активного Run guard получает `pre` `edit` пути `.warrant/changes/add-search.json`; при активном Run `implement` — `pre` `edit` пути `.warrant/waivers/WAV-2026-001.json`
+- **THEN** оба — `deny`, `hints[]` называет `warrant transition`, `warrant unknown` и `warrant waive` и не содержит `factory-change`, `warrant run start` и `warrant run finish`
 
 ### Requirement: Адаптер claude
 <!-- id: REQ-ENF-005 -->

@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3HWM2GV2A7A83SGFRXNHXGF",
+  "claim": {
+    "text": "Homasters-max approved slice-fixes for VERIFYING->MERGED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "8ec2d3c441d5e07dcbc00b693e06bc3fc0d15424",
+    "base_commit": "bb1b7166aed074bfa5e36038975132b01e1c48b1",
+    "spec_revision": "openspec/changes/slice-fixes@8ec2d3c441d5e07dcbc00b693e06bc3fc0d15424",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/70"
+  },
+  "context_hash": "sha256:0bfe4e8ec19dd1127bae3b63802ae18c5bea8cf8642e17e425447efdbedbc9aa",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-27T16:54:24.028Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

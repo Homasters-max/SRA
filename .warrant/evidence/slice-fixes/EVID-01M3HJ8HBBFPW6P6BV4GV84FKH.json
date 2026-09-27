@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3HJ8HBBFPW6P6BV4GV84FKH",
+  "claim": {
+    "text": "openspec-validate passed for slice-fixes",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "8b6a21d879da9db225a50697a008405de0f7b3ba",
+    "base_commit": "bf4698b894c47598ee56d2bd24c91d3d11729342",
+    "spec_revision": "openspec/changes/slice-fixes@8b6a21d879da9db225a50697a008405de0f7b3ba",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:96c124038f26b4d602a658c9f22ed8afec1d31ffcd703326c15bb5619461006e",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-27T13:53:20.236Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/slice-fixes/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:c7d8857226a9ca3eb49d352bd7da492a98cfc7435280a09cf53ff28d5eb353ee"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

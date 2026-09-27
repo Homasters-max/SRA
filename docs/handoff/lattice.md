@@ -1,7 +1,5 @@
 # lattice
 
-После: phase-4
-
 ## Цель
 
 LATTICE — отдельный проект `D:\project\LATTICE` (`Homasters-max/LATTICE`), первым — его vertical slice на объектах

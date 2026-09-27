@@ -15,7 +15,7 @@ Change `rate-limiter` в `warrant-slice` прошёл три PR на v0.7.0 ([AD
 waiver [ADR-0024](WARRANT-ADR-0024-spec-approved-contract.md) п. 4 не проверен (BL-63). Вход grilling — строки
 `docs/backlog.md` с источником `slice` (BL-56…BL-65), A-31…A-37 аудита
 [2026-09-26-phase-4c](../process/audits/2026-09-26-phase-4c.md) (снимок актуален: код CLI после v0.7.0 не менялся),
-[handoff/phase-4.md](../handoff/phase-4.md).
+`docs/handoff/phase-4.md`.
 
 Факты на 2026-09-27:
 

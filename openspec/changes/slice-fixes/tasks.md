@@ -115,11 +115,11 @@
 
 ## 6. Навыки, документы, сквозная проверка
 
-- [ ] 6.1 Навыки `change-spec-pr` (blocking UNKNOWN и решение) и `change-impl-pr` (правка spec в Run `implement`, ADR-0024 п. 4)
+- [x] 6.1 Навыки `change-spec-pr` (blocking UNKNOWN и решение) и `change-impl-pr` (правка spec в Run `implement`, ADR-0024 п. 4)
   (§7).
 
   Проверка: `dev-context.test.ts`.
-- [ ] 6.2 Документы (§7):
+- [x] 6.2 Документы (§7):
   - 02 §1 — blocking UNKNOWN закрывает только DECISION с ref; `warrant unknown` — до `APPROVED`;
   - 04 §10 — `warrant unknown`;
   - 06 §4 — `blocking-unknowns-resolved`;
@@ -128,6 +128,6 @@
     веток (I-193).
 
   Проверка: `dev-context.test.ts`, `hygiene.js` без битых ссылок.
-- [ ] 6.3 `warrant analyze slice-fixes` на ветке impl-PR — без находок.
+- [x] 6.3 `warrant analyze slice-fixes` на ветке impl-PR — без находок.
 
   Проверка: код 0; иначе правка `tasks.md` или тестов, а не waiver.

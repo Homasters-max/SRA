@@ -130,7 +130,7 @@ Profiles ссылаются только на ID. Определение gate с
 |---|---|---|---|---|
 | `spec-valid` | L1 | нет | core-sdd | `openspec validate` проходит |
 | `required-artifacts-present` | L0 | нет | core-sdd | Все `artifacts.required` есть |
-| `blocking-unknowns-resolved` | L0 | нет | core-sdd | Нет открытых blocking UNKNOWN |
+| `blocking-unknowns-resolved` | L0 | нет | core-sdd | Нет открытых blocking UNKNOWN (`BLOCKING_UNKNOWN`) и нет blocking UNKNOWN, закрытого не решением с `ref` — `resolved_as: "decision"` и URL комментария maintainer'а (`DECISION_WITHOUT_REF`: ответ записан, доказательства нет; `FAIL`, но не `WAIT clarify`); не-blocking не судит; автора, текст и PR комментария проверяет `warrant ci` (`REF_NOT_VERIFIED` с причиной `decision` в PR с новым `APPROVED`, иначе находка `DECISION_NOT_VERIFIED`; [02 §1](02-vocabulary.md), [ADR-0040](adr/WARRANT-ADR-0040-slice-fixes.md) п. 2, 3) |
 | `ids-valid` | L0 | нет | core-sdd | ID уникальны, формат верен, не переиспользованы |
 | `branch-isolated` | L0 | да | core-sdd | Implementation на отдельной ветке ([ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)) |
 | `tests-passed` | L1 | нет | core-sdd | Required tests проходят |

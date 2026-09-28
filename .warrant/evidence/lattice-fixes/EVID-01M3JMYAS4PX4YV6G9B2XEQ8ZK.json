@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3JMYAS4PX4YV6G9B2XEQ8ZK",
+  "claim": {
+    "text": "specification/adversarial-review@0.2.0 reviewed the spec of lattice-fixes: 2 BLOCKER, 4 MAJOR, 1 MINOR, 0 INFO",
+    "targets": []
+  },
+  "kind": "review",
+  "level": "L2",
+  "evidence_status": "NOT_PROVEN",
+  "subject": {
+    "commit": "ecbcffaa1d7e359b522d38c8dbe06b0c97cddecc",
+    "spec_revision": "openspec/changes/lattice-fixes@ecbcffaa1d7e359b522d38c8dbe06b0c97cddecc",
+    "spec_tree": "sha256:82a1f88a6a21f19a51f965090a640f71a3a06e7cd91fbd13f3eee0eb2bfec9cd",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "skill",
+    "id": "specification/adversarial-review",
+    "version": "0.2.0",
+    "run": "RUN-01M3JMH3WPTGM5S94TSVKBQV8N"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:0ef9544c50a263c0ae2cffc896daf39cdb98ed2c24efd593cea972dcd016ec34",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-27T23:59:25.989Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/runs/RUN-01M3JMH3WPTGM5S94TSVKBQV8N.result.json",
+      "sha256": "sha256:d351fb758d3726850e93d3a2cd81c260f65c4a20222c282c1527e5a3b18459c0"
+    }
+  ],
+  "limitations": [
+    "produced locally, unattested",
+    "same model family as author"
+  ],
+  "metrics": {
+    "BLOCKER": 2,
+    "INFO": 0,
+    "MAJOR": 4,
+    "MINOR": 1
+  }
+}

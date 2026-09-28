@@ -61,6 +61,12 @@ export function runCli(args: string[], cwd: string, env: NodeJS.ProcessEnv = {},
           json = undefined;
         }
       }
+      // No envelope, a non-zero exit and something on stderr: the binary failed before it could answer
+      // (BL-89; `--help` answers on stderr with 0). The assertion shows only `undefined`, so the cause goes
+      // to the stderr of the test, which the reporters keep.
+      if (json === undefined && code !== 0 && stderr.trim().length > 0) {
+        process.stderr.write(`runCli ${args.join(" ")} (cwd ${cwd}): exit ${String(code)}, no JSON on stdout; stderr:\n${stderr}\n`);
+      }
       resolve({ status: code ?? -1, stdout, stderr, json });
     });
   });

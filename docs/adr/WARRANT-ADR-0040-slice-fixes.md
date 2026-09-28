@@ -5,8 +5,10 @@ adr_state: ACCEPTED
 date: 2026-09-27
 supersedes: []
 amends: [WARRANT-ADR-0024, WARRANT-ADR-0037, WARRANT-ADR-0039]
-amended_by: [WARRANT-ADR-0041]
+amended_by: [WARRANT-ADR-0041, WARRANT-ADR-0044]
 ---
+
+> Уточнено [ADR-0044](WARRANT-ADR-0044-lattice-issues.md) п. 3: решение UNKNOWN комментарием держится при отдельной идентичности агента (GitHub App); пока `identities.agents` пуст, `warrant ci` даёт находку `SHARED_IDENTITY`.
 
 ## Context
 

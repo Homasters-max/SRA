@@ -2,15 +2,15 @@
  * Parsers `junit` and `openspec-validate` (design §5, REQ-VER-002): status and
  * `metrics` in the strict forms of core-sdd (I-69).
  */
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { compileMetricsForms } from "../../../src/core/validate/evidence.js";
-import { countJunit, parseJunitDocuments } from "../../../src/core/evidence/parsers/junit.js";
+import { countJunit, parseJunitDir, parseJunitDocuments } from "../../../src/core/evidence/parsers/junit.js";
 import { parseOpenspecValidate } from "../../../src/core/evidence/parsers/openspec-validate.js";
 import { findParser } from "../../../src/core/evidence/parsers/index.js";
-import { REPO_ROOT } from "../../helpers/cli.js";
+import { makeTempDir, REPO_ROOT, removeDir } from "../../helpers/cli.js";
 
 function form(kind: string) {
   const file = path.join(REPO_ROOT, "packs", "core-sdd", "evidence", `${kind}.metrics.schema.json`);
@@ -170,6 +170,59 @@ describe("parser junit → test-report", () => {
     expect(result.limitations).toEqual(["junit: all 4 tests skipped"]);
     // One test that ran is enough.
     expect(parseJunitDocuments(['<testsuite tests="4" skipped="3"/>'])).toMatchObject({ status: "PROVEN", limitations: [] });
+  });
+
+  it("SCN-VER-118 a skipped test of a scenario is NOT_PROVEN, other skipped tests are not (ADR-0044 п. 2)", () => {
+    const report = (name: string) => `<testsuite name="t" tests="3" skipped="2">
+    <testcase classname="SCN-VER-009 file" name="ok"></testcase>
+    <testcase name="${name}"><skipped/></testcase>
+    <testcase name="cache"><skipped/></testcase>
+</testsuite>`;
+    const result = parseJunitDocuments([report("SCN-VER-001 &amp; retry")]);
+    expect(result).toEqual({
+      status: "NOT_PROVEN",
+      metrics: { tests: 3, failures: 0, errors: 0, skipped: 2 },
+      limitations: ["junit: skipped SCN-VER-001"]
+    });
+    // The same report without the id in the name; `classname` is not the name.
+    expect(parseJunitDocuments([report("retry")])).toMatchObject({ status: "PROVEN", limitations: [] });
+    // A skipped `todo` of node:test counts too, and so does a report where nothing ran (not INCONCLUSIVE).
+    const todo = `<testsuites>
+	<testcase name='SCN-VER-002 later' classname="test"><skipped type="todo" message="true"/></testcase>
+</testsuites>`;
+    expect(parseJunitDocuments([todo])).toEqual({
+      status: "NOT_PROVEN",
+      metrics: { tests: 1, failures: 0, errors: 0, skipped: 1 },
+      limitations: ["junit: skipped SCN-VER-002"]
+    });
+  });
+
+  it("SCN-VER-118 lists the skipped scenarios once, by document then by appearance, next to a failure", () => {
+    const first = `<testsuite>
+    <testcase name="SCN-ENF-003 then SCN-VER-001"><skipped/></testcase>
+    <testcase name="REQ-VER-002 SCN-VER-0012 xSCN-VER-005"><skipped/></testcase>
+    <testcase name="SCN-VER-004 &amp;lt;"><skipped/></testcase>
+    <testcase name="SCN-VER-007 runs"><failure message="x"/></testcase>
+</testsuite>`;
+    const second = '<testsuite><testcase name="SCN-VER-001 again"><skipped/></testcase><testcase name="SCN-KRN-010"><skipped/></testcase></testsuite>';
+    const result = parseJunitDocuments([first, second]);
+    expect(result.status).toBe("NOT_PROVEN");
+    expect(result.limitations).toEqual(["junit: skipped SCN-ENF-003, SCN-VER-001, SCN-VER-004, SCN-KRN-010"]);
+    expect(result.metrics).toEqual({ tests: 6, failures: 1, errors: 0, skipped: 5 });
+  });
+
+  it("SCN-VER-118 reads the files of {out} in the order of their names", () => {
+    const dir = makeTempDir("warrant-unit-junit-");
+    try {
+      mkdirSync(path.join(dir, "a"));
+      writeFileSync(path.join(dir, "b.xml"), '<testsuite><testcase name="SCN-VER-002"><skipped/></testcase></testsuite>');
+      writeFileSync(path.join(dir, "a", "z.xml"), '<testsuite><testcase name="SCN-VER-003"><skipped/></testcase></testsuite>');
+      writeFileSync(path.join(dir, "a.xml"), '<testsuite><testcase name="SCN-VER-001"><skipped/></testcase></testsuite>');
+      writeFileSync(path.join(dir, "notes.txt"), '<testcase name="SCN-VER-009"><skipped/></testcase>');
+      expect(parseJunitDir(dir).limitations).toEqual(["junit: skipped SCN-VER-001, SCN-VER-003, SCN-VER-002"]);
+    } finally {
+      removeDir(dir);
+    }
   });
 
   it("is INCONCLUSIVE without metrics when there is no report at all", () => {

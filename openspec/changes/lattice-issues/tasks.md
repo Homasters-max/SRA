@@ -23,7 +23,7 @@
 
 ## 2. Пропущенный тест сценария (S-4, L2)
 
-- [ ] 2.1 `core/evidence/parsers/junit.ts` (§3): имена пропущенных `<testcase>`, `skippedScenarios`, статус и limitation;
+- [x] 2.1 `core/evidence/parsers/junit.ts` (§3): имена пропущенных `<testcase>`, `skippedScenarios`, статус и limitation;
   ранги — `architecture.test.ts`.
 
   Проверка: unit `parsers.test.ts` — SCN-VER-118; SCN-VER-040, SCN-VER-117 без правок ожидаемых значений.

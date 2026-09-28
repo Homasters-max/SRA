@@ -64,6 +64,7 @@
     { "name": "countingWaiverIds", "owner": "core/waivers/status.ts" },
     { "name": "findChangeDir", "owner": "core/openspec/changes.ts" },
     { "name": "findReferences", "owner": "core/ids/references.ts" },
+    { "name": "scenariosOf", "owner": "core/evidence/parsers/junit.ts" },
     { "name": "packObjects", "owner": "core/packs/objects.ts" },
     { "name": "gateDefinitions", "owner": "core/packs/objects.ts" },
     { "name": "policyPaths", "owner": "core/packs/objects.ts" },

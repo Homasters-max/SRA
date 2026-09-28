@@ -9,6 +9,9 @@
  *   with `-b`. The main checkout stays on `main`; work goes to a worktree (skill `git-start`).
  * - `force-push` — `git push --force`, `-f`, `--force-with-lease`, `--force-if-includes`, a `+` refspec — anywhere.
  * - `openspec-archive` — `openspec archive` anywhere; `warrant archive` runs it from its own process, unseen here.
+ * - `long-command` — on Windows, a Bash command whose cost ({@link commandCost}) exceeds {@link LONG_COMMAND_LIMIT}:
+ *   Claude Code passes the command inside one `bash -c` argument and the MSYS2 runtime cuts that argument at ~8192
+ *   characters, so bash fails with `unexpected EOF` before the command runs (ADR-0043). PowerShell is not Git Bash.
  *
  * The command text is split into simple commands (`&&`, `||`, `;`, `|`, newlines) and tokenized with quotes; only the
  * first word decides (`grep "openspec archive"` is not a call). `cd <dir>` before a command and `git -C <dir>` move the
@@ -29,7 +32,27 @@ export const RULES = {
     what: "`openspec archive` bypasses `warrant archive` and the gates MERGED → ARCHIVED (ADR-0011 п. 4, ADR-0033 п. 9)",
     instead: "`warrant archive <change>` (skill `change-archive-pr`)",
   },
+  "long-command": {
+    what: "on Windows the Bash tool cuts a command longer than ~7 700 characters before it runs — Git Bash (MSYS2) truncates its `-c` argument at ~8 192 (ADR-0043)",
+    instead: "write the long text to a file (Write, the session scratchpad) and pass the path: `git commit -F <file>`, `gh pr create --body-file <file>`, `warrant run submit --file <file>`",
+  },
 };
+
+/**
+ * The longest command cost the Bash tool on Windows runs intact, with a margin (ADR-0043): Claude Code wraps the command
+ * in ~450 characters of its own inside `bash -c`, and the MSYS2 runtime cuts that argument at ~8 192 characters.
+ */
+export const LONG_COMMAND_LIMIT = 7000;
+
+/** What a command costs inside `bash -c … eval '<command>'`: its characters, and four more per `'` (quoted as `'"'"'`). */
+export function commandCost(command) {
+  return command.length + 4 * (command.match(/'/g)?.length ?? 0);
+}
+
+function deny(ids) {
+  const reason = ids.map((id) => `git-hook: ${id} — ${RULES[id].what} → ${RULES[id].instead}`).join("\n");
+  return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } };
+}
 
 const CHECKED_TOOLS = new Set(["Bash", "PowerShell"]);
 const CD = new Set(["cd", "pushd", "set-location", "sl", "push-location", "chdir"]);
@@ -166,13 +189,15 @@ function writesCheckout(sub, args) {
 /**
  * Hook response for `pre-tool` and the hook input JSON, or null (allow, print nothing).
  * `io`: `env` — process env (CLAUDE_PROJECT_DIR); `gitDirs(dir)` — `{ gitDir, commonDir }` (absolute, `/`) of the work
- * tree containing `dir`, or null (not a repo, git failed). Inert (null) when the project dir is not a git work tree.
+ * tree containing `dir`, or null (not a repo, git failed); `platform` — `process.platform` (`long-command` — only
+ * `win32`). The git rules are inert (null) when the project dir is not a git work tree.
  */
 export function hookResponse(event, input, io) {
   if (event !== "pre-tool" || !input || typeof input !== "object") return null;
   if (!CHECKED_TOOLS.has(input.tool_name)) return null;
   const command = input.tool_input?.command;
   if (typeof command !== "string" || command.trim() === "") return null;
+  if (input.tool_name === "Bash" && io.platform === "win32" && commandCost(command) > LONG_COMMAND_LIMIT) return deny(["long-command"]);
 
   const safeDirs = (dir) => {
     try {
@@ -212,7 +237,5 @@ export function hookResponse(event, input, io) {
     if (git.sub === "push" && isForcePush(git.args)) hits.add("force-push");
     if (writesCheckout(git.sub, git.args) && isMainCheckout(git.dir)) hits.add("main-checkout");
   }
-  if (hits.size === 0) return null;
-  const reason = [...hits].map((id) => `git-hook: ${id} — ${RULES[id].what} → ${RULES[id].instead}`).join("\n");
-  return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } };
+  return hits.size === 0 ? null : deny([...hits]);
 }

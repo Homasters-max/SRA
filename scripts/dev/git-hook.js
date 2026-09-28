@@ -1,7 +1,8 @@
 /**
  * Git hook (ADR-0033 п. 9). Claude Code runs it with the hook input JSON on stdin, for the main session and subagents:
  *
- *   node scripts/dev/git-hook.js pre-tool   PreToolUse: deny git in the main checkout, force push, `openspec archive`
+ *   node scripts/dev/git-hook.js pre-tool   PreToolUse: deny git in the main checkout, force push, `openspec archive`,
+ *                                           a Bash command too long for Git Bash on Windows (ADR-0043)
  *
  * Decisions — `hookResponse` in git-hook-lib.js (pure); this file is only IO. A hook must never break a session: any
  * failure → exit 0 and no output (the call is allowed); stdout is valid JSON or nothing.
@@ -41,13 +42,14 @@ async function main() {
   const raw = await readStdin();
   if (!raw.trim()) return;
   const input = JSON.parse(raw);
-  // fast path: a command without git or openspec never loads the rules
+  // fast path: a command without git or openspec, too short to cost LONG_COMMAND_LIMIT even of quotes, never loads the rules
   const command = input?.tool_input?.command;
-  if (typeof command !== "string" || !/\b(git|openspec)\b/i.test(command)) return;
+  if (typeof command !== "string" || (command.length <= 1400 && !/\b(git|openspec)\b/i.test(command))) return;
   const { hookResponse } = await import("./git-hook-lib.js");
   const res = hookResponse(event, { ...input, cwd: input.cwd ? nativePath(input.cwd) : input.cwd }, {
     env: { ...process.env, CLAUDE_PROJECT_DIR: process.env.CLAUDE_PROJECT_DIR ? nativePath(process.env.CLAUDE_PROJECT_DIR) : undefined },
     gitDirs,
+    platform: process.platform,
   });
   if (res) process.stdout.write(JSON.stringify(res));
 }

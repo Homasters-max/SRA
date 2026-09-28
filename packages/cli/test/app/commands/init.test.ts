@@ -111,7 +111,7 @@ describe("warrant init", () => {
   });
 
   it("--frontend claude: FRONTEND_RESTART_REQUIRED for each written file Claude Code reads at start; none without changes (SCN-KRN-154)", async () => {
-    // A rule with paths ["**"] makes sync write AGENTS.md and the @AGENTS.md line of CLAUDE.md.
+    // A rule with paths ["**"] makes sync write AGENTS.md; CLAUDE.md is never written (design no-claude-md D1).
     const p = project().write(".warrant/local/rules/language.json", {
       $schema: "warrant://rule/1",
       id: "language",
@@ -123,8 +123,9 @@ describe("warrant init", () => {
     expect(run.exitCode).toBe(0);
     const restart = (rel: string) => ({ code: "FRONTEND_RESTART_REQUIRED", path: rel, hint: RESTART_HINT });
     const findings = run.data["sync"]["findings"] as unknown[];
-    expect(findings).toHaveLength(4);
-    for (const rel of [".claude/settings.json", CLAUDE_REVIEWER_REL, "CLAUDE.md", "AGENTS.md"]) expect(findings).toContainEqual(restart(rel));
+    expect(findings).toHaveLength(3);
+    for (const rel of [".claude/settings.json", CLAUDE_REVIEWER_REL, "AGENTS.md"]) expect(findings).toContainEqual(restart(rel));
+    expect(findings).not.toContainEqual(expect.objectContaining({ path: "CLAUDE.md" }));
 
     const sync = (check = false) => invoke(() => runSync(p.ctx, { check }));
     expect((await sync()).data["findings"]).toEqual([]);

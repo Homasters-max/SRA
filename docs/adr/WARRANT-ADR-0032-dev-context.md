@@ -88,7 +88,7 @@ amended_by: [WARRANT-ADR-0033]
 - Процедуры, ссылающиеся на NEXT-SESSION, переписываются: [coordinator.md](../../.claude/skills/change-coordinate/SKILL.md), навыки `decision` (номер I-N по design.md — без изменений), `group-done`, `handoff`, `architecture-audit` (A-N — в `backlog.md`); память «Decision workflow» (долг — в `backlog.md`, не в NEXT-SESSION).
 - Глобальные `~/.claude/skills/software-architect` и `grilling` после переноса удаляются; `grill-me` и `grill-with-docs` (дубли `grilling`) удаляет maintainer — они вне репозитория, но попадают в список навыков каждой сессии.
 - `SessionStart` добавляет запуск node (~150–200 мс) и несколько вызовов `git` на старте и после сжатия.
-- С фазы 4 (адаптер `claude`, ADR-0023 п. 4, ADR-0029 п. 7) хуки и правила становятся данными local-слоя и выводом `warrant sync`; `CLAUDE.md` ссылается на сгенерированный `AGENTS.md` (ADR-0022). Этот ADR — dev-слой до того момента, не продуктовая норма.
+- С фазы 4 (адаптер `claude`, ADR-0023 п. 4, ADR-0029 п. 7) хуки и правила становятся данными local-слоя и выводом `warrant sync`; `CLAUDE.md` ссылается на сгенерированный `AGENTS.md` (ADR-0022) — снято Change `no-claude-md`, D1: Claude Code читает `AGENTS.md` сам, `CLAUDE.md` в репозитории нет. Этот ADR — dev-слой до того момента, не продуктовая норма.
 
 ## Alternatives
 

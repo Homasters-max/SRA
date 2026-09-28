@@ -56,19 +56,19 @@ export function storeRecord(params: StoreParams): string {
     mkdirSync(dir, { recursive: true });
     writeJsonFile(file, params.record);
   });
-  const manifest = path.join(dir, MANIFEST_FILE);
-  params.writes.write(projectUri(params.root, manifest), () =>
-    writeJsonFile(
-      manifest,
-      buildManifest(readManifest(dir), {
-        change: params.change,
-        commit: params.commit,
-        versions: params.versions,
-        evidence: listRecordIds(dir)
-      })
-    )
+  params.writes.write(projectUri(params.root, path.join(dir, MANIFEST_FILE)), () =>
+    writeManifest(dir, { change: params.change, commit: params.commit, versions: params.versions })
   );
   return reported;
+}
+
+/**
+ * Rewrites the manifest of the evidence directory `dir` from the records in
+ * it (design I-203): `storeRecord` after its record, and a repeated
+ * `run submit` whose record an interrupted write left outside `evidence[]`.
+ */
+export function writeManifest(dir: string, input: { change: string; commit: string; versions: ManifestVersions }): void {
+  writeJsonFile(path.join(dir, MANIFEST_FILE), buildManifest(readManifest(dir), { ...input, evidence: listRecordIds(dir) }));
 }
 
 /**

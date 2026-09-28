@@ -6,7 +6,7 @@
  * events in `guard_events[]` and the lock of the Run. Exit 0 whatever the
  * decision.
  */
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -334,6 +334,7 @@ describe("warrant guard under a review Run (REQ-ENF-004)", () => {
     expect(result.data["reason"]).toContain("only reads");
     expect(result.data["reason"]).toContain("openspec/changes/add-search/proposal.md");
     expect(result.data["hints"].join(" ")).toContain("warrant run submit");
+    expect(result.data["hints"].join(" ")).toContain("warrant run finish --state CANCELLED");
     expect(events(p, id)).toEqual([
       expect.objectContaining({ phase: "pre", action: "edit", paths: ["openspec/changes/add-search/proposal.md"], decision: "deny" })
     ]);
@@ -377,7 +378,46 @@ describe("warrant guard under a review Run (REQ-ENF-004)", () => {
     const mixed = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", "cat x && warrant run submit"] });
     expect(mixed.data["decision"]).toBe("deny");
     expect(mixed.data["hints"].join(" ")).toContain("warrant run submit");
+    expect(mixed.data["hints"].join(" ")).toContain("warrant run finish --state CANCELLED");
     expect(events(p, id).map((e) => e["decision"])).toEqual(["allow", "deny"]);
+  });
+
+  it("shell: commands that write nothing and the cancel are allowed; a write, a redirection, a pipe, a git global option and cd out of the project are denied (SCN-ENF-044)", async () => {
+    const { p, id } = await underReview();
+    const shell = async (line: string): Promise<Data> => (await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", line] })).data;
+    const allowed = ["warrant status add-search", "git diff main -- openspec && warrant gate add-search", "warrant run finish --state CANCELLED"];
+    const denied = [
+      "git diff --outp=x.patch",
+      "git -c diff.external=x diff",
+      "warrant status > s.txt",
+      "git log | head",
+      "warrant run finish",
+      "cd ../other && warrant run finish --state CANCELLED"
+    ];
+    for (const line of allowed) expect(await shell(line), line).toEqual({ decision: "allow", hints: [] });
+    for (const line of denied) {
+      const answer = await shell(line);
+      expect(answer["decision"], line).toBe("deny");
+      expect(answer["hints"].join(" "), line).toContain("warrant run finish --state CANCELLED");
+    }
+    expect(await shell("git log --oneline")).toEqual({ decision: "allow", hints: [] });
+    expect(events(p, id).map((e) => e["decision"])).toEqual([...allowed.map(() => "allow"), ...denied.map(() => "deny"), "allow"]);
+  });
+
+  it("shell: cd is judged by the real path — inside the project allowed, a link out of it denied (I-202)", async () => {
+    const { p } = await underReview();
+    const shell = async (line: string, cwd = p.root): Promise<unknown> =>
+      (await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", line], cwd })).data["decision"];
+    expect(await shell("cd openspec/changes && warrant status")).toBe("allow");
+    expect(await shell("cd openspec && cd changes\ngit status")).toBe("allow");
+    // A cd that fails leaves the line where it was: the next cd is judged from every place the line may be in.
+    expect(await shell("cd openspec && cd ../..")).toBe("deny");
+    expect(await shell("cd openspec; cd changes; cd ../..")).toBe("deny");
+    expect(await shell("cd openspec || cd ..")).toBe("deny");
+    expect(await shell("cd ..", path.join(p.root, "openspec"))).toBe("allow");
+    const outside = mkdtempSync(path.join(tmpdir(), "warrant-outside-"));
+    symlinkSync(outside, path.join(p.root, "link"), "junction");
+    expect(await shell("cd link && warrant run finish --state CANCELLED")).toBe("deny");
   });
 
   it("shell: only the strict form of warrant run submit is allowed; &, a redirection, $(…), `…`, <(…), VAR=… and << in a comment are denied (SCN-ENF-027)", async () => {

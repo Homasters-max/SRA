@@ -30,15 +30,15 @@
 
 ## 3. Run (S-3, BL-81, R-32, L5)
 
-- [ ] 3.1 Повтор `run submit` (§4): поиск записи по `produced_by.run`, `data.reused`.
+- [x] 3.1 Повтор `run submit` (§4): поиск записи по `produced_by.run`, `data.reused`.
 
   Проверка: app `run submit` — SCN-ENF-043 (повтор, manifest, `EVIDENCE_CONFLICT`); прочие SCN REQ-ENF-007 без правок
   ожидаемых значений, кроме поля `data.reused`.
-- [ ] 3.2 Guard под Run `review` (§4, I-202, I-207): команды без записи, `run finish --state CANCELLED`, `cd` только внутри проекта,
+- [x] 3.2 Guard под Run `review` (§4, I-202, I-207): команды без записи, `run finish --state CANCELLED`, `cd` только внутри проекта,
   строгая форма; `SUBMIT_HINT`; удалить ветку R-32.
 
   Проверка: app `guard` — SCN-ENF-044; SCN-ENF-026 — только текст `hint`.
-- [ ] 3.3 `UNCOMMITTED_IN_SCOPE` у `run start` `specify` / `implement` (§4), `data.findings[]` вывода.
+- [x] 3.3 `UNCOMMITTED_IN_SCOPE` у `run start` `specify` / `implement` (§4), `data.findings[]` вывода.
 
   Проверка: app `run start` — SCN-ENF-045; golden вывода `run start` — поле `findings: []`.
 

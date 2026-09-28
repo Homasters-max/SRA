@@ -39,7 +39,8 @@ import {
   VALIDATE_HINT,
   type Answer,
   type PathClasses,
-  type ReviewEditPlaces
+  type ReviewEditPlaces,
+  type ReviewShellPlaces
 } from "./decide.js";
 import { parseEvent } from "./event.js";
 
@@ -165,6 +166,16 @@ function reviewPlaces(root: string, event: GuardEvent, env: NodeJS.ProcessEnv): 
   return { tempDir, tempInProject, strays };
 }
 
+/**
+ * Where `cd` of a shell line under a `review` Run may lead: inside the project
+ * of the event after `realpath` (links, 8.3 short names; I-202) — `run finish`
+ * and `run submit` act on the Run of the checkout `cd` leads to.
+ */
+function reviewShellPlaces(root: string, event: GuardEvent): ReviewShellPlaces {
+  const project = realPath(root);
+  return { cwd: path.resolve(event.cwd), inProject: (dir) => projectPath(project, realPath(dir)) !== undefined };
+}
+
 /** The answer before the action; what fails in it is a refusal (F9). */
 function decidePre(ctx: Ctx, event: GuardEvent, files: readonly string[], run: Run | undefined, env: NodeJS.ProcessEnv): Answer {
   try {
@@ -175,7 +186,7 @@ function decidePre(ctx: Ctx, event: GuardEvent, files: readonly string[], run: R
       const loaded = loadPolicy(ctx.root);
       return editWithoutRun(loaded, files, classes(loaded));
     }
-    if (event.action === "shell" && run?.operation === "review") return reviewShellAnswer(event.argv, run);
+    if (event.action === "shell" && run?.operation === "review") return reviewShellAnswer(event.argv, run, reviewShellPlaces(ctx.root, event));
     if (event.action === "shell") return shellAnswer(event.argv, guardedChecks(loadPolicy(ctx.root)), run?.change);
     return { decision: "allow", hints: [] };
   } catch (thrown) {

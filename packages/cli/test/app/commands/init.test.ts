@@ -3,9 +3,9 @@
  * the project skeleton left valid and synced (SCN-KRN-042, 052), a second
  * `init` without and with `--force` (SCN-KRN-053), a missing `openspec`, the
  * Change and its `PROPOSED` record (SCN-KRN-054) and a name held by the
- * archive (SCN-KRN-055). Moved from e2e (ADR-0025, task 5.4); the parse of
- * argv (`init`, `--force`, `change <name>`), the exit codes of the binary and
- * the real `openspec` stay in `e2e/init.test.ts` and `e2e/exit-criterion.test.ts`.
+ * archive (SCN-KRN-055), the restart finding of `--frontend claude`
+ * (SCN-KRN-154). Moved from e2e (ADR-0025, task 5.4); the parse of argv
+ * (`init`, `--force`, `change <name>`), the exit codes of the binary and the real `openspec` stay in `e2e/init.test.ts` and `e2e/exit-criterion.test.ts`.
  *
  * `openspec init --tools none` of the e2e projects is the base of
  * `ProjectBuilder` without `.warrant/` plus a `config.yaml` without the
@@ -19,6 +19,7 @@ import { describe, expect, it } from "vitest";
 
 import { runInit, runInitChange, runInitCommand, type InitOptions } from "../../../src/commands/init.js";
 import { runSync } from "../../../src/commands/sync.js";
+import { CLAUDE_REVIEWER_REL, RESTART_HINT } from "../../../src/core/sync/claude.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
@@ -107,6 +108,35 @@ describe("warrant init", () => {
     expect(config.frontends).toEqual(["claude"]);
     expect(run.data["created"]).toContain(".claude/settings.json");
     expect((await validate(p)).ok).toBe(true);
+  });
+
+  it("--frontend claude: FRONTEND_RESTART_REQUIRED for each written file Claude Code reads at start; none without changes (SCN-KRN-154)", async () => {
+    // A rule with paths ["**"] makes sync write AGENTS.md and the @AGENTS.md line of CLAUDE.md.
+    const p = project().write(".warrant/local/rules/language.json", {
+      $schema: "warrant://rule/1",
+      id: "language",
+      paths: ["**"],
+      text: "Docs are Russian."
+    });
+    const run = await init(p, { frontend: "claude" });
+    expect(run.errors).toEqual([]);
+    expect(run.exitCode).toBe(0);
+    const restart = (rel: string) => ({ code: "FRONTEND_RESTART_REQUIRED", path: rel, hint: RESTART_HINT });
+    const findings = run.data["sync"]["findings"] as unknown[];
+    expect(findings).toHaveLength(4);
+    for (const rel of [".claude/settings.json", CLAUDE_REVIEWER_REL, "CLAUDE.md", "AGENTS.md"]) expect(findings).toContainEqual(restart(rel));
+
+    const sync = (check = false) => invoke(() => runSync(p.ctx, { check }));
+    expect((await sync()).data["findings"]).toEqual([]);
+
+    // One line of the subagent removed: only its file is rewritten.
+    p.write(CLAUDE_REVIEWER_REL, p.read(CLAUDE_REVIEWER_REL).split("\n").slice(1).join("\n"));
+    const check = await sync(true);
+    expect(check.exitCode).toBe(1);
+    expect(check.data["findings"]).toEqual([]);
+    const again = await sync();
+    expect(again.exitCode).toBe(0);
+    expect(again.data["findings"]).toEqual([restart(CLAUDE_REVIEWER_REL)]);
   });
 
   it("an unknown --frontend is USAGE with a hint naming the known ones, nothing written", async () => {

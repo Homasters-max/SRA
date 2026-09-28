@@ -25,24 +25,117 @@ const VITEST_PASS = `<?xml version="1.0" encoding="UTF-8" ?>
 <testsuites name="vitest tests" tests="5" failures="0" errors="0" time="1.2">
     <testsuite name="test/a.test.ts" timestamp="2026-09-22T10:00:00.000Z" hostname="h" tests="3" failures="0" errors="0" skipped="1" time="0.5">
         <testcase classname="test/a.test.ts" name="one" time="0.1"></testcase>
+        <testcase classname="test/a.test.ts" name="two" time="0.1"></testcase>
+        <testcase classname="test/a.test.ts" name="three" time="0">
+            <skipped/>
+        </testcase>
     </testsuite>
     <testsuite name="test/b.test.ts" timestamp="2026-09-22T10:00:00.000Z" hostname="h" tests="2" failures="0" errors="0" skipped="0" time="0.7">
+        <testcase classname="test/b.test.ts" name="four" time="0.3">
+            <system-out><![CDATA[<testcase name="printed by the test"/>]]></system-out>
+        </testcase>
+        <testcase classname="test/b.test.ts" name="five" time="0.4"></testcase>
     </testsuite>
 </testsuites>
 `;
 
 const ONE_FAILURE = `<testsuites tests="4" failures="1">
   <testsuite name='x' tests='4' failures='1' errors='0' skipped='0'>
-    <testcase name="a"><failure message="expected 1 to be 2"/></testcase>
+    <testcase name='a'><failure message="expected 1 to be 2"/></testcase>
+    <testcase name='b'/>
+    <testcase name='c'></testcase>
+    <testcase name='d' time='0.1'/>
   </testsuite>
+</testsuites>
+`;
+
+/** `node --test --test-reporter=junit` of Node 22.17 (stacks cut): cases outside any suite, nested suites. */
+const NODE_TEST = `<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="top pass" time="0.001658" classname="test"/>
+	<testcase name="top fail" time="0.000800" classname="test" failure="1 == 2">
+		<failure type="testCodeFailure" message="1 == 2">
+[Error [ERR_TEST_FAILURE]: 1 == 2] {
+  code: 'ERR_TEST_FAILURE',
+      at TestContext.&lt;anonymous> (file:///a.test.mjs:4:33)
+}
+		</failure>
+	</testcase>
+	<testcase name="top skip" time="0.000114" classname="test">
+		<skipped type="skipped" message="true"/>
+	</testcase>
+	<testcase name="top todo" time="0.000108" classname="test">
+		<skipped type="todo" message="true"/>
+	</testcase>
+	<testsuite name="outer" time="0.001373" disabled="0" errors="0" tests="2" failures="1" skipped="1" hostname="h">
+		<testcase name="outer pass" time="0.000256" classname="test"/>
+		<testsuite name="inner" time="0.000647" disabled="0" errors="0" tests="2" failures="1" skipped="0" hostname="h">
+			<testcase name="inner pass" time="0.000215" classname="test"/>
+			<testcase name="inner fail" time="0.000250" classname="test" failure="boom">
+				<failure type="testCodeFailure" message="boom">
+Error [ERR_TEST_FAILURE]: boom
+				</failure>
+			</testcase>
+		</testsuite>
+	</testsuite>
+	<!-- tests 7 -->
+	<!-- suites 2 -->
+	<!-- pass 3 -->
+	<!-- fail 2 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 1 -->
+	<!-- todo 1 -->
+	<!-- duration_ms 111.4628 -->
 </testsuites>
 `;
 
 describe("parser junit → test-report", () => {
   const valid = form("test-report");
 
-  it("sums every <testsuite> once and ignores the <testsuites> totals", () => {
+  it("counts every <testcase> once, not the <testsuite> or <testsuites> counters, and not text in CDATA", () => {
     expect(countJunit([VITEST_PASS])).toEqual({ tests: 5, failures: 0, errors: 0, skipped: 1 });
+  });
+
+  it("SCN-VER-117 counts node:test cases outside any suite and does not double nested suites (LATTICE, W-3)", () => {
+    const result = parseJunitDocuments([NODE_TEST]);
+    expect(result.status).toBe("NOT_PROVEN");
+    expect(result.metrics).toEqual({ tests: 7, failures: 2, errors: 0, skipped: 2 });
+    expect(valid(result.metrics)).toBe(true);
+    // Only cases outside a suite were INCONCLUSIVE ("no <testsuite>") before.
+    const top = `<testsuites>
+	<testcase name="a" classname="test"/>
+	<testcase name="b" classname="test"/>
+	<!-- tests 2 -->
+</testsuites>`;
+    expect(parseJunitDocuments([top])).toMatchObject({ status: "PROVEN", metrics: { tests: 2, failures: 0, errors: 0, skipped: 0 } });
+    // Suite counters of node:test count a nested suite as a test of its parent (2 + 1 here).
+    const nested = '<testsuite name="o" tests="2"><testcase name="a"/><testsuite name="i" tests="1"><testcase name="b"/></testsuite></testsuite>';
+    expect(countJunit([nested])).toEqual({ tests: 2, failures: 0, errors: 0, skipped: 0 });
+  });
+
+  it("SCN-VER-117 a case with several outcomes: <skipped> hides only <failure>, <error> always counts (I-196)", () => {
+    const todo = '<testcase name="t"><skipped type="todo" message="true"/><failure message="x"/></testcase>';
+    expect(parseJunitDocuments([`<testsuites>${todo}<testcase name="ok"/></testsuites>`])).toMatchObject({
+      status: "PROVEN",
+      metrics: { tests: 2, failures: 0, errors: 0, skipped: 1 }
+    });
+    const skippedTeardown = '<testcase name="s"><skipped message="skip"/><error message="teardown"/></testcase>';
+    expect(parseJunitDocuments([`<testsuite>${skippedTeardown}<testcase name="ok"/></testsuite>`])).toMatchObject({
+      status: "NOT_PROVEN",
+      metrics: { tests: 2, failures: 0, errors: 1, skipped: 1 }
+    });
+    const failedTeardown = '<testcase name="f"><failure message="x"/><error message="teardown"/></testcase>';
+    expect(countJunit([`<testsuite>${failedTeardown}</testsuite>`])).toEqual({ tests: 1, failures: 1, errors: 1, skipped: 0 });
+  });
+
+  it("counts a case with an <error> child as an error, and falls back to <testsuite> counters without a case", () => {
+    expect(countJunit(['<testsuite tests="9"><testcase name="a"><error message="x"/></testcase></testsuite>'])).toEqual({
+      tests: 1,
+      failures: 0,
+      errors: 1,
+      skipped: 0
+    });
+    expect(countJunit(["<testsuite name='x' tests='2' failures='1'/>"])).toEqual({ tests: 2, failures: 1, errors: 0, skipped: 0 });
   });
 
   it("is PROVEN without failures, with metrics in the pack form", () => {

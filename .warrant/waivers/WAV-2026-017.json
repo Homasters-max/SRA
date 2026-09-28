@@ -1,0 +1,15 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-2026-017",
+  "change": "lattice-fixes",
+  "gate": "spec-approved",
+  "reason": "I-196…I-200: находки review 2 spec (BL-87) — исход testcase junit, файл envelope в scratchpad по id Run, reason guard без внешнего пути и сдача без cd, data.received у всех SKILL_RESULT_INVALID и USAGE для пустого файла, FRONTEND_RESTART_REQUIRED для CLAUDE.md и AGENTS.md",
+  "risk": "LOW",
+  "compensating_controls": [
+    "правки delta spec и строки I-N — в теле impl-PR; review-impl сверяет реализацию с правленой spec"
+  ],
+  "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
+  "expires_at": "2026-10-12",
+  "waiver_state": "ACTIVE"
+}

@@ -143,6 +143,38 @@ function checkSkill(root: string, skill: string, source: string | undefined): vo
   }
 }
 
+/** What `run submit` received, without a value (REQ-ENF-007, I-199): bytes in UTF-8, the JSON root, the top-level keys. */
+export interface Received {
+  bytes: number;
+  root: "object" | "array" | "string" | "number" | "boolean" | "null" | "not-json";
+  keys: string[];
+}
+
+export function receivedOf(text: string): Received {
+  const bytes = Buffer.byteLength(text, "utf8");
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return { bytes, root: "not-json", keys: [] };
+  }
+  if (json === null) return { bytes, root: "null", keys: [] };
+  if (Array.isArray(json)) return { bytes, root: "array", keys: [] };
+  if (typeof json === "object") return { bytes, root: "object", keys: Object.keys(json).sort() };
+  return { bytes, root: typeof json as Received["root"], keys: [] };
+}
+
+/** `SKILL_RESULT_INVALID` of `thrown` with `data.received` of `input`; any other error unchanged. */
+function withReceived(thrown: unknown, input: SubmitInput): unknown {
+  if (!(thrown instanceof WarrantError) || thrown.code !== "SKILL_RESULT_INVALID") return thrown;
+  return new WarrantError(thrown.code, thrown.message, {
+    ...(thrown.path === undefined ? {} : { path: thrown.path }),
+    ...(thrown.hint === undefined ? {} : { hint: thrown.hint }),
+    exitCode: thrown.exitCode,
+    data: { received: receivedOf(input.text) }
+  });
+}
+
 /**
  * Takes the envelope of the active `review` Run: no active Run —
  * `RUN_NOT_ACTIVE`; a Run of another operation — `STATE_INVALID`; an envelope
@@ -160,11 +192,16 @@ export async function submitReview(ctx: Ctx, read: () => Promise<SubmitInput>, e
     });
   }
   const input = await read();
-  const envelope = parseEnvelope(input);
-  if (envelope.run !== id) {
-    throw invalid(`the envelope is of ${envelope.run}, the active Run is ${id}`, "/run", input.source, `set "run": "${id}" — the result of another Run is not this review`);
+  let envelope: Envelope;
+  try {
+    envelope = parseEnvelope(input);
+    if (envelope.run !== id) {
+      throw invalid(`the envelope is of ${envelope.run}, the active Run is ${id}`, "/run", input.source, `set "run": "${id}" — the result of another Run is not this review`);
+    }
+    checkSkill(root, envelope.skill, input.source);
+  } catch (thrown) {
+    throw withReceived(thrown, input);
   }
-  checkSkill(root, envelope.skill, input.source);
 
   const findings = severityCounts(envelope.findings);
   const status = reviewStatus(envelope.run_state, findings);

@@ -67,7 +67,7 @@ Check — детерминированная исполняемая провер
 | `timeout_s` | `defaults.check_timeout_s`, иначе `1800` | По истечении check прерывается, замок освобождается |
 | `local` | `allowed` | `scoped-only` — локально только `--paths`; `ci-only` — локально никакой (later, D-23) |
 | `max_paths` | — | Больше путей в `--paths` → код `3` (later, D-23) |
-| `guard_prefixes` | первые токены `run.command` | По ним `warrant guard` отклоняет прямой запуск |
+| `guard_prefixes` | первые токены `run.command` до флага или плейсхолдера; у интерпретатора (`node`, `deno`, `bun`, `python`, `python3`, `ruby`) — плюс флаги режима (слова с `-` без `=` и `{`), сверяемые в любом порядке ([ADR-0042](adr/WARRANT-ADR-0042-lattice-fixes.md) п. 3) | По ним `warrant guard` отклоняет прямой запуск; явные префиксы — строго по словам |
 
 - Замок занят → код `2`, `errors[0].code: "BUSY"` с держателем замка; `--wait` ждёт до `timeout_s` (CI; later).
   Замок мёртвого pid снимается автоматически с записью в журнал Run (later, D-23).
@@ -231,6 +231,13 @@ Reviewer ищет:
 В MVP (фаза 4b) reviewer — отдельный Run `review` ([03 §4](03-architecture.md)): skill `specification/adversarial-review`
 исполняет субагент Claude Code `warrant-reviewer` (генерирует `warrant sync`), результат сдаёт `warrant run submit`;
 evidence `review` судит gate `adversarial-review` на `SPECIFIED->APPROVED` ([02 §2](02-vocabulary.md)).
+
+Сдача — файлом ([ADR-0042](adr/WARRANT-ADR-0042-lattice-fixes.md) п. 4): субагент записывает envelope инструментом `Write`
+в `<RUN-id>.envelope.json` scratchpad сессии во временном каталоге ОС (нет scratchpad — прямо во временный каталог), затем из
+корня проекта выполняет `warrant run submit --file <путь> --dry-run` и ту же команду без `--dry-run`. Под Run `review` guard
+разрешает запись только во временный каталог ОС вне проекта: файл проекта — `deny`, путь вне проекта и временного каталога —
+`deny` с hint, называющим каталог. Envelope не по схеме — `SKILL_RESULT_INVALID` с `data.received{ bytes, root, keys }`
+(размер, тип корня, ключи верхнего уровня; значения не выводятся).
 
 ## 8. CI — последняя инстанция
 

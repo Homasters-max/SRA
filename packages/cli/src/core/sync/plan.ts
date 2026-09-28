@@ -93,10 +93,11 @@ export interface SyncPlan {
 
 /**
  * A finding of `sync`: reported in `data.findings[]`, never an error — the exit
- * code stays with the files (REQ-KRN-033, BL-40).
+ * code stays with the files (REQ-KRN-033, BL-40). `FRONTEND_RESTART_REQUIRED`
+ * is not planned: `apply.ts` gives it for the files it wrote (ADR-0042 п. 5).
  */
 export interface SyncFinding {
-  code: "REVIEWER_SKILL_MISSING";
+  code: "REVIEWER_SKILL_MISSING" | "FRONTEND_RESTART_REQUIRED";
   path: string;
   hint: string;
 }

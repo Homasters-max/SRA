@@ -77,23 +77,57 @@ function split(words: readonly string[], dropAssignments = true): string[][] {
 }
 
 /**
+ * A `guard_prefixes` entry: the leading `words` a simple command must start
+ * with and the mode `flags` it must also hold, in any order after the first
+ * word (only a default prefix of an interpreter has flags, ADR-0042 п. 3).
+ */
+export interface GuardPrefix {
+  words: string[];
+  flags: string[];
+}
+
+/** Interpreters whose check is chosen by flags (`node --test`), not by the next word (ADR-0042 п. 3). */
+export const INTERPRETERS: readonly string[] = ["node", "deno", "bun", "python", "python3", "ruby"];
+
+/**
  * The default `guard_prefixes` entry of a check (ADR-0017 п. 5): the words of
  * `run.command` before the first that starts with `-` or holds a placeholder
- * `{…}` — `["pytest", "-q"]` → `["pytest"]`. The pair `-m <module>` right
- * after the first word belongs to the prefix: `python -m pytest` is the
- * check, `python` alone would also forbid `python -` (BL-61, SCN-ENF-037).
+ * `{…}` — `["pytest", "-q"]` → `pytest`. The pair `-m <module>` right after
+ * the first word belongs to the prefix: `python -m pytest` is the check,
+ * `python` alone would also forbid `python -` (BL-61, SCN-ENF-037). When that
+ * leaves a single interpreter word, the mode flags of the command — words
+ * with `-` and without `=` or `{` — join it: `node --experimental-strip-types
+ * --test …` → `node` + {`--experimental-strip-types`, `--test`}, so `node -e`
+ * and scripts stay allowed (ADR-0042 п. 3, SCN-ENF-040).
  */
-export function defaultPrefix(command: readonly string[]): string[] {
+export function defaultPrefix(command: readonly string[]): GuardPrefix {
   const plain = (word: string | undefined): word is string => word !== undefined && !word.startsWith("-") && !word.includes("{");
   const [first, flag, module] = command;
-  if (!plain(first)) return [];
+  if (!plain(first)) return { words: [], flags: [] };
   const withModule = flag === "-m" && plain(module);
-  const out = withModule ? [first, flag, module] : [first];
-  for (const word of command.slice(out.length)) {
+  const words = withModule ? [first, flag, module] : [first];
+  for (const word of command.slice(words.length)) {
     if (!plain(word)) break;
-    out.push(word);
+    words.push(word);
   }
-  return out;
+  if (words.length > 1 || !INTERPRETERS.includes(first)) return { words, flags: [] };
+  const flags: string[] = [];
+  for (const word of command.slice(1)) {
+    if (word.startsWith("-") && !word.includes("=") && !word.includes("{") && !flags.includes(word)) flags.push(word);
+  }
+  return { words, flags };
+}
+
+/** True when the simple command starts with the words of `prefix` and holds each of its flags after the first word. */
+export function matchesPrefix(command: readonly string[], prefix: GuardPrefix): boolean {
+  if (!startsWithPrefix(command, prefix.words)) return false;
+  const rest = command.slice(1);
+  return prefix.flags.every((flag) => rest.includes(flag));
+}
+
+/** Text of a prefix for a reason: its words, then its flags in braces. */
+export function prefixText(prefix: GuardPrefix): string {
+  return prefix.flags.length === 0 ? prefix.words.join(" ") : `${prefix.words.join(" ")} {${prefix.flags.join(", ")}}`;
 }
 
 /** True when the simple command starts with every word of `prefix` (a non-empty prefix). */

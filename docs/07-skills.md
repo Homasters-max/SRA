@@ -98,6 +98,12 @@ Change + relevant specs + relevant ADR + glossary + affected files + relevant te
 `warrant run submit` только от Run `review` ([04 §7](04-lifecycle.md)); приём `specify` и `implement`, выдача stable ID для
 `unknowns[]` и `decisions_required[]` — позже.
 
+Envelope сдаётся файлом, а не в тексте команды — предел длины команды не ограничивает размер результата
+([ADR-0042](adr/WARRANT-ADR-0042-lattice-fixes.md) п. 4, [ADR-0043](adr/WARRANT-ADR-0043-long-command.md)): исполнитель
+записывает его во временный каталог ОС вне проекта (у Claude Code — scratchpad сессии) и сдаёт
+`warrant run submit --file <путь>`, сначала с `--dry-run`. Ошибка `SKILL_RESULT_INVALID` несёт `data.received{ bytes, root,
+keys }` — что получено, без значений ([06 §7](06-verification.md)).
+
 Правила:
 
 - `run_state` — единственный статус skill. Skill MUST NOT выносить `gate_verdict` или `evidence_status`.

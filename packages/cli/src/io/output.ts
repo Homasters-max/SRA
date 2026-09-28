@@ -31,7 +31,7 @@ export function formatEnvelope(envelope: Envelope): string {
 
 /** Builds a failing result from a catalogued error. */
 export function failure(error: WarrantError, change?: string): CommandResult {
-  const result: CommandResult = { ok: false, data: {}, errors: [error.toCliError()], exitCode: error.exitCode };
+  const result: CommandResult = { ok: false, data: error.data ?? {}, errors: [error.toCliError()], exitCode: error.exitCode };
   if (change !== undefined) result.change = change;
   return result;
 }

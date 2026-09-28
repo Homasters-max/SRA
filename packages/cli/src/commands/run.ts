@@ -182,11 +182,15 @@ async function submit(ctx: Ctx, opts: RunSubmitOptions, readInput: () => Promise
     }
     const absolute = path.resolve(root, opts.file);
     const source = reportPath(absolute, root);
+    let text: string;
     try {
-      return { text: readFileSync(absolute, "utf8").replace(/^﻿/, ""), source };
+      text = readFileSync(absolute, "utf8").replace(/^﻿/, "");
     } catch (cause) {
       throw new WarrantError("USAGE", `cannot read the envelope ${source}: ${(cause as Error).message}`, { path: source, hint: SUBMIT_USAGE });
     }
+    // An empty or blank file is no envelope, as an empty stdin (I-199).
+    if (text.trim() === "") throw new WarrantError("USAGE", `no envelope: ${source} is empty`, { path: source, hint: SUBMIT_USAGE });
+    return { text, source };
   };
   const done = await submitReview(ctx, read, env);
   return success(

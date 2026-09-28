@@ -3,7 +3,9 @@
  * functions of the Run, the loaded project and the paths of the event.
  *
  * - `edit` with an active Run — `deny` for a path outside `write_scope` or a
- *   non-empty `scope` (F1); under a `review` Run — `deny` for any path;
+ *   non-empty `scope` (F1); under a `review` Run — `deny` for any path of the
+ *   project and for a path outside it that is not in the temporary directory,
+ *   where the envelope file goes (ADR-0042 п. 4, I-198);
  * - `shell` under a `review` Run — `allow` only for the strict form of
  *   `warrant run submit [--file <path>] [--dry-run]`;
  * - `edit` without one — `deny` for the paths of code, tests, Changes and the
@@ -23,7 +25,7 @@ import type { LoadResult } from "../packs/types.js";
 import { codeScope, scopeMatcher } from "../run/scope.js";
 import type { GuardResult } from "../ports/frontend.js";
 import type { Run } from "../run/types.js";
-import { defaultPrefix, leafCommands, simpleCommands, startsWithPrefix } from "./shell.js";
+import { defaultPrefix, type GuardPrefix, leafCommands, matchesPrefix, prefixText, simpleCommands, startsWithPrefix } from "./shell.js";
 
 /** What guard answers, and the `argv` its event keeps (only a `deny` by a prefix, F16). */
 export interface Answer extends GuardResult {
@@ -98,6 +100,43 @@ function denyHints(files: readonly string[], classes: PathClasses, fallback: str
   return [...hints];
 }
 
+/** Where an edit outside the project lands under a `review` Run (ADR-0042 п. 4). */
+export interface ReviewEditPlaces {
+  /** The temporary directory, real path: the only place a review Run writes (its envelope file). */
+  tempDir: string;
+  /** The temporary directory lies inside the project: an envelope cannot be written anywhere (I-198). */
+  tempInProject: boolean;
+  /** Paths of the event outside the project and outside the temporary directory. */
+  strays: number;
+}
+
+/**
+ * `pre` `edit` under a `review` Run: any path of the project — `deny`, the Run
+ * only reads; a path outside it and outside the temporary directory — `deny`,
+ * with the directory in the hint only: the reason goes to `guard_events[]`,
+ * which is committed, and must not carry a path of the user's disk (I-198);
+ * the envelope file in the temporary directory — `allow`.
+ */
+export function reviewEditAnswer(run: Run, files: readonly string[], places: ReviewEditPlaces): Answer {
+  const writeThere = `write the envelope file into ${places.tempDir} and run \`warrant run submit --file <that file>\``;
+  if (files.length > 0) {
+    const tempInside = places.tempInProject ? "; the temporary directory lies inside the project, so an envelope cannot be written at all" : "";
+    return {
+      decision: "deny",
+      reason: `${files.join(", ")}: the Run ${run.id} of ${run.change} is a review, and a review Run only reads${tempInside}`,
+      hints: places.tempInProject ? [SUBMIT_HINT] : [SUBMIT_HINT, writeThere]
+    };
+  }
+  if (places.strays > 0) {
+    return {
+      decision: "deny",
+      reason: `an edit outside the project under the review Run ${run.id} of ${run.change}: a review Run writes only its envelope file, into the temporary directory`,
+      hints: [writeThere]
+    };
+  }
+  return allow();
+}
+
 /**
  * `pre` `edit` with the active Run: every path inside `write_scope` and a
  * non-empty `scope`; none under a `review` Run. `classes` is asked only for a
@@ -145,7 +184,7 @@ export interface GuardedCheck {
   id: string;
   /** Why: `execution.exclusive: true` or `execution.local: "<value>"`. */
   why: string;
-  prefixes: string[][];
+  prefixes: GuardPrefix[];
   /** It has `run.scoped_command`: `warrant check` runs it over `--paths`. */
   scoped: boolean;
 }
@@ -153,7 +192,7 @@ export interface GuardedCheck {
 /**
  * Checks with `execution.exclusive: true` or `execution.local` other than
  * `allowed` (ADR-0017 п. 5), sorted by id: their `execution.guard_prefixes`,
- * by default the first words of `run.command` (`defaultPrefix`).
+ * by default `defaultPrefix` of `run.command`; a declared prefix has no flags.
  */
 export function guardedChecks(loaded: LoadResult): GuardedCheck[] {
   const out: GuardedCheck[] = [];
@@ -167,8 +206,8 @@ export function guardedChecks(loaded: LoadResult): GuardedCheck[] {
     const run = isPlainObject(check["run"]) ? check["run"] : {};
     const declared = execution["guard_prefixes"];
     const prefixes = Array.isArray(declared)
-      ? declared.map((prefix) => strings(prefix)).filter((prefix) => prefix.length > 0)
-      : [defaultPrefix(strings(run["command"]))].filter((prefix) => prefix.length > 0);
+      ? declared.map((prefix) => ({ words: strings(prefix), flags: [] })).filter((prefix) => prefix.words.length > 0)
+      : [defaultPrefix(strings(run["command"]))].filter((prefix) => prefix.words.length > 0);
     out.push({ id: object.id, why, prefixes, scoped: strings(run["scoped_command"]).length > 0 });
   }
   return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -226,11 +265,11 @@ export function shellAnswer(argv: readonly string[] | undefined, checks: readonl
   if (argv === undefined || checks.length === 0) return allow();
   for (const command of simpleCommands(argv)) {
     for (const check of checks) {
-      const prefix = check.prefixes.find((p) => startsWithPrefix(command, p));
+      const prefix = check.prefixes.find((p) => matchesPrefix(command, p));
       if (prefix === undefined) continue;
       return {
         decision: "deny",
-        reason: `\`${command.join(" ")}\` runs check ${check.id} directly (prefix \`${prefix.join(" ")}\`, ${check.why}): it runs only through warrant check`,
+        reason: `\`${command.join(" ")}\` runs check ${check.id} directly (prefix \`${prefixText(prefix)}\`, ${check.why}): it runs only through warrant check`,
         hints: [`warrant check ${change ?? "<change>"} ${check.id}${check.scoped ? " [--paths <a,b>]" : ""}`],
         argv: [...argv]
       };

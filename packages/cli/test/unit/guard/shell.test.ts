@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 
 import { reviewShellAnswer, SUBMIT_HINT } from "../../../src/core/guard/decide.js";
-import { defaultPrefix, leafCommands, simpleCommands, startsWithPrefix } from "../../../src/core/guard/shell.js";
+import { defaultPrefix, leafCommands, matchesPrefix, simpleCommands, startsWithPrefix } from "../../../src/core/guard/shell.js";
 import type { Run } from "../../../src/core/run/types.js";
 import { shellWords } from "../../../src/core/shell.js";
 
@@ -233,20 +233,43 @@ describe("reviewShellAnswer (REQ-ENF-004)", () => {
   });
 });
 
-describe("defaultPrefix and startsWithPrefix", () => {
+describe("defaultPrefix, matchesPrefix and startsWithPrefix", () => {
+  const w = (...words: string[]) => ({ words, flags: [] });
   it("the words of run.command before the first flag or placeholder", () => {
-    expect(defaultPrefix(["pytest", "-q"])).toEqual(["pytest"]);
-    expect(defaultPrefix(["npm", "test", "--", "--reporter=junit"])).toEqual(["npm", "test"]);
-    expect(defaultPrefix(["openspec", "validate", "{change}", "--strict"])).toEqual(["openspec", "validate"]);
-    expect(defaultPrefix(["-x"])).toEqual([]);
+    expect(defaultPrefix(["pytest", "-q"])).toEqual(w("pytest"));
+    expect(defaultPrefix(["npm", "test", "--", "--reporter=junit"])).toEqual(w("npm", "test"));
+    expect(defaultPrefix(["openspec", "validate", "{change}", "--strict"])).toEqual(w("openspec", "validate"));
+    expect(defaultPrefix(["-x"])).toEqual(w());
   });
 
   it("keeps the pair -m <module> right after the first word (BL-61, SCN-ENF-037)", () => {
-    expect(defaultPrefix(["python", "-m", "pytest", "--junitxml={out}"])).toEqual(["python", "-m", "pytest"]);
-    expect(defaultPrefix(["python3", "-m", "unittest", "discover", "-s", "tests"])).toEqual(["python3", "-m", "unittest", "discover"]);
-    expect(defaultPrefix(["python", "-m", "{module}"])).toEqual(["python"]);
-    expect(defaultPrefix(["python", "-X", "dev", "-m", "pytest"])).toEqual(["python"]);
-    expect(startsWithPrefix(["python", "-"], defaultPrefix(["python", "-m", "pytest"]))).toBe(false);
+    expect(defaultPrefix(["python", "-m", "pytest", "--junitxml={out}"])).toEqual(w("python", "-m", "pytest"));
+    expect(defaultPrefix(["python3", "-m", "unittest", "discover", "-s", "tests"])).toEqual(w("python3", "-m", "unittest", "discover"));
+    expect(startsWithPrefix(["python", "-"], defaultPrefix(["python", "-m", "pytest"]).words)).toBe(false);
+  });
+
+  it("SCN-ENF-040 a single interpreter word takes the mode flags of the command: no =, no placeholder, no repeats", () => {
+    const lattice = ["node", "--experimental-strip-types", "--test", "--test-reporter=junit", "--test-reporter-destination={out}/junit.xml", "test/**/*.test.ts"];
+    expect(defaultPrefix(lattice)).toEqual({ words: ["node"], flags: ["--experimental-strip-types", "--test"] });
+    expect(defaultPrefix(["node", "--test", "--test", "{out}"])).toEqual({ words: ["node"], flags: ["--test"] });
+    expect(defaultPrefix(["python", "-X", "dev", "-m", "pytest"])).toEqual({ words: ["python"], flags: ["-X", "-m"] });
+    expect(defaultPrefix(["python", "-m", "{module}"])).toEqual({ words: ["python"], flags: ["-m"] });
+    // an interpreter with a plain next word and a non-interpreter keep the word rule
+    expect(defaultPrefix(["node", "scripts/test.js", "--ci"])).toEqual(w("node", "scripts/test.js"));
+    expect(defaultPrefix(["vitest", "--run"])).toEqual(w("vitest"));
+    // an interpreter without mode flags stays a single word
+    expect(defaultPrefix(["node", "--reporter=junit"])).toEqual(w("node"));
+  });
+
+  it("SCN-ENF-040 a flagged prefix matches the interpreter holding every flag, in any order", () => {
+    const prefix = { words: ["node"], flags: ["--experimental-strip-types", "--test"] };
+    expect(matchesPrefix(["node", "--test", "--experimental-strip-types", "test/a.test.ts"], prefix)).toBe(true);
+    expect(matchesPrefix(["node", "--experimental-strip-types", "--test"], prefix)).toBe(true);
+    expect(matchesPrefix(["node", "--test", "x"], prefix)).toBe(false);
+    expect(matchesPrefix(["node", "-e", "1"], prefix)).toBe(false);
+    expect(matchesPrefix(["node", "--version"], prefix)).toBe(false);
+    expect(matchesPrefix(["deno", "--test", "--experimental-strip-types"], prefix)).toBe(false);
+    expect(matchesPrefix(["pytest", "tests/"], w("pytest"))).toBe(true);
   });
 
   it("a command matches a non-empty prefix word by word", () => {

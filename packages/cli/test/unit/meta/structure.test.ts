@@ -5,7 +5,7 @@
  * `scripts/`, `docs/`, `openspec/` (git would take the file for binary and hide its diff, A-22); `docs/` holds only
  * `.md` and `.json`, kebab-case latin names — normative `NN[a-z]?-<topic>.md`, ADR `WARRANT-ADR-NNNN-<slug>.md`, dated
  * `YYYY-MM-DD-<topic>` in `docs/archive/` and `docs/process/audits/`, `README.md` anywhere. `lattice/` is not ours
- * (`CLAUDE.md`) and is not walked.
+ * (`AGENTS.md`) and is not walked.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -22,7 +22,7 @@ const ROOT_WHITE_LIST = [
   ".github",
   ".gitignore",
   ".warrant",
-  "CLAUDE.md",
+  "AGENTS.md",
   "README.md",
   "docs",
   "lattice",

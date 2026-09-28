@@ -22,7 +22,12 @@
 3. После slice LATTICE (Q13): [03-query-path](03-query-path.md) (промпты, пороги по данным — Q34), [04-agent-workflow](04-agent-workflow.md), [05-conflicts](05-conflicts.md), [06-bench](06-bench.md), [07-doc-form](07-doc-form.md).
 4. Решены полностью: [08-architecture](08-architecture.md) (Q1–Q8), [09-assessment-records](09-assessment-records.md) (Q19–Q25, заменено ядром), [02-entity-model](02-entity-model.md) (заменён LATTICE, Q13; классификация — lattice-first 03).
 
- поиск по алиасам глоссария, обучаемые алиасы, риск ошибки LLM. 4. [04-agent-workflow](04-agent-workflow.md) — пакет норм координатора, бюджет кодера, `--by-code` ревьюера. 5. [05-conflicts](05-conflicts.md) — 37 противоречий, найденных нарезкой. 6. [06-bench](06-bench.md) — методика стенда: наборы, ловушки, пустышки, критерии, уроки. 7. [07-doc-form](07-doc-form.md) — форма документов (заголовки, `description`) — после 1–6, не обязательна.
+ поиск по алиасам глоссария, обучаемые алиасы, риск ошибки LLM.
+
+4. [04-agent-workflow](04-agent-workflow.md) — пакет норм координатора, бюджет кодера, `--by-code` ревьюера.
+5. [05-conflicts](05-conflicts.md) — 37 противоречий, найденных нарезкой.
+6. [06-bench](06-bench.md) — методика стенда: наборы, ловушки, пустышки, критерии, уроки.
+7. [07-doc-form](07-doc-form.md) — форма документов (заголовки, `description`) — после 1–6, не обязательна.
 
 ## Сквозные вопросы
 

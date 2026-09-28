@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://change-record/1",
   "change": "lattice-issues",
-  "change_state": "PROPOSED",
+  "change_state": "SPECIFIED",
   "classification": {
     "profiles": [
       "chore",
@@ -13,6 +13,20 @@
       "to": "PROPOSED",
       "at": "2026-09-28T21:25:42.745Z",
       "by": "cli:local"
+    },
+    {
+      "to": "SPECIFIED",
+      "at": "2026-09-28T21:44:59.769Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+      "gates": {
+        "ids-valid": "PASS",
+        "required-artifacts-present": "PASS",
+        "spec-valid": "PASS"
+      },
+      "evidence": [
+        "EVID-01M3MZMR6XFNM8VTEWZNP48JN3"
+      ]
     }
   ]
 }

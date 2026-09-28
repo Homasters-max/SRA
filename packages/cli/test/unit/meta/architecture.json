@@ -67,6 +67,8 @@
     { "name": "scenariosOf", "owner": "core/evidence/parsers/junit.ts" },
     { "name": "packObjects", "owner": "core/packs/objects.ts" },
     { "name": "gateDefinitions", "owner": "core/packs/objects.ts" },
+    { "name": "effectiveCheck", "owner": "core/packs/objects.ts" },
+    { "name": "gateCheckErrors", "owner": "core/packs/objects.ts" },
     { "name": "policyPaths", "owner": "core/packs/objects.ts" },
     { "name": "packSkills", "owner": "core/packs/objects.ts" },
     { "name": "evidenceSubject", "owner": "core/evidence/record.ts" },

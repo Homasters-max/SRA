@@ -11,14 +11,15 @@
  * What each rule requires comes from the base; no verdict is computed again.
  */
 import { canonicalHash } from "../canon/hash.js";
-import { checksForTransition, effectiveCheck } from "../check/execute.js";
+import { checksForTransition } from "../check/execute.js";
 import type { Ctx } from "../ctx.js";
 import { cliError, type CliError } from "../errors.js";
 import { attestationOf } from "../evidence/attestation.js";
 import { evidenceRel } from "../evidence/store.js";
 import { isPlainObject, strings } from "../json.js";
 import { PASSING_VERDICTS, MERGE_TRANSITION, type Verdict } from "../gates/types.js";
-import { FACTORY_PROFILE, gateDefinitions } from "../packs/objects.js";
+import { requirementsOf, satisfies } from "../gates/verdict.js";
+import { effectiveCheck, FACTORY_PROFILE, gateDefinitions } from "../packs/objects.js";
 import { isFrozen, isMergeKind, transitionKind, UNKNOWNS_HELD_STATES } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
 import { recordPath } from "../record/write.js";
@@ -107,11 +108,6 @@ function checkKinds(base: BaseContext, policy: Parameters<typeof checksForTransi
   return new Set(checksForTransition(base.loaded, policy, MERGE_TRANSITION).flatMap((o) => strings(effectiveCheck(o)["produces"])));
 }
 
-/** Kinds of `requires_evidence` of a gate of the base. */
-function requiredKinds(base: BaseContext, gate: string): string[] {
-  const required = gateDefinitions(base.loaded).get(gate)?.["requires_evidence"];
-  return Array.isArray(required) ? required.flatMap((r) => (isPlainObject(r) && typeof r["kind"] === "string" ? [r["kind"]] : [])) : [];
-}
 
 /** Rules of a new `MERGED` (I-172): the policy of the base, CI evidence behind the gates that checks feed. */
 function mergedRules(
@@ -142,16 +138,19 @@ function mergedRules(
   }
   const produced = checkKinds(base, policy);
   const ids = strings(t.entry["evidence"]);
+  const definitions = gateDefinitions(base.loaded);
   for (const [gate, verdict] of Object.entries(gates)) {
     if (verdict !== "PASS") continue;
-    for (const kind of requiredKinds(base, gate).filter((k) => produced.has(k))) {
+    // A requirement with `check` is backed only by a CI record of that check (ADR-0044 п. 6, I-205).
+    for (const requirement of requirementsOf(definitions.get(gate)).filter((r) => produced.has(r.kind))) {
       const backed = ids.some((id) => {
         const json = evidence.get(id);
-        return json?.["kind"] === kind && attestationOf(json).type === "ci";
+        return json !== undefined && satisfies(requirement, { id, json }) && attestationOf(json).type === "ci";
       });
       if (!backed) {
+        const what = `${requirement.kind} record${requirement.check === undefined ? "" : ` of check ${requirement.check}`}`;
         errors.push(
-          mismatch(change, label(t), "ci_evidence", `gate ${gate} is PASS, but evidence[] holds no ${kind} record with attestation.type "ci"`, `#/transitions/${t.index}/evidence`)
+          mismatch(change, label(t), "ci_evidence", `gate ${gate} is PASS, but evidence[] holds no ${what} with attestation.type "ci"`, `#/transitions/${t.index}/evidence`)
         );
       }
     }

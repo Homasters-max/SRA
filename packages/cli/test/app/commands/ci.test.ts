@@ -532,7 +532,8 @@ describe("warrant ci: decisions of UNKNOWNs through the forge (REQ-VER-013)", ()
  * CI records — run 42, attempt 1, whose artifact `evidence-add-search-1` the
  * fake forge holds (`artifact: false` — expired); the archive branch commits
  * them with `transition MERGED --ref` of the impl-PR (pull 9) and, with
- * `archive`, `warrant archive`; `main` merges the archive branch: HEAD.
+ * `archive`, `warrant archive`; `main` — after one more commit of `base`,
+ * when given — merges the archive branch: HEAD.
  */
 async function archivePr(
   options: {
@@ -542,6 +543,7 @@ async function archivePr(
     archive?: boolean;
     work?: (p: ProjectBuilder, evidence: string[]) => void;
     record?: (record: Data) => void;
+    base?: (p: ProjectBuilder) => void;
   } = {}
 ): Promise<{ p: ProjectBuilder; m: string; head: string; evidence: string[] }> {
   const p = await changeRepo("IMPLEMENTING", CHORE, (b) => b.write(".warrant/warrant.json", { ...b.json(".warrant/warrant.json"), paths: { src: "src" } }));
@@ -573,6 +575,10 @@ async function archivePr(
   options.work?.(p, evidence);
   p.commit("archive: MERGED");
   p.checkout("main", { force: true });
+  if (options.base !== undefined) {
+    options.base(p);
+    p.commit("base of the archive-PR");
+  }
   p.merge("archive/add-search", { label: "Merge archive" });
   return { p, m: impl.merge, head: impl.head, evidence };
 }
@@ -596,7 +602,7 @@ describe("warrant ci: archive-PR", () => {
     expect(result.exitCode).toBe(1);
   });
 
-  it("MERGED with a PASS gate of checks but no CI record: ci_evidence; with empty gates: policy (SCN-VER-108)", async () => {
+  it("MERGED with a PASS gate of checks but no CI record: ci_evidence; with empty gates: policy; a CI record of another check: ci_evidence (SCN-VER-108)", async () => {
     const local = await archivePr({
       record: (record) => {
         const merged = record.transitions.at(-1);
@@ -612,6 +618,35 @@ describe("warrant ci: archive-PR", () => {
     const policy = await ci(empty.p);
     expect(policy.errors.filter((e) => e.code === "RECORD_MISMATCH").map((e) => e.message.includes(": policy: "))).toEqual([true]);
     expect(policy.exitCode).toBe(1);
+
+    // The base narrows tests-passed to check dev-check: the CI record of tests-passed does not back it (I-205).
+    const narrowed = await archivePr({
+      base: (b) => {
+        b.write(".warrant/local/checks/dev-check.json", {
+          $schema: "warrant://check/1",
+          id: "dev-check",
+          version: "1.0.0",
+          level: "L1",
+          produces: ["test-report"],
+          parser: "junit",
+          run: { command: ["dev-tests", "{out}"] }
+        });
+        b.write(".warrant/local/gates/tests-passed.json", {
+          $schema: "warrant://gate/1",
+          id: "tests-passed",
+          version: "1.0.0",
+          overrides: "core-sdd:tests-passed",
+          level: "L1",
+          requires_evidence: [{ kind: "test-report", status: "PROVEN", check: "dev-check" }],
+          waivable: false,
+          accepts_attestation: ["ci"]
+        });
+      }
+    });
+    const other = await ci(narrowed.p);
+    const mismatches = other.errors.filter((e) => e.code === "RECORD_MISMATCH").map((e) => e.message);
+    expect(mismatches.filter((m) => m.includes("ci_evidence"))).toEqual([expect.stringContaining("test-report record of check dev-check")]);
+    expect(other.exitCode).toBe(1);
   });
 
   it("the forge unreachable while a ref needs it: FORGE_UNAVAILABLE with the hint, exit 3 (SCN-VER-084)", async () => {

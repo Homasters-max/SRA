@@ -44,16 +44,16 @@
 
 ## 4. Gate по check (S-2, L6)
 
-- [ ] 4.1 `gate/1` — `requires_evidence[].check` (`packages/cli/schemas/gate.1.schema.json`), копии — `warrant sync`.
+- [x] 4.1 `gate/1` — `requires_evidence[].check` (`packages/cli/schemas/gate.1.schema.json`), копии — `warrant sync`.
 
   Проверка: unit схем — SCN-KRN-159.
-- [ ] 4.2 `evidencePart`, `checksForTransition`, `weakenings` (§5); `CONFIG_INVALID` для `check` на незагруженный check (I-204).
+- [x] 4.2 `evidencePart`, `checksForTransition`, `weakenings` (§5); `CONFIG_INVALID` для `check` на незагруженный check (I-204).
 
   Проверка: app `gate`, `check` — SCN-VER-119, SCN-VER-123; прочие SCN REQ-VER-003 без правок ожидаемых значений.
-- [ ] 4.4 `warrant ci`, правило `ci_evidence` (§5): запись check требования.
+- [x] 4.4 `warrant ci`, правило `ci_evidence` (§5): запись check требования.
 
   Проверка: app `ci` — SCN-VER-108, вариант с `check` (I-205).
-- [ ] 4.3 `validate` — ссылка `check` (§5).
+- [x] 4.3 `validate` — ссылка `check` (§5).
 
   Проверка: app `validate` — SCN-KRN-156.
 

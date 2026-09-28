@@ -33,6 +33,7 @@ import { absolutePath, projectPath, reportPath, walkFiles } from "../fs.js";
 import { checkImmutableFiles, checkImmutableIds } from "../ids/immutable.js";
 import { checkIds, checkIdsIn, loadAreas, scanIds, type FoundId, type ScanResult } from "../ids/scan.js";
 import { checkLock, LOCK_REL } from "../packs/hash.js";
+import { gateCheckErrors } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import { readAllRecords, type RecordFile } from "../record/read.js";
 import { validateFile } from "../schemas/semantic.js";
@@ -146,11 +147,15 @@ function checkWarrantFiles(v: ValidateRun, files?: readonly string[]): CliError[
 /** The checks of `validate`, in the order of REQ-KRN-021 as the command has always run them. */
 export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
   {
-    // Loaded by `validateRun`: its errors are those of checks (1) and (3) for config, packs and overrides.
+    // Loaded by `validateRun`: its errors are those of checks (1) and (3) for config, packs and overrides;
+    // plus `requires_evidence[].check` of every loaded gate against the loaded checks (check (3), ADR-0044 п. 6).
     id: "packs", // check (1), (3)
     level: "file",
     appliesTo: (file) => (isWarrantJson(file) && file !== LOCK_REL) || /^packs\/.+\.json$/.test(file),
-    run: async (v, files) => (files === undefined ? v.loaded.errors : findingsOf(v.loaded.errors, files))
+    run: async (v, files) => {
+      const errors = [...v.loaded.errors, ...gateCheckErrors(v.loaded)];
+      return files === undefined ? errors : findingsOf(errors, files);
+    }
   },
   {
     id: "schema", // check (1)

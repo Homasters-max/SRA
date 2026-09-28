@@ -8,7 +8,7 @@
  * `FAIL` or `BLOCKED` is a violation, except a gate that only `warrant
  * transition` can feed (`human-approval`): it is deferred.
  */
-import { checksForTransition, effectiveCheck, executeChecks, type ChecksRun } from "../check/execute.js";
+import { checksForTransition, executeChecks, type ChecksRun } from "../check/execute.js";
 import { canonicalHash } from "../canon/hash.js";
 import { loadConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
@@ -20,7 +20,7 @@ import { reportPath } from "../fs.js";
 import { MERGE_TRANSITION, PASSING_VERDICTS, type Finding, type Verdict } from "../gates/types.js";
 import type { GitFacts } from "../git/facts.js";
 import { isPlainObject, strings } from "../json.js";
-import { gateDefinitions } from "../packs/objects.js";
+import { effectiveCheck, gateDefinitions } from "../packs/objects.js";
 import type { ChangeRecord } from "../record/read.js";
 import { judgeGates, prepare, type Prepared } from "../transition/evaluate.js";
 import { evaluationFindings, hooksFindings } from "../transition/gates.js";

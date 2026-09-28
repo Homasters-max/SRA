@@ -426,3 +426,46 @@ describe("warrant validate: id equals the file base name (task 3.6)", () => {
     expect(finding?.message).toContain("quiet");
   });
 });
+
+describe("warrant validate: requires_evidence[].check (ADR-0044 п. 6)", () => {
+  const devCheck = (produces: string[]): object => ({
+    $schema: "warrant://check/1",
+    id: "dev-check",
+    version: "1.0.0",
+    level: "L1",
+    produces,
+    parser: "junit",
+    run: { command: ["dev-tests", "{out}"] }
+  });
+
+  it("names a check that is not loaded or does not produce the kind; a producing check passes (SCN-KRN-156)", async () => {
+    const p = await project().synced();
+    p.write(".warrant/local/gates/dev-passed.json", {
+      $schema: "warrant://gate/1",
+      id: "dev-passed",
+      version: "1.0.0",
+      level: "L1",
+      requires_evidence: [{ kind: "test-report", status: "PROVEN", check: "dev-check" }],
+      waivable: false
+    });
+
+    const missing = await validate(p);
+    expect(missing.errors).toEqual([
+      expect.objectContaining({ code: "CONFIG_INVALID", path: ".warrant/local/gates/dev-passed.json#/requires_evidence/0/check" })
+    ]);
+    expect(missing.errors[0]?.message).toContain("dev-check");
+    expect(missing.exitCode).toBe(3);
+
+    p.write(".warrant/local/checks/dev-check.json", devCheck(["spec-report"]));
+    const other = await validate(p);
+    expect(other.errors).toEqual([
+      expect.objectContaining({ code: "CONFIG_INVALID", path: ".warrant/local/gates/dev-passed.json#/requires_evidence/0/check" })
+    ]);
+    expect(other.exitCode).toBe(3);
+
+    p.write(".warrant/local/checks/dev-check.json", devCheck(["test-report"]));
+    const valid = await validate(p);
+    expect(valid.errors).toEqual([]);
+    expect(valid.exitCode).toBe(0);
+  });
+});

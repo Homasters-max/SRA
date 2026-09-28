@@ -405,4 +405,112 @@ describe("warrant check outside git", () => {
     expect(evidence.limitations).toEqual(["no git: commit unknown"]);
     expect(await validateErrors(p)).toEqual([]);
   });
+
+  describe("requires_evidence[].check (ADR-0044 п. 6)", () => {
+    const FEATURE = { classification: { profiles: ["feature"] } };
+
+    /** Project check `dev-check` producing `test-report` by the fake command `dev-tests {out}`. */
+    function devCheck(p: ProjectBuilder): void {
+      p.checks.on("dev-tests", (spec) => ({
+        effect: () =>
+          writeFileSync(
+            path.resolve(spec.cwd, spec.argv[1] as string, "junit.xml"),
+            '<?xml version="1.0" encoding="UTF-8" ?>\n<testsuite name="dev" tests="1" failures="0" errors="0" skipped="0">\n</testsuite>\n',
+            "utf8"
+          )
+      }));
+      p.write(".warrant/local/checks/dev-check.json", {
+        $schema: "warrant://check/1",
+        id: "dev-check",
+        version: "1.0.0",
+        level: "L1",
+        produces: ["test-report"],
+        parser: "junit",
+        run: { command: ["dev-tests", "{out}"] }
+      });
+    }
+
+    /** `core-sdd:tests-passed` narrowed to the records of `dev-check` — a strengthening override. */
+    function testsPassedOfDevCheck(p: ProjectBuilder): void {
+      p.write(".warrant/local/gates/tests-passed.json", {
+        $schema: "warrant://gate/1",
+        id: "tests-passed",
+        version: "1.0.0",
+        overrides: "core-sdd:tests-passed",
+        level: "L1",
+        requires_evidence: [{ kind: "test-report", status: "PROVEN", check: "dev-check" }],
+        waivable: false,
+        accepts_attestation: ["ci"]
+      });
+    }
+
+    const ids = (run: Result): string[] => run.data["checks"].map((c: { id: string }) => c.id);
+
+    it("runs the named check for a requirement with check and every producer for one without; the union by id (SCN-VER-123)", async () => {
+      const p = await repo("VERIFYING", FEATURE, (b) => {
+        overrideTests(b);
+        devCheck(b);
+        b.write(".warrant/local/gates/dev-passed.json", {
+          $schema: "warrant://gate/1",
+          id: "dev-passed",
+          version: "1.0.0",
+          level: "L1",
+          requires_evidence: [{ kind: "test-report", status: "PROVEN", check: "dev-check" }],
+          waivable: false
+        });
+        b.write(".warrant/local/overlays/dev-gate.json", {
+          $schema: "warrant://overlay/1",
+          id: "dev-gate",
+          version: "1.0.0",
+          match: {},
+          gates: { "VERIFYING->MERGED": ["dev-passed"] }
+        });
+      });
+      const run = await check(p, []);
+      expect(run.errors).toEqual([]);
+      expect(ids(run)).toEqual(["dev-check", "tests-passed"]);
+      expect(run.exitCode).toBe(0);
+    });
+
+    it("runs only the named check: tests-passed is neither run nor reported unconfigured (SCN-VER-123)", async () => {
+      const p = await repo("VERIFYING", FEATURE, (b) => {
+        devCheck(b);
+        testsPassedOfDevCheck(b);
+      });
+      expect(await validateErrors(p)).toEqual([]);
+      const run = await check(p, []);
+      expect(run.errors).toEqual([]);
+      expect(ids(run)).toEqual(["dev-check"]);
+      expect(run.exitCode).toBe(0);
+    });
+
+    it("refuses a check that is not loaded or does not produce the kind with CONFIG_INVALID before any check runs (SCN-VER-123, I-204)", async () => {
+      const p = await repo("VERIFYING", FEATURE, (b) => {
+        overrideTests(b);
+        testsPassedOfDevCheck(b);
+      });
+      const run = await check(p, []);
+      expect(run.errors).toHaveLength(1);
+      expect(run.errors[0]?.code).toBe("CONFIG_INVALID");
+      expect(run.errors[0]?.path).toMatch(/tests-passed\.json#\/requires_evidence\/0\/check$/);
+      expect(run.exitCode).toBe(3);
+      expect(p.checks.calls).toEqual([]);
+
+      // Loaded, but producing another kind: the same refusal.
+      p.write(".warrant/local/checks/dev-check.json", {
+        $schema: "warrant://check/1",
+        id: "dev-check",
+        version: "1.0.0",
+        level: "L1",
+        produces: ["spec-report"],
+        parser: "openspec-validate",
+        run: { command: ["dev-tests", "{out}"] }
+      });
+      const other = await check(p, []);
+      expect(other.errors[0]?.code).toBe("CONFIG_INVALID");
+      expect(other.errors[0]?.path).toMatch(/#\/requires_evidence\/0\/check$/);
+      expect(other.exitCode).toBe(3);
+      expect(p.checks.calls).toEqual([]);
+    });
+  });
 });

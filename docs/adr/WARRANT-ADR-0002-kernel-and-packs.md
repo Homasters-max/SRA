@@ -8,14 +8,12 @@ supersedes: []
 
 ## Context
 
-Исходные черновики задавали поведение прозой, настройки были разбросаны (config.yaml, policy.yaml, profiles.yaml,
-реестр skills, constitution). Любое изменение требовало правки текста в нескольких местах.
+Исходные черновики задавали поведение прозой, настройки были разбросаны (config.yaml, policy.yaml, profiles.yaml, реестр skills, constitution). Любое изменение требовало правки текста в нескольких местах.
 
 ## Decision
 
 - **Kernel**: инварианты, словарь, JSON-контракты, resolver, controller engine, CLI. Меняется редко.
-- **Packs**: подключаемые модули с profiles, gates, checks, risk overlays, controller rules, recipes, templates,
-  OpenSpec schema/rules, ссылками на skills. Подключаются в `.warrant/warrant.json`.
+- **Packs**: подключаемые модули с profiles, gates, checks, risk overlays, controller rules, recipes, templates, OpenSpec schema/rules, ссылками на skills. Подключаются в `.warrant/warrant.json`.
 - Реестр skills не описывается отдельно — это объединение манифестов packs.
 
 ## Consequences

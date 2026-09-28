@@ -8,8 +8,7 @@ version: 0.1.0
 
 # 09. Pack `data`
 
-Data governance — часть общей системы, а не вторая фабрика. Pack добавляет profiles `data-change` и `migration`,
-gates, checks и templates; цикл WARRANT не меняется.
+Data governance — часть общей системы, а не вторая фабрика. Pack добавляет profiles `data-change` и `migration`, gates, checks и templates; цикл WARRANT не меняется.
 
 ## 1. Что считается data-change
 
@@ -22,8 +21,7 @@ business rule change     source mapping change     historical backfill
 retention change         partition change          published dataset change
 ```
 
-Детекция — floor rules по путям ([05 §4](05-policy.md)) + classification proposer. При срабатывании
-автоматически требуются: data contract → migration strategy → rollback/recovery → data validation → evidence.
+Детекция — floor rules по путям ([05 §4](05-policy.md)) + classification proposer. При срабатывании автоматически требуются: data contract → migration strategy → rollback/recovery → data validation → evidence.
 
 ## 2. Data process specification
 
@@ -34,8 +32,7 @@ Trigger · Inputs · Outputs · Business semantics · Data constraints
 Failure behavior · Recovery · Quality · Idempotency · Time semantics
 ```
 
-Спецификация процесса MUST жить в OpenSpec spec (требования с ID); машиночитаемый контракт — отдельный
-artifact, связанный с этими требованиями. Он MUST NOT становиться вторым OpenSpec.
+Спецификация процесса MUST жить в OpenSpec spec (требования с ID); машиночитаемый контракт — отдельный artifact, связанный с этими требованиями. Он MUST NOT становиться вторым OpenSpec.
 
 ## 3. Data contract
 
@@ -61,8 +58,7 @@ artifact, связанный с этими требованиями. Он MUST N
 }
 ```
 
-Элементы: schema, semantics, keys, nullability, allowed values, units, time semantics, freshness,
-quality constraints, compatibility.
+Элементы: schema, semantics, keys, nullability, allowed values, units, time semantics, freshness, quality constraints, compatibility.
 
 ## 4. Compatibility engine
 
@@ -79,8 +75,7 @@ quality constraints, compatibility.
 | Изменение `time_semantics` / `timezone` | `BREAKING` (semantic) |
 | Изменение `keys.identity` | `CRITICAL` |
 
-Семантическая совместимость: `DECIMAL(12,2)` может остаться тем же типом, но `EUR → RUB` — breaking.
-Поэтому contract MUST содержать semantics, а engine сравнивает и их.
+Семантическая совместимость: `DECIMAL(12,2)` может остаться тем же типом, но `EUR → RUB` — breaking. Поэтому contract MUST содержать semantics, а engine сравнивает и их.
 
 ```json
 {
@@ -96,12 +91,9 @@ Gate `contract-compatible`: `PASS` если `COMPATIBLE`, либо `BREAKING` + 
 
 ## 5. Time semantics, idempotency, late data
 
-- Спецификация MUST явно определять: event time, effective time, load time, processing time, as-of time.
-  Агент MUST NOT молча выбирать `created_at` как временную семантику.
-- Спецификация MUST отвечать: что произойдёт при повторном запуске на том же input version.
-  Ожидание — тот же логический результат либо явно определённое иное поведение.
-- Для временных данных MUST быть определены: late event, out-of-order event, correction, reprocessing, backfill.
-  Иначе spec для этого процесса считается неполной (`MISSING`).
+- Спецификация MUST явно определять: event time, effective time, load time, processing time, as-of time. Агент MUST NOT молча выбирать `created_at` как временную семантику.
+- Спецификация MUST отвечать: что произойдёт при повторном запуске на том же input version. Ожидание — тот же логический результат либо явно определённое иное поведение.
+- Для временных данных MUST быть определены: late event, out-of-order event, correction, reprocessing, backfill. Иначе spec для этого процесса считается неполной (`MISSING`).
 
 ## 6. Уровни data quality
 
@@ -113,8 +105,7 @@ Gate `contract-compatible`: `PASS` если `COMPATIBLE`, либо `BREAKING` + 
 | Temporal | freshness, late arrival, event ordering, effective dates |
 | Reconciliation | source count vs target count, aggregates, checksums |
 
-Pipeline проверки: schema → structural → integrity → semantic → temporal → reconciliation → evidence.
-Каждый слой выдаёт machine-readable результат — evidence, а не отдельный SSOT.
+Pipeline проверки: schema → structural → integrity → semantic → temporal → reconciliation → evidence. Каждый слой выдаёт machine-readable результат — evidence, а не отдельный SSOT.
 
 ## 7. Migration
 
@@ -150,5 +141,4 @@ OpenSpec Change описывает изменение; runtime исполняе�
 
 Status: proposed · Maturity: later
 
-После исполнения: input/output version, schema version, row counts, quality results, execution time, errors,
-checksums → evidence соответствующего Change ([06a §7](06a-evidence.md)).
+После исполнения: input/output version, schema version, row counts, quality results, execution time, errors, checksums → evidence соответствующего Change ([06a §7](06a-evidence.md)).

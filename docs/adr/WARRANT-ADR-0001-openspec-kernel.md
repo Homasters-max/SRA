@@ -8,14 +8,11 @@ supersedes: []
 
 ## Context
 
-Нужен SDD-процесс для работы с AI-агентами. Собственная реализация (proposal, spec, design, tasks, archive,
-workflow engine) дублировала бы зрелый OpenSpec: change-oriented workflow, custom schemas, project config,
-validation, version-controlled specs.
+Нужен SDD-процесс для работы с AI-агентами. Собственная реализация (proposal, spec, design, tasks, archive, workflow engine) дублировала бы зрелый OpenSpec: change-oriented workflow, custom schemas, project config, validation, version-controlled specs.
 
 ## Decision
 
-OpenSpec — единственный владелец specification lifecycle. WARRANT управляет процессом вокруг него:
-policy, gates, evidence, enforcement. OpenSpec используется без форка: project-local schema + config + packs.
+OpenSpec — единственный владелец specification lifecycle. WARRANT управляет процессом вокруг него: policy, gates, evidence, enforcement. OpenSpec используется без форка: project-local schema + config + packs.
 
 ## Consequences
 

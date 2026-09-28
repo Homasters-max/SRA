@@ -19,13 +19,11 @@ ADR MUST создаваться только при **durable architectural deci
 
 Не требуют ADR: переименование, новый endpoint, новая валидация.
 
-ADR не является обязательным этапом workflow: `Need ADR? → no → continue / yes → ADR`.
-Gate `adr-present` применяется, когда profile `architecture` активен или skill отметил durable decision (DECISION в result).
+ADR не является обязательным этапом workflow: `Need ADR? → no → continue / yes → ADR`. Gate `adr-present` применяется, когда profile `architecture` активен или skill отметил durable decision (DECISION в result).
 
 ### Почему ADR живёт отдельно от Change
 
-`design.md` описывает reasoning конкретного изменения и уходит в archive вместе с ним.
-ADR живёт постоянно, чтобы будущие Changes учитывали принятые решения, а не изобретали архитектуру заново:
+`design.md` описывает reasoning конкретного изменения и уходит в archive вместе с ним. ADR живёт постоянно, чтобы будущие Changes учитывали принятые решения, а не изобретали архитектуру заново:
 
 ```text
 openspec/specs/ = текущее функциональное поведение
@@ -85,7 +83,6 @@ A registered business customer.
 Not to be confused with: account.
 ```
 
-Skill `domain/modeling` (SRA) выявляет перегруженные термины (например, `status = active`, если «active»
-может означать acceptance, currency, runtime state или approval).
+Skill `domain/modeling` (SRA) выявляет перегруженные термины (например, `status = active`, если «active» может означать acceptance, currency, runtime state или approval).
 
 Status: proposed · Maturity: deferred — при подключении LATTICE glossary может стать projection LATTICE-объектов.

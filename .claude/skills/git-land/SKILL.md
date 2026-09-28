@@ -6,15 +6,11 @@ argument-hint: "[pr | merge <N> | after <N>]"
 
 # PR, CI, merge, после merge
 
-Человек только решает — «merge #N» в чате; остальное навык делает сам
-([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 1, 5). Разбор красного CI — [ci.md](ci.md),
-ошибки git — [recovery.md](recovery.md). Коммиты — навык `git-start`; три PR Change — навыки `change-*`, они зовут
-шаги этого.
+Человек только решает — «merge #N» в чате; остальное навык делает сам ([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 1, 5). Разбор красного CI — [ci.md](ci.md), ошибки git — [recovery.md](recovery.md). Коммиты — навык `git-start`; три PR Change — навыки `change-*`, они зовут шаги этого.
 
 ## Вход
 
-- `pr` — ветка с коммитами в своём worktree (`git-start where`). `merge <N>` — только после «merge #N» maintainer'а в
-  чате. `after <N>` — PR уже слит (в том числе руками в GitHub).
+- `pr` — ветка с коммитами в своём worktree (`git-start where`). `merge <N>` — только после «merge #N» maintainer'а в чате. `after <N>` — PR уже слит (в том числе руками в GitHub).
 
 ## Шаги
 
@@ -27,8 +23,7 @@ argument-hint: "[pr | merge <N> | after <N>]"
    npm run versions:check
    git fetch && node scripts/dev/pr-form.js "$(git branch --show-current)" main
    ```
-   Последний PR потока удаляет свой файл передачи или заменяет его файлом следующего и снимает `После: <поток>` у
-   зависящих (`dev-context.test.ts` это проверит).
+   Последний PR потока удаляет свой файл передачи или заменяет его файлом следующего и снимает `После: <поток>` у зависящих (`dev-context.test.ts` это проверит).
 2. **PR.** Тело — файлом (scratchpad): «Что», «Проверки», хвост атрибуции; заголовок — как у коммитов:
    ```bash
    git push -u origin <ветка>
@@ -38,16 +33,13 @@ argument-hint: "[pr | merge <N> | after <N>]"
    ```bash
    gh pr checks <N> --watch --interval 20
    ```
-   Сразу после `gh pr create` — `no checks reported`: CI ещё не стартовал, подождать 20 с и повторить.
-   `warrant` в impl-PR до коммита `VERIFYING` (`CHANGE_NOT_VERIFYING`) — штатно. Красное — [ci.md](ci.md),
-   исправление — коммитом `git-start`, push, снова шаг 3. Зелёное — отчёт и «жду merge #N».
+   Сразу после `gh pr create` — `no checks reported`: CI ещё не стартовал, подождать 20 с и повторить. `warrant` в impl-PR до коммита `VERIFYING` (`CHANGE_NOT_VERIFYING`) — штатно. Красное — [ci.md](ci.md), исправление — коммитом `git-start`, push, снова шаг 3. Зелёное — отчёт и «жду merge #N».
 4. **Merge** — только по «merge #N» в чате для этого N; CI зелёный (шаг 3):
    ```bash
    gh pr merge <N> --merge
    gh pr view <N> --json state,mergeCommit
    ```
-   Только `--merge`: без `--delete-branch` (удаляет ветку worktree), без `--squash` и `--rebase` (I-97). Классификатор
-   заблокировал — дать эту команду maintainer'у одной строкой и ждать.
+   Только `--merge`: без `--delete-branch` (удаляет ветку worktree), без `--squash` и `--rebase` (I-97). Классификатор заблокировал — дать эту команду maintainer'у одной строкой и ждать.
 5. **После merge** — из основного checkout `D:\project\SRA`:
    ```bash
    git pull --ff-only
@@ -61,8 +53,7 @@ argument-hint: "[pr | merge <N> | after <N>]"
 
 - Нет «merge #N» от maintainer'а в чате — не сливать; слово относится только к своему N.
 - Тот же сбой CI после двух исправлений или нестабильный тест — стоп и отчёт ([ci.md](ci.md)); обход запрещён.
-- `worktree remove` отказал (изменения в worktree) или `branch -d` — «not fully merged» — не `--force` и не `-D`:
-  показать и спросить.
+- `worktree remove` отказал (изменения в worktree) или `branch -d` — «not fully merged» — не `--force` и не `-D`: показать и спросить.
 
 ## Отчёт
 

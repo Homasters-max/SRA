@@ -69,12 +69,9 @@ Check — детерминированная исполняемая провер
 | `max_paths` | — | Больше путей в `--paths` → код `3` (later, D-23) |
 | `guard_prefixes` | первые токены `run.command` до флага или плейсхолдера; у интерпретатора (`node`, `deno`, `bun`, `python`, `python3`, `ruby`) — плюс флаги режима (слова с `-` без `=` и `{`), сверяемые в любом порядке ([ADR-0042](adr/WARRANT-ADR-0042-lattice-fixes.md) п. 3) | По ним `warrant guard` отклоняет прямой запуск; явные префиксы — строго по словам |
 
-- Замок занят → код `2`, `errors[0].code: "BUSY"` с держателем замка; `--wait` ждёт до `timeout_s` (CI; later).
-  Замок мёртвого pid снимается автоматически с записью в журнал Run (later, D-23).
-- `warrant check <id> --paths …` запускает `scoped_command`; без значения пути берутся из diff. Evidence
-  суженного прогона несёт `limitations: ["scoped: <paths>"]` и исключается пред-фильтром допустимости (§3).
-- Для checks с `exclusive` или `local ≠ allowed` guard отвечает `deny` на Bash-команду с совпавшим префиксом
-  и подсказывает `warrant check`.
+- Замок занят → код `2`, `errors[0].code: "BUSY"` с держателем замка; `--wait` ждёт до `timeout_s` (CI; later). Замок мёртвого pid снимается автоматически с записью в журнал Run (later, D-23).
+- `warrant check <id> --paths …` запускает `scoped_command`; без значения пути берутся из diff. Evidence суженного прогона несёт `limitations: ["scoped: <paths>"]` и исключается пред-фильтром допустимости (§3).
+- Для checks с `exclusive` или `local ≠ allowed` guard отвечает `deny` на Bash-команду с совпавшим префиксом и подсказывает `warrant check`.
 
 ## 3. Gate
 
@@ -94,14 +91,7 @@ Gate — правило перехода; агрегирует evidence в `gate
 
 ### Алгоритм verdict
 
-Сначала **пред-фильтр допустимости evidence** (D-12): запись исключается из рассмотрения с finding `STALE`, если
-`subject.commit` / `subject.base_commit` отличаются от текущих (у записи с `subject.spec_tree` вместо них сравнивается
-дерево spec Change на оцениваемом коммите, [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 3; у CI-записи с
-`subject.tree` вместо `base_commit` сравнивается дерево результата merge — в `warrant ci` impl-PR дерево HEAD, иначе дерево
-merge-коммита M на first-parent линии HEAD, чей второй родитель — оцениваемый commit; несовпадение или M нет — `STALE` с
-`reason: "tree"`, [ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 1–2); `metrics.threshold` ≠ текущий effective param
-([06a §2](06a-evidence.md)); `limitations` содержит `scoped: …` (суженный прогон, [ADR-0017](adr/WARRANT-ADR-0017-check-execution.md));
-отпечаток target частичного waiver, применённого check, не совпадает с текущим кодом ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md) п. 7).
+Сначала **пред-фильтр допустимости evidence** (D-12): запись исключается из рассмотрения с finding `STALE`, если `subject.commit` / `subject.base_commit` отличаются от текущих (у записи с `subject.spec_tree` вместо них сравнивается дерево spec Change на оцениваемом коммите, [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 3; у CI-записи с `subject.tree` вместо `base_commit` сравнивается дерево результата merge — в `warrant ci` impl-PR дерево HEAD, иначе дерево merge-коммита M на first-parent линии HEAD, чей второй родитель — оцениваемый commit; несовпадение или M нет — `STALE` с `reason: "tree"`, [ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 1–2); `metrics.threshold` ≠ текущий effective param ([06a §2](06a-evidence.md)); `limitations` содержит `scoped: …` (суженный прогон, [ADR-0017](adr/WARRANT-ADR-0017-check-execution.md)); отпечаток target частичного waiver, применённого check, не совпадает с текущим кодом ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md) п. 7).
 
 Затем по порядку, первое совпадение — результат:
 
@@ -117,10 +107,7 @@ merge-коммита M на first-parent линии HEAD, чей второй р
 
 `NOT_APPLICABLE` ≠ `PASS`: он позволяет пройти profile без ложного waiver, но отображается отдельно.
 
-`BLOCKED` ≠ `FAIL` (P-7): нет ни одной допустимой записи нужного kind (не было прогона или все записи исключены
-пред-фильтром) → `BLOCKED` с finding `NO_EVIDENCE`, controller отвечает `verify-incomplete`; запись есть, но её статус ≠
-требуемому → `FAIL`. L0-gates без `requires_evidence` вычисляет сам CLI; для них `BLOCKED` — только при отсутствии
-входа (не git-репозиторий, нет `openspec`).
+`BLOCKED` ≠ `FAIL` (P-7): нет ни одной допустимой записи нужного kind (не было прогона или все записи исключены пред-фильтром) → `BLOCKED` с finding `NO_EVIDENCE`, controller отвечает `verify-incomplete`; запись есть, но её статус ≠ требуемому → `FAIL`. L0-gates без `requires_evidence` вычисляет сам CLI; для них `BLOCKED` — только при отсутствии входа (не git-репозиторий, нет `openspec`).
 
 ## 4. Каталог gates
 
@@ -163,8 +150,7 @@ Profiles ссылаются только на ID. Определение gate с
 | `AMBIGUOUS` | Одна ссылка указывает на несколько объектов |
 | `STALE` | Evidence получено на commit / spec revision / base / effective param, отличном от текущего; target частичного waiver не совпадает с текущим кодом |
 
-В транспорте `sef-hub` `analyze` дополнительно сверяет TASK ↔ sef item (`source_ref`): TASK без item — `MISSING`,
-с несколькими items — `AMBIGUOUS` ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)).
+В транспорте `sef-hub` `analyze` дополнительно сверяет TASK ↔ sef item (`source_ref`): TASK без item — `MISSING`, с несколькими items — `AMBIGUOUS` ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)).
 
 Пример:
 
@@ -172,9 +158,7 @@ Profiles ссылаются только на ID. Определение gate с
 REQ-ING-014: есть в spec; нет task, нет test, нет evidence → UNSATISFIED
 ```
 
-MVP (фаза 4b, [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 2) — `warrant analyze <change> [--base <ref>]` выдаёт
-три вида находок; ничего не пишет, код 1 при находке. ID «определён», если объявлен в main specs или в `ADDED` /
-`MODIFIED` delta Change и не объявлен в `REMOVED` delta.
+MVP (фаза 4b, [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 2) — `warrant analyze <change> [--base <ref>]` выдаёт три вида находок; ничего не пишет, код 1 при находке. ID «определён», если объявлен в main specs или в `ADDED` / `MODIFIED` delta Change и не объявлен в `REMOVED` delta.
 
 | Finding MVP | Условие |
 |---|---|
@@ -182,13 +166,9 @@ MVP (фаза 4b, [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 2) 
 | `CONFLICT` `{id, path}` | `tasks.md` упоминает неопределённый REQ или SCN (например, `REMOVED`) |
 | `ORPHAN` `{id, path}` | Файл `paths.tests`, изменённый в diff `base...HEAD`, упоминает неопределённый SCN |
 
-Без `paths.tests` проверка тестов не выполняется, без diff — `ORPHAN`; каждый пропуск — в `data.skipped[]` с причиной. Gate
-`analyze-clean` вычисляется той же функцией на оцениваемом commit: находка → `FAIL`, иначе `PASS`, нет diff → `BLOCKED`
-`NO_INPUT` (§4). `MISSING`, `AMBIGUOUS`, `STALE`, связь evidence с REQ через `claim.targets` — после MVP, по failure mode.
+Без `paths.tests` проверка тестов не выполняется, без diff — `ORPHAN`; каждый пропуск — в `data.skipped[]` с причиной. Gate `analyze-clean` вычисляется той же функцией на оцениваемом commit: находка → `FAIL`, иначе `PASS`, нет diff → `BLOCKED` `NO_INPUT` (§4). `MISSING`, `AMBIGUOUS`, `STALE`, связь evidence с REQ через `claim.targets` — после MVP, по failure mode.
 
-Семантическая согласованность (требования противоречат по смыслу, сценарий не соответствует терминологии,
-acceptance criterion не наблюдаем, requirement смешивает what и how) — это skill
-`specification/consistency` (SRA). Его результат — L2 evidence и findings, не вердикт.
+Семантическая согласованность (требования противоречат по смыслу, сценарий не соответствует терминологии, acceptance criterion не наблюдаем, requirement смешивает what и how) — это skill `specification/consistency` (SRA). Его результат — L2 evidence и findings, не вердикт.
 
 ## 6. Traceability
 
@@ -204,15 +184,13 @@ Change → REQ → SCN → TASK → code → test → Run → EVID
 Change → DCT → transformation → dataset → quality check → EVID
 ```
 
-Traceability MUST строиться из ID и ссылок в artifacts. Матрица — projection, вычисляемая `analyze`;
-graph database не требуется.
+Traceability MUST строиться из ID и ссылок в artifacts. Матрица — projection, вычисляемая `analyze`; graph database не требуется.
 
 Связь test → SCN / REQ задаётся тегом или аннотацией в тесте (`@SCN-ING-003`) — формат задаёт pack тестового стека.
 
 ## 7. Adversarial review
 
-Схема: **Author → Draft → Reviewer (отдельный Run, отдельный контекст) → Revised**.
-Достаточно двух ролей; «совет из 10 моделей» MUST NOT использоваться — это шум.
+Схема: **Author → Draft → Reviewer (отдельный Run, отдельный контекст) → Revised**. Достаточно двух ролей; «совет из 10 моделей» MUST NOT использоваться — это шум.
 
 Reviewer ищет:
 
@@ -228,25 +206,13 @@ Reviewer ищет:
 
 Каждый finding имеет `severity`; blocking findings MUST быть закрыты до `APPROVED`.
 
-В MVP (фаза 4b) reviewer — отдельный Run `review` ([03 §4](03-architecture.md)): skill `specification/adversarial-review`
-исполняет субагент Claude Code `warrant-reviewer` (генерирует `warrant sync`), результат сдаёт `warrant run submit`;
-evidence `review` судит gate `adversarial-review` на `SPECIFIED->APPROVED` ([02 §2](02-vocabulary.md)).
+В MVP (фаза 4b) reviewer — отдельный Run `review` ([03 §4](03-architecture.md)): skill `specification/adversarial-review` исполняет субагент Claude Code `warrant-reviewer` (генерирует `warrant sync`), результат сдаёт `warrant run submit`; evidence `review` судит gate `adversarial-review` на `SPECIFIED->APPROVED` ([02 §2](02-vocabulary.md)).
 
-Сдача — файлом ([ADR-0042](adr/WARRANT-ADR-0042-lattice-fixes.md) п. 4): субагент записывает envelope инструментом `Write`
-в `<RUN-id>.envelope.json` scratchpad сессии во временном каталоге ОС (нет scratchpad — прямо во временный каталог), затем из
-корня проекта выполняет `warrant run submit --file <путь> --dry-run` и ту же команду без `--dry-run`. Под Run `review` guard
-разрешает запись только во временный каталог ОС вне проекта: файл проекта — `deny`, путь вне проекта и временного каталога —
-`deny` с hint, называющим каталог. Envelope не по схеме — `SKILL_RESULT_INVALID` с `data.received{ bytes, root, keys }`
-(размер, тип корня, ключи верхнего уровня; значения не выводятся).
+Сдача — файлом ([ADR-0042](adr/WARRANT-ADR-0042-lattice-fixes.md) п. 4): субагент записывает envelope инструментом `Write` в `<RUN-id>.envelope.json` scratchpad сессии во временном каталоге ОС (нет scratchpad — прямо во временный каталог), затем из корня проекта выполняет `warrant run submit --file <путь> --dry-run` и ту же команду без `--dry-run`. Под Run `review` guard разрешает запись только во временный каталог ОС вне проекта: файл проекта — `deny`, путь вне проекта и временного каталога — `deny` с hint, называющим каталог. Envelope не по схеме — `SKILL_RESULT_INVALID` с `data.received{ bytes, root, keys }` (размер, тип корня, ключи верхнего уровня; значения не выводятся).
 
 ## 8. CI — последняя инстанция
 
 - CI MUST заново вычислять все L0/L1 gates для merge.
-- Доверие evidence определяется тем, где оно произведено, а не подписью: воспроизводимое (L0/L1) CI пересчитывает,
-  невоспроизводимое принимается только с attestation, которую допускает gate ([06a §3](06a-evidence.md)).
+- Доверие evidence определяется тем, где оно произведено, а не подписью: воспроизводимое (L0/L1) CI пересчитывает, невоспроизводимое принимается только с attestation, которую допускает gate ([06a §3](06a-evidence.md)).
 - CI MUST блокировать merge при `FAIL`, `BLOCKED` и отсутствии required evidence.
-- `warrant ci` ([04 §7](04-lifecycle.md)) считает checks `VERIFYING->MERGED` на результате merge, который строит сам job
-  (tip базы на момент запуска + head PR): CI-запись несёт `subject.commit` — head PR и `subject.tree` — дерево результата
-  merge, так что evidence судит то, что вливается в `main` (R-12). Сдвиг `main` до merge — `STALE` `tree`, лечится Re-run
-  job; после merge — run `workflow_dispatch` на merge-коммите ([ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 3, 4).
-  В MVP красный job — сигнал maintainer'у: branch protection вне MVP.
+- `warrant ci` ([04 §7](04-lifecycle.md)) считает checks `VERIFYING->MERGED` на результате merge, который строит сам job (tip базы на момент запуска + head PR): CI-запись несёт `subject.commit` — head PR и `subject.tree` — дерево результата merge, так что evidence судит то, что вливается в `main` (R-12). Сдвиг `main` до merge — `STALE` `tree`, лечится Re-run job; после merge — run `workflow_dispatch` на merge-коммите ([ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 3, 4). В MVP красный job — сигнал maintainer'у: branch protection вне MVP.

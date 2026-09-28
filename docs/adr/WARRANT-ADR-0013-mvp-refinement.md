@@ -8,20 +8,13 @@ amends: [WARRANT-ADR-0007]
 amended_by: [WARRANT-ADR-0018, WARRANT-ADR-0020, WARRANT-ADR-0034]
 ---
 
-> Уточнено [ADR-0034](WARRANT-ADR-0034-phase-4-frontend.md): slice ведёт Claude Code под hooks в ручном режиме (адаптер `claude`, локальный режим) —
-> критерий выхода MVP снова «агент (Claude Code) проходит slice», как в исходном решении; заметка ADR-0018 / ADR-0020
-> о Codex заменена. Sample-проект — отдельный репозиторий GitHub (п. 7).
+> Уточнено [ADR-0034](WARRANT-ADR-0034-phase-4-frontend.md): slice ведёт Claude Code под hooks в ручном режиме (адаптер `claude`, локальный режим) — критерий выхода MVP снова «агент (Claude Code) проходит slice», как в исходном решении; заметка ADR-0018 / ADR-0020 о Codex заменена. Sample-проект — отдельный репозиторий GitHub (п. 7).
 
-> Уточнено [ADR-0018](WARRANT-ADR-0018-frontend-adapters.md) и [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md):
-> slice ведёт Codex (в ручном режиме под hooks и CI; слой ACP — со срезом S1 SEF), а не Claude Code;
-> критерий выхода MVP по смыслу не меняется; дополнен: finding `FRONTEND_HOOKS_INACTIVE` отсутствует (ADR-0018 п. 5, D-14).
-> (Заметка ADR-0018 говорила «через codex-acp» — уточнено ADR-0020.)
+> Уточнено [ADR-0018](WARRANT-ADR-0018-frontend-adapters.md) и [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md): slice ведёт Codex (в ручном режиме под hooks и CI; слой ACP — со срезом S1 SEF), а не Claude Code; критерий выхода MVP по смыслу не меняется; дополнен: finding `FRONTEND_HOOKS_INACTIVE` отсутствует (ADR-0018 п. 5, D-14). (Заметка ADR-0018 говорила «через codex-acp» — уточнено ADR-0020.)
 
 ## Context
 
-ADR-0007 задал MVP как «kernel + core-sdd + один vertical slice», но не сказал: в каком репозитории проводится
-slice, кто его ведёт (человек через CLI или агент под hooks), на каком языке CLI, какие profiles входят в 0.1,
-входит ли L2 review, где физически живут skills, насколько строг approval.
+ADR-0007 задал MVP как «kernel + core-sdd + один vertical slice», но не сказал: в каком репозитории проводится slice, кто его ведёт (человек через CLI или агент под hooks), на каком языке CLI, какие profiles входят в 0.1, входит ли L2 review, где физически живут skills, насколько строг approval.
 
 ## Decision
 

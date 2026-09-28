@@ -93,8 +93,7 @@ automatic policy evolution · semantic memory platform · autonomous production 
 | data contract, migration plan | data | 6 |
 | behavior baseline | brownfield | 5 |
 
-Proposal отвечает только на: WHY, WHAT changes, WHAT is affected, WHAT is NOT changing.
-Разделы: Problem · Goal · Changes · Non-Goals · Impact · Risks · Verification. Proposal MUST NOT превращаться в design.
+Proposal отвечает только на: WHY, WHAT changes, WHAT is affected, WHAT is NOT changing. Разделы: Problem · Goal · Changes · Non-Goals · Impact · Risks · Verification. Proposal MUST NOT превращаться в design.
 
 ## 6. Открытые вопросы
 
@@ -108,5 +107,4 @@ Proposal отвечает только на: WHY, WHAT changes, WHAT is affected
 | Q6  | Оркестрация реализации в MVP | **Закрыт**: MVP — Claude Code в ручном режиме под hooks и CI (адаптер `claude`, ADR-0034); оркестрация через ACP — диспетчер SEF (срез S1), Claude — стол | [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md) |
 | Q7  | Кто выполняет adversarial review в MVP | **Закрыт**: в MVP — Claude-субагент отдельным локальным Run, unattested, `limitations` «same model family as author» (ADR-0034); второе семейство (`codex exec`, `opencode`) — тем же контрактом по триггеру; в SEF — независимость по семействам | [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md), ADR-0013 |
 
-Q3 и Q5 — один вопрос с двух сторон: кто имеет право писать состояние. Ответ один: authoritative записи делают
-CLI в CI и человек через PR; локальный CLI пишет черновики ([ADR-0009](adr/WARRANT-ADR-0009-change-record-attestation.md)).
+Q3 и Q5 — один вопрос с двух сторон: кто имеет право писать состояние. Ответ один: authoritative записи делают CLI в CI и человек через PR; локальный CLI пишет черновики ([ADR-0009](adr/WARRANT-ADR-0009-change-record-attestation.md)).

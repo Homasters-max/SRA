@@ -2,17 +2,14 @@
 
 ## Проблема
 
-- Maintainer (2026-09-26): ID должен нести логический смысл и формироваться системно по классификатору LATTICE;
-  предложение — `id = <type>-<domainid>-sort-desc([<id>,…])-v001` «или лучше, посмотреть в LATTICE».
+- Maintainer (2026-09-26): ID должен нести логический смысл и формироваться системно по классификатору LATTICE; предложение — `id = <type>-<domainid>-sort-desc([<id>,…])-v001` «или лучше, посмотреть в LATTICE».
 - Правила LATTICE (`lattice/docs/03-substrate-decisions.md` D1, `01-object-substrate.md` §12–15, §40, §45, §47 F1):
   - identity — ровно `<context>/<name>`; **ни type, ни root_kind, ни версия в id не входят** (§14.1);
-  - `name` MAY нести конвенциональный префикс (`REQ-ING-001`, `INV-4`); lint MUST NOT выводить type из префикса;
-    reclassification не меняет `name` (D1);
+  - `name` MAY нести конвенциональный префикс (`REQ-ING-001`, `INV-4`); lint MUST NOT выводить type из префикса; reclassification не меняет `name` (D1);
   - classification `{root_kind, type, subtype}` — context-owned registry, отдельно от identity (§12);
   - `version` — семантическая ревизия, `content_hash` — provenance (§40); путь, строки, хэш — не identity;
   - сбой модели F1 — «classification changes identity».
-- WARRANT (ADR-0012): люди набирают `PREFIX-AREA-NNN` (REQ, SCN); сквозные машинные объекты — `PREFIX-<ULID>`
-  (`EVID`, `RUN`), без координации, упорядочены по времени.
+- WARRANT (ADR-0012): люди набирают `PREFIX-AREA-NNN` (REQ, SCN); сквозные машинные объекты — `PREFIX-<ULID>` (`EVID`, `RUN`), без координации, упорядочены по времени.
 
 ## Идея
 
@@ -37,10 +34,8 @@ posit      = "POS-" <ULID>                                        POS-01J8ZQ5A�
 до slice   = "unit:" <домен> "." <slug>                          unit:lifecycle.cycle
 ```
 
-- **ULID**, не счётчик: группы, вопросы, оценки создаются машиной в разных worktree — без координации (ADR-0012 п. 2);
-  ULID несёт время создания и сортируется.
-- **Код домена** (`DOM`) — 3 заглавные буквы из реестра доменов, как AREA в ADR-0012 п. 5: `LCY` — `lifecycle`,
-  `CLI` — `cli-core` (бывший `kernel`, Q27). Только у типов, зерно которых содержит один домен.
+- **ULID**, не счётчик: группы, вопросы, оценки создаются машиной в разных worktree — без координации (ADR-0012 п. 2); ULID несёт время создания и сортируется.
+- **Код домена** (`DOM`) — 3 заглавные буквы из реестра доменов, как AREA в ADR-0012 п. 5: `LCY` — `lifecycle`, `CLI` — `cli-core` (бывший `kernel`, Q27). Только у типов, зерно которых содержит один домен.
 - **Нормы** получают identity без mapping: внешний stable ID становится `name` (D1, «Следствие для WARRANT»).
 - **Hash snapshot'а** — от канонического JSON (ADR-0006): одинаковый состав даёт одинаковый hash на любой машине.
 
@@ -63,8 +58,7 @@ posit      = "POS-" <ULID>                                        POS-01J8ZQ5A�
 | unit | — (projection, `grounding: inferred`) | — | — | `unit:` | `unit:lifecycle.cycle` |
 | домен, тип, роль, правило | реестр потребителя | — | — | имя / `L-KB-NN` | `lifecycle` / `LCY`, `answer`, `member`, `L-KB-01` |
 
-Почему группа-ответ в `lexicon`: ответ — это смысл вопроса (вопрос — тип `lexicon`, §4); связи из `lexicon` к нормам
-разрешены матрицей D4 (`denotes`: `lexicon → spec`, `platform`, `method`).
+Почему группа-ответ в `lexicon`: ответ — это смысл вопроса (вопрос — тип `lexicon`, §4); связи из `lexicon` к нормам разрешены матрицей D4 (`denotes`: `lexicon → spec`, `platform`, `method`).
 
 ### 4. Связи — проверка по матрице D4
 
@@ -79,20 +73,14 @@ posit      = "POS-" <ULID>                                        POS-01J8ZQ5A�
 | вызов → оценка | `causes` | `runtime → evidence`, оба `event` | ✓ |
 | группа-ответ, новая семантика | `evolves_from` | `lexicon → lexicon` | ✓ (только внутри context) |
 
-Баллы оценки по кандидатам — меры (posit'ы значения, Q53), не связи: `evidence → spec` разрешено D4 только для
-`tests`, а оценка ничего не тестирует.
+Баллы оценки по кандидатам — меры (posit'ы значения, Q53), не связи: `evidence → spec` разрешено D4 только для `tests`, а оценка ничего не тестирует.
 
 ## Вопросы для grilling
 
-1. **Схема ID** (п. 2): `<context>/<PREFIX>[-<DOM>]-<ULID>` для сущностей, `SN-<hash>` для snapshot'ов, версия —
-   только в ссылке `@`. Рекомендация: да — смысл читается из ID, правила LATTICE D1 и ADR-0012 соблюдены.
-2. **Классификация** (п. 3): вопрос, группа-ответ, набор ответов — `lexicon`; оценка, вердикт — `evidence`; вызов,
-   сессия — `runtime`. Рекомендация: да; новый context не нужен (§3: context — только при доказанных языке,
-   invariants, lifecycle).
-3. **Членство** — `denotes` с `role: member` (к нормам), `cites` (к `evidence`), `part_of` (группа в группе).
-   Рекомендация: да; `role: member` — proposal в registry ролей LATTICE, не локальный тип (закрытый registry).
-4. **Домен в LATTICE**: сейчас — значение реестра kb-search (код, имя, источники). Рекомендация: так и оставить до
-   slice; станет ли домен объектом LATTICE (projection spec) — вопрос потока `lattice`.
+1. **Схема ID** (п. 2): `<context>/<PREFIX>[-<DOM>]-<ULID>` для сущностей, `SN-<hash>` для snapshot'ов, версия — только в ссылке `@`. Рекомендация: да — смысл читается из ID, правила LATTICE D1 и ADR-0012 соблюдены.
+2. **Классификация** (п. 3): вопрос, группа-ответ, набор ответов — `lexicon`; оценка, вердикт — `evidence`; вызов, сессия — `runtime`. Рекомендация: да; новый context не нужен (§3: context — только при доказанных языке, invariants, lifecycle).
+3. **Членство** — `denotes` с `role: member` (к нормам), `cites` (к `evidence`), `part_of` (группа в группе). Рекомендация: да; `role: member` — proposal в registry ролей LATTICE, не локальный тип (закрытый registry).
+4. **Домен в LATTICE**: сейчас — значение реестра kb-search (код, имя, источники). Рекомендация: так и оставить до slice; станет ли домен объектом LATTICE (projection spec) — вопрос потока `lattice`.
 5. **Коды доменов** — `LCY` (`lifecycle`), `CLI` (`cli-core`); реестр — рядом с доменами (01 п. 2). Рекомендация: да.
 
 ## Вне объёма

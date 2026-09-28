@@ -14,9 +14,7 @@ version: 0.1.0
 code ≠ specification
 ```
 
-Код — evidence **текущего** поведения, но не обязательно **задуманного**. Reverse-engineered спецификация,
-созданная ИИ, MUST NOT объявляться истиной автоматически: она может не отражать исходный intent и скрытые
-особенности legacy.
+Код — evidence **текущего** поведения, но не обязательно **задуманного**. Reverse-engineered спецификация, созданная ИИ, MUST NOT объявляться истиной автоматически: она может не отражать исходный intent и скрытые особенности legacy.
 
 ## 2. Процесс
 
@@ -42,14 +40,10 @@ Existing code → Discovery → Current behavior → Unknowns → Human confirma
 Characterization tests → Baseline specification → Tests → Refactoring
 ```
 
-Profile `refactor` в brownfield-зоне требует artifact `behavior-baseline` и gate `tests-passed` на characterization tests
-**до** начала изменений.
+Profile `refactor` в brownfield-зоне требует artifact `behavior-baseline` и gate `tests-passed` на characterization tests **до** начала изменений.
 
 ## 4. Определение brownfield-зоны
 
-Pack параметризуется путями legacy-кода (`params.legacy_paths`). Floor rule: изменения в этих путях без
-baseline spec → blocking `UNKNOWN`.
+Pack параметризуется путями legacy-кода (`params.legacy_paths`). Floor rule: изменения в этих путях без baseline spec → blocking `UNKNOWN`.
 
-Mutation score в brownfield-зоне считается по diff ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)):
-унаследованный долг не роняет gate Change. Долг виден как `metrics.module_score` в evidence `mutation-report`;
-gate его не читает.
+Mutation score в brownfield-зоне считается по diff ([ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)): унаследованный долг не роняет gate Change. Долг виден как `metrics.module_score` в evidence `mutation-report`; gate его не читает.

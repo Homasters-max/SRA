@@ -8,14 +8,11 @@ version: 0.1.0
 
 # 11. Интеграции
 
-Документ фиксирует **форму** любой интеграции WARRANT с компонентом SEF. Содержание контрактов компонентов
-(LATTICE, proposals, SRA, JEV) вынесено в [integrations/](integrations/00-readme.md) и имеет статус идей,
-которые предстоит доработать. До их принятия действуют только INV-06 и INV-07 ([01](01-principles.md)).
+Документ фиксирует **форму** любой интеграции WARRANT с компонентом SEF. Содержание контрактов компонентов (LATTICE, proposals, SRA, JEV) вынесено в [integrations/](integrations/00-readme.md) и имеет статус идей, которые предстоит доработать. До их принятия действуют только INV-06 и INV-07 ([01](01-principles.md)).
 
 ## 1. Форма интеграции
 
-Интеграция всегда имеет одну структуру. Она выводится из INV-06 (один canonical owner), INV-07 (внешние источники
-только предлагают) и authority skill ([07 §5](07-skills.md)):
+Интеграция всегда имеет одну структуру. Она выводится из INV-06 (один canonical owner), INV-07 (внешние источники только предлагают) и authority skill ([07 §5](07-skills.md)):
 
 ```text
 Интеграция = pack + адаптер + два канала
@@ -44,8 +41,7 @@ version: 0.1.0
 
 ### Требования WARRANT к SEF
 
-Status: proposed · Источники: [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md), [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md);
-опираются на черновик SEF rev 3 ([2026-09-17-sef-platform-design](integrations/2026-09-17-sef-platform-design.md), предварительный). Не закрывают вопрос «SEF: CLI или API».
+Status: proposed · Источники: [ADR-0018](adr/WARRANT-ADR-0018-frontend-adapters.md), [ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md); опираются на черновик SEF rev 3 ([2026-09-17-sef-platform-design](integrations/2026-09-17-sef-platform-design.md), предварительный). Не закрывают вопрос «SEF: CLI или API».
 
 Граница: WARRANT — инструмент стола и argv-гейты; SEF — исполнение, попытки, evidence исполнения, допуск, посадка.
 
@@ -68,8 +64,7 @@ Status: proposed · Источники: [ADR-0018](adr/WARRANT-ADR-0018-frontend
 - `warrant` и `openspec` закреплены в `image.pins` и на хосте диспетчера; `.sef/acceptance/**` входит в `paths.tests` `warrant.json`; эталон `.sef/engines/<profile>/` собирается через `warrant sync`.
 - Подробно — [приложение F](integrations/2026-09-17-sef-platform-design.md) черновика SEF (W-01…W-27).
 
-Роль WARRANT в цепочке proposals всех компонентов одна: **authorization** (policy, approval, INV-11) между источником
-proposal и валидацией LATTICE ([integrations/02 §3](integrations/02-proposal-contract.md)).
+Роль WARRANT в цепочке proposals всех компонентов одна: **authorization** (policy, approval, INV-11) между источником proposal и валидацией LATTICE ([integrations/02 §3](integrations/02-proposal-contract.md)).
 
 ## 3. Failure modes и security boundary
 

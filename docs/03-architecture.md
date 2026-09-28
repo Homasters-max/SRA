@@ -32,23 +32,19 @@ WARRANT **не заменяет** ни один из этих компонент
 
 ### OpenSpec owns
 
-Change, proposal, specs, design, tasks, spec deltas, archive, schema workflow, project-level SDD context
-(`openspec/config.yaml`), `openspec validate`.
+Change, proposal, specs, design, tasks, spec deltas, archive, schema workflow, project-level SDD context (`openspec/config.yaml`), `openspec validate`.
 
 ### WARRANT owns
 
-Classification, risk, profiles, effective policy, controller (выбор следующей операции), gates,
-waivers, evidence manifest, контракт вызова reasoning, контракт pack, CLI и CI-enforcement.
+Classification, risk, profiles, effective policy, controller (выбор следующей операции), gates, waivers, evidence manifest, контракт вызова reasoning, контракт pack, CLI и CI-enforcement.
 
 ### SRA owns
 
-Skills и их режимы: authoring, clarification, review, diagnosis, domain modeling и т.д.
-WARRANT определяет только **контракт** вызова и authority ([07-skills](07-skills.md)).
+Skills и их режимы: authoring, clarification, review, diagnosis, domain modeling и т.д. WARRANT определяет только **контракт** вызова и authority ([07-skills](07-skills.md)).
 
 ### LATTICE owns
 
-Identity, relations, provenance, history и epistemic state durable-объектов.
-WARRANT передаёт в LATTICE decisions и evidence **как proposals** ([11-integrations](11-integrations.md)).
+Identity, relations, provenance, history и epistemic state durable-объектов. WARRANT передаёт в LATTICE decisions и evidence **как proposals** ([11-integrations](11-integrations.md)).
 
 ### Не владеет WARRANT
 
@@ -67,8 +63,7 @@ WARRANT передаёт в LATTICE decisions и evidence **как proposals** (
 | `.warrant/` | Конфигурация процесса, Change records, waivers, evidence |
 | LATTICE | Семантическая идентичность, связи, происхождение |
 
-Всё остальное — отчёты, dashboards, индексы, графы, traceability matrix, effective policy — **projections**.
-Projection MUST быть вычислимой из источников и MUST NOT редактироваться как источник.
+Всё остальное — отчёты, dashboards, индексы, графы, traceability matrix, effective policy — **projections**. Projection MUST быть вычислимой из источников и MUST NOT редактироваться как источник.
 
 ## 4. Change ≠ Run
 
@@ -81,28 +76,11 @@ Change: add-customer-search
 
 Change — единица работы и спецификации. Run — одна попытка агента выполнить операцию.
 
-Schema `warrant://run/1` (фаза 4a, `review` — 4b): обязательные `id` (`RUN-<ULID>`), `change`, `operation` (`specify` |
-`implement` | `review`), `write_scope[]` (пуст только у `review`), `scope[]` (сужение `--scope`, может быть пустым), `branch`,
-`started_at`, `run_state`, `context_hash`, `effective_policy_hash`, `guard_events[]`; `spec_tree` — обязателен у `review` и
-отсутствует у остальных ([02 §2](02-vocabulary.md)); необязательные `task`, `skill` (`namespace/name@version`), `model`,
-`finished_at`, `evidence[]`. Событие `guard_events[]` — каждый вызов `warrant guard` при активном Run: `at`, `phase`
-(`pre` | `post`), `action` (`edit` | `shell` | `other`), `paths[]`, `decision`, `findings[]` (коды), `rules_shown[]` (id
-правил), `reason?`, `argv?` (только `deny` по префиксу check); имени frontend в Run нет
-([ADR-0034](adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 2). Run создаёт `warrant run start <change> --operation <op>`
-(его JSON — Context Pack), закрывает `warrant run finish [--state …]` ([04 §7](04-lifecycle.md)).
+Schema `warrant://run/1` (фаза 4a, `review` — 4b): обязательные `id` (`RUN-<ULID>`), `change`, `operation` (`specify` | `implement` | `review`), `write_scope[]` (пуст только у `review`), `scope[]` (сужение `--scope`, может быть пустым), `branch`, `started_at`, `run_state`, `context_hash`, `effective_policy_hash`, `guard_events[]`; `spec_tree` — обязателен у `review` и отсутствует у остальных ([02 §2](02-vocabulary.md)); необязательные `task`, `skill` (`namespace/name@version`), `model`, `finished_at`, `evidence[]`. Событие `guard_events[]` — каждый вызов `warrant guard` при активном Run: `at`, `phase` (`pre` | `post`), `action` (`edit` | `shell` | `other`), `paths[]`, `decision`, `findings[]` (коды), `rules_shown[]` (id правил), `reason?`, `argv?` (только `deny` по префиксу check); имени frontend в Run нет ([ADR-0034](adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 2). Run создаёт `warrant run start <change> --operation <op>` (его JSON — Context Pack), закрывает `warrant run finish [--state …]` ([04 §7](04-lifecycle.md)).
 
-Run `review` — отдельный Run ревьюера spec ([06 §7](06-verification.md), [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md)):
-`warrant run start <change> --operation review` в `PROPOSED` при закоммиченных `proposal.md` и `specs/**` (иначе
-`SPEC_UNCOMMITTED`), `write_scope` пуст, Run запоминает `spec_tree`. Guard при таком Run отклоняет любую правку и любую
-shell-команду, кроме `warrant run submit`. Закрывает его `warrant run submit`: envelope skill (`skill-result/1`,
-[07 §4](07-skills.md)) — в `<state>/runs/<id>.result.json` рядом с файлом Run, evidence `review` — в каталог evidence Change,
-`run_state` — из envelope.
+Run `review` — отдельный Run ревьюера spec ([06 §7](06-verification.md), [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md)): `warrant run start <change> --operation review` в `PROPOSED` при закоммиченных `proposal.md` и `specs/**` (иначе `SPEC_UNCOMMITTED`), `write_scope` пуст, Run запоминает `spec_tree`. Guard при таком Run отклоняет любую правку и любую shell-команду, кроме `warrant run submit`. Закрывает его `warrant run submit`: envelope skill (`skill-result/1`, [07 §4](07-skills.md)) — в `<state>/runs/<id>.result.json` рядом с файлом Run, evidence `review` — в каталог evidence Change, `run_state` — из envelope.
 
-Файл Run `<state>/runs/<id>.json` (и `<id>.result.json` Run `review`) коммитится вместе с работой: `FRONTEND_HOOKS_INACTIVE` сверяет с его событиями diff
-Change ([06](06-verification.md)). Активный Run указан в `<state>/runs/current` (одна строка — id) — единственный источник
-`write_scope` для guard; `current` не коммитится (строку `.warrant/runs/current` в `.gitignore` держит `warrant sync`).
-Активный Run — один на worktree; Run не в `RUNNING` активным не считается.
-Это позволяет оценивать качество самой фабрики.
+Файл Run `<state>/runs/<id>.json` (и `<id>.result.json` Run `review`) коммитится вместе с работой: `FRONTEND_HOOKS_INACTIVE` сверяет с его событиями diff Change ([06](06-verification.md)). Активный Run указан в `<state>/runs/current` (одна строка — id) — единственный источник `write_scope` для guard; `current` не коммитится (строку `.warrant/runs/current` в `.gitignore` держит `warrant sync`). Активный Run — один на worktree; Run не в `RUNNING` активным не считается. Это позволяет оценивать качество самой фабрики.
 
 ## 5. Development ≠ Runtime
 
@@ -111,8 +89,7 @@ Change ([06](06-verification.md)). Активный Run указан в `<state>
 "Pipeline execution succeeded"  — факт исполнения (runtime state)
 ```
 
-Эти факты MUST NOT смешиваться. OpenSpec Change определяет процесс; runtime его исполняет.
-Runtime-наблюдения связываются с Change только через evidence.
+Эти факты MUST NOT смешиваться. OpenSpec Change определяет процесс; runtime его исполняет. Runtime-наблюдения связываются с Change только через evidence.
 
 ## 6. Структура репозитория проекта
 
@@ -144,9 +121,7 @@ project/
 └── src/                            warrant.json → paths.src
 ```
 
-Пути, отличные от OpenSpec, MUST задаваться в `warrant.json` → `paths`, а не зашиваться в packs.
-Ветки: `spec/<change>`, `worktree/<change>`, `archive/<change>` — имя ветки задаёт mapping PR → Change
-([ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)).
+Пути, отличные от OpenSpec, MUST задаваться в `warrant.json` → `paths`, а не зашиваться в packs. Ветки: `spec/<change>`, `worktree/<change>`, `archive/<change>` — имя ветки задаёт mapping PR → Change ([ADR-0011](adr/WARRANT-ADR-0011-pr-topology.md)).
 
 ## 7. Владение каталогами
 
@@ -179,5 +154,4 @@ project/
 
 Status: normative · Maturity: MVP
 
-MVP MUST NOT требовать: distributed event bus, graph database, workflow engine, multi-agent swarm,
-отдельную базу памяти. Достаточно файлов в Git, CLI и CI. Трассировка строится по ID и ссылкам в artifacts.
+MVP MUST NOT требовать: distributed event bus, graph database, workflow engine, multi-agent swarm, отдельную базу памяти. Достаточно файлов в Git, CLI и CI. Трассировка строится по ID и ссылкам в artifacts.

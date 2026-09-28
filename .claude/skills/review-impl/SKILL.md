@@ -6,10 +6,7 @@ argument-hint: "<change> [вопросы maintainer'а]"
 
 # Ревью реализации на соответствие spec
 
-Ревью — до merge, в отдельном агенте, который не писал код
-([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 6). Правка до merge дешевле ветки исправлений после
-него (ревью фазы 3, R-1…R-16). Баги вне сверки со spec ищет встроенный `code-review`; продуктовый gate
-`adversarial-review` — другое (BL-24).
+Ревью — до merge, в отдельном агенте, который не писал код ([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 6). Правка до merge дешевле ветки исправлений после него (ревью фазы 3, R-1…R-16). Баги вне сверки со spec ищет встроенный `code-review`; продуктовый gate `adversarial-review` — другое (BL-24).
 
 ## Вход
 
@@ -26,21 +23,17 @@ argument-hint: "<change> [вопросы maintainer'а]"
    ```
 2. Агент — тип `reviewer` (`.claude/agents/reviewer.md`, без `Write` и `Edit`), `description` = `<change> review`:
    ```text
-   Change <change>, ветка worktree/<change>, worktree <путь>. Прочитай openspec/changes/<change>/ (proposal, specs,
-   design, tasks) и ADR из proposal. Diff: <stat>. Покрытие SCN: <вывод scn-coverage>. Вопросы maintainer'а: <или
-   «нет»>. Отчёт — по твоей инструкции.
+   Change <change>, ветка worktree/<change>, worktree <путь>. Прочитай openspec/changes/<change>/ (proposal, specs, design, tasks) и ADR из proposal. Diff: <stat>. Покрытие SCN: <вывод scn-coverage>. Вопросы maintainer'а: <или «нет»>. Отчёт — по твоей инструкции.
    ```
 3. Разбор отчёта — самому, каждую находку проверить по `файл:строка`:
-   - 🔴 — исправить в этой ветке (коммит `<change>: review — …` навыка `git-start`), затем снова шаг 4
-     `change-impl-pr` и шаги 1–3 этого навыка;
+   - 🔴 — исправить в этой ветке (коммит `<change>: review — …` навыка `git-start`), затем снова шаг 4 `change-impl-pr` и шаги 1–3 этого навыка;
    - 🟡 и 💭 — строками `R-N` в `docs/backlog.md` (следующий номер после максимального `R-`), «Куда» — Change или фаза;
    - находка не подтвердилась — в отчёт с причиной, не в backlog.
 4. Отчёт ревью — разделом «Ревью» в тело impl-PR: число 🔴 (исправлено) / 🟡 / 💭, покрытие SCN, строки `R-N`.
 
 ## Стоп
 
-- Тот же 🔴 после двух исправлений или 🔴 требует отступить от spec — вопрос maintainer'у; принятое — навык
-  `decision`.
+- Тот же 🔴 после двух исправлений или 🔴 требует отступить от spec — вопрос maintainer'у; принятое — навык `decision`.
 - Агент не смог прочитать spec или diff — повторить с явными путями; снова нет — ревью «не проведено» в теле PR.
 
 ## Отчёт

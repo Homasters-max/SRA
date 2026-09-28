@@ -7,51 +7,29 @@ supersedes: []
 amended_by: [WARRANT-ADR-0017, WARRANT-ADR-0018, WARRANT-ADR-0020, WARRANT-ADR-0034, WARRANT-ADR-0042]
 ---
 
-> Уточнено [ADR-0034](WARRANT-ADR-0034-phase-4-frontend.md): решения этого ADR — адаптер `claude` фазы 4 (локальный режим), а не later. П. 4:
-> `.claude/settings.json` генерируется не целиком — `sync` владеет только своими deny и хуками, `validate` сверяет
-> это подмножество (п. 3). Review-субагент п. 3 — producer `adversarial-review` в MVP (п. 10).
+> Уточнено [ADR-0034](WARRANT-ADR-0034-phase-4-frontend.md): решения этого ADR — адаптер `claude` фазы 4 (локальный режим), а не later. П. 4: `.claude/settings.json` генерируется не целиком — `sync` владеет только своими deny и хуками, `validate` сверяет это подмножество (п. 3). Review-субагент п. 3 — producer `adversarial-review` в MVP (п. 10).
 
-> Уточнено [ADR-0042](WARRANT-ADR-0042-lattice-fixes.md) п. 4: субагент review получает `Write` (без `Edit`,
-> `NotebookEdit`), хук frontmatter — `Bash|Write`; guard под Run `review` пускает запись только во временный каталог ОС —
-> envelope сдаётся `warrant run submit --file`.
+> Уточнено [ADR-0042](WARRANT-ADR-0042-lattice-fixes.md) п. 4: субагент review получает `Write` (без `Edit`, `NotebookEdit`), хук frontmatter — `Bash|Write`; guard под Run `review` пускает запись только во временный каталог ОС — envelope сдаётся `warrant run submit --file`.
 
-> Уточнено зондом Claude Code 2.1.263 (Change `phase-4a`, I-165): путевая запись `Write(<glob>)` в `permissions.deny`
-> не действует, а `Edit(<glob>)` отказывает и инструменту `Write` — п. 1 пишется как `Edit(/…)` на каждый путь (якорь `/`
-> — корень проекта) и три `Bash(…:*)`; смысл нормы тот же. Отказ deny срабатывает до `PreToolUse`.
+> Уточнено зондом Claude Code 2.1.263 (Change `phase-4a`, I-165): путевая запись `Write(<glob>)` в `permissions.deny` не действует, а `Edit(<glob>)` отказывает и инструменту `Write` — п. 1 пишется как `Edit(/…)` на каждый путь (якорь `/` — корень проекта) и три `Bash(…:*)`; смысл нормы тот же. Отказ deny срабатывает до `PreToolUse`.
 
-> Уточнено [ADR-0018](WARRANT-ADR-0018-frontend-adapters.md) и [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md):
-> решения этого ADR становятся адаптером `claude` (later); MVP ведёт Codex в ручном режиме под hooks и CI
-> (заметка ADR-0018 говорила «через codex-acp»); `warrant guard` принимает нормализованное событие и `--frontend`.
+> Уточнено [ADR-0018](WARRANT-ADR-0018-frontend-adapters.md) и [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md): решения этого ADR становятся адаптером `claude` (later); MVP ведёт Codex в ручном режиме под hooks и CI (заметка ADR-0018 говорила «через codex-acp»); `warrant guard` принимает нормализованное событие и `--frontend`.
 
-> Уточнено [ADR-0017](WARRANT-ADR-0017-check-execution.md): `warrant guard` (п. 2) также отклоняет прямой запуск
-> тяжёлых checks по `execution.guard_prefixes` и подсказывает `warrant check`.
+> Уточнено [ADR-0017](WARRANT-ADR-0017-check-execution.md): `warrant guard` (п. 2) также отклоняет прямой запуск тяжёлых checks по `execution.guard_prefixes` и подсказывает `warrant check`.
 
 ## Context
 
-Spike S5 (документация Claude Code, 2026-09): `PreToolUse` hooks матчатся по имени инструмента (`Write`, `Edit`,
-`Bash`, `Agent`), получают на stdin `tool_input.file_path` / `tool_input.command`, блокируют вызов через exit 2 или
-JSON `permissionDecision: "deny"`; `permissions.deny` в `.claude/settings.json` поддерживает `Edit(<glob>)`,
-`Write(<glob>)`, `Bash(<pattern>)`, вычисляется первым во всех scope, user-настройки не снимают project-deny,
-режим `bypassPermissions` deny уважает. Subagent получает изолированный контекст, может ограничивать `tools` и
-задавать `model`; session-hooks срабатывают внутри subagent; есть `SubagentStop`. Hook наследует окружение CLI.
+Spike S5 (документация Claude Code, 2026-09): `PreToolUse` hooks матчатся по имени инструмента (`Write`, `Edit`, `Bash`, `Agent`), получают на stdin `tool_input.file_path` / `tool_input.command`, блокируют вызов через exit 2 или JSON `permissionDecision: "deny"`; `permissions.deny` в `.claude/settings.json` поддерживает `Edit(<glob>)`, `Write(<glob>)`, `Bash(<pattern>)`, вычисляется первым во всех scope, user-настройки не снимают project-deny, режим `bypassPermissions` deny уважает. Subagent получает изолированный контекст, может ограничивать `tools` и задавать `model`; session-hooks срабатывают внутри subagent; есть `SubagentStop`. Hook наследует окружение CLI.
 
-Известная дыра: deny на `Edit` / `Write` не мешает `Bash("echo > .warrant/changes/x.json")`. Идеально закрыть
-shell нельзя.
+Известная дыра: deny на `Edit` / `Write` не мешает `Bash("echo > .warrant/changes/x.json")`. Идеально закрыть shell нельзя.
 
 ## Decision
 
-1. **Статический слой.** `warrant sync` генерирует в `.claude/settings.json` deny на
-   `Edit|Write(.warrant/changes/**, .warrant/evidence/**, .warrant/runs/**, openspec/specs/**, openspec/config.yaml, openspec/schemas/**)`
-   и `Bash(git push origin main:*)`, `Bash(gh pr merge:*)`, `Bash(openspec archive:*)`.
-2. **Динамический слой.** Один hook `PreToolUse` на `Edit|Write|Bash` → `warrant guard`: читает активный Run
-   (`.warrant/runs/current` → `write_scope`) и отвечает `deny` с причиной для путей вне `write_scope`.
-   События пишутся в `guard_events[]` активного Run.
-3. **Отдельный Run для review = subagent.** `.claude/agents/warrant-reviewer.md`: `disallowedTools: Write, Edit`,
-   свой `model`, контекст только из Context Pack; hook `SubagentStop` вызывает `warrant run submit <result.json>`.
-4. **`.claude/**` — policy-путь.** `.claude/settings.json` и `.claude/agents/**` генерируются, помечаются
-   `# generated by warrant`, их правка — `factory-change`. Иначе агент снимет собственный deny обычным Change.
-5. **Последняя инстанция — CI** ([ADR-0010](WARRANT-ADR-0010-trust-by-reference.md)): подделанная через shell запись
-   без верифицируемого ref не пройдёт `warrant ci`. Hook — быстрый отказ, не гарантия.
+1. **Статический слой.** `warrant sync` генерирует в `.claude/settings.json` deny на `Edit|Write(.warrant/changes/**, .warrant/evidence/**, .warrant/runs/**, openspec/specs/**, openspec/config.yaml, openspec/schemas/**)` и `Bash(git push origin main:*)`, `Bash(gh pr merge:*)`, `Bash(openspec archive:*)`.
+2. **Динамический слой.** Один hook `PreToolUse` на `Edit|Write|Bash` → `warrant guard`: читает активный Run (`.warrant/runs/current` → `write_scope`) и отвечает `deny` с причиной для путей вне `write_scope`. События пишутся в `guard_events[]` активного Run.
+3. **Отдельный Run для review = subagent.** `.claude/agents/warrant-reviewer.md`: `disallowedTools: Write, Edit`, свой `model`, контекст только из Context Pack; hook `SubagentStop` вызывает `warrant run submit <result.json>`.
+4. **`.claude/**` — policy-путь.** `.claude/settings.json` и `.claude/agents/**` генерируются, помечаются `# generated by warrant`, их правка — `factory-change`. Иначе агент снимет собственный deny обычным Change.
+5. **Последняя инстанция — CI** ([ADR-0010](WARRANT-ADR-0010-trust-by-reference.md)): подделанная через shell запись без верифицируемого ref не пройдёт `warrant ci`. Hook — быстрый отказ, не гарантия.
 6. **Токен бота** — только в окружении сессии; hook и CLI читают его из окружения; в репозитории его нет.
 
 ## Consequences
@@ -62,6 +40,5 @@ shell нельзя.
 
 ## Alternatives
 
-- **Только hook без статического deny** — отвергнуто: hook можно не установить; deny в project settings
-  версионируется и не снимается user-настройками.
+- **Только hook без статического deny** — отвергнуто: hook можно не установить; deny в project settings версионируется и не снимается user-настройками.
 - **Deny-list shell-команд как гарантия** — отвергнуто: обходится тривиально; гарантия — права форджа и CI.

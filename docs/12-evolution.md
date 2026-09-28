@@ -27,8 +27,7 @@ Status: normative · Maturity: MVP
 
 - Изменение schema, policy, profile, gate, check, pack, skill version в lock — только `factory-change`.
 - Обычный product Change MUST NOT затрагивать эти пути (gate `scope-valid`).
-- Архив, record и evidence архивных Changes меняет только `factory-change` с целью «миграция формата»
-  ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)).
+- Архив, record и evidence архивных Changes меняет только `factory-change` с целью «миграция формата» ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)).
 
 ## 2. Golden changes и policy fixtures
 
@@ -46,8 +45,7 @@ golden/
 └── expired-waiver/
 ```
 
-Каждый case содержит вход (Change + diff + classification proposal) и **ожидаемый** результат:
-profiles, risk level, effective policy (required artifacts, gates), capabilities, verdicts, controller action.
+Каждый case содержит вход (Change + diff + classification proposal) и **ожидаемый** результат: profiles, risk level, effective policy (required artifacts, gates), capabilities, verdicts, controller action.
 
 Policy test в форме сценария:
 
@@ -57,8 +55,7 @@ When:  rollback plan is absent
 Then:  gate rollback-rehearsed = FAIL; controller_action = STOP
 ```
 
-Gate `factory-golden-passed`: все golden cases дают ожидаемый результат. Если новая policy неожиданно разрешила
-«data migration without reconciliation» — factory-change `FAIL`.
+Gate `factory-golden-passed`: все golden cases дают ожидаемый результат. Если новая policy неожиданно разрешила «data migration without reconciliation» — factory-change `FAIL`.
 
 ## 3. Обновление OpenSpec
 
@@ -106,8 +103,7 @@ target behavior → implemented behavior → observed behavior
 Failure → Root cause → Pattern → Candidate improvement → Benchmark (golden) → Human approval → factory-change
 ```
 
-Пример: агенты систематически пропускают null-границы → в specs нет null-сценариев →
-правило scenario-engineering → benchmark на 20 исторических Changes → принято.
+Пример: агенты систематически пропускают null-границы → в specs нет null-сценариев → правило scenario-engineering → benchmark на 20 исторических Changes → принято.
 
 ### Что система MUST NOT делать автоматически
 
@@ -125,16 +121,13 @@ Failure → Root cause → Pattern → Candidate improvement → Benchmark (gold
 Status: proposed · Maturity: deferred
 
 - Факты о работе фабрики уже есть в Runs и evidence. Отдельный event log вводится, только если их недостаточно.
-- Структурированная память (FACT, DECISION, PATTERN, FAILURE, TRAP) — кандидат на хранение в LATTICE, а не в `.warrant/`.
-  Решение — после [11-integrations](11-integrations.md). Один бесконечный `memory.md` MUST NOT использоваться.
+- Структурированная память (FACT, DECISION, PATTERN, FAILURE, TRAP) — кандидат на хранение в LATTICE, а не в `.warrant/`. Решение — после [11-integrations](11-integrations.md). Один бесконечный `memory.md` MUST NOT использоваться.
 
 ## 7. Норма и практика: расхождения
 
 Status: informative · Maturity: MVP
 
-Норма WARRANT писалась под фабрику, которой ещё нет, а её первый носитель — этот репозиторий — живёт иначе.
-Расхождение само по себе не дефект: решением может быть и «подтянуть практику», и «изменить норму». Дефект —
-молчаливое расхождение, которое каждая следующая сессия открывает заново.
+Норма WARRANT писалась под фабрику, которой ещё нет, а её первый носитель — этот репозиторий — живёт иначе. Расхождение само по себе не дефект: решением может быть и «подтянуть практику», и «изменить норму». Дефект — молчаливое расхождение, которое каждая следующая сессия открывает заново.
 
 | Норма | Фактическая практика | Решение | Где |
 |---|---|---|---|

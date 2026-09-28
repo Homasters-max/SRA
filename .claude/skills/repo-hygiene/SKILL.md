@@ -5,14 +5,11 @@ description: "Убрать лишнее в репозитории и worktree �
 
 # Гигиена репозитория
 
-Скрипт находит, навык исправляет ([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 13). Обратимое —
-без вопросов (п. 1); всё, что в git, — через hygiene-PR, merge которого и есть review; необратимое и решения
-maintainer'а — одним вопросом на весь список. Имена и корень репозитория держит `structure.test.ts`, не этот навык.
+Скрипт находит, навык исправляет ([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 13). Обратимое — без вопросов (п. 1); всё, что в git, — через hygiene-PR, merge которого и есть review; необратимое и решения maintainer'а — одним вопросом на весь список. Имена и корень репозитория держит `structure.test.ts`, не этот навык.
 
 ## Вход
 
-- Основной checkout `D:\project\SRA` на `main` (ветки и worktree удаляются из него). Ветки на origin — по последнему
-  `fetch`, поэтому сначала он.
+- Основной checkout `D:\project\SRA` на `main` (ветки и worktree удаляются из него). Ветки на origin — по последнему `fetch`, поэтому сначала он.
 
 ## Шаги
 
@@ -28,11 +25,8 @@ maintainer'а — одним вопросом на весь список. Име
    - `prunable-worktree` — `git worktree prune`;
    - `ignored-leftover` — удалить каталог (`rm -rf <путь>`), он в `.gitignore`.
 3. **Через hygiene-PR** (`pr`) — навык `git-start start process/hygiene-<YYYY-MM-DD>`:
-   - `broken-link` — исправить ссылку на существующий путь (файл переехал — новый путь; удалён — текст без ссылки);
-     в ADR меняется только путь, не решение;
-   - `audit-stale` — навык `architecture-audit` (снимок и отчёт в `docs/process/audits/`): снимок старше тега, после
-     его коммита изменено больше 20 файлов `src` (`AUDIT_STALE_FILES`) или появился модуль.
-   Проверки и доставка — навык `git-land`; «merge #N» — maintainer.
+   - `broken-link` — исправить ссылку на существующий путь (файл переехал — новый путь; удалён — текст без ссылки); в ADR меняется только путь, не решение;
+   - `audit-stale` — навык `architecture-audit` (снимок и отчёт в `docs/process/audits/`): снимок старше тега, после его коммита изменено больше 20 файлов `src` (`AUDIT_STALE_FILES`) или появился модуль. Проверки и доставка — навык `git-land`; «merge #N» — maintainer.
 4. **С подтверждением** (`confirm`) — один список, один ответ maintainer'а на весь список:
    - `merged-worktree-dirty` — показать `git -C <путь> status --short`; закоммитить или удалить — по ответу;
    - `waiver-expiring` — продлить (новый waiver, активация maintainer'ом) или закрыть producer'ом gate;

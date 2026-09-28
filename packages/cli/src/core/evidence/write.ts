@@ -39,6 +39,9 @@ export interface StoreParams {
  * Validates a record against `warrant://evidence/1`, writes it to
  * `<state>/evidence/<change>/<id>.json` and rewrites the manifest (design §6).
  * Shared by `check` and by `transition`, which writes `human-approval`.
+ * The record goes first and the manifest is rebuilt from the directory, so a
+ * record left outside `evidence[]` by an interrupted write is listed by the
+ * next call (REQ-KRN-036, design I-203); a record or Run is written after.
  * Returns the reported path of the record.
  */
 export function storeRecord(params: StoreParams): string {

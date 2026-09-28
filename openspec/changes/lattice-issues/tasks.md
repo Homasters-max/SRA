@@ -9,11 +9,11 @@
 
 ## 1. Атомарная запись и bump (S-3, L4)
 
-- [ ] 1.1 Bump CLI `0.8.2`: `package.json`, `package-lock.json`, `kernel` в `warrant.lock.json` репозитория (`sync`) и трёх
+- [x] 1.1 Bump CLI `0.8.2`: `package.json`, `package-lock.json`, `kernel` в `warrant.lock.json` репозитория (`sync`) и трёх
   golden-фикстур pack; pack `core-sdd` не меняется (golden вне его hash, I-59).
 
   Проверка: `npm run versions:check` зелёный; e2e golden (SCN-SDD-015) — только `kernel` в lock.
-- [ ] 1.2 `writeFileAtomic` (§2) и `writeJsonFile` через него; указатель `current` (`core/run/lifecycle.ts`) и импорт
+- [x] 1.2 `writeFileAtomic` (§2) и `writeJsonFile` через него; указатель `current` (`core/run/lifecycle.ts`) и импорт
   `ci fetch` (`core/evidence/store.ts`) — через него.
 
   Порядок записи evidence → manifest → record / Run и `hint` находки `validate` (12) — I-203; 5 попыток всего и `BUSY` — I-206.

@@ -1,10 +1,18 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { canonicalText, formatJson, schemaFor, writeJsonFile } from "../../../src/core/canon/format-json.js";
+import {
+  canonicalText,
+  formatJson,
+  RENAME_ATTEMPTS,
+  schemaFor,
+  writeFileAtomic,
+  writeJsonFile
+} from "../../../src/core/canon/format-json.js";
+import { WarrantError } from "../../../src/core/errors.js";
 
 const dirs: string[] = [];
 afterAll(() => {
@@ -76,5 +84,101 @@ describe("writeJsonFile", () => {
     expect(bytes.toString("utf8")).toBe(
       '{\n  "$schema": "warrant://config/1",\n  "kernel": "0.1",\n  "openspec": "1.13.x",\n  "packs": {}\n}\n'
     );
+  });
+});
+
+describe("writeFileAtomic (REQ-KRN-036)", () => {
+  const OLD = '{\n  "old": true\n}\n';
+  const NEW = '{\n  "new": true\n}\n';
+
+  /** A record `.warrant/changes/add-search.json` holding {@link OLD}. */
+  function seeded(): { dir: string; file: string } {
+    const dir = path.join(tempDir(), ".warrant", "changes");
+    const file = path.join(dir, "add-search.json");
+    writeFileAtomic(file, OLD);
+    return { dir, file };
+  }
+
+  function failing(code: string): { rename: (from: string, to: string) => void; calls: () => number } {
+    let calls = 0;
+    return {
+      rename: () => {
+        calls += 1;
+        throw Object.assign(new Error(`${code}: rename`), { code });
+      },
+      calls: () => calls
+    };
+  }
+
+  it("writes over an existing file, creates the directory and leaves no temporary file", () => {
+    const { dir, file } = seeded();
+    writeFileAtomic(file, NEW);
+    expect(readFileSync(file, "utf8")).toBe(NEW);
+    expect(readdirSync(dir)).toEqual(["add-search.json"]);
+  });
+
+  it("writes bytes as they are", () => {
+    const { dir, file } = seeded();
+    writeFileAtomic(file, Buffer.from(NEW, "utf8"));
+    expect(readFileSync(file, "utf8")).toBe(NEW);
+    expect(readdirSync(dir)).toEqual(["add-search.json"]);
+  });
+
+  it("keeps the former file and removes the temporary one when the rename fails (SCN-KRN-158)", () => {
+    const { dir, file } = seeded();
+    const rename = failing("ENOSPC");
+    expect(() => writeFileAtomic(file, NEW, { rename: rename.rename, platform: "win32" })).toThrow(/ENOSPC/);
+    expect(rename.calls()).toBe(1);
+    expect(readFileSync(file, "utf8")).toBe(OLD);
+    expect(readdirSync(dir)).toEqual(["add-search.json"]);
+  });
+
+  it("is BUSY with exit 2 after 5 renames refused with EBUSY on win32 (SCN-KRN-158)", () => {
+    const { dir, file } = seeded();
+    const rename = failing("EBUSY");
+    let thrown: unknown;
+    try {
+      writeFileAtomic(file, NEW, { rename: rename.rename, platform: "win32" });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(WarrantError);
+    const busy = thrown as WarrantError;
+    expect([busy.code, busy.exitCode]).toEqual(["BUSY", 2]);
+    expect(busy.hint).toContain("another process holds the file");
+    expect(rename.calls()).toBe(RENAME_ATTEMPTS);
+    expect(readFileSync(file, "utf8")).toBe(OLD);
+    expect(readdirSync(dir)).toEqual(["add-search.json"]);
+  });
+
+  it("retries a held file on win32 and writes once the rename goes through", () => {
+    const { dir, file } = seeded();
+    let calls = 0;
+    const rename = (from: string, to: string): void => {
+      calls += 1;
+      if (calls < 3) throw Object.assign(new Error("EPERM: rename"), { code: "EPERM" });
+      // The real rename, once the holder let go.
+      writeFileSync(to, readFileSync(from));
+      rmSync(from);
+    };
+    writeFileAtomic(file, NEW, { rename, platform: "win32" });
+    expect(calls).toBe(3);
+    expect(readFileSync(file, "utf8")).toBe(NEW);
+    expect(readdirSync(dir)).toEqual(["add-search.json"]);
+  });
+
+  it("does not retry off win32: the error is thrown as it is", () => {
+    const { file } = seeded();
+    const rename = failing("EBUSY");
+    expect(() => writeFileAtomic(file, NEW, { rename: rename.rename, platform: "linux" })).toThrow(/EBUSY: rename/);
+    expect(rename.calls()).toBe(1);
+    expect(readFileSync(file, "utf8")).toBe(OLD);
+  });
+
+  it("writeJsonFile goes through it: no temporary file is left", () => {
+    const { dir, file } = seeded();
+    writeJsonFile(file, { new: true });
+    expect(readFileSync(file, "utf8")).toBe(NEW);
+    expect(readdirSync(dir)).toEqual(["add-search.json"]);
   });
 });

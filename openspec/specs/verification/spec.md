@@ -66,6 +66,14 @@ override в `.warrant/local/checks/`) SHALL давать `CHECK_NOT_CONFIGURED`,
 `test-report`; `openspec-validate` → kind `spec-report`) в `evidence_status` (`PROVEN` при отсутствии падений, иначе `NOT_PROVEN`;
 `NOT_APPLICABLE` — когда parser детерминированно установил отсутствие предмета проверки, D-11) и `metrics` по форме kind'а; junit, в
 котором не выполнен ни один тест (`tests − skipped ≤ 0`), SHALL давать `INCONCLUSIVE` с limitation `junit: all N tests skipped` (R-4).
+Parser `junit` SHALL считать документ по элементам `<testcase>`, где бы они ни лежали (в том числе вне любого `<testsuite>`):
+`tests` — их число; `skipped` — с дочерним `<skipped>`, `failures` — с `<failure>` и без `<skipped>` (упавший `todo` `node:test`
+несёт `<skipped>` и `<failure>` и прогон не валит), `errors` — с `<error>`, всегда (ошибку teardown пропущенного или упавшего теста
+pytest ничто не снимает; падение и ошибка teardown — одно падение и одна ошибка, как в счётчиках pytest); комментарии и CDATA — не
+разметка; атрибуты `<testsuite>` SHALL учитываться только у документа без единого `<testcase>`, итоги `<testsuites>` — никогда;
+документ без `<testcase>` и `<testsuite>` не учитывается, а если таких все — `INCONCLUSIVE` с limitation
+`junit: no <testcase> or <testsuite> found in {out}` (`{out}` — буквально; design I-196)
+([ADR-0042](../../../../docs/adr/WARRANT-ADR-0042-lattice-fixes.md) п. 2).
 Команда SHALL завершаться кодом 0, если каждая запись записана (в том числе `NOT_PROVEN`); check SHALL прерываться по `execution.timeout_s`
 (default `defaults.check_timeout_s` из `warrant.json`, иначе `1800`, D-17) с `CHECK_TIMEOUT`, код 3, без записи evidence.
 Check с `execution.exclusive: true` SHALL брать file lock `<git-common-dir>/warrant/check.lock` на время выполнения; занятый замок →
@@ -122,6 +130,11 @@ Check с `execution.exclusive: true` SHALL брать file lock `<git-common-dir
 <!-- id: SCN-VER-042 -->
 - **WHEN** тот же check выполнен без `--paths` с `GITHUB_ACTIONS=true` и переменными run'а
 - **THEN** выполнен полный `run.command`, запись имеет `attestation.type: "ci"` и не несёт `scoped:`
+
+#### Scenario: Отчёт node:test
+<!-- id: SCN-VER-117 -->
+- **WHEN** junit override'а `tests-passed` — отчёт `node --test --test-reporter=junit`: четыре `<testcase>` прямо в `<testsuites>` (один с `<failure>`, два с `<skipped>`) и `<testsuite>` с одним `<testcase>` и вложенным `<testsuite>` из двух `<testcase>` (один с `<failure>`), атрибуты suite — `tests="2" failures="1" skipped="1"` и `tests="2" failures="1"`
+- **THEN** запись имеет `evidence_status: "NOT_PROVEN"` и `metrics` `{ "tests": 7, "failures": 2, "errors": 0, "skipped": 2 }`; отчёт только из двух `<testcase>` без `<testsuite>` и падений — `PROVEN` с `tests: 2`; `<testcase>` с `<skipped type="todo">` и `<failure>` — пропуск; с `<skipped>` и `<error>` — пропуск и ошибка (`NOT_PROVEN`); с `<failure>` и `<error>` — падение и ошибка
 
 ### Requirement: Команда gate и алгоритм verdict
 <!-- id: REQ-VER-003 -->

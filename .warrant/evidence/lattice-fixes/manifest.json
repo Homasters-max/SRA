@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://evidence-manifest/1",
+  "change": "lattice-fixes",
+  "commit": "360949c00f2ffbe5775e2a3f520d8e957ea2833c",
+  "versions": {
+    "warrant": "0.8.0",
+    "openspec": "1.13.1",
+    "lock_hash": "sha256:87ffe0102077983a69ba5e9e3fccfc8a275ae51884d2badeb577fd955531fcf4",
+    "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829"
+  },
+  "evidence": [
+    "EVID-01M3JMYAS4PX4YV6G9B2XEQ8ZK",
+    "EVID-01M3JNS9HK9DHXFNSW2XNYNTKW",
+    "EVID-01M3JNV1Z61MSRY91061S77MYV"
+  ],
+  "gates": {
+    "ids-valid": "PASS",
+    "required-artifacts-present": "PASS",
+    "spec-valid": "PASS"
+  }
+}

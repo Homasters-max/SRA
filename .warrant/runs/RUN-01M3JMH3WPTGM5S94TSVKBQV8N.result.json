@@ -1,0 +1,103 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3JMH3WPTGM5S94TSVKBQV8N",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "REQ-KRN-033 embeds the unchanged pack skill text (SKILL.md: MUST NOT create files; guard forbids any edit) next to the new order to Write the envelope file to the OS temp dir; proposal keeps pack core-sdd unchanged, so the generated agent gets contradictory instructions.",
+      "targets": [
+        "REQ-KRN-033",
+        "SCN-KRN-139",
+        "proposal.md"
+      ],
+      "recommendation": "Amend the pack skill (bump) to allow only the envelope file in the temp dir, or state that the generated order overrides it; assert in SCN-KRN-139."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "ambiguity",
+      "statement": "REQ-VER-002 counts failures/errors/skipped per child independently, design s.2 takes one child by priority; a testcase with several (node:test failing todo = skipped+failure, pytest failure+teardown error) gets different metrics and status.",
+      "targets": [
+        "REQ-VER-002",
+        "SCN-VER-117"
+      ],
+      "recommendation": "Define one rule (exclusive with explicit priority, or independent) incl. todo, and add a scenario."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-ENF-004 takes the project and active Run from event cwd; a reviewer whose cwd is another checkout (worktree flow) sees no review Run, so Write anywhere is allowed and the temp-only rule (ADR-0042 p.4) does not hold.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-041",
+        "REQ-KRN-033"
+      ],
+      "recommendation": "State the assumption or tie the decision to the Run's project; say in the generated order from which directory to submit."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "SCN-ENF-041 requires three Run events, but REQ-ENF-004 does not say what guard_events[].paths holds for a path outside the project (run/1: POSIX path relative to root); an absolute temp path leaks the user dir into the committed Run.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-041"
+      ],
+      "recommendation": "Specify the recorded form (e.g. empty or a marker) and assert it in SCN-ENF-041."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "The agent cannot know os.tmpdir() of guard: the generated file is byte-stable, macOS TMPDIR is not /tmp, Windows may give an 8.3 short path; the deny hint carries only a placeholder.",
+      "targets": [
+        "REQ-ENF-004",
+        "REQ-KRN-033"
+      ],
+      "recommendation": "Make the deny reason/hint name the actual temp dir path and compare normalized (realpath) paths."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "REQ-ENF-007 does not define --file missing/unreadable/empty, empty stdin, or the base of a relative --file, though --file becomes the main path.",
+      "targets": [
+        "REQ-ENF-007",
+        "SCN-ENF-042"
+      ],
+      "recommendation": "Name code and hint for each (and whether data.received with bytes 0 is given); add to SCN-ENF-042."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Rolled up: (a) REQ-ENF-007 bytes of received envelope vs SCN-ENF-042 UTF-8 length differ on BOM/UTF-16, key sort order unstated; (b) REQ-VER-002 limitation 'in {out}' literal or substituted; (c) REQ-KRN-033 'the example envelope' while body has two; (d) REQ-KRN-033 adds 'deleted' beyond ADR-0042 p.5, hint ru (ADR) vs en (design); (e) INFO REQ-ENF-004 mode flags take words after positionals/'--', valued flag (-W error) leaves 'python -m pytest' unguarded; (f) INFO settings and frontmatter hooks both fire on subagent Write (duplicate events), main session may also write to temp (BL-83); (g) INFO temp envelope cleanup unstated.",
+      "targets": [
+        "REQ-ENF-007",
+        "SCN-ENF-042",
+        "REQ-VER-002",
+        "REQ-KRN-033",
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Clarify each wording in the next Draft; INFO items need no spec change."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:0ef9544c50a263c0ae2cffc896daf39cdb98ed2c24efd593cea972dcd016ec34",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-28T10:00:00Z",
+    "finished_at": "2026-09-28T10:45:00Z"
+  }
+}

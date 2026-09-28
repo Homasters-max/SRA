@@ -1,0 +1,64 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3JNEMFVJMCMP5D848ETBNKY",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-KRN-033 and REQ-ENF-004 assume Claude Code lets the subagent Write into the OS temp dir; Claude Code asks permission for writes outside its working dirs (denied headless), only the session scratchpad inside the temp dir is pre-allowed.",
+      "targets": [
+        "REQ-KRN-033",
+        "REQ-ENF-004",
+        "SCN-KRN-139"
+      ],
+      "recommendation": "Make the order name the session scratchpad (inside os.tmpdir()) or state the prompt; confirm by probe before APPROVED."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "REQ-VER-002 priority skipped>failure>error hides the pytest teardown <error> of a skipped testcase: old count NOT_PROVEN, new PROVEN while pytest exits 1; failure+teardown error also drops errors. ADR-0042 p.2 says the pytest count does not change.",
+      "targets": [
+        "REQ-VER-002",
+        "SCN-VER-117"
+      ],
+      "recommendation": "Let <skipped> outrank only <failure> (node:test todo) and never mask <error>, or amend ADR p.2; add a pytest scenario."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Rolled up: (a) REQ-ENF-004 does not bar the deny reason for an outside path from naming it; guard_events[].reason is committed, so the user dir leaks (F-4 intent). (b) REQ-ENF-007 wants data.received on every SKILL_RESULT_INVALID incl. /run and /skill, design s.4 puts it only in parseEnvelope; SCN-ENF-033 does not assert it. (c) REQ-KRN-033 'from the project root' vs REQ-ENF-004 shell rule: cd <root> && warrant run submit is denied under a visible review Run. (d) Order does not ask for a per-Run file name in the shared temp dir; parallel sessions overwrite each other (caught only by /run). (e) REQ-VER-002 several XML under {out}: 'documents without testcase/testsuite' - all or any. (f) REQ-ENF-007 whitespace-only stdin (USAGE) vs whitespace-only file (SKILL_RESULT_INVALID) unstated. (g) REQ-KRN-033 restart finding omits CLAUDE.md/AGENTS.md, also read at session start. (h) REQ-ENF-004 temp dir inside the project: project deny wins, hint points to a denied dir. (i) Open from round 1: F-7 d (deleted beyond ADR p.5, hint ru vs en), F-7 e INFO (python -W error -m pytest unguarded).",
+      "targets": [
+        "REQ-ENF-004",
+        "REQ-ENF-007",
+        "SCN-ENF-033",
+        "REQ-KRN-033",
+        "REQ-VER-002"
+      ],
+      "recommendation": "Clarify each in the next Draft; (b) assert received in SCN-ENF-033, (d) name the file by Run id."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "pytest junitxml writes <skipped> and <error> in one testcase when a skipped test fails in teardown."
+    },
+    {
+      "id": "A-2",
+      "statement": "Claude Code prompts for Write outside the working dirs except the session scratchpad."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:d6ba689ee34cce6e722da0fafebb16333d9fe0d0a17cb1b94ef6c99bfbb9608f",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-28T12:00:00Z",
+    "finished_at": "2026-09-28T12:40:00Z"
+  }
+}

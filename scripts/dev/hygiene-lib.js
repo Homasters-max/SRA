@@ -22,7 +22,7 @@ export const DRAFT_STALE_DAYS = 14;
 /** More files of the audited dir changed on main since the snapshot's commit than this — the snapshot is stale. */
 export const AUDIT_STALE_FILES = 20;
 /** Markdown trees checked for broken relative links; archives are history and are not checked. */
-export const LINK_ROOTS = ["docs", ".claude/skills", "CLAUDE.md", "packages/cli/CLAUDE.md", "README.md"];
+export const LINK_ROOTS = ["docs", ".claude/skills", "AGENTS.md", "packages/cli/AGENTS.md", "README.md"];
 const LINK_SKIP = [/^docs\/archive\//, /^openspec\/changes\/archive\//];
 
 const days = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);

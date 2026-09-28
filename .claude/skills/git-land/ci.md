@@ -14,7 +14,7 @@ CI — матрица `test` ubuntu + windows (P-9), шаг `PR form` на ubunt
    | ожидаемое | `warrant` в impl-PR до коммита `VERIFYING` — `CHANGE_NOT_VERIFYING`; `human-approval` в `deferred[]` | ничего, это не сбой |
    | `warrant` | `GATE_NOT_PASSED`, `RECORD_MISMATCH`, `SCOPE_VIOLATION`, `REF_NOT_VERIFIED` — в `errors[]` вывода шага `warrant ci` | исправить PR по `hint`; `main` сдвинулся до merge — Re-run job; `FORGE_UNAVAILABLE` — `permissions` и `GH_TOKEN` в `ci.yml` |
    | форма PR | шаг `PR form`: префикс ветки, заголовок коммита | заголовок — `git commit --amend -F` для последнего неопубликованного, иначе новая ветка по `recovery.md`; префикс — новая ветка |
-   | платформа | только ubuntu или только windows: пути, регистр, 8.3-имена, symlink, CRLF, spawn, внешние утилиты | ловушки — раздел `packages/cli/CLAUDE.md`; воспроизвести (шаг 3) |
+   | платформа | только ubuntu или только windows: пути, регистр, 8.3-имена, symlink, CRLF, spawn, внешние утилиты | ловушки — раздел `packages/cli/AGENTS.md`; воспроизвести (шаг 3) |
    | нестабильный тест | проходит при повторе без изменений, зависит от времени или порядка | стоп и отчёт: не обходить повтором, не отключать тест |
    | таймаут | job упёрся в `timeout-minutes` | найти зависший процесс по логу, не поднимать лимит молча |
    | дефект | падает на обеих ОС или воспроизводится локально | исправить с тестом уровня по ADR-0025 |

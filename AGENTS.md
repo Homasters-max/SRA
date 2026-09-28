@@ -9,7 +9,7 @@ WARRANT — governance-слой фабрики SEF поверх OpenSpec (specif
 | `docs/` | спецификация 01–13 ([00-readme](docs/00-readme.md)), `adr/`, [backlog.md](docs/backlog.md) (долг), `handoff/` (передача), `process/` (процессы разработки), `archive/` (история) |
 | `docs/drafts/` | черновики до решения ([README](docs/drafts/README.md)); папка удаляется PR решения (ADR-0033 п. 12) |
 | `openspec/` | specs и Changes (dogfooding); `changes/archive/` неизменяем (ADR-0021) |
-| `packages/cli/` | CLI `warrant`: `src/`, `test/` (уровни ADR-0025), `schemas/`; конвенции — [packages/cli/CLAUDE.md](packages/cli/CLAUDE.md) |
+| `packages/cli/` | CLI `warrant`: `src/`, `test/` (уровни ADR-0025), `schemas/`; конвенции — [packages/cli/AGENTS.md](packages/cli/AGENTS.md) |
 | `packs/core-sdd/` | pack по умолчанию: profiles, gates, checks, golden |
 | `sra/skills/` | reasoning-skills SRA, поставляемые с pack |
 | `scripts/dev/` | инструменты разработки: `cs.js` (поиск по коду), `brief.js` (состояние), `hygiene.js`, хуки, метрики; не поставляются |
@@ -58,7 +58,7 @@ WARRANT — governance-слой фабрики SEF поверх OpenSpec (specif
 - Зависимости модулей — по рангам `architecture.json`, без циклов и копий помощников. Держится: `architecture.test.ts` (ADR-0030).
 - Код ищется через `cs`, читается диапазонами. Держится у субагентов: хук `PreToolUse` — `deny` (ADR-0031).
 - Хуки разработки — только из белого списка. Держится: `dev-hooks.test.ts` (ADR-0032 п. 11).
-- Навыки, `CLAUDE.md`, файлы передачи, `backlog.md` — по форме ADR-0032. Держится: `dev-context.test.ts`.
+- Навыки, `AGENTS.md`, файлы передачи, `backlog.md` — по форме ADR-0032. Держится: `dev-context.test.ts`.
 - Основной checkout — только `main`, работа — в worktree; force push и `openspec archive` запрещены. Держится: хук `git-hook.js` (ADR-0033 п. 9). Одна ветка — один worktree, ветку проверять перед коммитом — шаг 1 `group-done`.
 - Длинный текст (коммит, PR, envelope, JSON) — файлом (`Write`) и флагом пути, не в команде Bash: Git Bash на Windows обрезает команду длиннее ~7,7 тыс. символов. Держится: `git-hook.js` `long-command` (ADR-0043).
 - Отклонение от spec или design — вопросом maintainer'у, принятое — строкой `I-N` (навык `decision`); норма во время реализации меняется только новым ADR.

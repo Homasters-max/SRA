@@ -31,7 +31,7 @@ function pointerMatches(actual: string | undefined, expected: string): boolean {
 
 /**
  * Scenarios of openspec/specs/kernel (and enforcement, `run/1`) whose document is a fixture: `<schema>/<file>` → SCN id, shown in the test name
- * (SCN tag, packages/cli/CLAUDE.md). A valid fixture is the example the scenario names, with the substitutions the
+ * (SCN tag, packages/cli/AGENTS.md). A valid fixture is the example the scenario names, with the substitutions the
  * scenario states (ULID ids, URL refs) and concrete values for the placeholders of the document (`<login>`, `sha256:…`);
  * an invalid one is its counter-example, and its `.expect.json` names the same id in `scenario`.
  */

@@ -16,8 +16,10 @@
 - [ ] 1.2 `writeFileAtomic` (§2) и `writeJsonFile` через него; указатель `current` (`core/run/lifecycle.ts`) и импорт
   `ci fetch` (`core/evidence/store.ts`) — через него.
 
-  Проверка: unit — SCN-KRN-158 (сбой rename оставляет прежний файл, временного файла нет); app `run`, `ci-fetch` без правок
-  ожидаемых значений.
+  Порядок записи evidence → manifest → record / Run и `hint` находки `validate` (12) — I-203; 5 попыток всего и `BUSY` — I-206.
+
+  Проверка: unit — SCN-KRN-158 (сбой rename оставляет прежний файл, временного файла нет, `BUSY` после 5 попыток); app `run`,
+  `ci-fetch` без правок ожидаемых значений.
 
 ## 2. Пропущенный тест сценария (S-4, L2)
 
@@ -32,7 +34,8 @@
 
   Проверка: app `run submit` — SCN-ENF-043 (повтор, manifest, `EVIDENCE_CONFLICT`); прочие SCN REQ-ENF-007 без правок
   ожидаемых значений, кроме поля `data.reused`.
-- [ ] 3.2 Guard под Run `review` (§4): команды без записи, `run finish --state CANCELLED`, `SUBMIT_HINT`; удалить ветку R-32.
+- [ ] 3.2 Guard под Run `review` (§4, I-202, I-207): команды без записи, `run finish --state CANCELLED`, `cd` только внутри проекта,
+  строгая форма; `SUBMIT_HINT`; удалить ветку R-32.
 
   Проверка: app `guard` — SCN-ENF-044; SCN-ENF-026 — только текст `hint`.
 - [ ] 3.3 `UNCOMMITTED_IN_SCOPE` у `run start` `specify` / `implement` (§4), `data.findings[]` вывода.
@@ -44,12 +47,12 @@
 - [ ] 4.1 `gate/1` — `requires_evidence[].check` (`packages/cli/schemas/gate.1.schema.json`), копии — `warrant sync`.
 
   Проверка: unit схем — SCN-KRN-159.
-- [ ] 4.2 `evidencePart`, `checksForTransition`, `weakenings` (§5).
+- [ ] 4.2 `evidencePart`, `checksForTransition`, `weakenings` (§5); `CONFIG_INVALID` для `check` на незагруженный check (I-204).
 
   Проверка: app `gate`, `check` — SCN-VER-119, SCN-VER-123; прочие SCN REQ-VER-003 без правок ожидаемых значений.
 - [ ] 4.4 `warrant ci`, правило `ci_evidence` (§5): запись check требования.
 
-  Проверка: app `ci` — сценарий `ci_evidence` с `check` (SCN-VER-119 на уровне `ci`).
+  Проверка: app `ci` — SCN-VER-108, вариант с `check` (I-205).
 - [ ] 4.3 `validate` — ссылка `check` (§5).
 
   Проверка: app `validate` — SCN-KRN-156.
@@ -65,12 +68,15 @@
 
 ## 6. Reusable workflow (S-2, BL-51, L7)
 
-- [ ] 6.1 `.github/workflows/warrant.yml` (`workflow_call`) и вызов из `ci.yml` (§7); имя проверки в навыках и документах.
+- [ ] 6.1 `.github/workflows/warrant.yml` (`workflow_call`) и вызов из `ci.yml` (§7); шаг проверки входа `warrant` (I-208); имя
+  проверки в навыках и документах.
 
   Проверка: unit meta — SCN-VER-122; job `warrant / warrant` этого PR зелёный.
 
 ## 7. Документы и закрытие
 
-- [ ] 7.1 Документы (§8): 04 — таблица восстановления; 06 §2, §3, §8; `backlog.md` — удалить BL-44, BL-51, BL-81, R-32;
-  «Куда» BL-57, BL-83.
-- [ ] 7.2 Ревью реализации — навык `review-impl`; `transition VERIFYING` последним коммитом impl-PR.
+- [ ] 7.1 Документы (§8): 04 — таблица восстановления (со строкой «запись вне manifest», I-203); 06 §2, §3, §8; `backlog.md` —
+  удалить BL-44, BL-51, BL-81, BL-93, R-32; «Куда» BL-57, BL-83.
+- [x] 7.2 Waiver `spec-approved` на правку delta spec по I-202…I-208 (ADR-0024 п. 4) — `PROPOSED` в теле impl-PR; активирует
+  maintainer по слову в PR.
+- [ ] 7.3 Ревью реализации — навык `review-impl`; `transition VERIFYING` последним коммитом impl-PR.

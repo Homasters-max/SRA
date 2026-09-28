@@ -106,12 +106,14 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
   - `warrant status [...]`, `warrant gate <change> [...]` (обе ничего не пишут), `warrant <слова> --help` или `-h`,
     `warrant run finish --state CANCELLED [--dry-run]`;
   - `git status | log | diff | show [...]`: подкоманда — первое слово после `git` (глобальные опции `-c`, `-C`, `--git-dir` и
-    любые другие перед подкомандой — `deny`), ни один аргумент не начинается с `-o` или `--o` (`--output`, его сокращения) и
-    не равен `--ext-diff`;
-  - `cd <путь>`.
+    любые другие перед подкомандой — `deny`), ни один аргумент не начинается с `-o`, не равен префиксу `--output` длиной от
+    `--ou` и не начинается с `--output=`, не равен `--ext-diff` (`--oneline`, `--ours` разрешены; design I-207);
+  - `cd <путь>`, если путь после `realpath` лежит внутри проекта события (иначе `deny`: `run finish` и `run submit` без id Run
+    действуют на Run того checkout, куда ведёт `cd`; design I-202).
 
-  Строгая форма команды без записи: простые команды соединены только `&&`, `||`, `;`; перенаправление, конвейер `|`, `&`,
-  подстановка `$(…)` или `` `…` ``, присваивание `VAR=…` и heredoc — `deny`. Иначе `deny` с hint, называющим
+  Строгая форма команды без записи: простые команды соединены только `&&`, `||`, `;` и переводом строки; перенаправление,
+  конвейер `|`, `&`, подстановка `$(…)` или `` `…` ``, присваивание `VAR=…`, heredoc, группы `( … )` и `{ …; }`, `!` — `deny`;
+  `--state=CANCELLED` равен `--state CANCELLED` (design I-207). Иначе `deny` с hint, называющим
   `warrant run submit`, отмену `warrant run finish --state CANCELLED` и `warrant status`;
 - `shell` в остальных случаях — `deny`, если простая команда строки после shell-разбора начинается с одного из
   `execution.guard_prefixes` check с `exclusive: true` или `local ≠ allowed` (по умолчанию — первые токены `run.command` до первого
@@ -200,8 +202,8 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 
 #### Scenario: Чтение и отмена под review
 <!-- id: SCN-ENF-044 -->
-- **WHEN** при активном Run `review` guard получает `pre` `shell` с `argv: ["bash", "-c", "warrant status add-search"]`, затем `["bash", "-c", "git diff main -- openspec && warrant gate add-search"]`, затем `["bash", "-c", "warrant run finish --state CANCELLED"]`; затем `["bash", "-c", "git diff --outp=x.patch"]`, `["bash", "-c", "git -c diff.external=x diff"]`, `["bash", "-c", "warrant status > s.txt"]`, `["bash", "-c", "git log | head"]` и `["bash", "-c", "warrant run finish"]`
-- **THEN** первые три — `allow`; остальные пять — `deny` с hint, называющим `warrant run finish --state CANCELLED`
+- **WHEN** при активном Run `review` guard получает `pre` `shell` с `argv: ["bash", "-c", "warrant status add-search"]`, затем `["bash", "-c", "git diff main -- openspec && warrant gate add-search"]`, затем `["bash", "-c", "warrant run finish --state CANCELLED"]`; затем `["bash", "-c", "git diff --outp=x.patch"]`, `["bash", "-c", "git -c diff.external=x diff"]`, `["bash", "-c", "warrant status > s.txt"]`, `["bash", "-c", "git log | head"]`, `["bash", "-c", "warrant run finish"]` и `["bash", "-c", "cd ../other && warrant run finish --state CANCELLED"]` (`../other` вне проекта); `["bash", "-c", "git log --oneline"]`
+- **THEN** первые три и последняя — `allow`; остальные шесть — `deny` с hint, называющим `warrant run finish --state CANCELLED`
 
 ### Requirement: Команда run submit
 <!-- id: REQ-ENF-007 -->

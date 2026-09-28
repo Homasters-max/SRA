@@ -1,0 +1,107 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3MPGS3CXFC2FXN3245MMWBG",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "The change's main observable fix for validate is not covered by any scenario. The proposal's Why names the defect ('validate без него даёт GENERATED_DRIFT'), and What Changes says validate no longer checks CLAUDE.md. The delta REQ-KRN-033 expresses this only by dropping CLAUDE.md from the validate list. The explicit new SHALL NOT sentence names only sync and init, not validate or sync --check. No SCN asserts that validate and sync --check stay clean when AGENTS.md is generated and CLAUDE.md is absent or lacks '@AGENTS.md'. tasks 1.2 plans this test without a SCN id, so the requirement is not traced.",
+      "targets": [
+        "REQ-KRN-033",
+        "openspec/changes/no-claude-md/proposal.md",
+        "openspec/changes/no-claude-md/tasks.md"
+      ],
+      "recommendation": "Extend the SHALL NOT sentence to validate and sync --check: 'warrant validate and sync --check SHALL NOT check CLAUDE.md'. Add a scenario or a THEN clause to SCN-KRN-132: with frontends: [\"claude\"] and generated AGENTS.md, and CLAUDE.md either absent or present without '@AGENTS.md', warrant validate and warrant sync --check give no GENERATED_DRIFT, exit 0. Reference that SCN in tasks 1.2."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-KRN-132 THEN asserts both 'CLAUDE.md не создан' and 'существующий CLAUDE.md не изменён', but WHEN gives no precondition about CLAUDE.md. These are two mutually exclusive starting states in one WHEN. The existing-file content that matters is also not named: a file without '@AGENTS.md' (0.8.1 would have appended the line), or a file with the line written by a prior version.",
+      "targets": [
+        "SCN-KRN-132"
+      ],
+      "recommendation": "State both preconditions in WHEN, for example 'CLAUDE.md absent, or present without the line @AGENTS.md'. Or split the scenario so each starting state has its own observable THEN: absent stays absent; present stays byte-identical."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "The new sentence 'CLAUDE.md sync и init SHALL NOT создавать и менять' does not name deletion. In the same requirement, sync SHALL delete a marked subagent file, so deletion is a distinct verb there. The follow-up clause about the legacy '@AGENTS.md' line ('sync не трогает') uses no RFC keyword and omits init.",
+      "targets": [
+        "REQ-KRN-033"
+      ],
+      "recommendation": "Write: 'sync and init SHALL NOT create, modify or delete CLAUDE.md, including a line @AGENTS.md written by earlier versions'. Move the rationale ('Claude Code читает AGENTS.md сам') out of the normative sentence."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-KRN-154 THEN says FRONTEND_RESTART_REQUIRED is reported for 'AGENTS.md, если он создан'. The WHEN ('warrant init --frontend claude в новом проекте') does not say whether the project has a rule with paths [\"**\"]. core-sdd ships no rules (ADR-0022 п. 2, D-23), so the AGENTS.md branch is not exercised unless the test adds a local rule. The scenario leaves this choice open.",
+      "targets": [
+        "SCN-KRN-154"
+      ],
+      "recommendation": "Fix the precondition in WHEN. Either a local rule with paths [\"**\"] exists, so AGENTS.md is created and must appear in findings, or no such rule exists and AGENTS.md must not appear. Also state that no finding has path CLAUDE.md."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "Accepted documents still describe the removed mechanism, and the proposal's Impact does not list them. ADR-0034 п. 6 (4a): 'sync → ... AGENTS.md с @AGENTS.md в CLAUDE.md (BL-20)'. ADR-0032 Consequences: 'CLAUDE.md ссылается на сгенерированный AGENTS.md (ADR-0022)'. Only README, 04-lifecycle and backlog BL-20 are listed for update.",
+      "targets": [
+        "openspec/changes/no-claude-md/proposal.md",
+        "docs/adr/WARRANT-ADR-0034-phase-4-frontend.md",
+        "docs/adr/WARRANT-ADR-0032-dev-context.md"
+      ],
+      "recommendation": "Record in the proposal how these ADR statements are superseded. For example, a note or status amendment in ADR-0034 п. 6, or an explicit statement that design D1 (maintainer decision 2026-09-28) supersedes them. Add them to Impact."
+    },
+    {
+      "id": "F-6",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "The proposal says 'Репозиторий WARRANT уже перешёл на AGENTS.md (PR #87)', and design §3 says 'CLAUDE.md уже нет (PR #87)'. The reviewed base (main at f3af14e, merge of PR #86) still has a root CLAUDE.md and no root AGENTS.md. docs/process/rules.md still has the row 'CLAUDE.md ≤ 100 строк' held by dev-context.test.ts. The change silently assumes PR #87 lands first. This does not change sync --check here, because frontends is not enabled in the repository.",
+      "targets": [
+        "openspec/changes/no-claude-md/proposal.md",
+        "openspec/changes/no-claude-md/design.md"
+      ],
+      "recommendation": "State PR #87 as an explicit prerequisite, merged before the impl-PR, or reword to 'после PR #87'. Otherwise drop the claim from Why and design §3."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "With CLAUDE.md out of scope, delivery of the AGENTS.md channel (ADR-0022 п. 2, channel 1) to Claude Code now rests entirely on Claude Code's own behavior. No WARRANT check or evidence observes it. The design Risks accept this ('если конкретная версия Claude Code его не прочтёт'). The maintainer states it as fact; this finding only notes that it is a prompt-level channel with no enforcement (INV-04).",
+      "targets": [
+        "REQ-KRN-033",
+        "openspec/changes/no-claude-md/design.md"
+      ],
+      "recommendation": "Optionally name the dependency in design Risks as an external-behavior assumption. If a probe exists (scripts/dev/probe-hooks.js, ADR-0034 п. 2), consider having it confirm that AGENTS.md is loaded."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Claude Code reads the root AGENTS.md without a CLAUDE.md import, taken as given per the maintainer and not verified."
+    },
+    {
+      "id": "A-2",
+      "statement": "Code in packages/cli/src/core/sync/{claude,plan,subset}.ts was not read: guard and code-search hooks limit this Run to reading non-code files. The design's description of claudeMdTarget, subsetTargets and readAtSessionStart is taken as accurate."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:cd4eaafc72e2b49b56f5961894bbe2d79d40731abf0038375319aa2b80d2e2c6",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-28T10:00:00Z",
+    "finished_at": "2026-09-28T10:20:00Z"
+  }
+}

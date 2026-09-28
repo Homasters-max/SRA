@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01M3MYKT5S7AHN7H15QY5MG8SF",
+  "change": "lattice-issues",
+  "operation": "review",
+  "skill": "specification/adversarial-review@0.2.0",
+  "model": "claude-opus-5-5",
+  "write_scope": [],
+  "scope": [],
+  "branch": "spec/lattice-issues",
+  "started_at": "2026-09-28T21:26:55.965Z",
+  "finished_at": "2026-09-28T21:33:09.834Z",
+  "run_state": "SUCCEEDED",
+  "context_hash": "sha256:8b70aa35fab4684be05ee3e31934c784bf814ec7472ca43c73fa33e24f4e59ca",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "spec_tree": "sha256:d4fe02f5ff70ac02dfe3159581c8da5c54b44e70e5009dd0013b733617279a85",
+  "evidence": [
+    "EVID-01M3MYZ6HSFEKHKHMZ0WPPWVGW"
+  ],
+  "guard_events": []
+}

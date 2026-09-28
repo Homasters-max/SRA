@@ -1,0 +1,12 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "no-claude-md",
+  "change_state": "PROPOSED",
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-09-28T19:05:04.865Z",
+      "by": "cli:local"
+    }
+  ]
+}

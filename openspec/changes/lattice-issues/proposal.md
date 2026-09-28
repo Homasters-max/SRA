@@ -24,22 +24,26 @@ maintainer'а — [ADR-0044](../../../docs/adr/WARRANT-ADR-0044-lattice-issues.m
 - **Parser `junit`:** пропущенный `<testcase>`, в имени которого есть ссылка `SCN-<AREA>-NNN`, делает запись `NOT_PROVEN` с
   limitation `junit: skipped SCN-…`.
 - **Run:**
-  - повтор `run submit` того же Run переиспользует записанную evidence (`produced_by.run`);
-  - под Run `review` guard пропускает команды без записи (`warrant status`, `warrant verify … --dry-run`,
-    `warrant … --help`, `git status | log | diff | show`, `cd`) и `warrant run finish --state CANCELLED`; подсказка отказа
-    называет отмену;
+  - повтор `run submit` того же Run с тем же envelope переиспользует записанную evidence (`produced_by.run`) и дописывает
+    manifest; другой envelope — `EVIDENCE_CONFLICT`;
+  - под Run `review` guard пропускает команды без записи (`warrant status`, `warrant gate`, `warrant … --help`,
+    `git status | log | diff | show` без глобальных опций, `--output` и `--ext-diff`, `cd`) и
+    `warrant run finish --state CANCELLED`; без перенаправлений, конвейеров и подстановок; подсказка отказа называет отмену;
   - `run start` `specify` / `implement` — находка `UNCOMMITTED_IN_SCOPE` при незакоммиченных файлах внутри `write_scope`;
   - удалить недостижимую ветку `review` в `editWithRun` (R-32).
 - **Gate по check:** необязательное `requires_evidence[].check` — gate берёт записи только этого check; `validate` проверяет
-  ссылку; `check` без `id` выбирает check по `check` gate, если он задан.
+  ссылку; checks перехода (`check` без `id`, `verify`, `warrant ci`) для такого требования — только этот check; правило
+  `ci_evidence` `warrant ci` — запись этого check.
 - **Идентичность:**
   - `identities.agents[].login` читается; `validate` — `CONFIG_INVALID` для логина и в `roles.*`, и в `identities.agents`;
   - `warrant ci` при пустом `identities.agents` базы — находка `SHARED_IDENTITY` на каждом проверенном акте;
   - при непустом: `merged_by = pr.author` — `REF_NOT_VERIFIED` `merged_by` вместо находки `APPROVER_IS_AUTHOR`; автор
     решения UNKNOWN из `identities.agents` — деталь `author`.
-- **Reusable workflow:** `.github/workflows/warrant.yml` (`on: workflow_call`) — job `warrant`; `ci.yml` этого репозитория
-  вызывает его; проект вызывает по тегу CLI.
-- **Версии:** CLI `0.8.1 → 0.8.2`; pack `core-sdd` — только если меняются его golden-копии схем.
+- **Reusable workflow:** `.github/workflows/warrant.yml` (`on: workflow_call`) — job `warrant`; вход `warrant` обязателен (тег
+  CLI или `checkout`); `ci.yml` этого репозитория вызывает его с `warrant: checkout`; проект — по тегу CLI. Имя проверки —
+  `warrant / warrant`: обязательные проверки branch protection обновляет maintainer (здесь их нет, 06 §8).
+- **Версии:** CLI `0.8.1 → 0.8.2`; pack `core-sdd` не меняется: golden-фикстуры вне его hash (I-59), копии схемы gate в них
+  обновляет `warrant sync`.
 
 ## Capabilities
 
@@ -50,15 +54,15 @@ maintainer'а — [ADR-0044](../../../docs/adr/WARRANT-ADR-0044-lattice-issues.m
 ### Modified Capabilities
 
 - `verification`:
-  - REQ-VER-002 — пропущенный тест сценария;
+  - REQ-VER-002 — пропущенный тест сценария, checks перехода при `check`;
   - REQ-VER-003 — выбор записи gate по `check`;
-  - REQ-VER-011 — `SHARED_IDENTITY`, `merged_by = pr.author` при непустом `identities.agents`;
+  - REQ-VER-011 — `SHARED_IDENTITY`, `merged_by = pr.author` или агент при непустом `identities.agents`, `ci_evidence` по `check`;
   - REQ-VER-013 — автор решения из `identities.agents`, `SHARED_IDENTITY`;
   - REQ-VER-014 (новое) — reusable workflow job `warrant`.
 - `enforcement`:
   - REQ-ENF-002 — `UNCOMMITTED_IN_SCOPE`;
   - REQ-ENF-004 — команды без записи и отмена под Run `review`;
-  - REQ-ENF-007 — повтор `run submit`.
+  - REQ-ENF-007 — повтор `run submit`, `EVIDENCE_CONFLICT`.
 - `kernel`:
   - REQ-KRN-009 — `requires_evidence[].check` в схеме gate;
   - REQ-KRN-021 — `validate`: `identities.agents` ∩ `roles`, ссылка `check` gate;

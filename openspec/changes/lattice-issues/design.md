@@ -97,21 +97,28 @@ ADR-0036, ADR-0037 п. 4, 5, ADR-0040 п. 3 (уточнены ADR-0044); ADR-002
 ### 4. Группа 3 — Run (L5)
 
 - **Повтор `run submit`.** До `allocateUlid` — поиск записи в каталоге evidence Change с `produced_by.run` = id Run и kind
-  `review`. Есть — её id переиспользуется, запись и manifest не переписываются (запись неизменна, `EVIDENCE_CONFLICT` при
-  других байтах — как `ci fetch`); результат `<run>.result.json` переписывается атомарно; Run дописывается (`evidence[]`
-  без повтора id), `current` удаляется. Вывод — тот же, что у первой сдачи, `data.reused: true`.
+  `review`. Есть — sha256 канонической формы нового envelope сравнивается с `artifacts[0].sha256` записи (решение D-2 review 1):
+  равны — id переиспользуется, запись не переписывается, id дописывается в `manifest.evidence[]`, если его нет (обрыв до
+  manifest, F-4), результат записывается атомарно, Run завершается (`evidence[]` без повтора id), `current` удаляется, вывод —
+  `evidence_status` и `metrics` записи, `data.reused: true`; различаются — `EVIDENCE_CONFLICT`, код 3, ничего не записано.
+  `--dry-run` — `data.reused: true`, `would_write[]` без файла записи (F-5).
 - **Guard под Run `review`.** `reviewShellAnswer` пропускает строку, если каждая простая команда — строгая форма
   `warrant run submit` или одна из команд без записи:
-  - `warrant status [<change>] [--json]`, `warrant verify <change> --dry-run [...]`, `warrant <слова> --help` / `-h`;
+  - `warrant status [...]`, `warrant gate <change> [...]` (не пишут; у `verify` нет `--dry-run` — решение D-1 review 1),
+    `warrant <слова> --help` / `-h`;
   - `warrant run finish --state CANCELLED [--dry-run]`;
-  - `git status | log | diff | show` с любыми аргументами, кроме `--output` / `-o` и перенаправлений (оператор
-    перенаправления — `deny`, как сейчас);
+  - `git status | log | diff | show`: подкоманда — первое слово после `git` (глобальные опции — `deny`), аргументы не
+    начинаются с `-o` / `--o` и не равны `--ext-diff` (F-7);
   - `cd <путь>`.
+
+  Соединители — только `&&`, `||`, `;`; перенаправление, `|`, `&`, `$(…)`, обратные кавычки, присваивание, heredoc — `deny`
+  (F-6); heredoc остаётся только у `warrant run submit` (I-167).
 
   Остальное — `deny`. `SUBMIT_HINT` дополняется: «to stop the review: `warrant run finish --state CANCELLED`; to read state:
   `warrant status`». Строгость формы — как у `isSubmit`: без `$(…)`, `&`, присваиваний.
 - **`UNCOMMITTED_IN_SCOPE`.** `run start` `specify` / `implement` после расчёта `write_scope` вызывает
-  `ctx.git.dirty(write_scope)`; непустой ответ — `data.findings[]` `{ code: "UNCOMMITTED_IN_SCOPE", paths[], hint }`,
+  `ctx.git.dirty(write_scope)` (изменения в индексе и рабочем дереве, удалённые, неотслеживаемые без игнорируемых — ответ
+  `git status --porcelain`; F-8; пути отсортированы); непустой ответ — `data.findings[]` `{ code: "UNCOMMITTED_IN_SCOPE", paths[], hint }`,
   код выхода 0, Run стартует. Без git — находки нет (`limitations` Context Pack, как сейчас). `data.findings[]` у
   `run start` — новое поле вывода, всегда присутствует (пустой массив); golden вывода `run start` обновляется.
 - **R-32.** Удалить недостижимую ветку в `editWithRun`, строку R-32 — из backlog.
@@ -135,7 +142,10 @@ ADR-0036, ADR-0037 п. 4, 5, ADR-0040 п. 3 (уточнены ADR-0044); ADR-002
 - `evidencePart`: при `requirement.check` кандидаты — записи kind'а с `produced_by.type = "check"` и
   `produced_by.id = check`; находка при отсутствии называет check. Без `check` — прежнее правило.
 - `checksForTransition`: для требования с `check` выбирается только этот check (если его `produces` содержит kind), а не все
-  checks kind'а; требования без `check` — прежнее пересечение. Итог — объединение, по id.
+  checks kind'а; требования без `check` — прежнее пересечение. Итог — объединение, по id (SCN-VER-123). Тот же набор —
+  `check` без `id`, `verify`, `warrant ci`.
+- `warrant ci`, правило `ci_evidence` (`core/ci/record.ts` или место проверки): у требования с `check` — запись этого check с
+  `attestation.type: "ci"` (F-10).
 - `validate` (REQ-KRN-021 п. 3): `check` называет загруженный check, чей `produces` (с учётом override) содержит `kind`,
   иначе `CONFIG_INVALID` с `path` `…#/requires_evidence/<i>/check`.
 - Override gate (`weakenings`): `check` сужает допустимые записи. Добавить `check` — усиление; снять или сменить —
@@ -151,9 +161,9 @@ ADR-0036, ADR-0037 п. 4, 5, ADR-0040 п. 3 (уточнены ADR-0044); ADR-002
   `.warrant/warrant.json#/identities/agents/<i>/login`. `loadConfig` этого не проверяет: остальные команды работают
   (ошибку показывает `validate` и job `warrant`).
 - `judgeRefs` (`core/ci/refs.ts`): агенты — из конфигурации базы. Пусто — на каждый проверенный ref `APPROVED` / `MERGED`
-  находка `{ code: "SHARED_IDENTITY", message }` («… merged by <login>: an agent and the maintainer share the account, no
-  identities.agents in the base (ADR-0010 п. 4)»). Непусто — `merged_by = pr.author` — `REF_NOT_VERIFIED` с причиной
-  `merged_by` (детализация «merged the pull request they authored»), находки `APPROVER_IS_AUTHOR` нет.
+  находка `{ code: "SHARED_IDENTITY", message }` на каждый ref без нарушения («… merged by <login>: an agent and the maintainer
+  share the account, no identities.agents in the base (ADR-0010 п. 4)»). Непусто — `merged_by = pr.author` или
+  `merged_by` ∈ агентов (F-9) — `REF_NOT_VERIFIED` с причиной `merged_by`, находки `APPROVER_IS_AUTHOR` нет.
 - `judgeDecisions` (`core/ci/decisions.ts`): автор ∈ агентов — деталь `author` («… is an agent identity»); пусто — находка
   `SHARED_IDENTITY` на каждое проверенное решение. Находка не меняет код выхода; в PR с новым `APPROVED` — тоже находка.
 - Тесты: app `ci` — SCN-VER-120 (пустой список — находка; непустой — самослияние отказ), SCN-VER-121 (решение агента);
@@ -165,15 +175,17 @@ ADR-0036, ADR-0037 п. 4, 5, ADR-0040 п. 3 (уточнены ADR-0044); ADR-002
 - `.github/workflows/warrant.yml`: `on: workflow_call` с входами:
   - `setup` (string, default `""`) — команды подготовки проекта (bash), выполняются после checkout и merge;
   - `node-version` (default `22`), `openspec-version` (default `1.13.1`);
-  - `warrant` (string, default `""`) — источник CLI: пусто — `npm i -g .` (этот репозиторий), иначе
-    `npm i -g github:Homasters-max/SRA#<значение>`;
+  - `warrant` (string, required) — источник CLI: `checkout` — `npm i -g .` (только этот репозиторий), тег `v<semver>` —
+    `npm i -g github:Homasters-max/SRA#<тег>`; иное — шаг падает до `warrant ci` с допустимыми значениями (F-11);
   - `merge_commit` (string, default `""`) — recovery-прогон.
 
   Шаги — нынешнего job `warrant` (checkout, merge в tip базы, setup, OpenSpec, warrant, `warrant ci`, upload artifact);
-  `GH_TOKEN` — `github.token` вызывающего; `permissions` задаёт вызывающий.
-- `ci.yml`: job `warrant` — `uses: ./.github/workflows/warrant.yml` с `setup: npm ci`, `merge_commit` из
+  `GH_TOKEN` — `github.token` вызывающего; `permissions` задаёт вызывающий: `contents`, `actions`, `pull-requests`, `issues` —
+  `read` (F-12).
+- `ci.yml`: job `warrant` — `uses: ./.github/workflows/warrant.yml` с `warrant: checkout`, `setup: npm ci`, `merge_commit` из
   `workflow_dispatch`. Триггеры и `if` — прежние. Имя проверки в GitHub меняется на `warrant / warrant` —
-  `pr-form`, навыки и `ci.md`, которые называют проверку, — обновить (I-N по факту).
+  `pr-form`, навыки и `ci.md`, которые называют проверку, — обновить (I-N по факту); branch protection здесь нет (06 §8),
+  у проекта с обязательной проверкой её имя обновляет maintainer (F-13).
 - Проект: `jobs.warrant.uses: Homasters-max/SRA/.github/workflows/warrant.yml@v0.8.2` с `warrant: v0.8.2` и своим
   `setup`; пример — 06 §8.
 - Тест: unit (`test/unit/meta/`) — `warrant.yml` содержит `workflow_call` и входы, `ci.yml` вызывает его (разбор YAML
@@ -194,7 +206,9 @@ ADR-0036, ADR-0037 п. 4, 5, ADR-0040 п. 3 (уточнены ADR-0044); ADR-002
 
 ### 10. Dogfooding
 
-- Review этого spec-PR — субагент `warrant-reviewer` CLI 0.8.1, сдача файлом (ADR-0042 п. 4).
+- Review этого spec-PR — субагент `warrant-reviewer` CLI 0.8.1, сдача файлом (ADR-0042 п. 4). Review 1: shell субагента
+  стартует в основном checkout, где Run нет, — сдача прошла через `cd <worktree> && warrant run submit`; guard решает по `cwd`
+  события (I-198), поэтому `cd` не был отклонён. С группой 3 `cd` под Run `review` разрешён явно.
 - Под Run `review` этого spec-PR действует старый guard (команды без записи ещё `deny`).
 - Приёмка — Change LATTICE после тега `v0.8.2`: job `warrant` по reusable workflow, `dev-check` с `check` в gate.
 

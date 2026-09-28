@@ -10,7 +10,7 @@
 ## 1. Атомарная запись и bump (S-3, L4)
 
 - [ ] 1.1 Bump CLI `0.8.2`: `package.json`, `package-lock.json`, `kernel` в `warrant.lock.json` репозитория (`sync`) и трёх
-  golden-фикстур pack.
+  golden-фикстур pack; pack `core-sdd` не меняется (golden вне его hash, I-59).
 
   Проверка: `npm run versions:check` зелёный; e2e golden (SCN-SDD-015) — только `kernel` в lock.
 - [ ] 1.2 `writeFileAtomic` (§2) и `writeJsonFile` через него; указатель `current` (`core/run/lifecycle.ts`) и импорт
@@ -30,7 +30,8 @@
 
 - [ ] 3.1 Повтор `run submit` (§4): поиск записи по `produced_by.run`, `data.reused`.
 
-  Проверка: app `run submit` — SCN-ENF-043; SCN-ENF-031…SCN-ENF-033 без правок ожидаемых значений.
+  Проверка: app `run submit` — SCN-ENF-043 (повтор, manifest, `EVIDENCE_CONFLICT`); прочие SCN REQ-ENF-007 без правок
+  ожидаемых значений, кроме поля `data.reused`.
 - [ ] 3.2 Guard под Run `review` (§4): команды без записи, `run finish --state CANCELLED`, `SUBMIT_HINT`; удалить ветку R-32.
 
   Проверка: app `guard` — SCN-ENF-044; SCN-ENF-026 — только текст `hint`.
@@ -45,7 +46,10 @@
   Проверка: unit схем — SCN-KRN-159.
 - [ ] 4.2 `evidencePart`, `checksForTransition`, `weakenings` (§5).
 
-  Проверка: app `gate`, `check` — SCN-VER-119; прочие SCN REQ-VER-003 без правок ожидаемых значений.
+  Проверка: app `gate`, `check` — SCN-VER-119, SCN-VER-123; прочие SCN REQ-VER-003 без правок ожидаемых значений.
+- [ ] 4.4 `warrant ci`, правило `ci_evidence` (§5): запись check требования.
+
+  Проверка: app `ci` — сценарий `ci_evidence` с `check` (SCN-VER-119 на уровне `ci`).
 - [ ] 4.3 `validate` — ссылка `check` (§5).
 
   Проверка: app `validate` — SCN-KRN-156.

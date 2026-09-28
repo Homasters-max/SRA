@@ -3,8 +3,10 @@
 ### Requirement: Команда check
 <!-- id: REQ-VER-002 -->
 
-`warrant check <change> [id...] [--paths <a,b>] [--base <ref>]` SHALL выполнить указанные checks (без `id` — все checks, чьи
-`produces` пересекаются с `requires_evidence` gates следующего перехода вперёд из `change_state` record), каждый — командой `run.command`
+`warrant check <change> [id...] [--paths <a,b>] [--base <ref>]` SHALL выполнить указанные checks (без `id` — checks перехода:
+для каждого элемента `requires_evidence` gates следующего перехода вперёд из `change_state` record с `check` — только этот check,
+для элемента без `check` — все checks, чьи `produces` содержат его `kind`; объединение по id, [ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 6;
+тот же набор — checks перехода у `verify` и `warrant ci`), каждый — командой `run.command`
 после подстановки плейсхолдеров `{out}`, `{change}`, `{paths}` ([REQ-KRN-010](#requirement-схема-check)); с `--paths` SHALL выполняться
 `run.scoped_command`, а запись SHALL нести `limitations: ["scoped: <paths>"]`; check без `scoped_command` при `--paths` SHALL выполнять
 полный `run.command` без этой пометки с предупреждением в stderr (I-80). Check без `run.command` (например, `tests-passed` pack'а без
@@ -12,7 +14,8 @@ override в `.warrant/local/checks/`) SHALL давать `CHECK_NOT_CONFIGURED`,
 `none` (локальный запуск, [REQ-VER-001](#requirement-хранение-evidence-и-attestation-по-окружению)) SHALL выполняться только с `--paths`;
 без них — `CHECK_LOCAL_FORBIDDEN`, код 3, команда не запускается, evidence не записано; под GitHub Actions ограничение не действует;
 `local: "allowed"` (default) ограничений не вводит (ADR-0017 п. 4). Вывод SHALL разбираться parser'ом (`junit` → kind
-`test-report`; `openspec-validate` → kind `spec-report`) в `evidence_status` (`PROVEN` при отсутствии падений, иначе `NOT_PROVEN`;
+`test-report`; `openspec-validate` → kind `spec-report`) в `evidence_status` (`PROVEN` при отсутствии падений и пропущенных тестов
+сценариев — ниже, иначе `NOT_PROVEN`;
 `NOT_APPLICABLE` — когда parser детерминированно установил отсутствие предмета проверки, D-11) и `metrics` по форме kind'а; junit, в
 котором не выполнен ни один тест (`tests − skipped ≤ 0`), SHALL давать `INCONCLUSIVE` с limitation `junit: all N tests skipped` (R-4).
 Parser `junit` SHALL считать документ по элементам `<testcase>`, где бы они ни лежали (в том числе вне любого `<testsuite>`):
@@ -25,7 +28,8 @@ pytest ничто не снимает; падение и ошибка teardown �
 ([ADR-0042](../../../../docs/adr/WARRANT-ADR-0042-lattice-fixes.md) п. 2).
 Пропущенный `<testcase>` (с дочерним `<skipped>`, в том числе `todo`), в значении атрибута `name` которого (после раскрытия
 сущностей XML) есть ссылка на сценарий `SCN-<AREA>-NNN` ([ADR-0012](../../../../docs/adr/WARRANT-ADR-0012-id-allocation.md)),
-SHALL делать запись `NOT_PROVEN` с limitation `junit: skipped <SCN>[, <SCN>…]` — id без повторов в порядке появления, даже если
+SHALL делать запись `NOT_PROVEN` с limitation `junit: skipped <SCN>[, <SCN>…]` — id без повторов, по файлам отчёта в `{out}` в
+порядке имени (code units), внутри файла — в порядке появления, даже если
 падений нет; правило «ни один тест не выполнен — `INCONCLUSIVE`» SHALL применяться только к отчёту без таких testcase
 ([ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 2).
 Команда SHALL завершаться кодом 0, если каждая запись записана (в том числе `NOT_PROVEN`); check SHALL прерываться по `execution.timeout_s`
@@ -94,6 +98,11 @@ Check с `execution.exclusive: true` SHALL брать file lock `<git-common-dir
 <!-- id: SCN-VER-118 -->
 - **WHEN** junit override'а `tests-passed` — три `<testcase>` без падений, один из них `<testcase name="SCN-VER-001 &amp; retry">` с `<skipped/>`, другой — `<testcase name="cache">` с `<skipped/>`
 - **THEN** запись имеет `evidence_status: "NOT_PROVEN"`, `limitations` содержит `junit: skipped SCN-VER-001`, `metrics.skipped` равен 2, код выхода 0; без `SCN-VER-001` в имени того же отчёта — `PROVEN`; пропущенный `todo` `node:test` с `SCN-…` в имени — тоже `NOT_PROVEN`
+
+#### Scenario: Checks перехода при требовании с check
+<!-- id: SCN-VER-123 -->
+- **WHEN** gate следующего перехода требует `{ kind: "test-report", status: "PROVEN", check: "dev-check" }`, другой gate того же перехода — `{ kind: "test-report", status: "PROVEN" }`, загружены checks `tests-passed` и `dev-check`, оба производят `test-report`, и вызван `warrant check add-search` без `id`
+- **THEN** выполнены оба check; если бы второго gate не было — только `dev-check`, `tests-passed` не запускается и не даёт `CHECK_NOT_CONFIGURED`
 
 ### Requirement: Команда gate и алгоритм verdict
 <!-- id: REQ-VER-003 -->
@@ -246,7 +255,8 @@ PR: в виде impl `classification.profiles` на HEAD SHALL содержат�
   чем у record базы; иначе PR снял бы с себя gates своего merge (причина `classification`);
 - у нового перехода `MERGED` `effective_policy_hash` равен hash effective policy, вычисленной по базе для `classification` на
   HEAD (причина `policy`); для каждого gate `PASS` этого перехода, чьи `requires_evidence` содержат kind, который производят
-  checks перехода `VERIFYING->MERGED`, `evidence[]` содержит запись этого kind с `attestation.type: "ci"` (причина
+  checks перехода `VERIFYING->MERGED`, `evidence[]` содержит запись этого kind с `attestation.type: "ci"`, а у элемента с `check` —
+  запись этого check (`produced_by.id`; [ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 6) (причина
   `ci_evidence`, [ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md) п. 2).
 Требования к переходам выводятся из базы, а verdicts ни одного перехода record, в том числе новых, `warrant ci` заново
 SHALL NOT вычислять. Доверие к ним держат другие проверки
@@ -272,10 +282,11 @@ maintainer'ом — остаточный риск MVP.
 Иначе `REF_NOT_VERIFIED` с причиной (`repository`, `merged`, `merged_by`, `change`, `merge_commit`, `by`); причину `decision` даёт
 проверка решений UNKNOWN ([REQ-VER-013](#requirement-решения-unknown-в-warrant-ci)). Идентичности агентов — логины
 `identities.agents[].login` базы требований ([ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 3). Если список
-пуст, каждый проверенный ref SHALL давать информационную находку `{ code: "SHARED_IDENTITY", message }` в `data.findings[]`
-(акт maintainer'а не отличить от акта агента под тем же аккаунтом), а `merged_by`, равный автору PR, — информационную находку
-`APPROVER_IS_AUTHOR`, не нарушение. Если список непуст, `merged_by`, равный автору PR, SHALL быть `REF_NOT_VERIFIED` с причиной
-`merged_by` (INV-03), находки `APPROVER_IS_AUTHOR` и `SHARED_IDENTITY` не выдаются.
+пуст, каждый ref без нарушения SHALL давать информационную находку `{ code: "SHARED_IDENTITY", message }` в `data.findings[]`
+(акт maintainer'а не отличить от акта агента под тем же аккаунтом; ref с `REF_NOT_VERIFIED` находки не даёт), а `merged_by`,
+равный автору PR, — информационную находку `APPROVER_IS_AUTHOR`, не нарушение. Если список непуст, `merged_by`, равный автору PR
+(INV-03) или входящий в `identities.agents`, SHALL быть `REF_NOT_VERIFIED` с причиной `merged_by`; находки `APPROVER_IS_AUTHOR` и
+`SHARED_IDENTITY` не выдаются.
 
 **Пути.** Собственное состояние Change ([REQ-VER-004](#requirement-вычисляемые-l0-gates-core-sdd)) SHALL быть разрешено во всех
 видах. `openspec/specs/**` в diff SHALL быть допустим только в archive-PR с новым переходом `ARCHIVED` и равенством повтору
@@ -484,7 +495,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 #### Scenario: Общий аккаунт и самослияние
 <!-- id: SCN-VER-120 -->
 - **WHEN** impl-PR вносит переход `APPROVED` с `ref` spec-PR, который слил `kat` из `roles.maintainer`, он же автор PR; `identities.agents` базы пуст
-- **THEN** `REF_NOT_VERIFIED` нет, `data.findings[]` содержит `SHARED_IDENTITY` и `APPROVER_IS_AUTHOR`; при `identities.agents` базы `[{ "login": "warrant-agent[bot]" }]` — `REF_NOT_VERIFIED` с причиной `merged_by`, код 1, находок `SHARED_IDENTITY` и `APPROVER_IS_AUTHOR` нет; spec-PR открыл `warrant-agent[bot]`, слил `kat` — `REF_NOT_VERIFIED` и находок нет
+- **THEN** `REF_NOT_VERIFIED` нет, `data.findings[]` содержит `SHARED_IDENTITY` и `APPROVER_IS_AUTHOR`; при `identities.agents` базы `[{ "login": "warrant-agent[bot]" }]` — `REF_NOT_VERIFIED` с причиной `merged_by`, код 1, находок `SHARED_IDENTITY` и `APPROVER_IS_AUTHOR` нет; spec-PR открыл `warrant-agent[bot]`, слил `kat` — нет ни `REF_NOT_VERIFIED`, ни этих находок; слил `warrant-agent[bot]` — `REF_NOT_VERIFIED` с причиной `merged_by`
 
 ### Requirement: Решения UNKNOWN в warrant ci
 <!-- id: REQ-VER-013 -->
@@ -547,15 +558,21 @@ checks и `data.would_write[]` без запуска checks и без обращ
 
 WARRANT SHALL поставлять job `warrant` ([REQ-VER-011](#requirement-команда-ci)) как reusable workflow
 `.github/workflows/warrant.yml` своего репозитория с триггером `workflow_call` ([ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 7).
-Входы: `setup` — команды подготовки проекта (bash, default пусто), выполняемые после checkout и merge PR в tip базы;
-`node-version` (default `22`); `openspec-version` (default `1.13.1`); `warrant` — ref CLI (тег; пусто — CLI из checkout
-вызывающего репозитория); `merge_commit` — merge-коммит impl-PR для recovery-прогона ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 4).
+Входы: `warrant` — обязательный: тег CLI (`v<semver>`), который устанавливается глобально из репозитория WARRANT, или буквально
+`checkout` — CLI из checkout вызывающего (только сам репозиторий WARRANT); другое значение SHALL останавливать job до `warrant ci`
+с ошибкой шага, называющей допустимые значения; `setup` — команды подготовки проекта (bash, default пусто), выполняемые после
+checkout и merge PR в tip базы; `node-version` (default `22`); `openspec-version` (default `1.13.1`); `merge_commit` — merge-коммит
+impl-PR для recovery-прогона ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 4, default пусто).
 Шаги SHALL быть шагами job `warrant`: checkout head PR (или `merge_commit`) с полной историей, merge в tip базы (кроме recovery),
 `setup`, OpenSpec, CLI, `warrant ci` с выводом вне checkout, upload artifact по `data.artifact`. Секретов workflow SHALL NOT
-требовать: токен — `github.token` вызывающего, `permissions` задаёт вызывающий. Workflow `ci.yml` этого репозитория SHALL вызывать
-job `warrant` через него (один источник); проект под WARRANT вызывает его по тегу CLI вместо копии job.
+требовать: токен — `github.token` вызывающего; вызывающий SHALL дать job права `contents: read`, `actions: read`,
+`pull-requests: read`, `issues: read` (форж `warrant ci`). Тег CLI во входе `warrant` и ref, по которому вызван workflow, выбирает
+вызывающий; пример 06 §8 даёт один тег в обоих местах. Workflow `ci.yml` этого репозитория SHALL вызывать job `warrant` через
+него с `warrant: checkout` (один источник); проект под WARRANT вызывает его по тегу CLI вместо копии job. Имя проверки в GitHub
+становится `warrant / warrant`: обязательные проверки branch protection, если они настроены, обновляет maintainer (в этом
+репозитории branch protection вне MVP, 06 §8).
 
 #### Scenario: Job warrant из reusable workflow
 <!-- id: SCN-VER-122 -->
 - **WHEN** читаются `.github/workflows/warrant.yml` и `.github/workflows/ci.yml` репозитория
-- **THEN** `warrant.yml` объявляет `workflow_call` со входами `setup`, `node-version`, `openspec-version`, `warrant`, `merge_commit` и шаг `warrant ci`; job `warrant` в `ci.yml` — `uses: ./.github/workflows/warrant.yml` без собственных `steps`, `merge_commit` передаётся из входа `workflow_dispatch`
+- **THEN** `warrant.yml` объявляет `workflow_call` со входами `setup`, `node-version`, `openspec-version`, `warrant` (обязательный), `merge_commit` и шаг `warrant ci`; job `warrant` в `ci.yml` — `uses: ./.github/workflows/warrant.yml` с `warrant: checkout`, без собственных `steps`, с правами `contents`, `actions`, `pull-requests`, `issues` на чтение; `merge_commit` передаётся из входа `workflow_dispatch`

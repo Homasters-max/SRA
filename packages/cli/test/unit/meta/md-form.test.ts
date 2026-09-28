@@ -3,7 +3,8 @@
  * no hard breaks, no ordered list glued to a paragraph; a place is addressed by id → section → file, never by a line
  * number `file.md:N`. The detector is `scripts/dev/md-form-lib.js`; this file walks the Markdown of the repository.
  * `PENDING` is a ratchet: paths of profile `factory-change` that only Change `md-format` may clean — the Change
- * removes its line, and a clean path left in the list fails the test.
+ * removes its line, and a clean path left in the list fails the test. `## Purpose` of a main spec is out of the rule:
+ * archive keeps it as is (OpenSpec `specs-apply`), and main specs change only through archive (ADR-0011).
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -44,7 +45,26 @@ function walk(rel: string): string[] {
 
 const all = ROOTS.flatMap(walk).filter((p) => !NOT_OURS.some(([prefix]) => p.startsWith(prefix)));
 const read = (p: string) => readFileSync(path.join(REPO_ROOT, p), "utf8");
-const wraps = (p: string) => wrapFindings(read(p)).map((f) => `${p}:${f.line} ${f.kind}`);
+
+/** Lines of `## Purpose` of a main spec: `openspec archive` carries it over as is, a delta cannot change it. */
+function purposeLines(p: string, text: string): Set<number> {
+  const out = new Set<number>();
+  if (!p.startsWith("openspec/specs/")) return out;
+  let inPurpose = false;
+  text.split(/\r?\n/).forEach((line, i) => {
+    if (/^## /.test(line)) inPurpose = line.trim() === "## Purpose";
+    else if (inPurpose) out.add(i + 1);
+  });
+  return out;
+}
+
+const wraps = (p: string) => {
+  const text = read(p);
+  const kept = purposeLines(p, text);
+  return wrapFindings(text)
+    .filter((f) => !kept.has(f.line))
+    .map((f) => `${p}:${f.line} ${f.kind}`);
+};
 
 describe("Markdown form — ADR-0044", () => {
   it("walks the Markdown of the repository", () => {

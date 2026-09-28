@@ -18,7 +18,7 @@ const dirs: string[] = [];
 afterAll(() => dirs.forEach(removeDir));
 
 function config(paths: WarrantConfig["paths"] = {}): WarrantConfig {
-  return { kernel: "0.5", openspec: "1.13.x", packs: [], defaults: { checkTimeoutS: undefined }, paths, roles: new Map(), frontends: [] };
+  return { kernel: "0.5", openspec: "1.13.x", packs: [], defaults: { checkTimeoutS: undefined }, paths, roles: new Map(), frontends: [], agents: [] };
 }
 
 function rule(id: string, paths: string[]): LoadedRule {

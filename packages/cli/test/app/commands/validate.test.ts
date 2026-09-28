@@ -1,5 +1,5 @@
 /**
- * `warrant validate` in the test process: checks (1)–(7) of REQ-KRN-021 on
+ * `warrant validate` in the test process: checks (1)–(7), (14) of REQ-KRN-021 on
  * projects built by `ProjectBuilder` (SCN-KRN-005, 007, 043, 044, 045, 046, 048,
  * 078, 079, 080, 082, 094, 125, SCN-SDD-010). Moved from e2e (ADR-0025, task 5.2);
  * the parse of argv (`--no-generated`), the exit code of the binary and the
@@ -464,6 +464,26 @@ describe("warrant validate: requires_evidence[].check (ADR-0044 п. 6)", () => {
     expect(other.exitCode).toBe(3);
 
     p.write(".warrant/local/checks/dev-check.json", devCheck(["test-report"]));
+    const valid = await validate(p);
+    expect(valid.errors).toEqual([]);
+    expect(valid.exitCode).toBe(0);
+  });
+});
+
+describe("warrant validate: identities.agents outside roles (ADR-0044 п. 3)", () => {
+  it("an agent login in roles.maintainer: CONFIG_INVALID at its login; without the agent in roles, no error (SCN-KRN-157)", async () => {
+    const p = await project().synced();
+    const config = p.json(".warrant/warrant.json");
+    const identities = { agents: [{ login: "warrant-agent[bot]", kind: "bot" }] };
+    p.write(".warrant/warrant.json", { ...config, roles: { maintainer: ["kat", "warrant-agent[bot]"] }, identities });
+
+    const both = await validate(p);
+    expect(both.errors).toEqual([
+      expect.objectContaining({ code: "CONFIG_INVALID", path: ".warrant/warrant.json#/identities/agents/0/login" })
+    ]);
+    expect(both.exitCode).toBe(3);
+
+    p.write(".warrant/warrant.json", { ...config, roles: { maintainer: ["kat"] }, identities });
     const valid = await validate(p);
     expect(valid.errors).toEqual([]);
     expect(valid.exitCode).toBe(0);

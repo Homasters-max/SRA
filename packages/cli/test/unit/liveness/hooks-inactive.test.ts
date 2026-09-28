@@ -13,7 +13,7 @@ import type { DiffEntry } from "../../../src/core/ports/git.js";
 import type { GuardEventRecord } from "../../../src/core/run/types.js";
 
 function configWith(paths: WarrantConfig["paths"]): WarrantConfig {
-  return { kernel: "0.5", openspec: "1.13.x", packs: [], defaults: { checkTimeoutS: undefined }, paths, roles: new Map(), frontends: [] };
+  return { kernel: "0.5", openspec: "1.13.x", packs: [], defaults: { checkTimeoutS: undefined }, paths, roles: new Map(), frontends: [], agents: [] };
 }
 
 const CODE = configWith({ src: "src", tests: "tests" });

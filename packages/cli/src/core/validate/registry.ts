@@ -1,5 +1,5 @@
 /**
- * Registry of the checks of `warrant validate` — checks (1)–(13) of
+ * Registry of the checks of `warrant validate` — checks (1)–(14) of
  * REQ-KRN-021 (A-9, design phase-4a §3).
  *
  * Every finding is collected: the run never stops at the first error, so one
@@ -26,7 +26,7 @@ import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { checkCanonical, isRawEvidencePath, SCHEMA_COPIES_PREFIX, WARRANT_DIR } from "../canon/files.js";
-import type { WarrantConfig } from "../config.js";
+import { agentRoleErrors, CONFIG_REL, type WarrantConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
 import { absolutePath, projectPath, reportPath, walkFiles } from "../fs.js";
@@ -280,6 +280,13 @@ export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
       files === undefined
         ? checkDangling(v.ctx.root, v.loaded.config, v.declared)
         : checkDangling(v.ctx.root, v.loaded.config, v.scan().ids, files.map((file) => absolutePath(v.ctx.root, file)))
+  },
+  {
+    // Agent identities outside roles (ADR-0010 п. 4, ADR-0044 п. 3).
+    id: "identities", // check (14)
+    level: "file",
+    appliesTo: (file) => file === CONFIG_REL.split(path.sep).join("/"),
+    run: async (v) => agentRoleErrors(v.loaded.config)
   }
 ];
 

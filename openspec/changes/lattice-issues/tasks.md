@@ -59,10 +59,10 @@
 
 ## 5. Идентичность (S-1, BL-44, BL-83, L3)
 
-- [ ] 5.1 `WarrantConfig.agents` (`core/config.ts`), `config.test.ts`; `validate` — `identities.agents` ∩ `roles` (§6).
+- [x] 5.1 `WarrantConfig.agents` (`core/config.ts`), `config.test.ts`; `validate` — `identities.agents` ∩ `roles` (§6).
 
   Проверка: app `validate` — SCN-KRN-157.
-- [ ] 5.2 `judgeRefs`, `judgeDecisions` (§6): `SHARED_IDENTITY`, `merged_by = pr.author` при непустом списке, автор-агент.
+- [x] 5.2 `judgeRefs`, `judgeDecisions` (§6): `SHARED_IDENTITY`, `merged_by = pr.author` при непустом списке, автор-агент.
 
   Проверка: app `ci` — SCN-VER-120, SCN-VER-121; SCN с `APPROVER_IS_AUTHOR` — плюс находка `SHARED_IDENTITY`.
 

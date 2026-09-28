@@ -68,7 +68,7 @@
 
 ## 6. Reusable workflow (S-2, BL-51, L7)
 
-- [ ] 6.1 `.github/workflows/warrant.yml` (`workflow_call`) и вызов из `ci.yml` (§7); шаг проверки входа `warrant` (I-208); имя
+- [x] 6.1 `.github/workflows/warrant.yml` (`workflow_call`) и вызов из `ci.yml` (§7); шаг проверки входа `warrant` (I-208); имя
   проверки в навыках и документах.
 
   Проверка: unit meta — SCN-VER-122; job `warrant / warrant` этого PR зелёный.

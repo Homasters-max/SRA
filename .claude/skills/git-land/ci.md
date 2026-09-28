@@ -1,6 +1,6 @@
 # Красный CI — справочник навыка `git-land`
 
-CI — матрица `test` ubuntu + windows (P-9), шаг `PR form` на ubuntu, job `warrant` (`warrant ci` на результате merge) на каждом PR ([ci.yml](../../../.github/workflows/ci.yml)). Разбор — сам, без вопросов ([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 6); стоп — тот же сбой после двух исправлений или нестабильный тест.
+CI — матрица `test` ubuntu + windows (P-9), шаг `PR form` на ubuntu, проверка `warrant / warrant` — job `warrant` из reusable workflow ([warrant.yml](../../../.github/workflows/warrant.yml), `warrant ci` на результате merge) на каждом PR ([ci.yml](../../../.github/workflows/ci.yml)). Разбор — сам, без вопросов ([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 6); стоп — тот же сбой после двух исправлений или нестабильный тест.
 
 1. Что упало:
    ```bash
@@ -11,8 +11,8 @@ CI — матрица `test` ubuntu + windows (P-9), шаг `PR form` на ubunt
 
    | Класс | Признак | Что делать |
    |---|---|---|
-   | ожидаемое | `warrant` в impl-PR до коммита `VERIFYING` — `CHANGE_NOT_VERIFYING`; `human-approval` в `deferred[]` | ничего, это не сбой |
-   | `warrant` | `GATE_NOT_PASSED`, `RECORD_MISMATCH`, `SCOPE_VIOLATION`, `REF_NOT_VERIFIED` — в `errors[]` вывода шага `warrant ci` | исправить PR по `hint`; `main` сдвинулся до merge — Re-run job; `FORGE_UNAVAILABLE` — `permissions` и `GH_TOKEN` в `ci.yml` |
+   | ожидаемое | `warrant / warrant` в impl-PR до коммита `VERIFYING` — `CHANGE_NOT_VERIFYING`; `human-approval` в `deferred[]` | ничего, это не сбой |
+   | `warrant / warrant` | `GATE_NOT_PASSED`, `RECORD_MISMATCH`, `SCOPE_VIOLATION`, `REF_NOT_VERIFIED` — в `errors[]` вывода шага `warrant ci` | исправить PR по `hint`; `main` сдвинулся до merge — Re-run job; `FORGE_UNAVAILABLE` — `permissions` job `warrant` в `ci.yml`, `GH_TOKEN` в `warrant.yml` |
    | форма PR | шаг `PR form`: префикс ветки, заголовок коммита | заголовок — `git commit --amend -F` для последнего неопубликованного, иначе новая ветка по `recovery.md`; префикс — новая ветка |
    | платформа | только ubuntu или только windows: пути, регистр, 8.3-имена, symlink, CRLF, spawn, внешние утилиты | ловушки — раздел `packages/cli/AGENTS.md`; воспроизвести (шаг 3) |
    | нестабильный тест | проходит при повторе без изменений, зависит от времени или порядка | стоп и отчёт: не обходить повтором, не отключать тест |

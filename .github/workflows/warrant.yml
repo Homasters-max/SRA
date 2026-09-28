@@ -1,0 +1,180 @@
+# The job `warrant` of WARRANT as a reusable workflow (lattice-issues, design §7, REQ-VER-014, ADR-0044 п. 7).
+#
+# The verdict of a PR (phase-4c, design §8, REQ-VER-011): `warrant ci` on the
+# result of the merge. The kind of the PR and its Change come from the record
+# in the diff, not from the branch name (ADR-0034 п. 13): a spec-PR is judged
+# by its paths, an impl-PR by the checks of VERIFYING->MERGED on the merge
+# result (CI evidence with subject.tree, uploaded as the artifact
+# `evidence-<change>-<attempt>`), an archive-PR by the CI evidence it refers
+# to and the replay of `openspec archive` (R-16). It commits nothing
+# (ADR-0010 п. 1). A red job is the maintainer's signal not to merge.
+#
+# `ci.yml` of this repository calls it with `warrant: checkout`; a project under
+# WARRANT calls it by the tag of the CLI instead of keeping a copy of the job:
+#
+#   jobs:
+#     warrant:
+#       name: warrant
+#       if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+#       permissions: { contents: read, actions: read, pull-requests: read, issues: read }
+#       uses: Homasters-max/SRA/.github/workflows/warrant.yml@v0.8.2
+#       with:
+#         warrant: v0.8.2
+#         setup: npm ci
+#         merge_commit: ${{ inputs.merge_commit || '' }}
+#
+# The check in GitHub is named `warrant / warrant` (caller job / this job).
+# No secrets: the token is `github.token` of the caller, whose job grants
+# contents, actions, pull-requests and issues read — the forge of `warrant ci`
+# reads PRs, runs, artifacts and PR comments through gh (phase-4c, design §6, §8;
+# slice-fixes, design §4).
+name: warrant
+
+on:
+  workflow_call:
+    inputs:
+      warrant:
+        description: "Source of the CLI: a tag v<semver> of WARRANT, or `checkout` (only in the WARRANT repository)"
+        required: true
+        type: string
+      setup:
+        description: "Commands preparing the project (bash), run after checkout and the merge of the PR"
+        required: false
+        type: string
+        default: ""
+      node-version:
+        description: "Node.js version"
+        required: false
+        type: string
+        default: "22"
+      openspec-version:
+        description: "OpenSpec version installed globally"
+        required: false
+        type: string
+        default: "1.13.1"
+      merge_commit:
+        description: "Merge commit M of the impl-PR on the default branch (recovery run, ADR-0037 п. 4)"
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  warrant:
+    name: warrant
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # The PR head (or M of a recovery run) with full history: the merge below
+      # needs the base branch, `warrant ci` the parents of HEAD and the base tree.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.merge_commit != '' && inputs.merge_commit || github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      # Before anything is installed (design I-208): `checkout` installs the CLI
+      # of the checkout, so it is valid only in the WARRANT repository itself;
+      # any other value but a tag v<semver> stops the job before `warrant ci`.
+      - name: Check the input warrant
+        id: source
+        env:
+          WARRANT_SOURCE: ${{ inputs.warrant }}
+        run: |
+          allowed='allowed values: a tag v<semver> of WARRANT (for example v0.8.2), or checkout in the WARRANT repository'
+          if [ "$WARRANT_SOURCE" = checkout ]; then
+            if ! grep -Eq '"name"[[:space:]]*:[[:space:]]*"@warrant/cli"' packages/cli/package.json 2>/dev/null; then
+              echo "::error::input warrant is checkout, but the checkout is not the WARRANT repository (no packages/cli/package.json of @warrant/cli); $allowed"
+              exit 2
+            fi
+            echo "package=." >> "$GITHUB_OUTPUT"
+          elif [[ "$WARRANT_SOURCE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "package=github:Homasters-max/SRA#$WARRANT_SOURCE" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::input warrant is '$WARRANT_SOURCE'; $allowed"
+            exit 2
+          fi
+
+      # The job computes the merge itself (ADR-0037 п. 3): the tip of the base
+      # branch at the start of the job, not of the event, so a Re-run before the
+      # merge judges the current main and heals STALE `tree`. HEAD^1 — the base,
+      # HEAD^2 — the PR head (subject.commit, I-97). A recovery run judges M itself.
+      - name: Merge the PR into the tip of its base
+        if: github.event_name == 'pull_request' && inputs.merge_commit == ''
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+          git checkout --quiet --detach "origin/$BASE_REF"
+          if ! git -c user.name=warrant-ci -c user.email=warrant-ci@users.noreply.github.com \
+              merge --no-ff --no-edit "$HEAD_SHA"; then
+            git merge --abort || true
+            echo "::error::the PR head $HEAD_SHA does not merge into $BASE_REF without conflicts: update the branch"
+            exit 3
+          fi
+          echo "merge result $(git rev-parse HEAD): base $(git rev-parse HEAD^1), head $(git rev-parse HEAD^2)"
+
+      # The npm cache needs a lock file; a project without one runs uncached.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
+
+      # The project's own preparation: dependencies and the tools of its checks.
+      - name: Set up the project
+        if: inputs.setup != ''
+        run: ${{ inputs.setup }}
+
+      - name: Install OpenSpec
+        env:
+          OPENSPEC_VERSION: ${{ inputs.openspec-version }}
+        run: npm i -g "@fission-ai/openspec@$OPENSPEC_VERSION"
+
+      - name: Install warrant
+        env:
+          WARRANT_PACKAGE: ${{ steps.source.outputs.package }}
+        run: npm i -g "$WARRANT_PACKAGE"
+
+      # The output goes outside the checkout: the checks of VERIFYING->MERGED
+      # run on the working tree (structure.test.ts lists the root). The step
+      # fails with the exit code of `warrant ci`; the artifact is named by it.
+      - name: warrant ci
+        id: ci
+        run: |
+          set +e
+          warrant ci > "$RUNNER_TEMP/ci.json"
+          code=$?
+          set -e
+          cat "$RUNNER_TEMP/ci.json"
+          node -e '
+            const fs = require("fs");
+            let j = {};
+            try { j = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); } catch {}
+            const d = j.data ?? {};
+            const a = d.artifact ?? {};
+            const out = [`change=${j.change ?? ""}`, `artifact_name=${a.name ?? ""}`, `artifact_path=${a.path ?? ""}`];
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, out.join("\n") + "\n");
+            const errors = (j.errors ?? []).map((e) => e.code).join(", ");
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+              `warrant ci: exit ${process.argv[2]}, kind ${d.kind ?? "?"}, change ${j.change ?? "none"}` +
+              (errors ? `, errors ${errors}` : "") + "\n");
+          ' "$RUNNER_TEMP/ci.json" "$code"
+          exit "$code"
+
+      # The whole directory, raw/ included (junit and stdout behind
+      # artifacts[].sha256); `warrant ci fetch` imports only the EVID-*.json of
+      # the chosen run. The name carries the attempt: artifacts v4 are
+      # immutable, and a Re-run is a new attempt of the same run. Only an
+      # impl-PR (and a recovery run) has `data.artifact`.
+      - name: Upload evidence
+        if: always() && steps.ci.outputs.change != '' && steps.ci.outputs.artifact_name != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.ci.outputs.artifact_name }}
+          path: ${{ steps.ci.outputs.artifact_path }}/
+          include-hidden-files: true
+          if-no-files-found: warn

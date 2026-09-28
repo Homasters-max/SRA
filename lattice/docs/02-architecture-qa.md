@@ -26,12 +26,14 @@ version: 0.1.0
 
 **Вариант A (через природу):**
 
-> Сущность — кандидат в LATTICE, если о ней осмысленно утверждать: **«это факт, на который ссылаются, у которого есть provenance, и который входит в историю системы»**.  
+> Сущность — кандидат в LATTICE, если о ней осмысленно утверждать: **«это факт, на который ссылаются, у которого есть provenance, и который входит в историю системы»**.
+>
 > Иначе — это операционный артефакт, он не попадает в LATTICE.
 
 **Вариант Б (через контрпример):**
 
-> Сущность **не** в LATTICE, если её можно **потерять, сбросить или пересоздать** без потери семантики системы.  
+> Сущность **не** в LATTICE, если её можно **потерять, сбросить или пересоздать** без потери семантики системы.
+>
 > `retry counter` можно сбросить. `attempt` — нельзя: он часть истории.
 
 ---
@@ -138,8 +140,7 @@ I16 (candidate filter):
 ---
 # 15. Что является SSOT для объекта?
 
-**Ответ:**
-Не graph и не projection.
+**Ответ:** Не graph и не projection.
 
 SSOT разделяется по семантическим осям:
 
@@ -154,8 +155,7 @@ history        → append-only history
 
 Graph является собранной projection.
 
-**Рекомендация:**
-Не делать один giant `graph.json` SSOT.
+**Рекомендация:** Не делать один giant `graph.json` SSOT.
 
 LATTICE должна иметь логически разделённые canonical stores, даже если на первом этапе они физически находятся в одном JSON-файле.
 
@@ -163,8 +163,7 @@ LATTICE должна иметь логически разделённые canoni
 
 # 16. Является ли LATTICE event-sourced системой?
 
-**Ответ:**
-Нет — не в полном смысле.
+**Ответ:** Нет — не в полном смысле.
 
 LATTICE обязана иметь append-only history, но canonical current state не обязан восстанавливаться исключительно replay всех событий.
 
@@ -176,8 +175,7 @@ history                 → immutable audit/history
 graph                   → projection
 ```
 
-**Рекомендация:**
-Не превращать LATTICE в event-sourcing framework.
+**Рекомендация:** Не превращать LATTICE в event-sourcing framework.
 
 Нужна возможность восстановить историю изменения, но не обязательная модель:
 
@@ -221,8 +219,7 @@ ReclassifyObject
 
 не может изменить classification, но не записать history.
 
-**Рекомендация:**
-Сделать единый mutation engine:
+**Рекомендация:** Сделать единый mutation engine:
 
 ```text
 Mutation → Validation → State change → History → Projection
@@ -234,8 +231,7 @@ Mutation → Validation → State change → History → Projection
 
 # 18. Нужна ли атомарность нескольких изменений?
 
-**Ответ:**
-Да.
+**Ответ:** Да.
 
 Операция должна либо примениться полностью, либо не примениться.
 
@@ -255,8 +251,7 @@ ReclassifyObject
 
 Частичное применение недопустимо.
 
-**Рекомендация:**
-Ввести transaction boundary на уровне mutation batch.
+**Рекомендация:** Ввести transaction boundary на уровне mutation batch.
 
 На JSON storage достаточно:
 
@@ -272,8 +267,7 @@ write temp
 
 # 19. Нужен ли optimistic concurrency control?
 
-**Ответ:**
-Да, даже если сейчас один writer.
+**Ответ:** Да, даже если сейчас один writer.
 
 Каждая mutation работает относительно версии:
 
@@ -302,8 +296,7 @@ mutation:
 
 # 20. Может ли объект быть удалён?
 
-**Ответ:**
-Физическое удаление canonical object запрещено.
+**Ответ:** Физическое удаление canonical object запрещено.
 
 Используются:
 
@@ -315,8 +308,7 @@ currency: retired
 
 Физическое удаление допустимо только для ошибочно созданного технического объекта, если он никогда не был semantic fact.
 
-**Рекомендация:**
-Разделить:
+**Рекомендация:** Разделить:
 
 ```text
 retire semantic object
@@ -329,8 +321,7 @@ delete technical artifact
 
 # 21. Может ли identity быть переименована?
 
-**Ответ:**
-Только если name является presentation label.
+**Ответ:** Только если name является presentation label.
 
 Если name входит в canonical identity:
 
@@ -348,8 +339,7 @@ name          → стабилен
 id            → стабилен
 ```
 
-**Рекомендация:**
-Не делать rename обычным `update(name)`.
+**Рекомендация:** Не делать rename обычным `update(name)`.
 
 Нужна отдельная операция:
 
@@ -373,8 +363,7 @@ new identity + lineage
 
 # 22. Должна ли identity зависеть от context?
 
-**Ответ:**
-Да.
+**Ответ:** Да.
 
 ```text
 platform/dispatcher
@@ -385,8 +374,7 @@ runtime/dispatcher
 
 Одинаковое имя не означает одинаковую семантическую сущность.
 
-**Рекомендация:**
-Уникальность:
+**Рекомендация:** Уникальность:
 
 ```text
 (context, name)
@@ -400,8 +388,7 @@ runtime/dispatcher
 
 # 23. Может ли объект одновременно принадлежать нескольким contexts?
 
-**Ответ:**
-Canonical ownership — один context.
+**Ответ:** Canonical ownership — один context.
 
 Другой context может иметь:
 
@@ -428,8 +415,7 @@ N projections/mappings
 
 # 24. Кто владеет classification?
 
-**Ответ:**
-Context, которому принадлежит объект.
+**Ответ:** Context, которому принадлежит объект.
 
 `meta` определяет **правила classification**, но не классифицирует все объекты централизованно.
 
@@ -443,8 +429,7 @@ platform/component
 
 `runtime/attempt` определяется `runtime`.
 
-**Рекомендация:**
-Classification API должен быть context-aware:
+**Рекомендация:** Classification API должен быть context-aware:
 
 ```text
 classify(context, object)
@@ -460,8 +445,7 @@ meta.classify(anything)
 
 # 25. Может ли объект иметь несколько типов?
 
-**Ответ:**
-Нет в canonical classification.
+**Ответ:** Нет в canonical classification.
 
 У объекта:
 
@@ -480,8 +464,7 @@ subtype?
 * relations;
 * mappings.
 
-**Рекомендация:**
-Не вводить `types: []`.
+**Рекомендация:** Не вводить `types: []`.
 
 Это быстро превратит classification в неуправляемый набор tags.
 
@@ -489,8 +472,7 @@ subtype?
 
 # 26. Нужна ли confidence у classification?
 
-**Ответ:**
-Не как универсальное числовое поле.
+**Ответ:** Не как универсальное числовое поле.
 
 `0.83 confidence` не является заменой доказательства.
 
@@ -514,8 +496,7 @@ epistemic_state: unresolved
 
 и explicit GAP.
 
-**Рекомендация:**
-Не вводить ML-style confidence в canonical model.
+**Рекомендация:** Не вводить ML-style confidence в canonical model.
 
 Если classifier использует confidence — хранить его как classifier output/provenance, а не как semantic truth.
 
@@ -523,8 +504,7 @@ epistemic_state: unresolved
 
 # 27. Кто имеет право менять classification?
 
-**Ответ:**
-Только explicit mutation operation.
+**Ответ:** Только explicit mutation operation.
 
 Например:
 
@@ -541,8 +521,7 @@ ReclassifyObject
 5. сохранить lineage при необходимости;
 6. увеличить semantic version, если изменилась семантика.
 
-**Рекомендация:**
-Запретить прямой:
+**Рекомендация:** Запретить прямой:
 
 ```python
 object.type = ...
@@ -574,8 +553,7 @@ Semantic version увеличивается, если меняется хотя 
 * Git commit без semantic change;
 * изменении runtime timestamp.
 
-**Рекомендация:**
-Ввести deterministic `semantic_hash`.
+**Рекомендация:** Ввести deterministic `semantic_hash`.
 
 ```text
 semantic_hash(object)
@@ -609,15 +587,13 @@ graph block
 projection ordering
 ```
 
-**Рекомендация:**
-Сделать `semantic_hash` центральным механизмом определения semantic revision.
+**Рекомендация:** Сделать `semantic_hash` центральным механизмом определения semantic revision.
 
 ---
 
 # 30. Имеют ли edges собственную identity?
 
-**Ответ:**
-Да, но только техническую, если она необходима для адресации/истории.
+**Ответ:** Да, но только техническую, если она необходима для адресации/истории.
 
 Semantic identity edge определяется:
 
@@ -638,8 +614,7 @@ A --depends_on(role=invokes)--> B
 
 это два различных semantic edges.
 
-**Рекомендация:**
-Не делать relation object.
+**Рекомендация:** Не делать relation object.
 
 Использовать:
 
@@ -657,8 +632,7 @@ version
 
 # 31. Можно ли иметь два одинаковых edge?
 
-**Ответ:**
-Нет в canonical graph.
+**Ответ:** Нет в canonical graph.
 
 Дубликаты:
 
@@ -671,8 +645,7 @@ A --depends_on--> B
 
 Разные provenance сохраняются отдельно.
 
-**Рекомендация:**
-Canonical edge key:
+**Рекомендация:** Canonical edge key:
 
 ```text
 (source, relation, target, canonical_role)
@@ -682,8 +655,7 @@ Canonical edge key:
 
 # 32. Может ли provenance создавать различие между edges?
 
-**Ответ:**
-Нет.
+**Ответ:** Нет.
 
 Две ссылки на один semantic relation:
 
@@ -695,8 +667,7 @@ A → B
 
 Provenance — evidence for edge, а не identity edge.
 
-**Рекомендация:**
-Разделять:
+**Рекомендация:** Разделять:
 
 ```text
 semantic edge
@@ -708,8 +679,7 @@ N provenance records
 
 # 33. Должен ли `role` быть закрытым словарём?
 
-**Ответ:**
-Да.
+**Ответ:** Да.
 
 Иначе:
 
@@ -722,8 +692,7 @@ role: needs
 
 создадут скрытый uncontrolled relation vocabulary.
 
-**Рекомендация:**
-Каждая relation family имеет собственный закрытый role registry.
+**Рекомендация:** Каждая relation family имеет собственный закрытый role registry.
 
 Расширение role требует той же процедуры, что и новый type.
 
@@ -731,8 +700,7 @@ role: needs
 
 # 34. Что делать с legacy relations `calls`, `implements`, `has-argument`?
 
-**Ответ:**
-Не оставлять их автоматически как новые relation families.
+**Ответ:** Не оставлять их автоматически как новые relation families.
 
 Они должны пройти semantic mapping.
 
@@ -746,8 +714,7 @@ function --part_of(role=has_argument)--> signature
 
 Но mapping должен быть проверен на реальных use cases.
 
-**Рекомендация:**
-Зафиксировать legacy relation mapping registry до реализации graph migration.
+**Рекомендация:** Зафиксировать legacy relation mapping registry до реализации graph migration.
 
 Это особенно важно, потому что текущий ответ №8 перечисляет `calls`, `implements`, `has-argument`, тогда как core model содержит только семь families.
 
@@ -755,8 +722,7 @@ function --part_of(role=has_argument)--> signature
 
 # 35. Нужно ли LATTICE понимать код?
 
-**Ответ:**
-Нет.
+**Ответ:** Нет.
 
 LATTICE должна быть domain-neutral.
 
@@ -774,15 +740,13 @@ file/class/function/signature
 LATTICE objects
 ```
 
-**Рекомендация:**
-Не помещать parser/compiler semantics внутрь LATTICE core.
+**Рекомендация:** Не помещать parser/compiler semantics внутрь LATTICE core.
 
 ---
 
 # 36. Где заканчивается LATTICE?
 
-**Ответ:**
-На semantic graph infrastructure.
+**Ответ:** На semantic graph infrastructure.
 
 LATTICE отвечает:
 
@@ -804,8 +768,7 @@ how to run an experiment
 how to infer business semantics
 ```
 
-**Рекомендация:**
-Core должен быть маленьким.
+**Рекомендация:** Core должен быть маленьким.
 
 Все domain intelligence — adapters / contexts / clients.
 
@@ -813,8 +776,7 @@ Core должен быть маленьким.
 
 # 37. Нужен ли API поверх LATTICE?
 
-**Ответ:**
-Да, но API должен отражать semantic operations, а не storage.
+**Ответ:** Да, но API должен отражать semantic operations, а не storage.
 
 Минимальный API:
 
@@ -837,8 +799,7 @@ add_reference
 retire_object
 ```
 
-**Рекомендация:**
-Не давать пользователю public API вида:
+**Рекомендация:** Не давать пользователю public API вида:
 
 ```text
 write_node_json()
@@ -851,8 +812,7 @@ Storage format должен быть implementation detail.
 
 # 38. Нужен ли Query Language?
 
-**Ответ:**
-На первом этапе — нет отдельного DSL.
+**Ответ:** На первом этапе — нет отдельного DSL.
 
 Достаточно:
 
@@ -865,8 +825,7 @@ provenance lookup
 history lookup
 ```
 
-**Рекомендация:**
-Сначала стабильный semantic API.
+**Рекомендация:** Сначала стабильный semantic API.
 
 DSL появится только после доказанной потребности в сложных queries.
 
@@ -874,8 +833,7 @@ DSL появится только после доказанной потребн
 
 # 39. Должны ли projections быть rebuildable?
 
-**Ответ:**
-Да — обязательно.
+**Ответ:** Да — обязательно.
 
 Любая projection должна быть полностью восстанавливаема из canonical state.
 
@@ -893,8 +851,7 @@ projection
 canonical state
 ```
 
-**Рекомендация:**
-Добавить:
+**Рекомендация:** Добавить:
 
 ```text
 rebuild-projections
@@ -910,8 +867,7 @@ build twice → byte-identical result
 
 # 40. Можно ли вручную редактировать projection?
 
-**Ответ:**
-Нет.
+**Ответ:** Нет.
 
 Manual semantic decisions выполняются через mutation API.
 
@@ -925,8 +881,7 @@ explicit overlay
 
 если overlay является canonical semantic input и имеет собственного owner.
 
-**Рекомендация:**
-Чётко разделить:
+**Рекомендация:** Чётко разделить:
 
 ```text
 projection
@@ -940,8 +895,7 @@ Overlay не должен маскироваться под projection.
 
 # 41. Что является Overlay?
 
-**Ответ:**
-Явное semantic решение, которого нет непосредственно в source.
+**Ответ:** Явное semantic решение, которого нет непосредственно в source.
 
 Например:
 
@@ -965,15 +919,13 @@ provenance
 history
 ```
 
-**Рекомендация:**
-Overlay — first-class input, но не второй SSOT.
+**Рекомендация:** Overlay — first-class input, но не второй SSOT.
 
 ---
 
 # 42. Может ли classifier автоматически менять graph?
 
-**Ответ:**
-Нет.
+**Ответ:** Нет.
 
 Classifier:
 
@@ -991,8 +943,7 @@ candidate
 → explicit mutation
 ```
 
-**Рекомендация:**
-Разделить:
+**Рекомендация:** Разделить:
 
 ```text
 classification inference
@@ -1010,8 +961,7 @@ classification commit
 
 # 43. Может ли LLM создавать объекты напрямую?
 
-**Ответ:**
-Нет.
+**Ответ:** Нет.
 
 LLM может предложить:
 
@@ -1036,8 +986,7 @@ human/system decision
 mutation
 ```
 
-**Рекомендация:**
-LATTICE core не должен содержать LLM-specific semantics.
+**Рекомендация:** LATTICE core не должен содержать LLM-specific semantics.
 
 LLM — внешний producer proposal.
 
@@ -1045,8 +994,7 @@ LLM — внешний producer proposal.
 
 # 44. Нужна ли человеку возможность override?
 
-**Ответ:**
-Да.
+**Ответ:** Да.
 
 Но override не должен обходить invariant.
 
@@ -1068,15 +1016,13 @@ bypass provenance requirement
 violate context ownership
 ```
 
-**Рекомендация:**
-Human override является обычной mutation с actor provenance.
+**Рекомендация:** Human override является обычной mutation с actor provenance.
 
 ---
 
 # 45. Кто actor mutation?
 
-**Ответ:**
-Каждая mutation должна иметь actor:
+**Ответ:** Каждая mutation должна иметь actor:
 
 ```text
 human
@@ -1096,8 +1042,7 @@ actor:
   id: classifier-v2
 ```
 
-**Рекомендация:**
-Actor не является автоматически semantic object.
+**Рекомендация:** Actor не является автоматически semantic object.
 
 Object создаётся только если actor имеет самостоятельную domain identity.
 
@@ -1105,8 +1050,7 @@ Object создаётся только если actor имеет самосто�
 
 # 46. Нужна ли история всех property changes?
 
-**Ответ:**
-Да, если property semantic.
+**Ответ:** Да, если property semantic.
 
 Но не обязательно хранить каждое техническое переписывание файла.
 
@@ -1120,15 +1064,13 @@ old value
 → provenance
 ```
 
-**Рекомендация:**
-History event должен описывать **что изменилось семантически**, а не diff JSON.
+**Рекомендация:** History event должен описывать **что изменилось семантически**, а не diff JSON.
 
 ---
 
 # 47. Нужен ли `undo`?
 
-**Ответ:**
-Нет как destructive rollback.
+**Ответ:** Нет как destructive rollback.
 
 Вместо:
 
@@ -1144,8 +1086,7 @@ RevertToRevision
 
 которая сама попадает в history.
 
-**Рекомендация:**
-History остаётся append-only.
+**Рекомендация:** History остаётся append-only.
 
 Никогда не удалять историю ради rollback.
 
@@ -1153,8 +1094,7 @@ History остаётся append-only.
 
 # 48. Нужен ли schema version?
 
-**Ответ:**
-Да, но отдельно от object version.
+**Ответ:** Да, но отдельно от object version.
 
 Минимум:
 
@@ -1167,15 +1107,13 @@ migration_version
 
 Они отвечают на разные вопросы.
 
-**Рекомендация:**
-Никакого универсального `version`.
+**Рекомендация:** Никакого универсального `version`.
 
 ---
 
 # 49. Как эволюционирует сама LATTICE?
 
-**Ответ:**
-Через versioned schema/migration.
+**Ответ:** Через versioned schema/migration.
 
 Например:
 
@@ -1189,15 +1127,13 @@ LATTICE schema v2
 
 Object semantic version при этом не изменяется автоматически.
 
-**Рекомендация:**
-LATTICE schema migration должна быть отдельным механизмом от domain object migration.
+**Рекомендация:** LATTICE schema migration должна быть отдельным механизмом от domain object migration.
 
 ---
 
 # 50. Нужен ли backward compatibility?
 
-**Ответ:**
-Да.
+**Ответ:** Да.
 
 Минимально:
 
@@ -1236,15 +1172,13 @@ registries
 
 Всё остальное — projection.
 
-**Рекомендация:**
-Не хранить отдельно то, что можно deterministic rebuild.
+**Рекомендация:** Не хранить отдельно то, что можно deterministic rebuild.
 
 ---
 
 # 52. Как LATTICE выбирает storage?
 
-**Ответ:**
-Storage не должен менять semantic contract.
+**Ответ:** Storage не должен менять semantic contract.
 
 Core API должен работать поверх:
 
@@ -1256,8 +1190,7 @@ PostgresStore
 
 Но второй implementation не создавать заранее.
 
-**Рекомендация:**
-Сначала реализовать один production-grade JSON backend с чётким repository contract.
+**Рекомендация:** Сначала реализовать один production-grade JSON backend с чётким repository contract.
 
 Абстракция storage появляется вокруг реального boundary, а не ради DI.
 
@@ -1265,8 +1198,7 @@ PostgresStore
 
 # 53. Нужен ли PostgreSQL сейчас?
 
-**Ответ:**
-Нет.
+**Ответ:** Нет.
 
 Для текущего масштаба:
 
@@ -1282,8 +1214,7 @@ JSON + append-only registries достаточно при условии:
 * indexed lookup;
 * sharding при необходимости.
 
-**Рекомендация:**
-Не проектировать PostgreSQL/Anchor Modeling как часть LATTICE core.
+**Рекомендация:** Не проектировать PostgreSQL/Anchor Modeling как часть LATTICE core.
 
 Но repository boundary оставить чистым.
 
@@ -1291,8 +1222,7 @@ JSON + append-only registries достаточно при условии:
 
 # 54. Нужен ли graph sharding?
 
-**Ответ:**
-Да как storage/projection mechanism, но не как semantic boundary.
+**Ответ:** Да как storage/projection mechanism, но не как semantic boundary.
 
 Допустимо:
 
@@ -1312,15 +1242,13 @@ graph/cross-context.json
 
 могут быть отдельной physical projection.
 
-**Рекомендация:**
-Shard by context — физическая оптимизация, не новый ontology layer.
+**Рекомендация:** Shard by context — физическая оптимизация, не новый ontology layer.
 
 ---
 
 # 55. Может ли cross-context edge существовать?
 
-**Ответ:**
-Да.
+**Ответ:** Да.
 
 Но он должен проходить через explicit context contract.
 
@@ -1334,8 +1262,7 @@ platform/dispatcher
 
 Это не означает, что runtime получил право читать внутренние поля platform object.
 
-**Рекомендация:**
-Cross-context edge хранит:
+**Рекомендация:** Cross-context edge хранит:
 
 ```text
 source context
@@ -1349,8 +1276,7 @@ contract/version
 
 # 56. Что делать при удалении context?
 
-**Ответ:**
-Context нельзя удалить, если существуют semantic objects.
+**Ответ:** Context нельзя удалить, если существуют semantic objects.
 
 Сначала:
 
@@ -1363,8 +1289,7 @@ freeze
 → retire context
 ```
 
-**Рекомендация:**
-Context lifecycle должен быть:
+**Рекомендация:** Context lifecycle должен быть:
 
 ```text
 proposed
@@ -1379,8 +1304,7 @@ retired
 
 # 57. Кто может создать новый context?
 
-**Ответ:**
-Только архитектурное решение.
+**Ответ:** Только архитектурное решение.
 
 Минимальный RFC должен доказать:
 
@@ -1392,8 +1316,7 @@ lifecycle
 cross-context mismatch
 ```
 
-**Рекомендация:**
-`AddContext` не является обычной user mutation.
+**Рекомендация:** `AddContext` не является обычной user mutation.
 
 Это architecture-level change.
 
@@ -1401,8 +1324,7 @@ cross-context mismatch
 
 # 58. Нужно ли LATTICE хранить правила самой LATTICE?
 
-**Ответ:**
-Да, но минимально.
+**Ответ:** Да, но минимально.
 
 Сам LATTICE может описывать:
 
@@ -1415,8 +1337,7 @@ meta/invariant
 
 Но эти objects не должны образовывать отдельную «мета-вселенную».
 
-**Рекомендация:**
-LATTICE описывает собственные правила через тот же механизм, но bootstrap schema остаётся hard-coded минимальным kernel.
+**Рекомендация:** LATTICE описывает собственные правила через тот же механизм, но bootstrap schema остаётся hard-coded минимальным kernel.
 
 Иначе возникает bootstrap paradox:
 
@@ -1428,8 +1349,7 @@ LATTICE needs LATTICE to define LATTICE
 
 # 59. Где заканчивается self-description?
 
-**Ответ:**
-Self-description не должна быть бесконечно рекурсивной.
+**Ответ:** Self-description не должна быть бесконечно рекурсивной.
 
 Допустимо:
 
@@ -1450,8 +1370,7 @@ history
 
 фиксируются implementation-level contract.
 
-**Рекомендация:**
-Разделить:
+**Рекомендация:** Разделить:
 
 ```text
 bootstrap invariants
@@ -1467,8 +1386,7 @@ self-describing vocabulary
 
 # 60. Может ли LATTICE изменить собственные invariants?
 
-**Ответ:**
-Да, но только как versioned architecture migration.
+**Ответ:** Да, но только как versioned architecture migration.
 
 Нельзя:
 
@@ -1490,15 +1408,13 @@ new invariant
 → activation
 ```
 
-**Рекомендация:**
-Invariant registry должен быть versioned.
+**Рекомендация:** Invariant registry должен быть versioned.
 
 ---
 
 # 61. Что означает «красный CI = freeze vocabulary»?
 
-**Ответ:**
-Не весь CI failure должен замораживать vocabulary.
+**Ответ:** Не весь CI failure должен замораживать vocabulary.
 
 Только failure semantic integrity.
 
@@ -1521,8 +1437,7 @@ formatting
 
 не должны блокировать semantic evolution.
 
-**Рекомендация:**
-Разделить CI:
+**Рекомендация:** Разделить CI:
 
 ```text
 semantic gate
@@ -1534,8 +1449,7 @@ informational metrics
 
 # 62. Какие invariants действительно обязательны?
 
-**Ответ:**
-Core invariant set должен быть маленьким.
+**Ответ:** Core invariant set должен быть маленьким.
 
 Рекомендуемый immutable минимум:
 
@@ -1557,8 +1471,7 @@ I14 semantic hash is deterministic
 I15 canonical writes pass invariants
 ```
 
-**Рекомендация:**
-Не увеличивать список ради каждой частной проверки.
+**Рекомендация:** Не увеличивать список ради каждой частной проверки.
 
 Частные checks должны ссылаться на один из этих invariants.
 
@@ -1566,8 +1479,7 @@ I15 canonical writes pass invariants
 
 # 63. Может ли lint исправлять ошибки?
 
-**Ответ:**
-Нет.
+**Ответ:** Нет.
 
 Lint:
 
@@ -1596,8 +1508,7 @@ change relation
 accept object
 ```
 
-**Рекомендация:**
-Убрать идею «lint с мутациями» из core.
+**Рекомендация:** Убрать идею «lint с мутациями» из core.
 
 Self-test может создавать временный sandbox state, но production graph lint остаётся read-only.
 
@@ -1627,15 +1538,13 @@ negative case
 boundary case
 ```
 
-**Рекомендация:**
-Правило без executable test не считается полностью введённым.
+**Рекомендация:** Правило без executable test не считается полностью введённым.
 
 ---
 
 # 65. Как LATTICE предотвращает «тихий рост сложности»?
 
-**Ответ:**
-Через change budget.
+**Ответ:** Через change budget.
 
 Каждое расширение vocabulary сопровождается:
 
@@ -1657,8 +1566,7 @@ migration cost
 owner
 ```
 
-**Рекомендация:**
-Ввести `Architecture Change Record`.
+**Рекомендация:** Ввести `Architecture Change Record`.
 
 Особенно для:
 

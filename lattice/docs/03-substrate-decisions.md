@@ -8,12 +8,9 @@ version: 0.1.0
 
 # 03. LATTICE Object Substrate — решения
 
-Ответы на семь пунктов «Рассмотреть / исправить» из [LATTICE — Object Substrate](01-object-substrate.md)
-плюс системные дополнения (§8). Решения D1–D7 применены к исходному документу там, где правка механическая
-(§9). Всё остальное — норма этого документа до переноса.
+Ответы на семь пунктов «Рассмотреть / исправить» из [LATTICE — Object Substrate](01-object-substrate.md) плюс системные дополнения (§8). Решения D1–D7 применены к исходному документу там, где правка механическая (§9). Всё остальное — норма этого документа до переноса.
 
-Принцип, которым проверялось каждое решение, — тот же, что в исходнике: **один вопрос — одна ось**, и правило
-абстракции WARRANT [01 §3](../../docs/01-principles.md): новая сущность только если существующие не выражают семантику.
+Принцип, которым проверялось каждое решение, — тот же, что в исходнике: **один вопрос — одна ось**, и правило абстракции WARRANT [01 §3](../../docs/01-principles.md): новая сущность только если существующие не выражают семантику.
 
 ## D1. Identity: `<context>/<name>`, два сегмента
 
@@ -25,18 +22,14 @@ context = [a-z][a-z0-9_-]*            один из зарегистрирова
 name    = [A-Za-z0-9][A-Za-z0-9._-]*  machine-stable, уникален внутри context
 ```
 
-Почему не `context/namespace/name`: namespace, который «не тип», на практике всегда становится типом
-(`components/`, `refs/`), и §14.1 нарушается снова. Уникальность имени внутри context — ответственность
-registry этого context, а не структуры id.
+Почему не `context/namespace/name`: namespace, который «не тип», на практике всегда становится типом (`components/`, `refs/`), и §14.1 нарушается снова. Уникальность имени внутри context — ответственность registry этого context, а не структуры id.
 
-**Правило префикса.** `name` MAY содержать конвенциональный префикс (`INV-4`, `REQ-ING-001`, `HYP-012`).
-Префикс — naming convention уровня R2 (context contract), **не** classification:
+**Правило префикса.** `name` MAY содержать конвенциональный префикс (`INV-4`, `REQ-ING-001`, `HYP-012`). Префикс — naming convention уровня R2 (context contract), **не** classification:
 
 - lint MUST NOT выводить `type` из префикса и MUST NOT требовать их совпадения;
 - reclassification не меняет `name`, даже если префикс «устарел»; расхождение — это не ошибка, а история.
 
-Так снимается напряжение между удобством чтения и §14.1: identity не *содержит* classification, но может
-*напоминать* о ней.
+Так снимается напряжение между удобством чтения и §14.1: identity не *содержит* classification, но может *напоминать* о ней.
 
 **Исправленные примеры.**
 
@@ -50,10 +43,7 @@ registry этого context, а не структуры id.
 | `method/thing/spike-classifier` | `method/spike-classifier` | thing / spike |
 | `CHG-001/REQ-001` (slice) | `spec/REQ-001` + edge `part_of → spec/CHG-001` | concept / requirement |
 
-**Следствие для WARRANT.** Открытый вопрос I1 / spike S6 ([13](../../docs/13-roadmap.md)) закрывается без mapping:
-stable ID WARRANT (`REQ-ING-001`, `ADR-004`, `TERM-customer`) становится `name`, identity —
-`spec/REQ-ING-001`, `spec/ADR-004`, `lexicon/TERM-customer`. LATTICE принимает внешние имена как есть,
-таблица соответствий не нужна. Это фиксируется в [05 §1](../../docs/integrations/05-warrant-lattice.md) после принятия.
+**Следствие для WARRANT.** Открытый вопрос I1 / spike S6 ([13](../../docs/13-roadmap.md)) закрывается без mapping: stable ID WARRANT (`REQ-ING-001`, `ADR-004`, `TERM-customer`) становится `name`, identity — `spec/REQ-ING-001`, `spec/ADR-004`, `lexicon/TERM-customer`. LATTICE принимает внешние имена как есть, таблица соответствий не нужна. Это фиксируется в [05 §1](../../docs/integrations/05-warrant-lattice.md) после принятия.
 
 ## D2. Допустимые комбинации `acceptance × currency`
 
@@ -63,8 +53,7 @@ stable ID WARRANT (`REQ-ING-001`, `ADR-004`, `TERM-customer`) становитс
 acceptance = rejected  ⇒  currency := retired   (derived; запись вручную запрещена)
 ```
 
-Так ни одна операция не обязана «помнить» о второй оси: `RejectModel` пишет одно значение и один history event.
-Это применение главного инварианта §77: если значение детерминировано другой осью, оно не хранится.
+Так ни одна операция не обязана «помнить» о второй оси: `RejectModel` пишет одно значение и один history event. Это применение главного инварианта §77: если значение детерминировано другой осью, оно не хранится.
 
 Оставшиеся комбинации действительно независимы:
 
@@ -75,17 +64,13 @@ acceptance = rejected  ⇒  currency := retired   (derived; запись вру�
 | `accepted` | ✓ действует | ✓ применять не рекомендуется | ✓ выведено |
 | `rejected` | — | — | вычислено |
 
-`deprecated` только для `accepted`: устареть может лишь то, что действовало. Само `deprecated` **не** выводится —
-это самостоятельное решение о действующем объекте, поэтому хранится.
+`deprecated` только для `accepted`: устареть может лишь то, что действовало. Само `deprecated` **не** выводится — это самостоятельное решение о действующем объекте, поэтому хранится.
 
-Lint: `L-ST-03 invalid acceptance×currency` (для `draft` / `proposed` с `deprecated`), `L-ST-04 stored currency on rejected`.
-Reconstruction (D5) восстанавливает legacy `rejected` из одной оси.
+Lint: `L-ST-03 invalid acceptance×currency` (для `draft` / `proposed` с `deprecated`), `L-ST-04 stored currency on rejected`. Reconstruction (D5) восстанавливает legacy `rejected` из одной оси.
 
 ## D3. §23: пять неоднозначных статусов
 
-**Семантика GAP.** GAP создаётся только если ось **требуется контрактом type** и не выводима из источника.
-`null` без GAP допустим там, где type объявляет ось необязательной (placeholder, question). Иначе любое
-`reserved` порождало бы GAP по grounding, хотя утверждения там нет.
+**Семантика GAP.** GAP создаётся только если ось **требуется контрактом type** и не выводима из источника. `null` без GAP допустим там, где type объявляет ось необязательной (placeholder, question). Иначе любое `reserved` порождало бы GAP по grounding, хотя утверждения там нет.
 
 | old_status | `acceptance` | `currency` | `epistemic_state` | `grounding` | GAP |
 |---|---|---|---|---|---|
@@ -95,9 +80,7 @@ Reconstruction (D5) восстанавливает legacy `rejected` из одн
 | `reserved` | `draft` | `active` | `unresolved` | `null` без GAP | нет: placeholder не утверждает |
 | `deferred` | `proposed` | `active` | из источника, иначе `unresolved` | из источника, иначе `null` | нет; обязателен `review` (§25.1): owner, due, condition |
 
-Логика: `open`/`unknown`/`reserved` — объект ещё не предлагался, значит `draft`; `disputed` — спор есть только
-о том, что уже выдвинуто; `deferred` — предложено, решение отложено, поэтому `proposed` плюс review record,
-а не отдельная ось.
+Логика: `open`/`unknown`/`reserved` — объект ещё не предлагался, значит `draft`; `disputed` — спор есть только о том, что уже выдвинуто; `deferred` — предложено, решение отложено, поэтому `proposed` плюс review record, а не отдельная ось.
 
 **Ожидаемый GAP rate.** Задаётся не априори, а измеряется на M0:
 
@@ -113,13 +96,11 @@ Reconstruction (D5) восстанавливает legacy `rejected` из одн
 | `rule_agreement < 0.9` | правило дорабатывается до M2; статус не мигрирует автоматически |
 | `gap_rate > 0.5` | статус объявляется «неопределимым по статусу»; все объекты → GAP с owner; правило не выдумывается (§60) |
 
-**Процедура принятия правила.** rule → dry-run на выборке → отчёт agreement/gap → sign-off owner context →
-правило получает `rule_id`, `version`, входит в migration function (§24). Изменение правила после M2 = повторный dry-run.
+**Процедура принятия правила.** rule → dry-run на выборке → отчёт agreement/gap → sign-off owner context → правило получает `rule_id`, `version`, входит в migration function (§24). Изменение правила после M2 = повторный dry-run.
 
 ## D4. Направление `tests` и матрица context × context
 
-**Направление.** `test --tests--> target`. Единое правило чтения для всех семи families:
-edge читается как предложение «source *verb* target»:
+**Направление.** `test --tests--> target`. Единое правило чтения для всех семи families: edge читается как предложение «source *verb* target»:
 
 ```text
 section part_of document · term denotes concept · rule cites ref · component depends_on contract
@@ -165,8 +146,7 @@ new evolves_from old · test tests requirement · eventA causes eventB
 | M9 Projection | `projection_drift_rate = 0` | Projection содержит факт, отсутствующий в source |
 | M10 Lint / reconstruction | `lossless_reconstruction_rate = 100%` (ниже) | < 100% после трёх итераций, или без прогресса между итерациями |
 
-**Общий abort:** переход в compatibility period (§59) запрещён, пока не пройдены M1, M2, M6. Откат —
-к snapshot M0; ничего в legacy не записывалось (§59: read legacy, write canonical), поэтому откат = отбросить canonical.
+**Общий abort:** переход в compatibility period (§59) запрещён, пока не пройдены M1, M2, M6. Откат — к snapshot M0; ничего в legacy не записывалось (§59: read legacy, write canonical), поэтому откат = отбросить canonical.
 
 **Операционное определение lossless reconstruction.** Не побайтовое равенство, а равенство **legacy view**:
 
@@ -188,17 +168,14 @@ legacy_view == legacy_object  на множестве полей F, за выч�
 }
 ```
 
-- `status`: обратное правило даёт **множество** кандидатов (`accepted+retired` → {retired, historical, superseded});
-  reconstruction проходит, если legacy status в множестве. Различить их внутри множества позволяет lineage
-  (`superseded` ⇔ есть `evolves_from`) и provenance.
+- `status`: обратное правило даёт **множество** кандидатов (`accepted+retired` → {retired, historical, superseded}); reconstruction проходит, если legacy status в множестве. Различить их внутри множества позволяет lineage (`superseded` ⇔ есть `evolves_from`) и provenance.
 - `relations`: сравнение множеств троек; role и direction восстанавливаются по mapping M5.
 - Поле не в F и не в D → ошибка спецификации reconstruction, а не «неважное поле». Список D — часть DoD.
 - `lossless_reconstruction_rate` = доля объектов, у которых все F совпали.
 
 ## D6. `properties` — на верхнем уровне
 
-**Решение.** `classification = { root_kind, type, subtype }`, и только это. `properties` — отдельный
-top-level блок объекта, его схема объявляется type registry:
+**Решение.** `classification = { root_kind, type, subtype }`, и только это. `properties` — отдельный top-level блок объекта, его схема объявляется type registry:
 
 ```json
 {
@@ -223,12 +200,9 @@ Registry декларирует допустимые ключи и их тип:
 
 **Решение.** Старые правила не переносятся. Новый lint **выводится из модели**, старые findings становятся regression-fixtures.
 
-Почему: старый lint проверял старую модель. Перенос «правило за правилом» протаскивает в новую модель старые оси
-(`status`, `ontoclass`) — это failure mode F2. Источник lint-правил один: каждая ось и каждый инвариант порождает
-своё правило, поэтому lint полон по построению, а не по памяти.
+Почему: старый lint проверял старую модель. Перенос «правило за правилом» протаскивает в новую модель старые оси (`status`, `ontoclass`) — это failure mode F2. Источник lint-правил один: каждая ось и каждый инвариант порождает своё правило, поэтому lint полон по построению, а не по памяти.
 
-1. Правило и инвариант живут в одном файле `meta/lint-rules.json`; `rule_id` по категориям §50:
-   `L-ID-*`, `L-CL-*`, `L-ST-*`, `L-RL-*`, `L-PV-*`, `L-HI-*`, `L-MG-*`, каждое с `owner, scope, precedence, source` (§46.1).
+1. Правило и инвариант живут в одном файле `meta/lint-rules.json`; `rule_id` по категориям §50: `L-ID-*`, `L-CL-*`, `L-ST-*`, `L-RL-*`, `L-PV-*`, `L-HI-*`, `L-MG-*`, каждое с `owner, scope, precedence, source` (§46.1).
 2. На M0 сохраняются **fixtures**: объекты snapshot, на которых старый lint давал finding, с id старого правила.
 3. В M10 новый lint запускается на fixtures. Disposition каждого старого правила вычисляется, а не назначается:
 
@@ -244,17 +218,13 @@ Registry декларирует допустимые ключи и их тип:
 
 ### 8.1. Bounded context `spec`
 
-Первый vertical slice (конец исходника) кладёт в LATTICE объекты OpenSpec: Change, Requirement, Task, Test,
-Evidence, Decision. Ни один из семи contexts их не владеет: `platform` — семантика самой SEF, не продукта.
-По критериям §62 у спецификации продукта есть всё: собственный язык (OpenSpec), lifecycle (Change),
-invariants (`spec-valid`, stable ID), owner (OpenSpec). Значит это восьмой context, а не папка:
+Первый vertical slice (конец исходника) кладёт в LATTICE объекты OpenSpec: Change, Requirement, Task, Test, Evidence, Decision. Ни один из семи contexts их не владеет: `platform` — семантика самой SEF, не продукта. По критериям §62 у спецификации продукта есть всё: собственный язык (OpenSpec), lifecycle (Change), invariants (`spec-valid`, stable ID), owner (OpenSpec). Значит это восьмой context, а не папка:
 
 | Context | Owner | Types (начально) |
 |---|---|---|
 | `spec` | OpenSpec (через WARRANT как адаптер) | `change` (thing), `requirement`, `scenario`, `decision` (concept), `task` (thing), `data_contract` (thing) |
 
-Test и Evidence остаются в `evidence` (`oracle`, `record`). Runtime-факты продукта — в `runtime`.
-Это согласуется с [05 §1](../../docs/integrations/05-warrant-lattice.md) и снимает конфликт slice-примера с моделью.
+Test и Evidence остаются в `evidence` (`oracle`, `record`). Runtime-факты продукта — в `runtime`. Это согласуется с [05 §1](../../docs/integrations/05-warrant-lattice.md) и снимает конфликт slice-примера с моделью.
 
 Разница уровней (contexts фабрики vs объекты продукта) удерживается **одним правилом границы**:
 
@@ -264,15 +234,11 @@ spec — source только для part_of внутри себя и cites → e
 spec никогда не source для depends_on наружу: продукт не зависит от внутренностей фабрики.
 ```
 
-LATTICE не хранит текст требований — только identity, classification, оси, edges (§1.6, INV-06).
-Семейство `spec:<project>` — только когда появится второй продукт и докажет свой язык по §62.
+LATTICE не хранит текст требований — только identity, classification, оси, edges (§1.6, INV-06). Семейство `spec:<project>` — только когда появится второй продукт и докажет свой язык по §62.
 
 ### 8.2. Одна vocabulary операций
 
-Операции описаны трижды: vertical operations в substrate (`AddObject`, `RejectModel`, `GroupObjects`, …),
-минимальный список в [Q&A §67](02-architecture-qa.md)
-(`CreateObject`, `UpdateProperties`, `RevertToRevision`, …) и `operation.type` в [02 §4](../../docs/integrations/02-proposal-contract.md).
-Три словаря для одного вопроса — нарушение §1.1. Решение: **одна примитивная операция на механизм**, всё остальное — composite.
+Операции описаны трижды: vertical operations в substrate (`AddObject`, `RejectModel`, `GroupObjects`, …), минимальный список в [Q&A §67](02-architecture-qa.md) (`CreateObject`, `UpdateProperties`, `RevertToRevision`, …) и `operation.type` в [02 §4](../../docs/integrations/02-proposal-contract.md). Три словаря для одного вопроса — нарушение §1.1. Решение: **одна примитивная операция на механизм**, всё остальное — composite.
 
 | Механизм (§69) | Примитив | `operation.type` в proposal |
 |---|---|---|
@@ -293,14 +259,11 @@ Composite — batch примитивов в одной транзакции (Q&A
 | `MergeObjects`, `SplitObject`, `GroupObjects`, `AbstractInto` | `CreateObject` + `AddEdge(evolves_from, role=…)` + `SetCurrency(retired)` для поглощённых |
 | `RejectModel` | `RecordDecision(rejected)`; `currency` выводится (D2) |
 
-`AlignTerms`, `IntroduceType`, `AddContext` — не proposals на объект, а изменения registry: architecture change
-procedure (§61, Q&A §57), через `factory-change` WARRANT. [02 §4](../../docs/integrations/02-proposal-contract.md) приведён к этому enum.
+`AlignTerms`, `IntroduceType`, `AddContext` — не proposals на объект, а изменения registry: architecture change procedure (§61, Q&A §57), через `factory-change` WARRANT. [02 §4](../../docs/integrations/02-proposal-contract.md) приведён к этому enum.
 
 ### 8.3. Snapshot = набор версий, без отдельного `snapshot_id`
 
-Q&A §48 задаёт раздельные версии: `object_version`, `graph_format`, `registry_version`, `migration_version`;
-§19 — optimistic concurrency по `expected_version` объекта. Отдельный `snapshot_id` тогда избыточен: snapshot
-**есть** набор версий, и proposal ссылается на него напрямую:
+Q&A §48 задаёт раздельные версии: `object_version`, `graph_format`, `registry_version`, `migration_version`; §19 — optimistic concurrency по `expected_version` объекта. Отдельный `snapshot_id` тогда избыточен: snapshot **есть** набор версий, и proposal ссылается на него напрямую:
 
 ```json
 { "based_on": { "graph_format": 1, "meta_version": 3,
@@ -308,20 +271,15 @@ Q&A §48 задаёт раздельные версии: `object_version`, `grap
   "targets": { "platform/dispatcher": 17 } } }
 ```
 
-`STALE`, если изменились `graph_format`, `meta_version` или версия registry любого затронутого context;
-`CONFLICT`, если `targets[*]` не совпадает с текущей `object_version` (Q&A §19). Это закрывает I4: в `context_hash`
-WARRANT входит именно `based_on` целиком, потому что он и есть семантическая картина, на которой рассуждал агент.
+`STALE`, если изменились `graph_format`, `meta_version` или версия registry любого затронутого context; `CONFLICT`, если `targets[*]` не совпадает с текущей `object_version` (Q&A §19). Это закрывает I4: в `context_hash` WARRANT входит именно `based_on` целиком, потому что он и есть семантическая картина, на которой рассуждал агент.
 
 ### 8.4. Формат файлов
 
-Registries и правила описаны в YAML; конвенция проекта — JSON с `$schema` ([ADR-0006](../../docs/adr/WARRANT-ADR-0006-json-conventions.md)):
-`platform/types.json`, `meta/context-map.json`, `meta/migration-rules.json`. LLM будет править эти файлы, и аргументы ADR-0006 применимы целиком.
+Registries и правила описаны в YAML; конвенция проекта — JSON с `$schema` ([ADR-0006](../../docs/adr/WARRANT-ADR-0006-json-conventions.md)): `platform/types.json`, `meta/context-map.json`, `meta/migration-rules.json`. LLM будет править эти файлы, и аргументы ADR-0006 применимы целиком.
 
 ### 8.5. Порядок реализации
 
-Раздел «Что реализовывать первым» откладывает четыре оси состояния на второй шаг, но slice-пример уже использует
-`acceptance` и `grounding`. Минимум для slice: identity, classification, provenance, edge, history **плюс**
-`acceptance` и `grounding`. `currency` и `epistemic_state` — после slice; до этого они `null` без GAP (D3).
+Раздел «Что реализовывать первым» откладывает четыре оси состояния на второй шаг, но slice-пример уже использует `acceptance` и `grounding`. Минимум для slice: identity, classification, provenance, edge, history **плюс** `acceptance` и `grounding`. `currency` и `epistemic_state` — после slice; до этого они `null` без GAP (D3).
 
 ## 9. Что применено к исходному документу
 
@@ -335,8 +293,7 @@ Registries и правила описаны в YAML; конвенция прое
 - §74: `properties` вынесены из CLASSIFICATION.
 - Slice-пример: `spec/REQ-001`, `part_of → spec/CHG-001`, `evidence/TEST-001 --tests--> spec/REQ-001`.
 
-Согласовано 2026-09-22: D1–D7, 8.1–8.5. Не перенесено в исходник (ждёт следующей правки): матрица D4 как `context-map.json`, правила D3 в §23,
-abort criteria в §56, YAML → JSON.
+Согласовано 2026-09-22: D1–D7, 8.1–8.5. Не перенесено в исходник (ждёт следующей правки): матрица D4 как `context-map.json`, правила D3 в §23, abort criteria в §56, YAML → JSON.
 
 ## 10. Сверка с «LATTICE — архитектурные вопросы, ответы и обязательные решения»
 
@@ -352,8 +309,7 @@ Q&A-документ закрывает часть вопросов [00](../../d
 
 ### 10.2. I2 `contested`: решение (принято 2026-09-22)
 
-Q&A не задаёт условий входа и выхода. По образцу D2 `contested` **производно** от наличия
-открытого dispute record, а не выставляется свободно:
+Q&A не задаёт условий входа и выхода. По образцу D2 `contested` **производно** от наличия открытого dispute record, а не выставляется свободно:
 
 ```text
 epistemic_state = contested   ⇔   существует открытый dispute record на объект
@@ -362,13 +318,9 @@ dispute record = { object, claims[≥2 c разными actors], owner, due, con
 выход: RecordDecision закрывает dispute → settled; либо condition истекла без решения → остаётся contested, эскалация owner
 ```
 
-`unresolved` — основания недостаточно (нет claims); `contested` — оснований больше одного и они несовместимы;
-`settled` — ни того ни другого. Так три значения перестают пересекаться, а анти-протухание (§14: owner, due, condition
-у всего, что не accepted) распространяется на споры автоматически.
+`unresolved` — основания недостаточно (нет claims); `contested` — оснований больше одного и они несовместимы; `settled` — ни того ни другого. Так три значения перестают пересекаться, а анти-протухание (§14: owner, due, condition у всего, что не accepted) распространяется на споры автоматически.
 
-`derived` vs `observed` для результата check: Q&A §19 substrate определяет `derived` как «формально выведено из
-других данных», `observed` — «непосредственно наблюдалось». Check над артефактами в git — `derived`; runtime / data
-observation — `observed`. Это совпадает с [02 §1](../../docs/02-vocabulary.md) WARRANT.
+`derived` vs `observed` для результата check: Q&A §19 substrate определяет `derived` как «формально выведено из других данных», `observed` — «непосредственно наблюдалось». Check над артефактами в git — `derived`; runtime / data observation — `observed`. Это совпадает с [02 §1](../../docs/02-vocabulary.md) WARRANT.
 
 ### 10.3. Расхождения Q&A с substrate и D1–D7 (исправлены в Q&A)
 
@@ -383,8 +335,6 @@ observation — `observed`. Это совпадает с [02 §1](../../docs/02-
 
 ### 10.4. Что Q&A добавляет к WARRANT
 
-- **Semantic gate vs quality gate (§61).** Прямо ложится на gates WARRANT: `lattice-semantic-integrity` (L1, не waivable,
-  freeze vocabulary при FAIL) и `lattice-quality` (L1, waivable). Кандидаты для pack `lattice`.
+- **Semantic gate vs quality gate (§61).** Прямо ложится на gates WARRANT: `lattice-semantic-integrity` (L1, не waivable, freeze vocabulary при FAIL) и `lattice-quality` (L1, waivable). Кандидаты для pack `lattice`.
 - **I16 candidate filter (§00)** = тест на object [01 §3](../../docs/integrations/01-lattice-contract.md); формулировки объединить при переносе.
-- **Правило без executable test не введено (§64)** — то же, что golden changes [12 §2](../../docs/12-evolution.md); lint-правила
-  LATTICE проверяются golden-набором так же, как policy WARRANT.
+- **Правило без executable test не введено (§64)** — то же, что golden changes [12 §2](../../docs/12-evolution.md); lint-правила LATTICE проверяются golden-набором так же, как policy WARRANT.

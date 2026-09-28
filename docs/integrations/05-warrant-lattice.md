@@ -8,8 +8,7 @@ version: 0.1.0
 
 # 05. WARRANT ↔ LATTICE
 
-Что WARRANT берёт из LATTICE, что отдаёт и какую роль играет в канале proposals. Реализуется pack `lattice`
-([08 §6](../08-packs.md)); kernel не меняется.
+Что WARRANT берёт из LATTICE, что отдаёт и какую роль играет в канале proposals. Реализуется pack `lattice` ([08 §6](../08-packs.md)); kernel не меняется.
 
 ## 1. Какие объекты WARRANT становятся объектами LATTICE
 
@@ -26,23 +25,19 @@ version: 0.1.0
 | Change | object (ограниченно) | Identity Change нужна для relations `introduced_by`; содержание остаётся в OpenSpec |
 | Run, TASK, WAV, Change record | нет | Операционное состояние WARRANT; в LATTICE не уходит |
 
-Правило: LATTICE хранит **идентичность и связи**, текст остаётся в OpenSpec, evidence — в `.warrant/`. Второго
-хранилища спецификаций не появляется ([03 §8](../03-architecture.md)).
+Правило: LATTICE хранит **идентичность и связи**, текст остаётся в OpenSpec, evidence — в `.warrant/`. Второго хранилища спецификаций не появляется ([03 §8](../03-architecture.md)).
 
 ## 2. Read channel
 
 Адаптер собирает semantic read model ([01 §9](01-lattice-contract.md)) для Context Pack:
 
 - Subgraph по объектам, на которые ссылается Change (REQ, DCT, ADR, TERM) плюс их relations на глубину 1 и history window.
-- Версии snapshot (`based_on`) входят в Context Pack и в `context_hash` ([06a §6](../06a-evidence.md)): решено,
-  [06 §8.3](../../lattice/docs/03-substrate-decisions.md).
-- `analyze` ([06 §5](../06-verification.md)) остаётся детерминированным по артефактам в git и **не зависит** от LATTICE;
-  read model используется skills, не checks.
+- Версии snapshot (`based_on`) входят в Context Pack и в `context_hash` ([06a §6](../06a-evidence.md)): решено, [06 §8.3](../../lattice/docs/03-substrate-decisions.md).
+- `analyze` ([06 §5](../06-verification.md)) остаётся детерминированным по артефактам в git и **не зависит** от LATTICE; read model используется skills, не checks.
 
 ## 3. Проекция маркеров на оси объекта
 
-Маркеры — ось высказывания, оси LATTICE — оси объекта ([02 §1](../02-vocabulary.md)). Соответствие — не таблица
-эквивалентов, а правило проекции, срабатывающее при формировании proposal. Данные pack `lattice`, файл `markers.json`:
+Маркеры — ось высказывания, оси LATTICE — оси объекта ([02 §1](../02-vocabulary.md)). Соответствие — не таблица эквивалентов, а правило проекции, срабатывающее при формировании proposal. Данные pack `lattice`, файл `markers.json`:
 
 | Маркер WARRANT | `grounding` | `epistemic_state` |
 |---|---|---|
@@ -57,8 +52,7 @@ version: 0.1.0
 
 Инварианты проекции:
 
-- Только `FACT` и `DECISION` могут дать `settled`. `INFERENCE → FACT` в WARRANT и `inferred → declared | derived | observed`
-  в LATTICE требуют одного и того же grounding-события (INV-05).
+- Только `FACT` и `DECISION` могут дать `settled`. `INFERENCE → FACT` в WARRANT и `inferred → declared | derived | observed` в LATTICE требуют одного и того же grounding-события (INV-05).
 - Понижать `grounding_claimed` LATTICE вправе, повышать — нет ([02 §4](02-proposal-contract.md)).
 - Check — `derived`, runtime — `observed`; `contested` — производное от dispute record ([07 LD-S-07](../../lattice/docs/00-decision-register.md)).
 

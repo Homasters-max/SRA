@@ -8,9 +8,7 @@ version: 0.1.0
 
 # 02. Proposal contract
 
-Один канал, по которому **любой** источник предлагает изменение canonical state LATTICE. Раньше proposal описывался
-трижды (addendum SRA, ProposalSource JEV, `proposals[]` в envelope skill). Здесь — один envelope, один pipeline,
-один набор результатов.
+Один канал, по которому **любой** источник предлагает изменение canonical state LATTICE. Раньше proposal описывался трижды (addendum SRA, ProposalSource JEV, `proposals[]` в envelope skill). Здесь — один envelope, один pipeline, один набор результатов.
 
 ## 1. Принцип
 
@@ -32,8 +30,7 @@ WARRANT разрешает.  LATTICE валидирует и мутирует.  
 | Human | `human` | Любая операция через UI / CLI | — |
 | Importer, rules engine | `importer`, `rules` | Массовый ввод legacy, детерминированные переклассификации | — |
 
-У всех источников `authority: none`. Различие между ними — только в доверии к rationale и в policy WARRANT,
-которая решает, нужен ли human approval для данного источника и операции.
+У всех источников `authority: none`. Различие между ними — только в доверии к rationale и в policy WARRANT, которая решает, нужен ли human approval для данного источника и операции.
 
 ## 3. Pipeline
 
@@ -48,8 +45,7 @@ source reads snapshot
   → evidence                  запись в WARRANT: что было принято и на каком основании
 ```
 
-- Порядок фиксирован: authorization раньше validation, чтобы LATTICE не тратил валидацию на неразрешённое.
-  LATTICE MAY выполнять предварительную validation без side effects (dry run) до authorization.
+- Порядок фиксирован: authorization раньше validation, чтобы LATTICE не тратил валидацию на неразрешённое. LATTICE MAY выполнять предварительную validation без side effects (dry run) до authorization.
 - Ни один шаг не пропускается для «доверенного» источника; human отличается только тем, что approval совпадает с самим proposal.
 
 ## 4. Envelope
@@ -98,8 +94,7 @@ source reads snapshot
 | `STALE` | LATTICE | Версии registry / meta / graph_format в `based_on` устарели; proposal не применяется. Несовпадение версии целевого объекта — `CONFLICT` (OCC) |
 
 - Результат вне enum → трактуется как `REJECTED` (fail closed, INV-10).
-- `STALE` не означает «неверно»: источник перечитывает snapshot и повторяет reasoning. Это и есть явное закрытие
-  обратной связи «источник читает → предлагает → LATTICE принимает → источник читает обновлённое». Это поток, не цикл.
+- `STALE` не означает «неверно»: источник перечитывает snapshot и повторяет reasoning. Это и есть явное закрытие обратной связи «источник читает → предлагает → LATTICE принимает → источник читает обновлённое». Это поток, не цикл.
 - Источник MUST NOT сам выставлять результат. Это симметрично правилу «skill не выносит verdict» ([ADR-0003](../adr/WARRANT-ADR-0003-vocabulary-axes.md)).
 
 ## 6. Registry
@@ -119,8 +114,7 @@ source reads snapshot
 }
 ```
 
-`operations` ограничивает, что источник вправе предлагать вообще; policy WARRANT сужает это по Change и risk.
-Registry источников — данные pack `lattice` в `.warrant/`, как и очередь.
+`operations` ограничивает, что источник вправе предлагать вообще; policy WARRANT сужает это по Change и risk. Registry источников — данные pack `lattice` в `.warrant/`, как и очередь.
 
 ## 7. Идемпотентность и очередь
 
@@ -140,5 +134,4 @@ Proposal не может ослабить ни инвариант LATTICE, ни 
 
 ## 9. Non-goals
 
-Не определяет: mutation API LATTICE; формат approval человека (это gate `human-approval`, [04 §8](../04-lifecycle.md));
-транспорт (файлы, HTTP, ACP); содержание reasoning источников.
+Не определяет: mutation API LATTICE; формат approval человека (это gate `human-approval`, [04 §8](../04-lifecycle.md)); транспорт (файлы, HTTP, ACP); содержание reasoning источников.

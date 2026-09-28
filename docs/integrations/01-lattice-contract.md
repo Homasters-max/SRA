@@ -8,13 +8,11 @@ version: 0.1.0
 
 # 01. LATTICE — semantic contract
 
-Что любой потребитель (SRA, WARRANT, JEV, SEF) MAY предполагать о LATTICE и чего MUST NOT делать.
-Storage, API и schema базы намеренно не определяются (§11).
+Что любой потребитель (SRA, WARRANT, JEV, SEF) MAY предполагать о LATTICE и чего MUST NOT делать. Storage, API и schema базы намеренно не определяются (§11).
 
 ## 1. Назначение
 
-LATTICE — **canonical semantic substrate**: устойчивая семантическая картина проекта.
-Отвечает на вопрос «что это за объект и как он связан» ([ADR-0008](../adr/WARRANT-ADR-0008-naming.md)).
+LATTICE — **canonical semantic substrate**: устойчивая семантическая картина проекта. Отвечает на вопрос «что это за объект и как он связан» ([ADR-0008](../adr/WARRANT-ADR-0008-naming.md)).
 
 ```text
 LATTICE stores and validates semantic state.
@@ -31,8 +29,7 @@ Everyone else reads it and proposes changes to it.
 | LATTICE | Identity, classification, relations, grounding, provenance, history, мутация canonical state |
 | Git | История реализации |
 
-Потребитель MUST NOT: мутировать canonical state напрямую; менять правила LATTICE; молча разрешать семантические
-конфликты; превращать inference в fact. Разрешено: READ, REASON, PROPOSE ([02](02-proposal-contract.md)).
+Потребитель MUST NOT: мутировать canonical state напрямую; менять правила LATTICE; молча разрешать семантические конфликты; превращать inference в fact. Разрешено: READ, REASON, PROPOSE ([02](02-proposal-contract.md)).
 
 ## 3. Элементы
 
@@ -46,9 +43,7 @@ Everyone else reads it and proposes changes to it.
 
 Потребитель MUST NOT превращать attribute, projection или operational state в object без отдельного semantic justification.
 
-**Тест на object.** Понятие становится object, только если на него можно: ссылаться по stable ID, отслеживать историю,
-связывать relations, приписывать grounding и epistemic state. Если хотя бы одно «нет» — это не object.
-Набор полей у объектов разный и определяется его type; потребитель MUST NOT предполагать единый набор.
+**Тест на object.** Понятие становится object, только если на него можно: ссылаться по stable ID, отслеживать историю, связывать relations, приписывать grounding и epistemic state. Если хотя бы одно «нет» — это не object. Набор полей у объектов разный и определяется его type; потребитель MUST NOT предполагать единый набор.
 
 ## 4. Identity
 
@@ -57,10 +52,8 @@ stable identity ≠ file path ≠ line number ≠ content hash ≠ git commit
 ```
 
 - Identity объекта не меняется никогда; heading, путь и содержимое — label и provenance ([02 §3](../02-vocabulary.md)).
-- Потребитель MAY предложить: new object, revision, reclassification, merge, split, replacement, retirement.
-  Потребитель MUST NOT переиспользовать или переназначать identity сам.
-- Identity = `<context>/<name>`, уникальность по паре `(context, name)`. Внешние stable ID (`REQ-ING-001`, `ADR-004`,
-  `TERM-customer`) принимаются как `name` без mapping ([06 D1](../../lattice/docs/03-substrate-decisions.md)); spike S6 закрыт этим решением.
+- Потребитель MAY предложить: new object, revision, reclassification, merge, split, replacement, retirement. Потребитель MUST NOT переиспользовать или переназначать identity сам.
+- Identity = `<context>/<name>`, уникальность по паре `(context, name)`. Внешние stable ID (`REQ-ING-001`, `ADR-004`, `TERM-customer`) принимаются как `name` без mapping ([06 D1](../../lattice/docs/03-substrate-decisions.md)); spike S6 закрыт этим решением.
 
 ## 5. Classification
 
@@ -70,8 +63,7 @@ stable identity ≠ file path ≠ line number ≠ content hash ≠ git commit
 root_kind · context · type · subtype · properties · state axes
 ```
 
-Внешние источники (JEV, SRA, human) поставляют только **candidate classification**; canonical значение записывает
-LATTICE после валидации ([04](04-jev-classifier.md)). LATTICE MUST быть валидной и полной без внешних классификаторов.
+Внешние источники (JEV, SRA, human) поставляют только **candidate classification**; canonical значение записывает LATTICE после валидации ([04](04-jev-classifier.md)). LATTICE MUST быть валидной и полной без внешних классификаторов.
 
 ## 6. Оси объекта
 
@@ -94,8 +86,7 @@ LATTICE после валидации ([04](04-jev-classifier.md)). LATTICE MUST
 
 - `PROPOSAL` не является значением `grounding`; proposal — это канал, не состояние.
 - `inferred → declared | observed | derived` только через grounding-событие (decision, evidence, check). Соответствует INV-05.
-- Check над артефактами в git — `derived`; runtime / data observation — `observed`. `contested` производно от открытого
-  dispute record; вход `RecordDispute`, выход `RecordDecision` ([07 LD-S-07](../../lattice/docs/00-decision-register.md)).
+- Check над артефактами в git — `derived`; runtime / data observation — `observed`. `contested` производно от открытого dispute record; вход `RecordDispute`, выход `RecordDecision` ([07 LD-S-07](../../lattice/docs/00-decision-register.md)).
 
 ## 7. Relations
 
@@ -135,8 +126,7 @@ Relation — самостоятельное semantic statement `source --relatio
 ```
 
 - Snapshot неизменяем; все proposals ссылаются на него (`based_on`, [02 §5](02-proposal-contract.md)).
-- Snapshot — это набор версий, отдельного id нет: `graph_format`, `meta_version` (правила и инварианты),
-  `registry_versions` по каждому context (types, roles). Изменение любой затронутой версии делает proposal `STALE`.
+- Snapshot — это набор версий, отдельного id нет: `graph_format`, `meta_version` (правила и инварианты), `registry_versions` по каждому context (types, roles). Изменение любой затронутой версии делает proposal `STALE`.
 - Потребитель MUST зависеть от этого контракта, а не от storage.
 
 ## 10. Failure modes и security boundary
@@ -147,14 +137,11 @@ Relation — самостоятельное semantic statement `source --relatio
 | Snapshot устарел | Proposal → `STALE`; потребитель перечитывает read model |
 | Нарушен инвариант графа | Proposal → `REJECTED` с причиной; LATTICE не «чинит» proposal сам |
 
-Наружу LATTICE отдаёт только semantic read model. Код, данные, секреты через LATTICE не проходят.
-Кто и какой subgraph может читать — вопрос authorization WARRANT / SEF, не LATTICE.
+Наружу LATTICE отдаёт только semantic read model. Код, данные, секреты через LATTICE не проходят. Кто и какой subgraph может читать — вопрос authorization WARRANT / SEF, не LATTICE.
 
 ## 11. Non-goals
 
-Контракт не определяет: storage и schema базы; indexing и projection implementation; mutation API; policy и gates
-(WARRANT); evidence format ([06a](../06a-evidence.md)); OpenSpec lifecycle; result envelope skills ([07](../07-skills.md));
-полный mapping артефактов OpenSpec в объекты ([05 §1](05-warrant-lattice.md)).
+Контракт не определяет: storage и schema базы; indexing и projection implementation; mutation API; policy и gates (WARRANT); evidence format ([06a](../06a-evidence.md)); OpenSpec lifecycle; result envelope skills ([07](../07-skills.md)); полный mapping артефактов OpenSpec в объекты ([05 §1](05-warrant-lattice.md)).
 
 ## 12. Открытые вопросы
 

@@ -14,7 +14,7 @@ import { parse as parseYaml } from "yaml";
 
 import { runSync, type SyncOptions } from "../../../src/commands/sync.js";
 import { AGENTS_MD_MARKER } from "../../../src/core/sync/agents.js";
-import { CLAUDE_DENY, CLAUDE_REVIEWER_REL, GUARD_COMMAND } from "../../../src/core/sync/claude.js";
+import { CLAUDE_DENY, CLAUDE_REVIEWER_REL, GUARD_COMMAND, RESTART_HINT } from "../../../src/core/sync/claude.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { CORE_SDD_RANGE, REPO_ROOT } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
@@ -304,7 +304,8 @@ describe("warrant sync: the subagent warrant-reviewer", () => {
       const run = await sync(p);
       expect(run.errors).toEqual([]);
       expect(run.exitCode).toBe(0);
-      expect(run.data["findings"]).toEqual([missing]);
+      // Removing the subagent is a change of a file Claude Code reads at start (SCN-KRN-154).
+      expect(run.data["findings"]).toEqual([missing, { code: "FRONTEND_RESTART_REQUIRED", path: CLAUDE_REVIEWER_REL, hint: RESTART_HINT }]);
       expect(run.data["changed"]).toContain(CLAUDE_REVIEWER_REL);
       expect(run.data["generated"]).not.toContain(CLAUDE_REVIEWER_REL);
       expect(exists(p, CLAUDE_REVIEWER_REL)).toBe(false);
@@ -325,9 +326,9 @@ describe("warrant sync: the subagent warrant-reviewer", () => {
     }
   });
 
-  it("data.findings is empty when a pack provides the review skill (REQ-KRN-033)", async () => {
+  it("no REVIEWER_SKILL_MISSING when a pack provides the review skill (REQ-KRN-033)", async () => {
     const run = await sync(project(["claude"]));
-    expect(run.data["findings"]).toEqual([]);
+    expect((run.data["findings"] as { code: string }[]).map((f) => f.code)).not.toContain("REVIEWER_SKILL_MISSING");
   });
 });
 

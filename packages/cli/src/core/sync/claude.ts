@@ -12,7 +12,7 @@ import { cliError } from "../errors.js";
 import { isPlainObject } from "../json.js";
 import { REVIEW_SKILL } from "../run/types.js";
 import type { Json } from "../schemas/loader.js";
-import { AGENTS_MD_MARKER } from "./agents.js";
+import { AGENTS_MD_MARKER, AGENTS_MD_REL } from "./agents.js";
 import { driftPath, linesTarget, subsetTarget, type Merged, type OwnEntry, type SubsetTarget } from "./subset.js";
 
 /** Name of this frontend in `frontends[]` of `config/1`. */
@@ -164,6 +164,16 @@ export const REVIEWER_TOOLS: readonly string[] = ["Read", "Grep", "Glob", "Bash"
 
 /** Tools the hook of the subagent guards: its shell and its only write (ADR-0042 п. 4). */
 export const REVIEWER_HOOK_MATCHER = "Bash|Write";
+
+/**
+ * Files Claude Code reads when a session starts: the subagents, the hooks and the memory files (ADR-0042 п. 5,
+ * design I-200). `sync` that wrote one of them tells the user to restart the session.
+ */
+export function readAtSessionStart(rel: string): boolean {
+  return rel.startsWith(".claude/agents/") || [CLAUDE_SETTINGS_REL, CLAUDE_MD_REL, AGENTS_MD_REL].includes(rel);
+}
+
+export const RESTART_HINT = "restart the Claude Code session: agents and hooks are read when it starts";
 
 /** A run id of the right form for the example envelope: the example passes `warrant://skill-result/1` (R-22). */
 const EXAMPLE_RUN = "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y";

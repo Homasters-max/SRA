@@ -14,7 +14,8 @@ import { cliError, EXIT, SYNC_HINT, type CliError, type ExitCode } from "../erro
 import { requireOpenspec } from "../openspec/version.js";
 import { LOCK_REL } from "../packs/hash.js";
 import { loadPacks } from "../packs/loader.js";
-import { planSync, subsetDrift, type SyncPlan } from "./plan.js";
+import { readAtSessionStart, RESTART_HINT } from "./claude.js";
+import { planSync, subsetDrift, type SyncFinding, type SyncPlan } from "./plan.js";
 
 /** What a run of `sync` left: `data` of the command, its errors and exit code. */
 export interface SyncOutcome {
@@ -29,14 +30,14 @@ export function driftCode(rel: string): CliError["code"] {
   return rel === LOCK_REL ? "LOCK_MISMATCH" : "GENERATED_DRIFT";
 }
 
-/** `data` payload shared by a successful run and a failing `--check`. */
-function payload(plan: SyncPlan, changed: string[]): Record<string, unknown> {
+/** `data` payload shared by a successful run and a failing `--check`; `restart` — findings of the written files. */
+function payload(plan: SyncPlan, changed: string[], restart: SyncFinding[] = []): Record<string, unknown> {
   return {
     schema: plan.schema,
     changed,
     generated: plan.files.map((f) => f.path),
     stale: plan.stale,
-    findings: plan.findings
+    findings: [...plan.findings, ...restart]
   };
 }
 
@@ -97,5 +98,9 @@ export async function applySync(ctx: Ctx, check: boolean): Promise<SyncOutcome> 
     else writeFileSync(absolute, file.bytes);
   }
 
-  return syncDone(payload(plan, changed));
+  // Written, not planned: `--check` never gets here, and a run without changes has none (ADR-0042 п. 5).
+  const restart = changed
+    .filter(readAtSessionStart)
+    .map((rel): SyncFinding => ({ code: "FRONTEND_RESTART_REQUIRED", path: rel, hint: RESTART_HINT }));
+  return syncDone(payload(plan, changed, restart));
 }

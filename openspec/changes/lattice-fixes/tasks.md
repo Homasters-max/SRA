@@ -47,7 +47,7 @@
 
 ## 4. Перезапуск сессии (W-5, L5)
 
-- [ ] 4.1 `FRONTEND_RESTART_REQUIRED` (§5): `SyncFinding` в `core/sync/plan.ts`, находки в `core/sync/apply.ts`, вывод `init`.
+- [x] 4.1 `FRONTEND_RESTART_REQUIRED` (§5): `SyncFinding` в `core/sync/plan.ts`, находки в `core/sync/apply.ts`, вывод `init`.
 
   Проверка: app `sync`, `init` — SCN-KRN-154; `sync --check` и `--dry-run` находку не дают; SCN-KRN-142 без правок.
 

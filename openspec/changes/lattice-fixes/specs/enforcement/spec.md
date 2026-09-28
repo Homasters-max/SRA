@@ -6,14 +6,18 @@
 `warrant guard` без `--frontend` SHALL читать из stdin нормализованное событие `{ phase: pre|post, action: edit|shell|other,
 paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-frontend-adapters.md) п. 2) и печатать
 `data{ decision: allow|deny, reason?, hints[] }`, код выхода 0 при любом решении. Пути события SHALL переводиться в пути проекта
-от `cwd`; путь вне проекта SHALL давать `allow`, кроме правки при активном Run `review` (ниже); проект без
-`.warrant/warrant.json` SHALL давать `allow`. Решение `pre`:
+от `cwd`; проект и активный Run SHALL определяться по `cwd` события — вызов, чей `cwd` лежит в другом checkout, судится
+состоянием того checkout'а (предел, как INV-07); путь вне проекта SHALL давать `allow`, кроме правки при активном Run `review`
+(ниже), и SHALL NOT записываться в `guard_events[].paths`; проект без `.warrant/warrant.json` SHALL давать `allow`. Решение
+`pre`:
 - `edit` при активном Run — `deny` для пути вне `write_scope` или вне непустого `scope` (reason называет путь и scope; hint —
   править внутри `write_scope`, а для других путей `warrant run finish`, затем `warrant run start` с операцией, которая их пишет),
   иначе `allow`; при активном Run `review` (пустой `write_scope`) — `deny` правки любого пути проекта с reason «Run review только
   читает» и правки пути вне проекта, который не лежит во временном каталоге ОС (`os.tmpdir()` процесса guard), с reason, что
-  review пишет только файл envelope во временный каталог, и hint `warrant run submit --file <путь во временном каталоге>`;
-  правка внутри временного каталога — `allow` ([ADR-0042](../../../../docs/adr/WARRANT-ADR-0042-lattice-fixes.md) п. 4);
+  review пишет только файл envelope во временный каталог, и hint с абсолютным путём этого каталога и
+  `warrant run submit --file <файл в нём>`; правка внутри временного каталога — `allow`; принадлежность каталогу SHALL
+  проверяться после разрешения ссылок и коротких имён (realpath каталога и ближайшего существующего предка пути)
+  ([ADR-0042](../../../../docs/adr/WARRANT-ADR-0042-lattice-fixes.md) п. 4);
 - `edit` без активного Run — `deny` с hint `warrant run start <change> --operation …` для путей под `paths.src`, `paths.tests`,
   `openspec/changes/**` и policy-путями (`match.paths` профиля `factory-change`); иначе `allow` с той же подсказкой
   ([ADR-0022](../../../../docs/adr/WARRANT-ADR-0022-path-rules.md) п. 7);
@@ -31,7 +35,8 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
   флага или плейсхолдера; пара `-m <модуль>` сразу после первого токена — часть префикса: `python -m pytest`, а не `python`), с hint `warrant check <change> <id> [--paths …]`; иначе `allow`
   ([ADR-0017](../../../../docs/adr/WARRANT-ADR-0017-check-execution.md) п. 5). Префикс по умолчанию, который вышел одним словом из
   списка интерпретаторов `node`, `deno`, `bun`, `python`, `python3`, `ruby`, SHALL дополняться флагами режима — словами
-  `run.command`, которые начинаются с `-` и не содержат `=` и `{`; простая команда совпадает с таким префиксом, если её первое
+  `run.command`, которые начинаются с `-` и не содержат `=` и `{` (значение флага через пробел в них не входит); простая
+  команда совпадает с таким префиксом, если её первое
   слово — этот интерпретатор и среди остальных слов есть каждый флаг режима, в любом порядке; без флагов режима — префикс из
   одного слова, как прежде; явные `guard_prefixes` сверяются строгим префиксом
   ([ADR-0042](../../../../docs/adr/WARRANT-ADR-0042-lattice-fixes.md) п. 3);
@@ -108,7 +113,7 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 #### Scenario: Envelope во временном каталоге
 <!-- id: SCN-ENF-041 -->
 - **WHEN** при активном Run `review` guard получает `pre` `edit` пути `<os.tmpdir()>/review-envelope.json`, затем пути вне проекта и вне временного каталога, затем `openspec/changes/add-search/proposal.md`
-- **THEN** первое — `allow`, второе и третье — `deny`; hint второго содержит `warrant run submit --file`; в Run три события
+- **THEN** первое — `allow`, второе и третье — `deny`; hint второго содержит абсолютный путь временного каталога и `warrant run submit --file`; в Run три события, у первых двух `paths` пуст
 
 ### Requirement: Команда run submit
 <!-- id: REQ-ENF-007 -->
@@ -117,10 +122,12 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 stdin для активного Run операции `review` ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 10). Без
 активного Run → `RUN_NOT_ACTIVE`; Run другой операции → `STATE_INVALID` с `hint` `warrant run finish`; envelope не проходит схему,
 его `run` не равен id активного Run или `skill` не называет skill review pack'а с версией из диапазона pack →
-`SKILL_RESULT_INVALID` с JSON Pointer и `data.received{ bytes, root, keys[] }` — число байт полученного envelope, тип корня JSON
-(`object`, `array`, `string`, `number`, `boolean`, `null` или `not-json`) и отсортированные ключи верхнего уровня объекта (иначе
-пусто), без значений ([ADR-0042](../../../../docs/adr/WARRANT-ADR-0042-lattice-fixes.md) п. 4); каждая ошибка SHALL нести `hint`,
-код выхода 3, ничего не записано. Иначе команда SHALL:
+`SKILL_RESULT_INVALID` с JSON Pointer и `data.received{ bytes, root, keys[] }` — длина полученного текста в байтах UTF-8 (после
+снятия BOM), тип корня JSON (`object`, `array`, `string`, `number`, `boolean`, `null` или `not-json`) и ключи верхнего уровня
+объекта в порядке code units (иначе пусто), без значений ([ADR-0042](../../../../docs/adr/WARRANT-ADR-0042-lattice-fixes.md) п. 4);
+относительный `--file` SHALL разрешаться от корня проекта, файл, который не читается (нет, каталог, нет прав), — `USAGE` с `path`
+и `hint` без `data.received`; пустой файл — `SKILL_RESULT_INVALID` с `root: "not-json"`, `bytes: 0`; пустой stdin — `USAGE`;
+каждая ошибка SHALL нести `hint`, код выхода 3, ничего не записано. Иначе команда SHALL:
 записать envelope в канонической форме в `<state>/runs/<RUN-id>.result.json` (коммитится вместе с Run); записать evidence
 ([REQ-VER-001](../verification/spec.md)) `kind: "review"`, `level: "L2"`, `produced_by{ type: "skill", id, version, run }`,
 `attestation{ type: "none" }`, `limitations` `produced locally, unattested` и `same model family as author`,
@@ -164,4 +171,4 @@ stdin для активного Run операции `review` ([ADR-0034](../../
 #### Scenario: Что получено
 <!-- id: SCN-ENF-042 -->
 - **WHEN** `warrant run submit` получает на stdin `{"$schema":"warrant://skill-result/1","run":"RUN-…","findings":[]}`, затем текст `not json`
-- **THEN** оба — `SKILL_RESULT_INVALID`, код 3; первое — `data.received` с `root: "object"`, `keys: ["$schema", "findings", "run"]` и `bytes` — длиной входа в UTF-8; второе — `root: "not-json"`, `keys: []`; значения полей envelope в выводе не повторяются
+- **THEN** оба — `SKILL_RESULT_INVALID`, код 3; первое — `data.received` с `root: "object"`, `keys: ["$schema", "findings", "run"]` и `bytes` — длиной входа в UTF-8; второе — `root: "not-json"`, `keys: []`; значения полей envelope в выводе не повторяются; `--file` на несуществующий путь — `USAGE` с `path`, без `data.received`; `--file` на пустой файл — `SKILL_RESULT_INVALID` с `bytes: 0`

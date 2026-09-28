@@ -57,8 +57,9 @@
 
 ### 2. Группа 1 — parser `junit` (W-3)
 
-- Перенос `c51bfc1` (`cherry-pick`): `countCases` — `<testcase>` с `<failure>` / `<error>` / `<skipped>` по первому дочернему
-  тегу этого приоритета; `countSuites` — прежний подсчёт атрибутов; `countJunit` — по документу: `countCases ?? countSuites`;
+- Перенос `c51bfc1` (`cherry-pick`) и правка приоритета исхода (review 1, F-2): у `<testcase>` один исход — `<skipped>`, иначе
+  `<failure>`, иначе `<error>` (в `c51bfc1` — `failure` первым); упавший `todo` `node:test` (`<skipped type="todo">` +
+  `<failure>`, код выхода 0) — пропуск; `countSuites` — прежний подсчёт атрибутов; `countJunit` — по документу: `countCases ?? countSuites`;
   комментарии и CDATA вырезаются до разбора (`<!-- tests 7 -->` `node:test`, вывод тестов в `system-out`).
 - Limitation пустого отчёта — `junit: no <testcase> or <testsuite> found in {out}`.
 - Фикстура — настоящий отчёт `node --test --test-reporter=junit` Node 22.17 (стеки урезаны); vitest-фикстура — с полным списком
@@ -83,19 +84,28 @@
 
 - **Guard.** `GuardInput` получает `tmpDir` — `os.tmpdir()` в `commands/guard.ts` (граница процесса, ADR-0025; тесты подставляют
   свой каталог). `guard.ts`: кроме `projectFiles` — `outsideFiles` (абсолютные пути события вне проекта). В `decideEdit` при
-  Run `review`: путь проекта — `deny` «Run review только читает» (как было); путь вне проекта, для которого
-  `projectPath(tmpDir, file) === undefined`, — `deny` с reason и hint `warrant run submit --file <путь во временном каталоге>`;
-  остальное — `allow`. Без Run и при других операциях пути вне проекта по-прежнему не рассматриваются.
+  Run `review`: путь проекта — `deny` «Run review только читает» (как было); путь вне проекта, не лежащий во временном каталоге,
+  — `deny` с reason и hint: абсолютный путь каталога и `warrant run submit --file <файл в нём>`; остальное — `allow`.
+  Принадлежность — `projectPath(real(tmpDir), real(file))`, где `real` — `realpathSync.native` каталога и ближайшего
+  существующего предка файла (короткие имена 8.3, ссылки; review 1, F-5); `realpath` — чтение ФС, не процесс (ADR-0025).
+  Пути вне проекта в `guard_events[].paths` не пишутся (схема `run/1` — пути проекта; имя пользователя в коммит не попадает;
+  F-4). Без Run и при других операциях пути вне проекта по-прежнему не рассматриваются. Проект и Run — по `cwd` события
+  (F-3): субагент в другом checkout Run не видит — предел, как INV-07; генератор велит сдавать из корня проекта с Run.
 - **Субагент.** `core/sync/claude.ts`: `tools` += `Write`; matcher хука `Bash|Write`. Раздел «Сдача результата»:
   1) собрать envelope; 2) записать его инструментом `Write` в файл во временном каталоге ОС (путь — абсолютный, вне проекта);
-  3) `warrant run submit --file <путь> --dry-run`; 4) та же команда без `--dry-run`; ошибка — исправить файл и повторить с шага 3.
+  3) `warrant run submit --file <путь> --dry-run` из корня проекта с активным Run; 4) та же команда без `--dry-run`; ошибка —
+  исправить файл и повторить с шага 3. Оговорка раздела (review 1, F-1): запись одного файла envelope во временный каталог —
+  часть сдачи, запрет правки в тексте skill касается файлов проекта; skill pack'а не меняется (ADR-0042 п. 1), его фраза «guard
+  Run `review` запрещает любую правку» — строкой backlog до следующего подъёма pack. Белый список хуков frontmatter
+  `dev-hooks.test.ts` — matcher `Bash|Write`.
   Пример envelope — полный: `provenance.started_at`, `finished_at`, `model`; unit-тест извлекает пример из текста и проверяет
   схемой `skill-result/1` (R-22). `.claude/agents/warrant-reviewer.md` репозитория перегенерирует `sync`.
 - **Ошибка envelope.** `WarrantError` получает необязательное `data` (`core/errors.ts`); `failure` (`io/output.ts`) кладёт его в
   `data` ответа (сейчас `{}`). `parseEnvelope` при каждом `SKILL_RESULT_INVALID` добавляет `received{ bytes, root, keys }`:
   `bytes` — `Buffer.byteLength(text, "utf8")`; `root` — `not-json`, `null`, `array` или `typeof`; `keys` — отсортированные
   ключи объекта, иначе `[]`. Значения не выводятся. Другие коды `run submit` (`RUN_NOT_ACTIVE`, `STATE_INVALID`) — без
-  `received`.
+  `received`. `--file` уже разрешается от корня проекта, нечитаемый файл — `USAGE` с `path` и `hint`, пустой stdin — `USAGE`
+  (`commands/run.ts`); пустой файл даёт `not-json` с `bytes: 0` (F-6).
 - **Разбор события `Write`.** Адаптер `claude` уже нормализует `Write` в `edit` с `file_path` (matcher основной сессии
   `Edit|Write|NotebookEdit|Bash`); контракт адаптера не меняется. Если зонд покажет иной вход субагента — строка I-N.
 
@@ -111,7 +121,8 @@
 
 - 06 §2 «Execution» — строка `guard_prefixes`: умолчание с флагами режима интерпретатора; 06 §7, 07 §4 — сдача файлом во
   временном каталоге.
-- `backlog.md` — удалить BL-46, BL-78, BL-80, R-22 (закрыты); W-3 строки не имеет.
+- `backlog.md` — удалить BL-46, BL-78, BL-80, R-22 (закрыты); W-3 строки не имеет; новая строка — фраза skill
+  `specification/adversarial-review` о guard Run `review` (§4) к следующему подъёму pack.
 
 ### 7. Порядок групп
 
@@ -119,8 +130,8 @@
 
 ### 8. Dogfooding
 
-- Review этого spec-PR идёт ещё старым субагентом (heredoc); длинный envelope — известный риск BL-46, сдача из файла основной
-  сессией не допускается (ADR-0042, «Alternatives»).
+- Review этого spec-PR идёт ещё старым субагентом (heredoc): envelope сжат до 6 000 символов (предел команды Bash на Windows,
+  ADR-0043), полный текст находок — в теле spec-PR; сдача из файла основной сессией не допускается (ADR-0042, «Alternatives»).
 - Приёмка — Change LATTICE после тега `v0.8.1`: `guard_prefixes` снят, `node -e` проходит guard, review 2 `kernel-format` сдан
   субагентом файлом, отчёт `node:test` без `describe()` даёт `PROVEN` с верным числом тестов.
 
@@ -135,6 +146,10 @@
   Claude Code на Windows пишет scratchpad под `%TEMP%`, на Linux — под `/tmp`. Расхождение — строка I-N по зонду.
 - [`data` у ошибок — изменение контракта вывода] → аддитивно: прочие ошибки несут `data: {}`, как прежде; golden вывода ошибок
   не меняется.
+- [Основная сессия под тем же Run `review` тоже может записать envelope во временный каталог] → guard исполнителя не различает;
+  «envelope не через сессию автора» держится порядком навыка, не механизмом (идентичность агента — BL-83; review 1, F-7 f).
+- [`Write` субагента видят два хука — `settings.json` проекта и frontmatter] → события guard в Run дублируются; решение одно.
+- [Файл envelope остаётся во временном каталоге] → его не удаляет никто; содержимое — то же, что `.result.json` Run.
 
 ## Migration Plan
 

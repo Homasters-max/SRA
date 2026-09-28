@@ -9,7 +9,8 @@
 
 ## 1. Parser junit и bump (W-3, L1, L2)
 
-- [ ] 1.1 Перенос `c51bfc1` ветки `fix/lattice-junit` (§2): `core/evidence/parsers/junit.ts`, тесты parser'а, bump CLI `0.8.1`
+- [ ] 1.1 Перенос `c51bfc1` ветки `fix/lattice-junit` (§2) с приоритетом исхода `skipped` → `failure` → `error`:
+  `core/evidence/parsers/junit.ts`, тесты parser'а, bump CLI `0.8.1`
   (`package.json`, `package-lock.json`, `kernel` в `warrant.lock.json` репозитория и трёх golden-фикстур).
 
   Проверка: `npm run versions:check` зелёный; e2e golden (SCN-SDD-015) — только `kernel` в lock.
@@ -30,11 +31,13 @@
 
 ## 3. Сдача review (W-6, BL-46, R-22, L4)
 
-- [ ] 3.1 Guard (§4): `tmpDir` в `GuardInput` из `commands/guard.ts` (`os.tmpdir()`), `outsideFiles` в `core/guard/guard.ts`,
+- [ ] 3.1 Guard (§4): `tmpDir` в `GuardInput` из `commands/guard.ts` (`os.tmpdir()`), `outsideFiles` и сравнение после
+  `realpath` в `core/guard/guard.ts`, hint с путём каталога, пути вне проекта не в `guard_events[].paths`,
   решение правки под Run `review` в `decide.ts`.
 
   Проверка: app `guard` — SCN-ENF-041 с временным каталогом теста; SCN-ENF-026 без правок; без Run путь вне проекта — `allow`.
-- [ ] 3.2 Субагент (§4): `core/sync/claude.ts` — `tools` с `Write`, matcher `Bash|Write`, раздел «Сдача результата» с `--file` и
+- [ ] 3.2 Субагент (§4): `core/sync/claude.ts` — `tools` с `Write`, matcher `Bash|Write` (и в белом списке `dev-hooks.test.ts`),
+  раздел «Сдача результата» с оговоркой о файле envelope, сдачей из корня проекта, `--file` и
   `--dry-run`, полный пример envelope; `warrant sync` перегенерирует `.claude/agents/warrant-reviewer.md` репозитория.
 
   Проверка: app `sync` — SCN-KRN-139 (пример из тела проходит схему `skill-result/1`); `warrant sync --check` зелёный.
@@ -50,5 +53,6 @@
 
 ## 5. Документы и закрытие
 
-- [ ] 5.1 Документы (§6): 06 §2 «Execution», 06 §7, 07 §4; `backlog.md` — удалить BL-46, BL-78, BL-80, R-22.
+- [ ] 5.1 Документы (§6): 06 §2 «Execution», 06 §7, 07 §4; `backlog.md` — удалить BL-46, BL-78, BL-80, R-22, строка о фразе
+  skill про guard Run `review`.
 - [ ] 5.2 Ревью реализации — навык `review-impl`; `transition VERIFYING` последним коммитом impl-PR.

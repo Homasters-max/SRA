@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "no-claude-md",
-  "commit": "a0b1302deb8b350f1f974adc2ca514bc826d41e8",
+  "commit": "6c3aac852e09d15f7ab6192cd746fbed9a3c305f",
   "versions": {
     "warrant": "0.8.1",
     "openspec": "1.13.1",
@@ -9,6 +9,7 @@
     "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03"
   },
   "evidence": [
-    "EVID-01M3MPRDTK89R5429VPFQFKB81"
+    "EVID-01M3MPRDTK89R5429VPFQFKB81",
+    "EVID-01M3MQ0RKRKW35A7T5RC2CY10P"
   ]
 }

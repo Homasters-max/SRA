@@ -5,10 +5,12 @@ adr_state: ACCEPTED
 date: 2026-09-24
 supersedes: []
 amends: [WARRANT-ADR-0029]
-amended_by: [WARRANT-ADR-0033]
+amended_by: [WARRANT-ADR-0033, WARRANT-ADR-0045]
 ---
 
 > Уточнено [ADR-0033](WARRANT-ADR-0033-git-process.md) п. 12: в таблице п. 1 — строка черновиков `docs/drafts/`; в форме файла передачи (п. 3) — строка `После: <поток>`, `brief.js` (п. 4) печатает потоки в порядке зависимостей. Поток `git-flow` (п. 12) влит в grilling, по которому принят ADR-0033.
+>
+> Уточнено [ADR-0045](WARRANT-ADR-0045-dev-context-bench.md): польза контекста разработки меряется парным бенчмарком «слепой старт»; условие пересмотра этого ADR — итог `reject` или вывод `brief.js` / файлы передачи сверх бюджетов п. 3, 4.
 
 ## Context
 

@@ -44,8 +44,7 @@ Skills и их режимы: authoring, clarification, review, diagnosis, domain
 
 ### LATTICE owns
 
-Identity, relations, provenance, history и epistemic state durable-объектов.
-WARRANT передаёт в LATTICE decisions и evidence **как proposals** ([11-integrations](11-integrations.md)).
+Identity, relations, provenance, history и epistemic state durable-объектов. WARRANT передаёт в LATTICE decisions и evidence **как proposals** ([11-integrations](11-integrations.md)).
 
 ### Не владеет WARRANT
 

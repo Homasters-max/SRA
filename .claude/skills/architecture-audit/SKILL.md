@@ -24,6 +24,7 @@ description: Архитектурный аудит кода WARRANT (packages/cl
    git log --format= --name-only -- packages/cli/src | sort | uniq -c | sort -rn
    ```
    Разница со снимком — первое, что смотреть; кандидаты — по порогам method §1.
+
    Реестр внешних пакетов ([ADR-0035](../../../docs/adr/WARRANT-ADR-0035-ratchet-external-packages.md)): внешние импорты `src` — `node scripts/dev/cs.js deps packages/cli/src --level 2 --external`, файлы пакета — `cs grep 'from "<пакет>"' --fixed --in packages/cli/src`. Пакет по критерию ADR-0035 п. 1 (поведение, которое легко скопировать с расхождением) вне секции `packages` `architecture.json` — кандидат: в одном файле — строка реестра, в нескольких — находка `A-N` (копии).
 3. Вертикальные срезы (method §2): входы `runX()` в `commands/`; срез целиком — `slices` снимка. Вызовы имени, определённого ещё и в тестах, граф теряет — снимок досчитывает их (`recovered` среза); вручную — `node scripts/dev/cs.js callers <вход|имя из recovered> --in packages/cli/src --direction out -d all --json`, объединение. Срез заканчивается на порту.
 4. Инвентарь понятий из словаря (method §3, обязательно): термины и перечисления `docs/02-vocabulary.md`, состояния `docs/04-lifecycle.md` → `cs grep '"<значение>"' --fixed`; владелец каждого понятия-сущности.

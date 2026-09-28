@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "lattice-issues",
-  "commit": "21ac912564703745e13c643b51488f50fcd9349b",
+  "commit": "8c2a46921276e2aeba007d52287bbade92aa8f83",
   "versions": {
     "warrant": "0.8.1",
     "openspec": "1.13.1",
@@ -9,6 +9,7 @@
     "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03"
   },
   "evidence": [
-    "EVID-01M3MYZ6HSFEKHKHMZ0WPPWVGW"
+    "EVID-01M3MYZ6HSFEKHKHMZ0WPPWVGW",
+    "EVID-01M3MZHGZ92Q04VA26FHB708AG"
   ]
 }

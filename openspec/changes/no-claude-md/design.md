@@ -35,17 +35,18 @@
 
 - `core/sync/claude.ts`: удалить `claudeMdTarget` и `CLAUDE_MD_REL`; `readAtSessionStart` — `.claude/agents/**`, `.claude/settings.json`, `AGENTS.md`.
 - `core/sync/plan.ts`: `subsetTargets` — `.gitignore` всегда, `.claude/settings.json` при `frontends ∋ claude`; параметр `agentsGenerated` уходит.
-- Тесты: SCN-KRN-132 — `CLAUDE.md` не создан, существующий не изменён (байт в байт); SCN-KRN-134 — без изменений; SCN-KRN-154 — находки без `CLAUDE.md`; `validate` без `CLAUDE.md` при сгенерированном `AGENTS.md` — без ошибок.
+- Тесты: SCN-KRN-132 — `CLAUDE.md` не создан; SCN-KRN-155 — `validate` и `sync --check` без `CLAUDE.md` и с `CLAUDE.md` без строки — чисто, существующий файл не изменён байт в байт; SCN-KRN-134 — без изменений; SCN-KRN-154 — с правилом `**`, находки без `CLAUDE.md`.
 - Bump CLI `0.8.2`: `package.json`, `package-lock.json`, `kernel` в `warrant.lock.json` репозитория и golden-фикстур.
-- Документы: `README.md` и `docs/04-lifecycle.md` — строки `warrant sync` без `CLAUDE.md`; `backlog.md` BL-20 — механизм без `CLAUDE.md`.
+- Документы: `README.md` и `docs/04-lifecycle.md` — строки `warrant sync` без `CLAUDE.md`; `backlog.md` BL-20 — механизм без `CLAUDE.md`; ADR-0034 п. 6 и ADR-0032 «Последствия» — пометка «снято Change `no-claude-md`, D1».
 
 ### 3. Dogfooding
 
-В репозитории WARRANT `frontends` не включён, `CLAUDE.md` уже нет (PR #87) — `sync --check` не меняется.
+В репозитории WARRANT `frontends` не включён, `CLAUDE.md` убирает PR #87 (сливается до impl-PR) — `sync --check` не меняется.
 
 ## Risks / Trade-offs
 
 - [Проект со своим `CLAUDE.md` и без строки `@AGENTS.md`] → правила приходят через `AGENTS.md`, который Claude Code читает сам (D1); если конкретная версия Claude Code его не прочтёт — строку пользователь добавит сам, `sync` ей не мешает.
+- [Доставка `AGENTS.md` в Claude Code держится на поведении Claude Code] → внешнее допущение, его не наблюдает ни одна проверка WARRANT; канал подсказок, не принуждение (INV-04), как и прежде со строкой `@AGENTS.md`.
 - [Сгенерированный ранее `CLAUDE.md` из одной строки остаётся в проекте] → безвреден; удалить может пользователь, `sync` не вернёт.
 
 ## Migration Plan

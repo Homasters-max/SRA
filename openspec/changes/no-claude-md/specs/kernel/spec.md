@@ -31,7 +31,7 @@ envelope в тексте SHALL проходить схему `skill-result/1` ([
 такой файл с `hint` перезапустить сессию Claude Code (агенты и hooks читаются при её старте); код выхода — 0, без изменений файлов
 находки нет ([ADR-0042](../../../../docs/adr/WARRANT-ADR-0042-lattice-fixes.md) п. 5). Во всех
 случаях `sync` SHALL держать строку `.warrant/runs/current` в `.gitignore`. Чужие ключи, записи и строки этих файлов SHALL
-сохраняться; `.claude/settings.json` пишется в каноническом JSON. `CLAUDE.md` `sync` и `init` SHALL NOT создавать и менять: Claude Code читает `AGENTS.md` сам (design `no-claude-md` D1); строку `@AGENTS.md`, записанную прежними версиями, `sync` не трогает. `warrant init --frontend claude` SHALL записать
+сохраняться; `.claude/settings.json` пишется в каноническом JSON. `sync` и `init` SHALL NOT создавать, менять и удалять `CLAUDE.md`, в том числе строку `@AGENTS.md`, записанную прежними версиями; `warrant validate` и `sync --check` SHALL NOT сверять `CLAUDE.md` (design `no-claude-md` D1). `warrant init --frontend claude` SHALL записать
 `frontends: ["claude"]` в новый `warrant.json`. `warrant validate` SHALL сверять `AGENTS.md` и `.claude/agents/warrant-reviewer.md` побайтно, а в `.claude/settings.json`
 и `.gitignore` — наличие своих записей в точном виде; расхождение — `GENERATED_DRIFT` с `path` (JSON Pointer для
 `settings.json`) и `hint` `` run `warrant sync` ``.
@@ -48,8 +48,13 @@ envelope в тексте SHALL проходить схему `skill-result/1` ([
 
 #### Scenario: AGENTS.md из общих правил
 <!-- id: SCN-KRN-132 -->
-- **WHEN** `.warrant/local/rules/` содержит правило с `paths: ["**"]` и правило с `paths: ["src/**"]`, `frontends: ["claude"]`
-- **THEN** `AGENTS.md` начинается строкой-маркером и содержит текст только первого правила, `CLAUDE.md` не создан, существующий `CLAUDE.md` не изменён; без правил с `paths: ["**"]` `AGENTS.md` не создаётся
+- **WHEN** `.warrant/local/rules/` содержит правило с `paths: ["**"]` и правило с `paths: ["src/**"]`, `frontends: ["claude"]`, `CLAUDE.md` нет
+- **THEN** `AGENTS.md` начинается строкой-маркером и содержит текст только первого правила, `CLAUDE.md` не создан; без правил с `paths: ["**"]` `AGENTS.md` не создаётся
+
+#### Scenario: CLAUDE.md вне сверки
+<!-- id: SCN-KRN-155 -->
+- **WHEN** `warrant sync` при `frontends: ["claude"]` и правиле с `paths: ["**"]` в `.warrant/local/rules/`, затем `CLAUDE.md` удалён — и отдельно: `CLAUDE.md` с текстом без строки `@AGENTS.md` до `sync`
+- **THEN** `warrant validate` не даёт `GENERATED_DRIFT` по `CLAUDE.md`, `warrant sync --check` — код 0; удалённый `CLAUDE.md` не создан, существующий `CLAUDE.md` после `sync` совпадает с прежним байт в байт
 
 #### Scenario: Большой AGENTS.md
 <!-- id: SCN-KRN-133 -->
@@ -78,5 +83,5 @@ envelope в тексте SHALL проходить схему `skill-result/1` ([
 
 #### Scenario: Перезапуск сессии
 <!-- id: SCN-KRN-154 -->
-- **WHEN** `warrant init --frontend claude` в новом проекте, затем повторный `warrant sync` без изменений, затем `sync` после удаления строки из `.claude/agents/warrant-reviewer.md`
-- **THEN** вывод `init` содержит `FRONTEND_RESTART_REQUIRED` для `.claude/settings.json`, `.claude/agents/warrant-reviewer.md` и `AGENTS.md`, если он создан, с `hint` о перезапуске сессии Claude Code, код 0; повторный `sync` находки не даёт; последний `sync` даёт её только для файла субагента
+- **WHEN** `warrant init --frontend claude` в новом проекте, где `.warrant/local/rules/` содержит правило с `paths: ["**"]`, затем повторный `warrant sync` без изменений, затем `sync` после удаления строки из `.claude/agents/warrant-reviewer.md`
+- **THEN** вывод `init` содержит `FRONTEND_RESTART_REQUIRED` для `.claude/settings.json`, `.claude/agents/warrant-reviewer.md` и `AGENTS.md` с `hint` о перезапуске сессии Claude Code и ни одной находки с путём `CLAUDE.md`, код 0; повторный `sync` находки не даёт; последний `sync` даёт её только для файла субагента

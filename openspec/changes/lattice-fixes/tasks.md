@@ -9,12 +9,12 @@
 
 ## 1. Parser junit и bump (W-3, L1, L2)
 
-- [ ] 1.1 Перенос `c51bfc1` ветки `fix/lattice-junit` (§2) с приоритетом исхода `skipped` → `failure` → `error`:
+- [x] 1.1 Перенос `c51bfc1` ветки `fix/lattice-junit` (§2) с приоритетом исхода `skipped` → `failure` → `error`:
   `core/evidence/parsers/junit.ts`, тесты parser'а, bump CLI `0.8.1`
   (`package.json`, `package-lock.json`, `kernel` в `warrant.lock.json` репозитория и трёх golden-фикстур).
 
   Проверка: `npm run versions:check` зелёный; e2e golden (SCN-SDD-015) — только `kernel` в lock.
-- [ ] 1.2 Тест SCN-VER-117 — в `test/unit/evidence/parsers.test.ts` (фикстура `NODE_TEST`, токен в имени); SCN-VER-006, SCN-VER-040
+- [x] 1.2 Тест SCN-VER-117 — в `test/unit/evidence/parsers.test.ts` (фикстура `NODE_TEST`, токен в имени); SCN-VER-006, SCN-VER-040
   без правок ожидаемых значений.
 
 ## 2. Префикс guard (W-2, L3)

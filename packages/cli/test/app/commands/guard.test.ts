@@ -1,6 +1,6 @@
 /**
  * `warrant guard` without `--frontend` in the test process (REQ-ENF-004,
- * SCN-ENF-011…016, SCN-ENF-037…039, F8, F9, F16, F18): the normalised event, `pre` of an edit
+ * SCN-ENF-011…016, SCN-ENF-037…040, F8, F9, F16, F18): the normalised event, `pre` of an edit
  * with and without a Run, `pre` of a shell command against `guard_prefixes`,
  * the hints of `post`, the failures that close `pre` and open `post`, the
  * events in `guard_events[]` and the lock of the Run. Exit 0 whatever the
@@ -290,6 +290,31 @@ describe("warrant guard: pre shell", () => {
     const pytest = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", "python -m pytest tests/"] });
     expect(pytest.data["decision"]).toBe("deny");
     expect(pytest.data["hints"]).toEqual(["warrant check <change> tests-passed"]);
+  });
+
+  it("an interpreter check keeps its mode flags: node -e and scripts allowed, node --test … denied in any order (SCN-ENF-040)", async () => {
+    const args = ["--experimental-strip-types", "--test", "--test-reporter=junit", "--test-reporter-destination={out}/junit.xml", "test/**/*.test.ts"];
+    const p = await repo("IMPLEMENTING", (b) => b.withCheck("node", { output: "" }, { id: "tests-passed", args }));
+    const other = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", "node -e 1 && node --version && node scripts/build.js"] });
+    expect(other.data["decision"]).toBe("allow");
+    const direct = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", "node --test --experimental-strip-types test/a.test.ts"] });
+    expect(direct.data["decision"]).toBe("deny");
+    expect(direct.data["hints"]).toEqual(["warrant check <change> tests-passed"]);
+
+    // declared guard_prefixes stay a strict word prefix
+    p.write(".warrant/local/checks/tests-passed.json", {
+      $schema: "warrant://check/1",
+      id: "tests-passed",
+      version: "1.0.0",
+      overrides: "core-sdd:tests-passed",
+      level: "L1",
+      run: { command: ["node", ...args] },
+      execution: { exclusive: true, guard_prefixes: [["node", "--test"]] }
+    });
+    const declared = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", "node -e 1 && node --experimental-strip-types --test x"] });
+    expect(declared.data["decision"]).toBe("allow");
+    const strict = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", "node --test x"] });
+    expect(strict.data["decision"]).toBe("deny");
   });
 });
 

@@ -19,12 +19,12 @@
 
 ## 2. Префикс guard (W-2, L3)
 
-- [ ] 2.1 `core/guard/shell.ts` (§3): `GuardPrefix`, `INTERPRETERS`, `defaultPrefix` с флагами режима, `matchesPrefix`; строка
+- [x] 2.1 `core/guard/shell.ts` (§3): `GuardPrefix`, `INTERPRETERS`, `defaultPrefix` с флагами режима, `matchesPrefix`; строка
   `enums` в `architecture.json`.
 
   Проверка: unit `shell.test.ts` — флаги в любом порядке, повтор флага, `=`-флаг и `{…}` не входят, `-m <модуль>` как прежде,
   интерпретатор без флагов, не-интерпретатор с флагами.
-- [ ] 2.2 `core/guard/decide.ts`: `guardedChecks` → `GuardPrefix[]` (явные `guard_prefixes` — `flags: []`), сопоставление —
+- [x] 2.2 `core/guard/decide.ts`: `guardedChecks` → `GuardPrefix[]` (явные `guard_prefixes` — `flags: []`), сопоставление —
   `matchesPrefix`.
 
   Проверка: app `guard` — SCN-ENF-040; SCN-ENF-013, SCN-ENF-037 без правок ожидаемых значений.

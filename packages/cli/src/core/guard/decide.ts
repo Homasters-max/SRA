@@ -23,7 +23,7 @@ import type { LoadResult } from "../packs/types.js";
 import { codeScope, scopeMatcher } from "../run/scope.js";
 import type { GuardResult } from "../ports/frontend.js";
 import type { Run } from "../run/types.js";
-import { defaultPrefix, leafCommands, simpleCommands, startsWithPrefix } from "./shell.js";
+import { defaultPrefix, type GuardPrefix, leafCommands, matchesPrefix, prefixText, simpleCommands, startsWithPrefix } from "./shell.js";
 
 /** What guard answers, and the `argv` its event keeps (only a `deny` by a prefix, F16). */
 export interface Answer extends GuardResult {
@@ -145,7 +145,7 @@ export interface GuardedCheck {
   id: string;
   /** Why: `execution.exclusive: true` or `execution.local: "<value>"`. */
   why: string;
-  prefixes: string[][];
+  prefixes: GuardPrefix[];
   /** It has `run.scoped_command`: `warrant check` runs it over `--paths`. */
   scoped: boolean;
 }
@@ -153,7 +153,7 @@ export interface GuardedCheck {
 /**
  * Checks with `execution.exclusive: true` or `execution.local` other than
  * `allowed` (ADR-0017 п. 5), sorted by id: their `execution.guard_prefixes`,
- * by default the first words of `run.command` (`defaultPrefix`).
+ * by default `defaultPrefix` of `run.command`; a declared prefix has no flags.
  */
 export function guardedChecks(loaded: LoadResult): GuardedCheck[] {
   const out: GuardedCheck[] = [];
@@ -167,8 +167,8 @@ export function guardedChecks(loaded: LoadResult): GuardedCheck[] {
     const run = isPlainObject(check["run"]) ? check["run"] : {};
     const declared = execution["guard_prefixes"];
     const prefixes = Array.isArray(declared)
-      ? declared.map((prefix) => strings(prefix)).filter((prefix) => prefix.length > 0)
-      : [defaultPrefix(strings(run["command"]))].filter((prefix) => prefix.length > 0);
+      ? declared.map((prefix) => ({ words: strings(prefix), flags: [] })).filter((prefix) => prefix.words.length > 0)
+      : [defaultPrefix(strings(run["command"]))].filter((prefix) => prefix.words.length > 0);
     out.push({ id: object.id, why, prefixes, scoped: strings(run["scoped_command"]).length > 0 });
   }
   return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -226,11 +226,11 @@ export function shellAnswer(argv: readonly string[] | undefined, checks: readonl
   if (argv === undefined || checks.length === 0) return allow();
   for (const command of simpleCommands(argv)) {
     for (const check of checks) {
-      const prefix = check.prefixes.find((p) => startsWithPrefix(command, p));
+      const prefix = check.prefixes.find((p) => matchesPrefix(command, p));
       if (prefix === undefined) continue;
       return {
         decision: "deny",
-        reason: `\`${command.join(" ")}\` runs check ${check.id} directly (prefix \`${prefix.join(" ")}\`, ${check.why}): it runs only through warrant check`,
+        reason: `\`${command.join(" ")}\` runs check ${check.id} directly (prefix \`${prefixText(prefix)}\`, ${check.why}): it runs only through warrant check`,
         hints: [`warrant check ${change ?? "<change>"} ${check.id}${check.scoped ? " [--paths <a,b>]" : ""}`],
         argv: [...argv]
       };

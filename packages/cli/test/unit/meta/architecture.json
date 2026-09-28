@@ -114,6 +114,7 @@
     ]
   },
   "enums": [
+    { "id": "guard-interpreter", "owner": "core/guard/shell.ts", "doc": "docs/06-verification.md", "values": ["node", "deno", "bun", "python", "python3", "ruby"] },
     { "id": "change-state", "owner": "core/record/lifecycle.ts", "doc": "docs/02-vocabulary.md", "values": ["PROPOSED", "SPECIFIED", "APPROVED", "IMPLEMENTING", "VERIFYING", "MERGED", "ARCHIVED", "ABANDONED"] },
     { "id": "transition", "owner": "core/record/lifecycle.ts", "doc": "docs/04-lifecycle.md", "values": ["PROPOSED->SPECIFIED", "SPECIFIED->APPROVED", "APPROVED->IMPLEMENTING", "IMPLEMENTING->VERIFYING", "VERIFYING->MERGED", "MERGED->ARCHIVED", "VERIFYING->IMPLEMENTING", "IMPLEMENTING->SPECIFIED"] },
     { "id": "verdict", "owner": "core/gates/types.ts", "doc": "docs/02-vocabulary.md", "values": ["PASS", "FAIL", "WAIVED", "NOT_APPLICABLE", "BLOCKED"] },

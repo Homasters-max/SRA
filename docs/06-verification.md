@@ -67,7 +67,7 @@ Check — детерминированная исполняемая провер
 | `timeout_s` | `defaults.check_timeout_s`, иначе `1800` | По истечении check прерывается, замок освобождается |
 | `local` | `allowed` | `scoped-only` — локально только `--paths`; `ci-only` — локально никакой (later, D-23) |
 | `max_paths` | — | Больше путей в `--paths` → код `3` (later, D-23) |
-| `guard_prefixes` | первые токены `run.command` | По ним `warrant guard` отклоняет прямой запуск |
+| `guard_prefixes` | первые токены `run.command` до флага или плейсхолдера; у интерпретатора (`node`, `deno`, `bun`, `python`, `python3`, `ruby`) — плюс флаги режима (слова с `-` без `=` и `{`), сверяемые в любом порядке ([ADR-0042](adr/WARRANT-ADR-0042-lattice-fixes.md) п. 3) | По ним `warrant guard` отклоняет прямой запуск; явные префиксы — строго по словам |
 
 - Замок занят → код `2`, `errors[0].code: "BUSY"` с держателем замка; `--wait` ждёт до `timeout_s` (CI; later).
   Замок мёртвого pid снимается автоматически с записью в журнал Run (later, D-23).

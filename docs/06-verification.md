@@ -232,6 +232,13 @@ Reviewer ищет:
 исполняет субагент Claude Code `warrant-reviewer` (генерирует `warrant sync`), результат сдаёт `warrant run submit`;
 evidence `review` судит gate `adversarial-review` на `SPECIFIED->APPROVED` ([02 §2](02-vocabulary.md)).
 
+Сдача — файлом ([ADR-0042](adr/WARRANT-ADR-0042-lattice-fixes.md) п. 4): субагент записывает envelope инструментом `Write`
+в `<RUN-id>.envelope.json` scratchpad сессии во временном каталоге ОС (нет scratchpad — прямо во временный каталог), затем из
+корня проекта выполняет `warrant run submit --file <путь> --dry-run` и ту же команду без `--dry-run`. Под Run `review` guard
+разрешает запись только во временный каталог ОС вне проекта: файл проекта — `deny`, путь вне проекта и временного каталога —
+`deny` с hint, называющим каталог. Envelope не по схеме — `SKILL_RESULT_INVALID` с `data.received{ bytes, root, keys }`
+(размер, тип корня, ключи верхнего уровня; значения не выводятся).
+
 ## 8. CI — последняя инстанция
 
 - CI MUST заново вычислять все L0/L1 gates для merge.

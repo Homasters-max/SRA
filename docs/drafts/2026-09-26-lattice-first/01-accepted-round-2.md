@@ -2,15 +2,11 @@
 
 ## Проблема
 
-- Maintainer (2026-09-26, grilling kb-domains, раунд 2): «создаём LATTICE в `D:\project`, в первую очередь реализуем
-  LATTICE, а на основе него строим компоненты WARRANT»; фаза 4 WARRANT доводится до конца, LATTICE — после неё.
+- Maintainer (2026-09-26, grilling kb-domains, раунд 2): «создаём LATTICE в `D:\project`, в первую очередь реализуем LATTICE, а на основе него строим компоненты WARRANT»; фаза 4 WARRANT доводится до конца, LATTICE — после неё.
 - Факты (проверены 2026-09-26):
-  - решение 2026-09-22 (`lattice/README.md`): LATTICE выделяется в свой репозиторий **после** первого vertical slice
-    (Change → REQ `part_of` → TEST `tests` → mutation → history → projection → lint);
-  - LD-B-06 (`ACCEPTED`): LATTICE внедряется через один vertical slice на объектах OpenSpec, «не строится полностью
-    заранее»;
-  - LATTICE: кода нет, `meta/*` и registry нет; 79 решений `LD-*`; стек не выбран, есть LD-T-03 (JSON first,
-    PostgreSQL — будущий backend) и LD-T-08 (JSON вместо YAML, `PROPOSED`);
+  - решение 2026-09-22 (`lattice/README.md`): LATTICE выделяется в свой репозиторий **после** первого vertical slice (Change → REQ `part_of` → TEST `tests` → mutation → history → projection → lint);
+  - LD-B-06 (`ACCEPTED`): LATTICE внедряется через один vertical slice на объектах OpenSpec, «не строится полностью заранее»;
+  - LATTICE: кода нет, `meta/*` и registry нет; 79 решений `LD-*`; стек не выбран, есть LD-T-03 (JSON first, PostgreSQL — будущий backend) и LD-T-08 (JSON вместо YAML, `PROPOSED`);
   - контракты стыка — `docs/integrations/01, 02, 05` в SRA, один owner (INV-06 README LATTICE);
   - активный Change `phase-4c` — SPECIFIED, 30 открытых задач.
 
@@ -39,8 +35,7 @@
 
 ## Вопросы для grilling
 
-Решены (Q9–Q18). Дальше — поток `lattice` ([docs/handoff/lattice.md](../../handoff/lattice.md)): ADR WARRANT,
-перенос, `LATTICE-ADR-0001`, grilling реестра LD-* в репозитории LATTICE.
+Решены (Q9–Q18). Дальше — поток `lattice` ([docs/handoff/lattice.md](../../handoff/lattice.md)): ADR WARRANT, перенос, `LATTICE-ADR-0001`, grilling реестра LD-* в репозитории LATTICE.
 
 ## Вне объёма
 

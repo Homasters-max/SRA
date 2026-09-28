@@ -8,8 +8,7 @@ supersedes: []
 
 ## Context
 
-Черновики подробно описывали event log, память, метрики, mutation testing, runtime, LATTICE — без уровней зрелости.
-Всё выглядело одинаково обязательным.
+Черновики подробно описывали event log, память, метрики, mutation testing, runtime, LATTICE — без уровней зрелости. Всё выглядело одинаково обязательным.
 
 ## Decision
 

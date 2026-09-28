@@ -8,14 +8,12 @@ supersedes: []
 
 ## Context
 
-В черновиках было несколько несовместимых наборов маркеров (4 и 6 элементов) и смешанные статусные модели
-(PROVEN…, PASS…, 7 статусов skill result, CONTINUE…).
+В черновиках было несколько несовместимых наборов маркеров (4 и 6 элементов) и смешанные статусные модели (PROVEN…, PASS…, 7 статусов skill result, CONTINUE…).
 
 ## Decision
 
 - Маркеры: `FACT`, `INFERENCE`, `ASSUMPTION`, `UNKNOWN`, `PROPOSAL`, `DECISION`.
-- Раздельные оси с собственными именами полей: `change_state`, `run_state`, `evidence_status`, `gate_verdict`,
-  `controller_action`, `waiver_state`. Общего поля `status` нет.
+- Раздельные оси с собственными именами полей: `change_state`, `run_state`, `evidence_status`, `gate_verdict`, `controller_action`, `waiver_state`. Общего поля `status` нет.
 - Цепочка: check → evidence → gate → controller. Skill не выносит verdict.
 - У gate нет `INCONCLUSIVE` (fail closed); `BLOCKED` — невозможно вычислить.
 

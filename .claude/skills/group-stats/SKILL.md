@@ -7,9 +7,7 @@ disable-model-invocation: true
 
 # Статистика группы
 
-Метрики поиска по коду из транскрипта субагента плюс карточка координатора (наблюдение
-[ADR-0028](../../../docs/adr/WARRANT-ADR-0028-graft-adoption.md) п. 5). Процесс —
-шаг 4 навыка [change-coordinate](../change-coordinate/SKILL.md).
+Метрики поиска по коду из транскрипта субагента плюс карточка координатора (наблюдение [ADR-0028](../../../docs/adr/WARRANT-ADR-0028-graft-adoption.md) п. 5). Процесс — шаг 4 навыка [change-coordinate](../change-coordinate/SKILL.md).
 
 ## Вход
 
@@ -41,7 +39,4 @@ disable-model-invocation: true
 
 ## Отчёт
 
-Одной строкой: `ingest.explore_bytes`, `tokens.total`, `tool_calls.total`, `tool_calls.blocked`, `graft`,
-`deviations` (число), `compliant`, `red_runs`. `misled` ≠ `none` — условие пересмотра ADR-0028: сообщить и предложить
-вопрос в бенчмарк (`scripts/dev/bench/code-search.json`). `compliant: false` — сообщить: агент не следовал навыку
-`code-search`. Файл записи — в `.git`, коммитить нечего.
+Одной строкой: `ingest.explore_bytes`, `tokens.total`, `tool_calls.total`, `tool_calls.blocked`, `graft`, `deviations` (число), `compliant`, `red_runs`. `misled` ≠ `none` — условие пересмотра ADR-0028: сообщить и предложить вопрос в бенчмарк (`scripts/dev/bench/code-search.json`). `compliant: false` — сообщить: агент не следовал навыку `code-search`. Файл записи — в `.git`, коммитить нечего.

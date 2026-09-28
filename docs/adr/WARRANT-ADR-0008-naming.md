@@ -8,13 +8,11 @@ supersedes: []
 
 ## Context
 
-Черновики назывались «Dark Software Factory» и смешивали роль всей фабрики с ролью слоя управления спецификациями.
-В SEF есть отдельные компоненты: OpenSpec, LATTICE, SRA, JEV.
+Черновики назывались «Dark Software Factory» и смешивали роль всей фабрики с ролью слоя управления спецификациями. В SEF есть отдельные компоненты: OpenSpec, LATTICE, SRA, JEV.
 
 ## Decision
 
-Слой управления спецификациями называется **WARRANT — Specification Governance**:
-*warrant* — основание, по которому evidence подтверждает claim, и разрешение на действие.
+Слой управления спецификациями называется **WARRANT — Specification Governance**: *warrant* — основание, по которому evidence подтверждает claim, и разрешение на действие.
 
 | Компонент | Роль |
 |---|---|

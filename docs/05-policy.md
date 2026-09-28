@@ -23,11 +23,9 @@ Change ──classify──▶ { profiles[], risk } ──resolve──▶ Effec
 - **Overlay** — слой политики, участвующий в композиции.
 - **Effective Policy** — результат композиции для конкретного Change.
 
-Profile описывает **что** требуется, запрещено, проверяется и одобряется. **Как** это выполнить — решают skills.
-Profile MUST NOT содержать произвольную логику.
+Profile описывает **что** требуется, запрещено, проверяется и одобряется. **Как** это выполнить — решают skills. Profile MUST NOT содержать произвольную логику.
 
-Profiles — это policy, а не OpenSpec schema. Все profiles используют одну schema `warrant-sdd`;
-отдельная schema создаётся только для другого dependency graph ([01 §3](01-principles.md)).
+Profiles — это policy, а не OpenSpec schema. Все profiles используют одну schema `warrant-sdd`; отдельная schema создаётся только для другого dependency graph ([01 §3](01-principles.md)).
 
 ## 2. Каталог profiles
 
@@ -49,8 +47,7 @@ Profiles — это policy, а не OpenSpec schema. Все profiles испол�
 
 ### Несколько profiles
 
-Change MAY иметь несколько profiles (например, `feature` + `data-change`). Classification возвращает набор;
-resolver композирует их по правилам §5.
+Change MAY иметь несколько profiles (например, `feature` + `data-change`). Classification возвращает набор; resolver композирует их по правилам §5.
 
 ## 3. Схема profile
 
@@ -129,11 +126,7 @@ resolver композирует их по правилам §5.
 
 Итоговое значение измерения = максимум из floor, proposer и human (понижение ниже floor — только с approval).
 
-**Floor по размеру diff** (Maturity: later, по failure mode). Правило вида
-`{ "diff_size": { "files": N, "lines": M }, "set": { "blast_radius": "COMPONENT" } }` с порогами из параметров pack:
-большой Change получает более строгую policy, но не блокируется; «разбить Change» решает человек. Отдельного
-finding `OVERSIZED` нет. В транспорте `sef-hub` то же делает `risk_floor` SEF по фактическому diff
-([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)). Источник идеи — правило «1 change = 1–4 недели» в `oinsio/clear-progress`.
+**Floor по размеру diff** (Maturity: later, по failure mode). Правило вида `{ "diff_size": { "files": N, "lines": M }, "set": { "blast_radius": "COMPONENT" } }` с порогами из параметров pack: большой Change получает более строгую policy, но не блокируется; «разбить Change» решает человек. Отдельного finding `OVERSIZED` нет. В транспорте `sef-hub` то же делает `risk_floor` SEF по фактическому diff ([ADR-0020](adr/WARRANT-ADR-0020-warrant-sef-boundary.md)). Источник идеи — правило «1 change = 1–4 недели» в `oinsio/clear-progress`.
 
 ### Уровень risk
 
@@ -168,9 +161,7 @@ finding `OVERSIZED` нет. В транспорте `sef-hub` то же дела
 2. Совпало `low` → `LOW`.
 3. Иначе → `MEDIUM`.
 
-**Unknown risk:** если хотя бы одно измерение `UNKNOWN`, уровень MUST быть не ниже `MEDIUM`,
-и создаётся blocking `UNKNOWN` для этого измерения (controller → `WAIT`, операция `clarify`).
-Это консервативно (INV-10), но не эскалирует всё подряд в `HIGH`.
+**Unknown risk:** если хотя бы одно измерение `UNKNOWN`, уровень MUST быть не ниже `MEDIUM`, и создаётся blocking `UNKNOWN` для этого измерения (controller → `WAIT`, операция `clarify`). Это консервативно (INV-10), но не эскалирует всё подряд в `HIGH`.
 
 ### Risk overlays
 
@@ -183,11 +174,9 @@ finding `OVERSIZED` нет. В транспорте `sef-hub` то же дела
 | `HIGH` | + `mutation-score` | bdd-tdd |
 | `HIGH` | + `rollback-rehearsed` (если применимо) | data |
 
-`mutation-score` и `rollback-rehearsed` приносят packs `bdd-tdd` и `data` — своими overlays с `match: {"risk_level": ["HIGH"]}`,
-а не core-sdd.
+`mutation-score` и `rollback-rehearsed` приносят packs `bdd-tdd` и `data` — своими overlays с `match: {"risk_level": ["HIGH"]}`, а не core-sdd.
 
-Точные наборы задаются overlay-файлами `risk-low.json`, `risk-medium.json`, `risk-high.json` в pack core-sdd; core-sdd поставляет
-в них только свои gates.
+Точные наборы задаются overlay-файлами `risk-low.json`, `risk-medium.json`, `risk-high.json` в pack core-sdd; core-sdd поставляет в них только свои gates.
 
 Overlay MAY срабатывать не только по `risk_level`, но и по значению отдельного измерения:
 
@@ -195,8 +184,7 @@ Overlay MAY срабатывать не только по `risk_level`, но и 
 { "$schema": "warrant://overlay/1", "id": "security-high", "match": { "security_impact": ["HIGH"] } }
 ```
 
-Resolver сопоставляет `match` с любым полем classification одинаково. Так pack `security` усиливает policy по
-`security_impact`, не вводя ни profile, ни нового уровня risk ([10-pack-security](10-pack-security.md)).
+Resolver сопоставляет `match` с любым полем classification одинаково. Так pack `security` усиливает policy по `security_impact`, не вводя ни profile, ни нового уровня risk ([10-pack-security](10-pack-security.md)).
 
 ## 5. Композиция
 
@@ -239,8 +227,7 @@ Resolver MUST NOT выбирать «последний победивший» �
 
 ## 6. Effective Policy
 
-Effective Policy — **вычисляемый runtime-объект**, не SSOT. Он MUST NOT коммититься как редактируемый файл,
-но MUST включаться в Run, Context Pack и evidence manifest:
+Effective Policy — **вычисляемый runtime-объект**, не SSOT. Он MUST NOT коммититься как редактируемый файл, но MUST включаться в Run, Context Pack и evidence manifest:
 
 ```json
 {
@@ -285,21 +272,15 @@ Waiver — явное временное исключение из конкре�
 
 Правила:
 
-- `owner` и `expires_at` MUST присутствовать всегда; `approved_by` (human из `roles.maintainer`) MUST присутствовать в
-  любом `waiver_state`, кроме `PROPOSED`. Без них waiver невалиден. (Было: `approved_by` обязателен всегда — тогда агент не
-  мог записать предложенный waiver.)
+- `owner` и `expires_at` MUST присутствовать всегда; `approved_by` (human из `roles.maintainer`) MUST присутствовать в любом `waiver_state`, кроме `PROPOSED`. Без них waiver невалиден. (Было: `approved_by` обязателен всегда — тогда агент не мог записать предложенный waiver.)
 - Waiver действует на один gate одного Change. Waiver ≠ изменение policy.
 - Gates с `waivable: false` MUST NOT отменяться waiver (`human-approval`, `scope-valid` и др.).
 - Истёкший waiver → `EXPIRED`; gate перевычисляется.
-- Агент MAY предложить waiver (`PROPOSED`, `warrant waive <change> <gate> …`), но не активировать его. Активирует и
-  отзывает человек: `warrant waive --activate <WAV> --by <login>` (пишет `approved_by`), `warrant waive --revoke <WAV>
-  --by <login>`; до `warrant ci` (фаза 4) `--by` — заявление, как у `transition`. Gate засчитывает только `ACTIVE`
-  неистёкший waiver с `approved_by` ∈ roles (R-2).
+- Агент MAY предложить waiver (`PROPOSED`, `warrant waive <change> <gate> …`), но не активировать его. Активирует и отзывает человек: `warrant waive --activate <WAV> --by <login>` (пишет `approved_by`), `warrant waive --revoke <WAV> --by <login>`; до `warrant ci` (фаза 4) `--by` — заявление, как у `transition`. Gate засчитывает только `ACTIVE` неистёкший waiver с `approved_by` ∈ roles (R-2).
 
 ### Частичный waiver
 
-Необязательное поле `targets[]` сужает waiver до отдельных объектов, которые gate учитывает поштучно
-(первое применение — эквивалентные мутанты, [ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)):
+Необязательное поле `targets[]` сужает waiver до отдельных объектов, которые gate учитывает поштучно (первое применение — эквивалентные мутанты, [ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)):
 
 ```json
 "targets": [
@@ -308,9 +289,6 @@ Waiver — явное временное исключение из конкре�
 ]
 ```
 
-- Waiver с `targets` не переводит gate в `WAIVED`: targets читает **check**, поставляющий evidence (исключает их
-  из знаменателя и пишет `excluded_equivalent`, `waivers[]` в `metrics`); gate в пред-фильтре допустимости
-  ([06 §3](06-verification.md)) сверяет, что waiver `ACTIVE` и отпечатки совпадают с текущим кодом (D-10).
+- Waiver с `targets` не переводит gate в `WAIVED`: targets читает **check**, поставляющий evidence (исключает их из знаменателя и пишет `excluded_equivalent`, `waivers[]` в `metrics`); gate в пред-фильтре допустимости ([06 §3](06-verification.md)) сверяет, что waiver `ACTIVE` и отпечатки совпадают с текущим кодом (D-10).
 - Target, не совпавший с текущим состоянием, — finding `STALE`; исключение не действует.
-- Форму target объявляет pack, поставляющий gate; kernel-схема держит `targets[]` как object[], `validate`
-  применяет схему pack вторым шагом (D-13).
+- Форму target объявляет pack, поставляющий gate; kernel-схема держит `targets[]` как object[], `validate` применяет схему pack вторым шагом (D-13).

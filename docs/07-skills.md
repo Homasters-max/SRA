@@ -26,11 +26,9 @@ Checks enforce. LATTICE remembers meaning. Evidence proves what happened.
 
 ## 2. Когда нужен новый skill
 
-Только если задача требует semantic reasoning, которое нельзя сделать кодом ([01 §3](01-principles.md)).
-Если задачу решает существующий skill + mode, композиция skills или check — новый skill MUST NOT создаваться.
+Только если задача требует semantic reasoning, которое нельзя сделать кодом ([01 §3](01-principles.md)). Если задачу решает существующий skill + mode, композиция skills или check — новый skill MUST NOT создаваться.
 
-Не превращать в skill детерминированную логику: валидацию схем, хэши, ID, enum-проверки, resolve profile,
-evaluate policy, построение индексов и графов, поиск orphan, coverage, запуск тестов, сбор commit SHA.
+Не превращать в skill детерминированную логику: валидацию схем, хэши, ID, enum-проверки, resolve profile, evaluate policy, построение индексов и графов, поиск orphan, coverage, запуск тестов, сбор commit SHA.
 
 ## 3. Вызов
 
@@ -89,20 +87,9 @@ Change + relevant specs + relevant ADR + glossary + affected files + relevant te
 }
 ```
 
-Схема `warrant://skill-result/1` (`packages/cli/schemas/skill-result.1.schema.json`, фаза 4b): обязательные `$schema`, `skill`
-(`namespace/name@version`), `run` (`RUN-<ULID>`), `run_state` (`SUCCEEDED` | `FAILED` | `CANCELLED`), `findings[]`, `provenance`
-(`started_at`, `finished_at` — date-time; необязательные `context_hash`, `model`); необязательные `proposals[]`, `unknowns[]`,
-`assumptions[]`, `decisions_required[]`, `artifacts_to_update[]`, `recommended_operations[]`. Finding: `id`, `marker` (`FACT` |
-`INFERENCE`), `severity` ([02 §2](02-vocabulary.md)), `category`, `statement`; необязательные `targets[]`, `recommendation`.
-Неизвестный ключ верхнего уровня или finding отклоняется — в том числе `gate_verdict` и `evidence_status`. Envelope принимает
-`warrant run submit` только от Run `review` ([04 §7](04-lifecycle.md)); приём `specify` и `implement`, выдача stable ID для
-`unknowns[]` и `decisions_required[]` — позже.
+Схема `warrant://skill-result/1` (`packages/cli/schemas/skill-result.1.schema.json`, фаза 4b): обязательные `$schema`, `skill` (`namespace/name@version`), `run` (`RUN-<ULID>`), `run_state` (`SUCCEEDED` | `FAILED` | `CANCELLED`), `findings[]`, `provenance` (`started_at`, `finished_at` — date-time; необязательные `context_hash`, `model`); необязательные `proposals[]`, `unknowns[]`, `assumptions[]`, `decisions_required[]`, `artifacts_to_update[]`, `recommended_operations[]`. Finding: `id`, `marker` (`FACT` | `INFERENCE`), `severity` ([02 §2](02-vocabulary.md)), `category`, `statement`; необязательные `targets[]`, `recommendation`. Неизвестный ключ верхнего уровня или finding отклоняется — в том числе `gate_verdict` и `evidence_status`. Envelope принимает `warrant run submit` только от Run `review` ([04 §7](04-lifecycle.md)); приём `specify` и `implement`, выдача stable ID для `unknowns[]` и `decisions_required[]` — позже.
 
-Envelope сдаётся файлом, а не в тексте команды — предел длины команды не ограничивает размер результата
-([ADR-0042](adr/WARRANT-ADR-0042-lattice-fixes.md) п. 4, [ADR-0043](adr/WARRANT-ADR-0043-long-command.md)): исполнитель
-записывает его во временный каталог ОС вне проекта (у Claude Code — scratchpad сессии) и сдаёт
-`warrant run submit --file <путь>`, сначала с `--dry-run`. Ошибка `SKILL_RESULT_INVALID` несёт `data.received{ bytes, root,
-keys }` — что получено, без значений ([06 §7](06-verification.md)).
+Envelope сдаётся файлом, а не в тексте команды — предел длины команды не ограничивает размер результата ([ADR-0042](adr/WARRANT-ADR-0042-lattice-fixes.md) п. 4, [ADR-0043](adr/WARRANT-ADR-0043-long-command.md)): исполнитель записывает его во временный каталог ОС вне проекта (у Claude Code — scratchpad сессии) и сдаёт `warrant run submit --file <путь>`, сначала с `--dry-run`. Ошибка `SKILL_RESULT_INVALID` несёт `data.received{ bytes, root, keys }` — что получено, без значений ([06 §7](06-verification.md)).
 
 Правила:
 
@@ -111,10 +98,7 @@ keys }` — что получено, без значений ([06 §7](06-verifi
 - Каждый finding MUST иметь `marker` (обычно `FACT` или `INFERENCE`); INFERENCE MUST NOT выдаваться за FACT.
 - Локальные `id` (`F-1`, `U-1`) действуют внутри результата; stable ID (`UNK-…`) выдаёт CLI при записи.
 - `severity`: `BLOCKER`, `MAJOR`, `MINOR`, `INFO`.
-- **Ничего не теряется молча** (Maturity: later — с первым skill, чей manifest объявляет входной список, например
-  вывод гейта или findings другого ревьюера). Каждый входной элемент попадает либо в `findings[]`, либо в
-  `dismissed[]` (`{ "input_ref", "reason" }`); CLI при приёме envelope проверяет покрытие по ссылкам и числу.
-  Источник — приём «сначала дословно перечисли все находки» из `oinsio/clear-progress`.
+- **Ничего не теряется молча** (Maturity: later — с первым skill, чей manifest объявляет входной список, например вывод гейта или findings другого ревьюера). Каждый входной элемент попадает либо в `findings[]`, либо в `dismissed[]` (`{ "input_ref", "reason" }`); CLI при приёме envelope проверяет покрытие по ссылкам и числу. Источник — приём «сначала дословно перечисли все находки» из `oinsio/clear-progress`.
 
 ## 5. Authority
 
@@ -168,10 +152,8 @@ Authority MUST быть объявлена в manifest; frontend MUST огран
 
 - Один skill = одна семантическая ответственность, один input-контракт, один output-контракт.
 - Namespace: `capability/name` (`specification/authoring`, `code-review/security`). Максимум 2 уровня.
-- Каждый skill — отдельная единица загрузки (`SKILL.md`). Крупный skill с многими режимами SHOULD
-  быть разделён: агент не должен загружать ненужные режимы в контекст.
-- Независимые review-перспективы (`code-review/spec-compliance`, `code-review/security`,
-  `code-review/architecture`, `code-review/data-impact`) MUST выполняться отдельными Run с отдельным контекстом.
+- Каждый skill — отдельная единица загрузки (`SKILL.md`). Крупный skill с многими режимами SHOULD быть разделён: агент не должен загружать ненужные режимы в контекст.
+- Независимые review-перспективы (`code-review/spec-compliance`, `code-review/security`, `code-review/architecture`, `code-review/data-impact`) MUST выполняться отдельными Run с отдельным контекстом.
 
 ### Версионирование (semver)
 
@@ -185,8 +167,7 @@ Authority MUST быть объявлена в manifest; frontend MUST огран
 
 ### Tools
 
-Skill MAY объявить инструменты (`tools`): команды CLI, MCP-серверы, внешние утилиты.
-Инструмент — детерминированный; frontend выдаёт его только если capability разрешена effective policy.
+Skill MAY объявить инструменты (`tools`): команды CLI, MCP-серверы, внешние утилиты. Инструмент — детерминированный; frontend выдаёт его только если capability разрешена effective policy.
 
 ## 7. Композиция
 
@@ -218,8 +199,7 @@ Status: normative · Maturity: later
 
 ## 9. Внешние skills
 
-Хорошие generic skills не копируются вслепую: адаптируются interface, context и authority.
-Кандидаты (для SRA, informative):
+Хорошие generic skills не копируются вслепую: адаптируются interface, context и authority. Кандидаты (для SRA, informative):
 
 | Источник | Роль |
 |---|---|

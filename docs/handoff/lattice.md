@@ -2,9 +2,7 @@
 
 ## Цель
 
-LATTICE — отдельный проект `D:\project\LATTICE` (`Homasters-max/LATTICE`), первым — его vertical slice на объектах
-OpenSpec; компоненты WARRANT, которым нужны объекты и связи, строятся на его read model. Решения — черновик
-[2026-09-26-lattice-first](../drafts/2026-09-26-lattice-first/README.md) (Q9–Q18). Начинается после фазы 4 WARRANT.
+LATTICE — отдельный проект `D:\project\LATTICE` (`Homasters-max/LATTICE`), первым — его vertical slice на объектах OpenSpec; компоненты WARRANT, которым нужны объекты и связи, строятся на его read model. Решения — черновик [2026-09-26-lattice-first](../drafts/2026-09-26-lattice-first/README.md) (Q9–Q18). Начинается после фазы 4 WARRANT.
 
 ## Готовый запрос
 
@@ -19,8 +17,7 @@ OpenSpec; компоненты WARRANT, которым нужны объекты
 
 ## Открытые вопросы
 
-- Q9–Q18 закрыты. В grilling реестра LD-* добавить: ядро kb-domains как часть LATTICE, SSOT ledger против §41,
-  assertions и proposals ([lattice-first/02](../drafts/2026-09-26-lattice-first/02-core-model.md) вопросы 1–3).
+- Q9–Q18 закрыты. В grilling реестра LD-* добавить: ядро kb-domains как часть LATTICE, SSOT ledger против §41, assertions и proposals ([lattice-first/02](../drafts/2026-09-26-lattice-first/02-core-model.md) вопросы 1–3).
 
 ## Не забыть
 

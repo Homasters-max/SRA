@@ -2,15 +2,10 @@
 
 ## Проблема
 
-- Grilling 2026-09-26, раунд 1: вопросы 08 (архитектура) и три открытых вопроса файла передачи — где живут домены,
-  совпадают ли они с context'ами LATTICE, рефакторинг навыка до или после grilling. Maintainer принял все
-  рекомендации («принимаю все»).
+- Grilling 2026-09-26, раунд 1: вопросы 08 (архитектура) и три открытых вопроса файла передачи — где живут домены, совпадают ли они с context'ами LATTICE, рефакторинг навыка до или после grilling. Maintainer принял все рекомендации («принимаю все»).
 - Факты раунда (проверены 2026-09-26):
-  - context'ы LATTICE — 8 bounded contexts по языку и владельцу: `kernel`, `lexicon`, `method`, `meta`, `platform`,
-    `runtime`, `evidence`, `spec` (`lattice/docs/01-object-substrate.md` §3, `03-substrate-decisions.md` D8.1);
-    нормы WARRANT (REQ, SCN, Change, decision, DCT) — все в `spec`, термины — в `lexicon`;
-  - домен `lifecycle` собран из 25 источников, в том числе spec `verification` и `kernel`: домены режут context
-    `spec` поперёк; имя `kernel` занято и в LATTICE (identity-записи без semantic edges), и у нас (ядро CLI);
+  - context'ы LATTICE — 8 bounded contexts по языку и владельцу: `kernel`, `lexicon`, `method`, `meta`, `platform`, `runtime`, `evidence`, `spec` (`lattice/docs/01-object-substrate.md` §3, `03-substrate-decisions.md` D8.1); нормы WARRANT (REQ, SCN, Change, decision, DCT) — все в `spec`, термины — в `lexicon`;
+  - домен `lifecycle` собран из 25 источников, в том числе spec `verification` и `kernel`: домены режут context `spec` поперёк; имя `kernel` занято и в LATTICE (identity-записи без semantic edges), и у нас (ядро CLI);
   - данные пилота — 2 домена, 470 КБ JSON (`kb-search://domain/1`), 370 units; 7 доменов — около 1,5 МБ;
   - навык `kb-search` — 1141 строка кода, версии нет; шаг «Пакет норм» (c3bbf7f) работает только с локальным доменом.
 
@@ -29,8 +24,7 @@
 
 ## Вопросы для grilling
 
-Решены. Следующий раунд — 09 (без п. 3 = Q5) и 01 (п. 2–6, п. 1 — повторно, с учётом LATTICE); 02–07 — после
-vertical slice LATTICE (Q13).
+Решены. Следующий раунд — 09 (без п. 3 = Q5) и 01 (п. 2–6, п. 1 — повторно, с учётом LATTICE); 02–07 — после vertical slice LATTICE (Q13).
 
 ## Вне объёма
 

@@ -2,13 +2,8 @@
 
 ## Проблема
 
-- Grilling 2026-09-26, раунды 3–8: черновики 09 (записи оценок) и 01 (где живут домены), затем — по ходу —
-  модель «вопрос → ответ», калибровка, ядро механизма. Maintainer принимал рекомендации раундов, с поправками: Q21
-  (хэшировать группу объектов целиком), Q29 (snapshot — это ответ, выбранный LLM), Q40 и Q41 (алиасы, работа по
-  доменам), Q43 (гранулярность — набор измерений, состав — меняется), Q50 (один файл, переносимый в Anchor Modeling).
-- Решения менялись по ходу: колонка «Статус» говорит, какое действует. Термины — [04-terms](../2026-09-26-lattice-first/04-terms.md),
-  модель ядра — [02-core-model](../2026-09-26-lattice-first/02-core-model.md), ID —
-  [03-classification-ids](../2026-09-26-lattice-first/03-classification-ids.md), модель поиска — [12-search-model](12-search-model.md).
+- Grilling 2026-09-26, раунды 3–8: черновики 09 (записи оценок) и 01 (где живут домены), затем — по ходу — модель «вопрос → ответ», калибровка, ядро механизма. Maintainer принимал рекомендации раундов, с поправками: Q21 (хэшировать группу объектов целиком), Q29 (snapshot — это ответ, выбранный LLM), Q40 и Q41 (алиасы, работа по доменам), Q43 (гранулярность — набор измерений, состав — меняется), Q50 (один файл, переносимый в Anchor Modeling).
+- Решения менялись по ходу: колонка «Статус» говорит, какое действует. Термины — [04-terms](../2026-09-26-lattice-first/04-terms.md), модель ядра — [02-core-model](../2026-09-26-lattice-first/02-core-model.md), ID — [03-classification-ids](../2026-09-26-lattice-first/03-classification-ids.md), модель поиска — [12-search-model](12-search-model.md).
 
 ## Идея
 
@@ -80,8 +75,7 @@
 
 ### Раунды 1–2 (напоминание)
 
-Q1–Q8 — [10-accepted-round-1](10-accepted-round-1.md); Q9–Q18 —
-[lattice-first/01](../2026-09-26-lattice-first/01-accepted-round-2.md).
+Q1–Q8 — [10-accepted-round-1](10-accepted-round-1.md); Q9–Q18 — [lattice-first/01](../2026-09-26-lattice-first/01-accepted-round-2.md).
 
 ## Вопросы для grilling
 
@@ -89,8 +83,7 @@ Q1–Q8 — [10-accepted-round-1](10-accepted-round-1.md); Q9–Q18 —
 
 1. 01 п. 2 — каталог доменов в репозитории и `$schema` (`kb-search://domain/1` сейчас). Зависит от Q26.
 2. 01 п. 5 — кто и когда перенарезает домен (archive-PR Change, `hygiene.js`).
-3. Вопросы записи — [12-search-model](12-search-model.md), [lattice-first/02](../2026-09-26-lattice-first/02-core-model.md),
-   [03](../2026-09-26-lattice-first/03-classification-ids.md), [04](../2026-09-26-lattice-first/04-terms.md).
+3. Вопросы записи — [12-search-model](12-search-model.md), [lattice-first/02](../2026-09-26-lattice-first/02-core-model.md), [03](../2026-09-26-lattice-first/03-classification-ids.md), [04](../2026-09-26-lattice-first/04-terms.md).
 
 ## Вне объёма
 

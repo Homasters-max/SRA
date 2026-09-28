@@ -57,9 +57,7 @@ Evidence:  claim "customer_id остаётся уникальным после �
 | `limitations` | Что evidence **не** доказывает (scope, выборка, окружение) |
 | `metrics` | Необязательно. Числовые результаты check; JSON Schema объявляет pack для своего kind (например, `mutation-report`, [ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md)) |
 
-Если check сравнивал результат с параметром policy (порог), применённое значение MUST быть записано в `metrics`.
-Gate сверяет его с текущим effective param в пред-фильтре допустимости ([06 §3](06-verification.md)); расхождение →
-finding `STALE`, evidence исключается.
+Если check сравнивал результат с параметром policy (порог), применённое значение MUST быть записано в `metrics`. Gate сверяет его с текущим effective param в пред-фильтре допустимости ([06 §3](06-verification.md)); расхождение → finding `STALE`, evidence исключается.
 
 ## 3. Кто создаёт evidence
 
@@ -69,8 +67,7 @@ finding `STALE`, evidence исключается.
 
 ### Attestation
 
-Решение — [WARRANT-ADR-0009](adr/WARRANT-ADR-0009-change-record-attestation.md). Доверие evidence определяется
-тем, **где оно произведено**, а не подписью. Два класса:
+Решение — [WARRANT-ADR-0009](adr/WARRANT-ADR-0009-change-record-attestation.md). Доверие evidence определяется тем, **где оно произведено**, а не подписью. Два класса:
 
 | Класс | Примеры | Правило |
 |---|---|---|
@@ -86,17 +83,9 @@ finding `STALE`, evidence исключается.
 | `sef-gate` | Гейт SEF в контейнере гейтов (транспорт `sef-hub`, proposed) | `sef://<project>/attempt/<id>/gate/<gate-id>` |
 | `none` | Локальный запуск CLI | — |
 
-- `attestation` check-записи CLI выводит из окружения, а не из аргументов (P-15): `GITHUB_ACTIONS=true` вместе с
-  `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`, `GITHUB_RUN_ID` → `{ "type": "ci", "ref": "<server>/<repo>/actions/runs/<id>/attempts/<n>" }`
-  (`<n>` — `GITHUB_RUN_ATTEMPT`; без него — URL run, попытка 1: Re-run — отдельная попытка со своим artifact'ом,
-  [ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md)); иначе `{ "type": "none" }`. Другие CI — later. Записи `warrant ci`
-  impl-PR выгружаются artifact'ом `evidence-<change>-<attempt>`; archive-PR получает их командой `warrant ci fetch <pr>`
-  (попытка run на дереве merge-коммита, побайтно) и пишет `transition MERGED --ref <URL impl-PR>`; `warrant ci` archive-PR
-  повторно скачивает artifact и сверяет записи (CI не пишет в репозиторий, [ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)).
-- Gate объявляет допустимые типы: `"accepts_attestation": ["ci", "human-review"]`. По умолчанию `none` не засчитывается
-  для gates перехода `VERIFYING → MERGED` (INV-10).
-- L2 review для risk `HIGH` MUST выполняться отдельным Run в CI (attestation `ci`); для `MEDIUM` MAY выполняться локально
-  с записью `"limitations": ["produced locally, unattested"]`.
+- `attestation` check-записи CLI выводит из окружения, а не из аргументов (P-15): `GITHUB_ACTIONS=true` вместе с `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`, `GITHUB_RUN_ID` → `{ "type": "ci", "ref": "<server>/<repo>/actions/runs/<id>/attempts/<n>" }` (`<n>` — `GITHUB_RUN_ATTEMPT`; без него — URL run, попытка 1: Re-run — отдельная попытка со своим artifact'ом, [ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md)); иначе `{ "type": "none" }`. Другие CI — later. Записи `warrant ci` impl-PR выгружаются artifact'ом `evidence-<change>-<attempt>`; archive-PR получает их командой `warrant ci fetch <pr>` (попытка run на дереве merge-коммита, побайтно) и пишет `transition MERGED --ref <URL impl-PR>`; `warrant ci` archive-PR повторно скачивает artifact и сверяет записи (CI не пишет в репозиторий, [ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md)).
+- Gate объявляет допустимые типы: `"accepts_attestation": ["ci", "human-review"]`. По умолчанию `none` не засчитывается для gates перехода `VERIFYING → MERGED` (INV-10).
+- L2 review для risk `HIGH` MUST выполняться отдельным Run в CI (attestation `ci`); для `MEDIUM` MAY выполняться локально с записью `"limitations": ["produced locally, unattested"]`.
 - Ключи подписи MUST NOT выдаваться агентам: агент, подписывающий собственное evidence, нарушает INV-03. Ключи — у CI и людей.
 - `signature` — Maturity: later (кандидат: keyless signing, Sigstore / gitsign) для runtime и data evidence, произведённого вне CI.
 
@@ -113,9 +102,7 @@ finding `STALE`, evidence исключается.
 
 ### Достаточность
 
-«Test passed» не всегда доказывает «migration safe». Детерминированная часть достаточности — `requires_evidence`
-в gate (какие kinds нужны). Семантическая часть (покрывает ли evidence claim по scope, observed vs inferred,
-пробелы покрытия) — skill `semantic/evidence-reasoning` (SRA); его результат — L2 finding.
+«Test passed» не всегда доказывает «migration safe». Детерминированная часть достаточности — `requires_evidence` в gate (какие kinds нужны). Семантическая часть (покрывает ли evidence claim по scope, observed vs inferred, пробелы покрытия) — skill `semantic/evidence-reasoning` (SRA); его результат — L2 finding.
 
 ## 5. Evidence manifest
 
@@ -164,7 +151,4 @@ canonical JSON { change, specs, ADR, glossary, relevant code refs, effective_pol
 
 Status: proposed · Maturity: later
 
-После исполнения (release, data run) runtime-наблюдения MAY становиться evidence для Change:
-input/output version, schema version, row counts, quality results, errors, checksums.
-Runtime observation подтверждает или опровергает claim и MAY порождать новый Change.
-Детали — [09-pack-data](09-pack-data.md), [12-evolution](12-evolution.md).
+После исполнения (release, data run) runtime-наблюдения MAY становиться evidence для Change: input/output version, schema version, row counts, quality results, errors, checksums. Runtime observation подтверждает или опровергает claim и MAY порождать новый Change. Детали — [09-pack-data](09-pack-data.md), [12-evolution](12-evolution.md).

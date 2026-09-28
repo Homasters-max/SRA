@@ -1,9 +1,6 @@
 # Процессные правила → чем держатся
 
-Полная таблица правил разработки WARRANT ([ADR-0032](../adr/WARRANT-ADR-0032-dev-context.md) п. 2, 7). Норма — в ADR;
-`CLAUDE.md` — короткий указатель на жёсткие правила. Принцип (R-14…R-16): у правила о **форме** есть проверка в
-`npm test` / `validate` / CI, прозой остаются только правила о **решении** (что выбрать), и они помечены как таковые.
-Новое правило о форме без проверки не принимается (ADR-0022, INV-04).
+Полная таблица правил разработки WARRANT ([ADR-0032](../adr/WARRANT-ADR-0032-dev-context.md) п. 2, 7). Норма — в ADR; `CLAUDE.md` — короткий указатель на жёсткие правила. Принцип (R-14…R-16): у правила о **форме** есть проверка в `npm test` / `validate` / CI, прозой остаются только правила о **решении** (что выбрать), и они помечены как таковые. Новое правило о форме без проверки не принимается (ADR-0022, INV-04).
 
 | Правило | Где записано | Чем держится |
 |---|---|---|
@@ -52,8 +49,7 @@
 
 ## Настройка машины
 
-Профиль OpenSpec (ADR-0032 п. 8) — один раз на машину, затем `openspec update` в корне репозитория не создаёт
-`openspec-archive-change`, `openspec-sync-specs` и `.claude/commands/opsx/`:
+Профиль OpenSpec (ADR-0032 п. 8) — один раз на машину, затем `openspec update` в корне репозитория не создаёт `openspec-archive-change`, `openspec-sync-specs` и `.claude/commands/opsx/`:
 
 ```bash
 openspec config set profile custom
@@ -61,13 +57,10 @@ openspec config set delivery skills
 openspec config set workflows '["propose","explore","apply","update"]'
 ```
 
-Разрешения агента для автоматического процесса git (ADR-0033 п. 5, 13) — один раз на машину, их ставит maintainer
-(коммитимый `.claude/settings.json` — только `hooks`, ADR-0029 п. 6): в `.claude/settings.local.json` (не в git)
-добавить в `permissions.allow`:
+Разрешения агента для автоматического процесса git (ADR-0033 п. 5, 13) — один раз на машину, их ставит maintainer (коммитимый `.claude/settings.json` — только `hooks`, ADR-0029 п. 6): в `.claude/settings.local.json` (не в git) добавить в `permissions.allow`:
 
 ```json
 ["Bash(gh pr merge * --merge)", "Bash(git push origin --delete *)"]
 ```
 
-Merge — только по слову «merge #N» в чате (шаг навыка `git-land`); удаление веток на origin — только слитых
-(`repo-hygiene`, `git-land`). Хук `git-hook.js` действует поверх разрешений.
+Merge — только по слову «merge #N» в чате (шаг навыка `git-land`); удаление веток на origin — только слитых (`repo-hygiene`, `git-land`). Хук `git-hook.js` действует поверх разрешений.

@@ -1,8 +1,6 @@
 # Оркестрация агентов — справочник линзы `software-architect`
 
-Для проектирования процессов с агентами: dev-процесс WARRANT (координатор, субагенты, навыки git и Change) и фабрика
-SEF (попытки, `landing`, approval). Источник — агент multi-agent-systems-architect каталога agency-agents,
-адаптирован ([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 8). Норма — в ADR; здесь — вопросы.
+Для проектирования процессов с агентами: dev-процесс WARRANT (координатор, субагенты, навыки git и Change) и фабрика SEF (попытки, `landing`, approval). Источник — агент multi-agent-systems-architect каталога agency-agents, адаптирован ([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 8). Норма — в ADR; здесь — вопросы.
 
 ## Роль агента
 

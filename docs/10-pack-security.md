@@ -8,8 +8,7 @@ version: 0.1.0
 
 # 10. Pack `security`
 
-Security — **не profile** ([05 §2](05-policy.md)). Это измерение `security_impact` и overlay, который усиливает policy
-любого profile. Pack не добавляет этапов в цикл ([04 §1](04-lifecycle.md)): threat review — это artifact плюс gates.
+Security — **не profile** ([05 §2](05-policy.md)). Это измерение `security_impact` и overlay, который усиливает policy любого profile. Pack не добавляет этапов в цикл ([04 §1](04-lifecycle.md)): threat review — это artifact плюс gates.
 
 ## 1. Состав
 
@@ -43,9 +42,7 @@ Evidence kinds: `sast-report`, `dependency-audit`, `secret-scan`, `threat-review
 
 ## 4. Threat model
 
-Template отвечает на: assets · trust boundaries · entry points · threats · mitigations. Каждая mitigation
-MUST ссылаться на REQ или SCN, иначе `analyze` даёт `ORPHAN`. Abuse-сценарии (authorization, invalid input)
-записываются как обычные OpenSpec Scenario с SCN ID; второго формата сценариев нет ([10-pack-bdd-tdd](10-pack-bdd-tdd.md)).
+Template отвечает на: assets · trust boundaries · entry points · threats · mitigations. Каждая mitigation MUST ссылаться на REQ или SCN, иначе `analyze` даёт `ORPHAN`. Abuse-сценарии (authorization, invalid input) записываются как обычные OpenSpec Scenario с SCN ID; второго формата сценариев нет ([10-pack-bdd-tdd](10-pack-bdd-tdd.md)).
 
 ## 5. Golden
 

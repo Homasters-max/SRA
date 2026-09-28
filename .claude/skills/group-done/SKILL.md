@@ -6,8 +6,7 @@ argument-hint: "<номер группы>"
 
 # Закрыть группу задач
 
-Проверяет, где идёт работа, прогоняет проверки репозитория, отмечает задачи группы в tasks.md и коммитит. Правила —
-[docs/process/rules.md](../../../docs/process/rules.md).
+Проверяет, где идёт работа, прогоняет проверки репозитория, отмечает задачи группы в tasks.md и коммитит. Правила — [docs/process/rules.md](../../../docs/process/rules.md).
 
 ## Вход
 
@@ -26,16 +25,14 @@ argument-hint: "<номер группы>"
    node packages/cli/dist/bin/warrant.js sync --check
    npm run versions:check
    ```
-   `npm test` собирает `dist` и идёт до команд `warrant`; без флагов раннера (ADR-0025 п. 8). Успех JSON-вывода —
-   `"ok": true` (у `sync --check` ещё `changed: []`) и код 0.
+   `npm test` собирает `dist` и идёт до команд `warrant`; без флагов раннера (ADR-0025 п. 8). Успех JSON-вывода — `"ok": true` (у `sync --check` ещё `changed: []`) и код 0.
 3. Галочки: в tasks.md под `## N.` каждую `- [ ] N.<k>` → `- [x] N.<k>`; другие группы не трогать.
 4. Состав коммита:
    ```bash
    git status --short
    ```
    Добавлять явными путями.
-5. Коммит через файл сообщения вне рабочего дерева (scratchpad или `$(git rev-parse --git-dir)/GROUP_DONE_MSG`;
-   не `-m`: PowerShell портит `$` и переводы строк):
+5. Коммит через файл сообщения вне рабочего дерева (scratchpad или `$(git rev-parse --git-dir)/GROUP_DONE_MSG`; не `-m`: PowerShell портит `$` и переводы строк):
    ```text
    <change>: group N — <что сделано по задачам группы>; I-<a>…I-<b>
 

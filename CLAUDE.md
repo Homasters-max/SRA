@@ -1,9 +1,6 @@
 # WARRANT — вход для сессии Claude Code
 
-WARRANT — governance-слой фабрики SEF поверх OpenSpec (specification kernel, stock): policy, gates, evidence, lifecycle
-Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SEF — LATTICE (объекты), SRA (reasoning, skills), JEV
-(classifier без authority). Этот файл — указатель: норма — в ADR, полная таблица правил —
-[docs/process/rules.md](docs/process/rules.md) ([ADR-0032](docs/adr/WARRANT-ADR-0032-dev-context.md) п. 7).
+WARRANT — governance-слой фабрики SEF поверх OpenSpec (specification kernel, stock): policy, gates, evidence, lifecycle Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SEF — LATTICE (объекты), SRA (reasoning, skills), JEV (classifier без authority). Этот файл — указатель: норма — в ADR, полная таблица правил — [docs/process/rules.md](docs/process/rules.md) ([ADR-0032](docs/adr/WARRANT-ADR-0032-dev-context.md) п. 7).
 
 ## Карта
 
@@ -25,10 +22,8 @@ Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SE
 
 ## Старт сессии
 
-1. Состояние (ветка, worktree, теги, версии, активные Changes, файлы передачи) приходит хуком `SessionStart`; вручную —
-   `node scripts/dev/brief.js`. Вычислимое прозой не записывается.
-2. Файл передачи своего потока — `docs/handoff/<поток>.md`: цель, готовый запрос, открытые вопросы. Поток не ясен —
-   спросить пользователя.
+1. Состояние (ветка, worktree, теги, версии, активные Changes, файлы передачи) приходит хуком `SessionStart`; вручную — `node scripts/dev/brief.js`. Вычислимое прозой не записывается.
+2. Файл передачи своего потока — `docs/handoff/<поток>.md`: цель, готовый запрос, открытые вопросы. Поток не ясен — спросить пользователя.
 
 ## Задача → навык или инструмент
 
@@ -55,36 +50,24 @@ Change; CLI `warrant` (TypeScript, Node). Смежные компоненты SE
 ## Жёсткие правила
 
 - JSON — только канонический: `writeJsonFile` или `warrant fmt`. Держится: `validate`, `fmt --check` (ADR-0006).
-- Record, evidence, waivers, ID пишет только CLI (`warrant transition`, `check`, `waive`, `id`). Держится: `validate`
-  (ADR-0009, ADR-0012).
+- Record, evidence, waivers, ID пишет только CLI (`warrant transition`, `check`, `waive`, `id`). Держится: `validate` (ADR-0009, ADR-0012).
 - Main specs меняются только archive-PR (`warrant archive`). Держится: `scope-valid`, шаг CI (ADR-0011, R-16).
 - impl-PR мержится только merge commit. Держится: `transition MERGED` → `COMMIT_NOT_MERGED` (I-97).
 - Версия CLI / pack / skill поднимается первым изменением поставляемого после релиза. Держится: `versions:check` (R-14).
-- Процессы — только в `packages/cli/src/adapters/**` через порты; тест — в каталоге своего уровня. Держится:
-  `levels.test.ts` (ADR-0025).
-- Зависимости модулей — по рангам `architecture.json`, без циклов и копий помощников. Держится: `architecture.test.ts`
-  (ADR-0030).
+- Процессы — только в `packages/cli/src/adapters/**` через порты; тест — в каталоге своего уровня. Держится: `levels.test.ts` (ADR-0025).
+- Зависимости модулей — по рангам `architecture.json`, без циклов и копий помощников. Держится: `architecture.test.ts` (ADR-0030).
 - Код ищется через `cs`, читается диапазонами. Держится у субагентов: хук `PreToolUse` — `deny` (ADR-0031).
 - Хуки разработки — только из белого списка. Держится: `dev-hooks.test.ts` (ADR-0032 п. 11).
 - Навыки, `CLAUDE.md`, файлы передачи, `backlog.md` — по форме ADR-0032. Держится: `dev-context.test.ts`.
-- Основной checkout — только `main`, работа — в worktree; force push и `openspec archive` запрещены. Держится: хук
-  `git-hook.js` (ADR-0033 п. 9). Одна ветка — один worktree, ветку проверять перед коммитом — шаг 1 `group-done`.
-- Длинный текст (коммит, PR, envelope, JSON) — файлом (`Write`) и флагом пути, не в команде Bash: Git Bash на Windows
-  обрезает команду длиннее ~7,7 тыс. символов. Держится: `git-hook.js` `long-command` (ADR-0043).
-- Отклонение от spec или design — вопросом maintainer'у, принятое — строкой `I-N` (навык `decision`); норма во время
-  реализации меняется только новым ADR.
-- Не реализовывать `guard`, `ci`, `run`, `analyze` вне фазы 4; не добавлять profiles без failure mode (ADR-0013); не
-  трогать `docs/integrations/`, `lattice/`; второй формат конфигурации не изобретать (`warrant.json` — 08 §3).
+- Основной checkout — только `main`, работа — в worktree; force push и `openspec archive` запрещены. Держится: хук `git-hook.js` (ADR-0033 п. 9). Одна ветка — один worktree, ветку проверять перед коммитом — шаг 1 `group-done`.
+- Длинный текст (коммит, PR, envelope, JSON) — файлом (`Write`) и флагом пути, не в команде Bash: Git Bash на Windows обрезает команду длиннее ~7,7 тыс. символов. Держится: `git-hook.js` `long-command` (ADR-0043).
+- Отклонение от spec или design — вопросом maintainer'у, принятое — строкой `I-N` (навык `decision`); норма во время реализации меняется только новым ADR.
+- Не реализовывать `guard`, `ci`, `run`, `analyze` вне фазы 4; не добавлять profiles без failure mode (ADR-0013); не трогать `docs/integrations/`, `lattice/`; второй формат конфигурации не изобретать (`warrant.json` — 08 §3).
 
 ## Язык и документы
 
-Документы — по-русски, термины и команды — по-английски как есть; машинные файлы — JSON с `$schema`
-`warrant://<name>/<major>`. Большие переписывания документов — сначала обсудить с пользователем. Коммиты и PR — через
-файл сообщения (`git commit -F`, `gh pr create --body-file`) — шаги навыков `git-start` и `git-land`.
+Документы — по-русски, термины и команды — по-английски как есть; машинные файлы — JSON с `$schema` `warrant://<name>/<major>`. Большие переписывания документов — сначала обсудить с пользователем. Коммиты и PR — через файл сообщения (`git commit -F`, `gh pr create --body-file`) — шаги навыков `git-start` и `git-land`.
 
 ## ADR
 
-Индекс — [docs/adr/README.md](docs/adr/README.md). Опорные: стек и monorepo — 0013; доверие и forge — 0010; топология
-spec-PR / impl-PR / archive-PR — 0011; ID — 0012; контракт с OpenSpec — 0015; frontend разработки WARRANT — 0023;
-уровни тестов — 0025; границы модулей — 0030; поиск по коду и хуки — 0028, 0029, 0031; контекст разработки — 0032.
-Прежние решения grilling (P-, V-, G-, Q-, H-, D-, R-) — [архив NEXT-SESSION](docs/archive/2026-09-24-next-session.md).
+Индекс — [docs/adr/README.md](docs/adr/README.md). Опорные: стек и monorepo — 0013; доверие и forge — 0010; топология spec-PR / impl-PR / archive-PR — 0011; ID — 0012; контракт с OpenSpec — 0015; frontend разработки WARRANT — 0023; уровни тестов — 0025; границы модулей — 0030; поиск по коду и хуки — 0028, 0029, 0031; контекст разработки — 0032. Прежние решения grilling (P-, V-, G-, Q-, H-, D-, R-) — [архив NEXT-SESSION](docs/archive/2026-09-24-next-session.md).

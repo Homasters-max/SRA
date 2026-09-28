@@ -1,16 +1,10 @@
 # code-search — справочник
 
-Команды и сценарии к навыку [code-search](SKILL.md). `cs` = `node scripts/dev/cs.js` из корня worktree (из подкаталога —
-`node "$(git rev-parse --show-toplevel)/scripts/dev/cs.js"`; `--in` и путь файла — от текущего каталога). Индекс
-строится и обновляется сам. `--json` — у всех команд, кроме `version`.
+Команды и сценарии к навыку [code-search](SKILL.md). `cs` = `node scripts/dev/cs.js` из корня worktree (из подкаталога — `node "$(git rev-parse --show-toplevel)/scripts/dev/cs.js"`; `--in` и путь файла — от текущего каталога). Индекс строится и обновляется сам. `--json` — у всех команд, кроме `version`.
 
 ## Чего граф не видит
 
-Аудит против компилятора TypeScript ([ADR-0029](../../../docs/adr/WARRANT-ADR-0029-graft-audit-dev-hooks.md),
-[отчёт](../../../docs/process/graft-audit.md)): вызовов через порты и интерфейсы (`ctx.git.head()`, `ctx.checks.run()`);
-вызовов из другого файла, если имя определено в нескольких файлах; вызовов методов у переменной без известного типа и
-в цепочках (`project().withChange()`). Константы модуля — не узлы. Поэтому `callers` — нижняя граница, а список правок
-даёт `impact`.
+Аудит против компилятора TypeScript ([ADR-0029](../../../docs/adr/WARRANT-ADR-0029-graft-audit-dev-hooks.md), [отчёт](../../../docs/process/graft-audit.md)): вызовов через порты и интерфейсы (`ctx.git.head()`, `ctx.checks.run()`); вызовов из другого файла, если имя определено в нескольких файлах; вызовов методов у переменной без известного типа и в цепочках (`project().withChange()`). Константы модуля — не узлы. Поэтому `callers` — нижняя граница, а список правок даёт `impact`.
 
 ## Команды
 
@@ -40,5 +34,4 @@
 
 ## Запрещено всегда
 
-ADR-0026 п. 2: `graft init`, `upgrade`, `mcp`, `brain`, флаги `--deep`, `--lsp`, каталог позиционным аргументом —
-обёртка их не пропускает.
+ADR-0026 п. 2: `graft init`, `upgrade`, `mcp`, `brain`, флаги `--deep`, `--lsp`, каталог позиционным аргументом — обёртка их не пропускает.

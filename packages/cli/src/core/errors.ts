@@ -133,14 +133,17 @@ export class WarrantError extends Error {
   readonly path: string | undefined;
   readonly hint: string | undefined;
   readonly exitCode: ExitCode;
+  /** What the failing command puts in `data` (`{}` without it), e.g. `received` of `SKILL_RESULT_INVALID` (I-199). */
+  readonly data: Record<string, unknown> | undefined;
 
-  constructor(code: ErrorCode, message: string, options: ErrorOptions & { exitCode?: ExitCode } = {}) {
+  constructor(code: ErrorCode, message: string, options: ErrorOptions & { exitCode?: ExitCode; data?: Record<string, unknown> } = {}) {
     super(message);
     this.name = "WarrantError";
     this.code = code;
     this.path = options.path;
     this.hint = options.hint;
     this.exitCode = options.exitCode ?? EXIT.CONFIG;
+    this.data = options.data;
   }
 
   toCliError(): CliError {

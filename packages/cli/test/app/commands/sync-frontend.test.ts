@@ -19,6 +19,7 @@ import type { CommandResult } from "../../../src/io/output.js";
 import { CORE_SDD_RANGE, REPO_ROOT } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { validateFile } from "../../../src/core/schemas/semantic.js";
 import { validate, validateErrors } from "../helpers/validate.js";
 
 const builder = useProjectBuilder();
@@ -220,7 +221,7 @@ describe("warrant sync: the subagent warrant-reviewer", () => {
     return { frontmatter: parseYaml(match?.[1] ?? "") as Record<string, any>, body: match?.[2] ?? "" };
   }
 
-  it("frontmatter with read-only tools and the guard hook on Bash, the marker, the review skill, run submit; a second sync changes no byte (SCN-KRN-139)", async () => {
+  it("frontmatter with reading tools, Bash and Write and the guard hook on Bash|Write, the marker, the review skill, run submit --file; a second sync changes no byte (SCN-KRN-139)", async () => {
     const p = project(["claude"]);
     const run = await sync(p);
     expect(run.errors).toEqual([]);
@@ -231,9 +232,9 @@ describe("warrant sync: the subagent warrant-reviewer", () => {
     expect(frontmatter["name"]).toBe("warrant-reviewer");
     expect(frontmatter["description"]).toEqual(expect.any(String));
     const tools = String(frontmatter["tools"]).split(",").map((t) => t.trim());
-    expect(tools).toEqual(["Read", "Grep", "Glob", "Bash"]);
-    expect(tools.filter((t) => ["Write", "Edit", "NotebookEdit"].includes(t))).toEqual([]);
-    expect(frontmatter["hooks"]).toEqual({ PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: GUARD_COMMAND }] }] });
+    expect(tools).toEqual(["Read", "Grep", "Glob", "Bash", "Write"]);
+    expect(tools.filter((t) => ["Edit", "NotebookEdit"].includes(t))).toEqual([]);
+    expect(frontmatter["hooks"]).toEqual({ PreToolUse: [{ matcher: "Bash|Write", hooks: [{ type: "command", command: GUARD_COMMAND }] }] });
 
     // The marker, the text of the skill without its frontmatter, then how the result is handed in.
     expect(body.split("\n").find((l) => l.trim() !== "")).toBe(AGENTS_MD_MARKER);
@@ -243,8 +244,17 @@ describe("warrant sync: the subagent warrant-reviewer", () => {
     expect(body).not.toContain("version: 0.2.0");
     const submit = body.indexOf("## Сдача результата");
     expect(submit).toBeGreaterThan(body.indexOf(skillBody));
-    expect(body.slice(submit)).toContain("warrant run submit <<'JSON'");
-    expect(body.slice(submit)).toContain("specification/adversarial-review@0.2.0");
+    const handIn = body.slice(submit);
+    expect(handIn).toContain("warrant run submit --file");
+    expect(handIn).toContain("--dry-run");
+    expect(handIn).toContain("часть сдачи");
+    expect(handIn).toContain("Scratchpad directory");
+    expect(handIn).not.toContain("<<'JSON'");
+    expect(handIn).toContain("specification/adversarial-review@0.2.0");
+    // Every example envelope of the body passes warrant://skill-result/1 (R-22, I-197).
+    const examples = [...body.matchAll(/```json\n([\s\S]*?)\n```/g)].map((m) => JSON.parse(m[1] as string) as Record<string, unknown>);
+    expect(examples.length).toBeGreaterThanOrEqual(2);
+    for (const example of examples) expect(validateFile(example as never, "example").ok).toBe(true);
 
     // Hashed by the lock like every exact target; validate is clean; a second sync writes nothing.
     const lock = JSON.parse(p.read(".warrant/warrant.lock.json")) as { generated: Record<string, string> };

@@ -31,17 +31,17 @@
 
 ## 3. Сдача review (W-6, BL-46, R-22, L4)
 
-- [ ] 3.1 Guard (§4): `tmpDir` в `GuardInput` из `commands/guard.ts` (`os.tmpdir()`), `outsideFiles` и сравнение после
+- [x] 3.1 Guard (§4): `tmpDir` в `GuardInput` из `commands/guard.ts` (`os.tmpdir()`), `outsideFiles` и сравнение после
   `realpath` в `core/guard/guard.ts`, hint с путём каталога, пути вне проекта не в `guard_events[].paths`,
   решение правки под Run `review` в `decide.ts`.
 
   Проверка: app `guard` — SCN-ENF-041 с временным каталогом теста; SCN-ENF-026 без правок; без Run путь вне проекта — `allow`.
-- [ ] 3.2 Субагент (§4): `core/sync/claude.ts` — `tools` с `Write`, matcher `Bash|Write` (и в белом списке `dev-hooks.test.ts`),
+- [x] 3.2 Субагент (§4): `core/sync/claude.ts` — `tools` с `Write`, matcher `Bash|Write` (и в белом списке `dev-hooks.test.ts`),
   раздел «Сдача результата» с оговоркой о файле envelope, сдачей из корня проекта, `--file` и
   `--dry-run`, полный пример envelope; `warrant sync` перегенерирует `.claude/agents/warrant-reviewer.md` репозитория.
 
   Проверка: app `sync` — SCN-KRN-139 (пример из тела проходит схему `skill-result/1`); `warrant sync --check` зелёный.
-- [ ] 3.3 `data` ошибки (§4): `WarrantError.data` (`core/errors.ts`), `failure` (`io/output.ts`), `received` в `parseEnvelope`.
+- [x] 3.3 `data` ошибки (§4): `WarrantError.data` (`core/errors.ts`), `failure` (`io/output.ts`), `received` в `parseEnvelope`.
 
   Проверка: app `run submit` — SCN-ENF-042; SCN-ENF-033 без правок ожидаемых значений; прочие ошибки — `data: {}`.
 

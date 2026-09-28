@@ -156,8 +156,17 @@ export const claudeMdTarget: SubsetTarget = linesTarget(CLAUDE_MD_REL, ["@AGENTS
 /** The subagent of the review Run (REQ-KRN-033, ADR-0034 п. 10, design phase-4b §6): an exact-bytes target. */
 export const CLAUDE_REVIEWER_REL = ".claude/agents/warrant-reviewer.md";
 
-/** Tools of the subagent: reading and Bash, never `Write`, `Edit`, `NotebookEdit` (ADR-0014 п. 3). */
-export const REVIEWER_TOOLS: readonly string[] = ["Read", "Grep", "Glob", "Bash"];
+/**
+ * Tools of the subagent: reading, Bash and `Write` for its envelope file only — never `Edit`, `NotebookEdit`
+ * (ADR-0014 п. 3 as ADR-0042 п. 4 amends it: guard lets a review Run write only into the temporary directory).
+ */
+export const REVIEWER_TOOLS: readonly string[] = ["Read", "Grep", "Glob", "Bash", "Write"];
+
+/** Tools the hook of the subagent guards: its shell and its only write (ADR-0042 п. 4). */
+export const REVIEWER_HOOK_MATCHER = "Bash|Write";
+
+/** A run id of the right form for the example envelope: the example passes `warrant://skill-result/1` (R-22). */
+const EXAMPLE_RUN = "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y";
 
 /** The review skill as `sync` resolved it: its version and the text of its SKILL.md. */
 export interface ReviewSkill {
@@ -170,23 +179,38 @@ function skillBody(text: string): string {
   return text.replace(/^---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/, "").replace(/^(?:[ \t]*\r?\n)+/, "").trimEnd();
 }
 
+/** The example envelope of the section «Сдача результата»: every field the schema requires, one line (R-22). */
+export function exampleEnvelope(skill: ReviewSkill): string {
+  return JSON.stringify({
+    $schema: "warrant://skill-result/1",
+    skill: `${REVIEW_SKILL}@${skill.version}`,
+    run: EXAMPLE_RUN,
+    run_state: "SUCCEEDED",
+    findings: [],
+    provenance: { model: "<model>", started_at: "2026-09-28T10:00:00Z", finished_at: "2026-09-28T10:12:00Z" }
+  });
+}
+
 /**
  * Bytes of `.claude/agents/warrant-reviewer.md`: frontmatter (`name`,
- * `description`, read-only `tools` and Bash, the hook `PreToolUse` on `Bash`
- * running `warrant guard --frontend claude` — the guard of the review Run
- * allows only `warrant run submit`, probe of Claude Code 2.1.283, I-168), the
- * generated marker, the body of the review skill and how the result is handed
- * in: the envelope in one command `warrant run submit <<'JSON' … JSON` (I-167).
+ * `description`, reading tools, Bash and `Write`, the hook `PreToolUse` on
+ * `Bash|Write` running `warrant guard --frontend claude` — the guard of the
+ * review Run allows only `warrant run submit` and a write into the temporary
+ * directory, probe of Claude Code 2.1.283, I-168), the generated marker, the
+ * body of the review skill and how the result is handed in: the envelope as
+ * a file `<RUN-id>.envelope.json` in the session scratchpad, then
+ * `warrant run submit --file` — a command line has a length limit on Windows
+ * (ADR-0042 п. 4, ADR-0043, I-197, I-198).
  */
 export function reviewerAgent(skill: ReviewSkill): Buffer {
   const lines = [
     "---",
     "name: warrant-reviewer",
-    `description: Adversarial review of the specification of a Change in a review Run of warrant (${REVIEW_SKILL}). Reads the Context Pack of the Run, does not edit files, hands in a warrant://skill-result/1 envelope with warrant run submit. Use when a review Run is active (warrant run start <change> --operation review).`,
+    `description: Adversarial review of the specification of a Change in a review Run of warrant (${REVIEW_SKILL}). Reads the Context Pack of the Run, does not edit project files, writes its warrant://skill-result/1 envelope to the session scratchpad and hands it in with warrant run submit --file. Use when a review Run is active (warrant run start <change> --operation review).`,
     `tools: ${REVIEWER_TOOLS.join(", ")}`,
     "hooks:",
     "  PreToolUse:",
-    '    - matcher: "Bash"',
+    `    - matcher: "${REVIEWER_HOOK_MATCHER}"`,
     "      hooks:",
     "        - type: command",
     `          command: "${GUARD_COMMAND}"`,
@@ -198,24 +222,34 @@ export function reviewerAgent(skill: ReviewSkill): Buffer {
     "",
     "## Сдача результата",
     "",
-    "Ты работаешь в Run `review`: хук этого файла (`" + GUARD_COMMAND + "` на `Bash`) запрещает любую правку и любую",
-    "команду shell, кроме `warrant run submit`. Файлы читай инструментами Read, Grep, Glob; Bash — только для сдачи.",
+    "Ты работаешь в Run `review`: хук этого файла (`" + GUARD_COMMAND + "` на `Bash` и `Write`) запрещает правку файлов",
+    "проекта и любую команду shell, кроме `warrant run submit`. Файлы читай инструментами Read, Grep, Glob. Единственная",
+    "запись — файл envelope во временном каталоге: это часть сдачи, а не правка, которую запрещает текст skill (его запрет",
+    "касается файлов проекта).",
     "",
     "1. Context Pack — вывод `warrant run start <change> --operation review`, его передаёт тот, кто тебя вызвал: `run`,",
     "   `change`, `items[]`, `context_hash`. Без него review не начинай — попроси Context Pack.",
-    `2. Envelope \`warrant://skill-result/1\` раздела «Результат» (\`skill\` — \`${REVIEW_SKILL}@${skill.version}\`, \`run\` и`,
-    "   `context_hash` — из Context Pack) сдай одной командой Bash: envelope — в heredoc, без файла, без других команд",
-    "   до и после; строка-разделитель `JSON` — с начала строки:",
+    `2. Собери envelope \`warrant://skill-result/1\` раздела «Результат» (\`skill\` — \`${REVIEW_SKILL}@${skill.version}\`, \`run\` и`,
+    "   `context_hash` — из Context Pack). Инструментом Write запиши его файлом `<run>.envelope.json` в каталог scratchpad",
+    "   сессии — путь из строки «Scratchpad directory» твоего окружения (запись туда не требует разрешения); строки нет —",
+    "   во временный каталог ОС (`TEMP` на Windows, `TMPDIR` или `/tmp` на Linux и macOS). В проект файл не пиши.",
+    "3. Сдай его из корня проекта, без `cd` и без других команд в строке — сначала пробой, затем по-настоящему:",
     "",
     "```bash",
-    "warrant run submit <<'JSON'",
-    '{"$schema": "warrant://skill-result/1", "skill": "…", "run": "RUN-…", "run_state": "SUCCEEDED", "findings": [], "provenance": {}}',
-    "JSON",
+    "warrant run submit --file <путь к файлу envelope> --dry-run",
+    "warrant run submit --file <путь к файлу envelope>",
     "```",
     "",
-    "3. Ответ `ok: false` — Run остаётся активным: исправь envelope по `errors[].message` и `hint` и сдай снова. Ответ",
-    "   `ok: true` — Run завершён: верни вызвавшему `evidence`, `status` и число находок по `severity` из ответа.",
-    "4. `warrant` не найден или команда отклонена не guard'ом — остановись и сообщи вызвавшему; guard не обходи.",
+    "   Пример envelope (все обязательные поля; `run` и `skill` — свои):",
+    "",
+    "```json",
+    exampleEnvelope(skill),
+    "```",
+    "",
+    "4. Ответ `ok: false` — Run остаётся активным: исправь файл по `errors[].message`, `hint` и `data.received` и сдай",
+    "   снова с шага 3. Ответ `ok: true` — Run завершён: верни вызвавшему `evidence`, `status` и число находок по",
+    "   `severity` из ответа.",
+    "5. `warrant` не найден или команда отклонена не guard'ом — остановись и сообщи вызвавшему; guard не обходи.",
     ""
   ];
   return Buffer.from(lines.join("\n"), "utf8");

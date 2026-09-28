@@ -11,7 +11,8 @@
  * taken — `deny` with the reason and a hint. `post` is always `allow`: its
  * failure gives no hints and a line on stderr (ADR-0019 п. 8).
  */
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import type { Ctx } from "../ctx.js";
@@ -31,12 +32,14 @@ import {
   editWithRun,
   guardedChecks,
   pathClasses,
+  reviewEditAnswer,
   reviewShellAnswer,
   RUN_START_HINT,
   shellAnswer,
   VALIDATE_HINT,
   type Answer,
-  type PathClasses
+  type PathClasses,
+  type ReviewEditPlaces
 } from "./decide.js";
 import { parseEvent } from "./event.js";
 
@@ -123,10 +126,50 @@ function eventRecord(event: GuardEvent, files: string[], answer: Answer, finding
   };
 }
 
+/** Absolute paths of the event outside the project (they are never recorded in `guard_events[]`). */
+function outsidePaths(root: string, event: GuardEvent): string[] {
+  return event.paths.map((given) => path.resolve(event.cwd, given)).filter((file) => projectPath(root, file) === undefined);
+}
+
+/**
+ * The temporary directory as `os.tmpdir()` finds it, from `env` so a test can
+ * place it (I-201): `TEMP`, `TMP` on Windows; `TMPDIR`, `TMP`, `TEMP` elsewhere.
+ */
+export function tempDirOf(env: NodeJS.ProcessEnv): string {
+  const names = process.platform === "win32" ? ["TEMP", "TMP"] : ["TMPDIR", "TMP", "TEMP"];
+  const given = names.map((name) => env[name]).find((value) => typeof value === "string" && value !== "");
+  return given ?? tmpdir();
+}
+
+/** The real path of `file`: its nearest existing ancestor resolved (links, 8.3 short names), the rest appended. */
+function realPath(file: string): string {
+  let dir = path.resolve(file);
+  const rest: string[] = [];
+  for (;;) {
+    try {
+      return path.join(realpathSync.native(dir), ...rest.reverse());
+    } catch {
+      const parent = path.dirname(dir);
+      if (parent === dir) return path.resolve(file);
+      rest.push(path.basename(dir));
+      dir = parent;
+    }
+  }
+}
+
+/** Where the outside paths of an edit under a `review` Run land (ADR-0042 п. 4). */
+function reviewPlaces(root: string, event: GuardEvent, env: NodeJS.ProcessEnv): ReviewEditPlaces {
+  const tempDir = realPath(tempDirOf(env));
+  const tempInProject = projectPath(realPath(root), tempDir) !== undefined;
+  const strays = outsidePaths(root, event).filter((file) => projectPath(tempDir, realPath(file)) === undefined).length;
+  return { tempDir, tempInProject, strays };
+}
+
 /** The answer before the action; what fails in it is a refusal (F9). */
 function decidePre(ctx: Ctx, event: GuardEvent, files: readonly string[], run: Run | undefined, env: NodeJS.ProcessEnv): Answer {
   try {
     const classes = (loaded: LoadResult): PathClasses => pathClasses(loaded, cliWrittenState(ctx.root, env));
+    if (event.action === "edit" && run?.operation === "review") return reviewEditAnswer(run, files, reviewPlaces(ctx.root, event, env));
     if (event.action === "edit" && run !== undefined) return editWithRun(run, files, () => classes(loadPolicy(ctx.root)));
     if (event.action === "edit") {
       const loaded = loadPolicy(ctx.root);

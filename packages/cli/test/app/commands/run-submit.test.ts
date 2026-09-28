@@ -193,9 +193,33 @@ describe("warrant run submit: refusals write nothing", () => {
     expect(result.exitCode).toBe(3);
     expect(result.errors[0]).toMatchObject({ code: "SKILL_RESULT_INVALID", path: "/run" });
     expect(result.errors[0]?.hint).toContain(id);
+    expect(result.data["received"]).toMatchObject({ root: "object", keys: expect.arrayContaining(["$schema", "run", "skill"]) });
     expect(evidenceFiles(p)).toEqual([]);
     expect(p.json(`${RUNS}/${id}.json`)["run_state"]).toBe("RUNNING");
     expect(p.tree()).toEqual(before);
+  });
+
+  it("SKILL_RESULT_INVALID says what came, without values; a blank or missing file is USAGE (SCN-ENF-042)", async () => {
+    const { p, id } = await reviewing();
+    const partial = `{"$schema":"warrant://skill-result/1","run":"${id}","findings":[]}`;
+    const object = await submit(p, partial);
+    expect(object.exitCode).toBe(3);
+    expect(object.errors[0]?.code).toBe("SKILL_RESULT_INVALID");
+    expect(object.data["received"]).toEqual({ bytes: Buffer.byteLength(partial, "utf8"), root: "object", keys: ["$schema", "findings", "run"] });
+    expect(JSON.stringify(object.data)).not.toContain(id);
+
+    const text = await submit(p, "not json");
+    expect(text.errors[0]?.code).toBe("SKILL_RESULT_INVALID");
+    expect(text.data["received"]).toEqual({ bytes: 8, root: "not-json", keys: [] });
+
+    writeFileSync(path.join(p.root, "blank.json"), "  \n");
+    const blank = await submit(p, "", { file: "blank.json" });
+    expect(blank.errors[0]).toMatchObject({ code: "USAGE", path: "blank.json" });
+    expect(blank.data["received"]).toBeUndefined();
+    const missing = await submit(p, "", { file: "nowhere.json" });
+    expect(missing.errors[0]).toMatchObject({ code: "USAGE", path: "nowhere.json" });
+    expect(missing.data["received"]).toBeUndefined();
+    expect(p.json(`${RUNS}/${id}.json`)["run_state"]).toBe("RUNNING");
   });
 
   it("an active implement Run: STATE_INVALID with warrant run finish, exit 3 (SCN-ENF-034)", async () => {

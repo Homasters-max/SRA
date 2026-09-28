@@ -1,12 +1,13 @@
 /**
  * `warrant guard` without `--frontend` in the test process (REQ-ENF-004,
- * SCN-ENF-011…016, SCN-ENF-037…040, F8, F9, F16, F18): the normalised event, `pre` of an edit
+ * SCN-ENF-011…016, SCN-ENF-037…041, F8, F9, F16, F18): the normalised event, `pre` of an edit
  * with and without a Run, `pre` of a shell command against `guard_prefixes`,
  * the hints of `post`, the failures that close `pre` and open `post`, the
  * events in `guard_events[]` and the lock of the Run. Exit 0 whatever the
  * decision.
  */
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -44,9 +45,9 @@ async function repo(state: string, configure: (p: ProjectBuilder) => void = () =
 }
 
 /** `warrant guard` on `event`; `cwd` is the project root unless the event names one. */
-async function guard(p: ProjectBuilder, event: Record<string, unknown> | string): Promise<Result> {
+async function guard(p: ProjectBuilder, event: Record<string, unknown> | string, env: NodeJS.ProcessEnv = ENV): Promise<Result> {
   const input = typeof event === "string" ? event : JSON.stringify({ paths: [], cwd: p.root, ...event });
-  const result = await invoke(() => runGuard(p.ctx, input, ENV));
+  const result = await invoke(() => runGuard(p.ctx, input, env));
   // The decision is data, not an error (design §6).
   expect(result.exitCode).toBe(0);
   expect(result.ok).toBe(true);
@@ -336,6 +337,37 @@ describe("warrant guard under a review Run (REQ-ENF-004)", () => {
     expect(events(p, id)).toEqual([
       expect.objectContaining({ phase: "pre", action: "edit", paths: ["openspec/changes/add-search/proposal.md"], decision: "deny" })
     ]);
+  });
+
+  it("an edit outside the project: only the temporary directory; the reason keeps no outside path (SCN-ENF-041)", async () => {
+    const { p, id } = await underReview();
+    const temp = mkdtempSync(path.join(tmpdir(), "warrant-temp-"));
+    const elsewhere = mkdtempSync(path.join(tmpdir(), "warrant-elsewhere-"));
+    const env = { TEMP: temp, TMP: temp, TMPDIR: temp };
+    const envelope = await guard(p, { phase: "pre", action: "edit", paths: [path.join(temp, `${id}.envelope.json`)] }, env);
+    expect(envelope.data["decision"]).toBe("allow");
+    const stray = await guard(p, { phase: "pre", action: "edit", paths: [path.join(elsewhere, "x.json")] }, env);
+    expect(stray.data["decision"]).toBe("deny");
+    expect(stray.data["reason"]).not.toContain(path.basename(elsewhere));
+    expect(stray.data["hints"].join(" ")).toContain("warrant run submit --file");
+    expect(stray.data["hints"].join(" ")).toContain(path.basename(temp));
+    const inProject = await guard(p, { phase: "pre", action: "edit", paths: ["openspec/changes/add-search/proposal.md"] }, env);
+    expect(inProject.data["decision"]).toBe("deny");
+    expect(events(p, id).map((e) => [e.decision, e.paths])).toEqual([
+      ["allow", []],
+      ["deny", []],
+      ["deny", ["openspec/changes/add-search/proposal.md"]]
+    ]);
+  });
+
+  it("a temporary directory inside the project: the envelope cannot be written, the reason says why (I-198)", async () => {
+    const { p } = await underReview();
+    const inside = path.join(p.root, "tmp");
+    mkdirSync(inside, { recursive: true });
+    const env = { TEMP: inside, TMP: inside, TMPDIR: inside };
+    const result = await guard(p, { phase: "pre", action: "edit", paths: [path.join(inside, "e.json")] }, env);
+    expect(result.data["decision"]).toBe("deny");
+    expect(result.data["reason"]).toContain("inside the project");
   });
 
   it("shell: warrant run submit is allowed, a line with any other command is denied with the hint (SCN-ENF-027)", async () => {

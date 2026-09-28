@@ -1,10 +1,10 @@
 ---
 name: warrant-reviewer
-description: Adversarial review of the specification of a Change in a review Run of warrant (specification/adversarial-review). Reads the Context Pack of the Run, does not edit files, hands in a warrant://skill-result/1 envelope with warrant run submit. Use when a review Run is active (warrant run start <change> --operation review).
-tools: Read, Grep, Glob, Bash
+description: Adversarial review of the specification of a Change in a review Run of warrant (specification/adversarial-review). Reads the Context Pack of the Run, does not edit project files, writes its warrant://skill-result/1 envelope to the session scratchpad and hands it in with warrant run submit --file. Use when a review Run is active (warrant run start <change> --operation review).
+tools: Read, Grep, Glob, Bash, Write
 hooks:
   PreToolUse:
-    - matcher: "Bash"
+    - matcher: "Bash|Write"
       hooks:
         - type: command
           command: "warrant guard --frontend claude"
@@ -116,21 +116,31 @@ Envelope MUST NOT содержать `gate_verdict` и `evidence_status`: ста
 
 ## Сдача результата
 
-Ты работаешь в Run `review`: хук этого файла (`warrant guard --frontend claude` на `Bash`) запрещает любую правку и любую
-команду shell, кроме `warrant run submit`. Файлы читай инструментами Read, Grep, Glob; Bash — только для сдачи.
+Ты работаешь в Run `review`: хук этого файла (`warrant guard --frontend claude` на `Bash` и `Write`) запрещает правку файлов
+проекта и любую команду shell, кроме `warrant run submit`. Файлы читай инструментами Read, Grep, Glob. Единственная
+запись — файл envelope во временном каталоге: это часть сдачи, а не правка, которую запрещает текст skill (его запрет
+касается файлов проекта).
 
 1. Context Pack — вывод `warrant run start <change> --operation review`, его передаёт тот, кто тебя вызвал: `run`,
    `change`, `items[]`, `context_hash`. Без него review не начинай — попроси Context Pack.
-2. Envelope `warrant://skill-result/1` раздела «Результат» (`skill` — `specification/adversarial-review@0.2.0`, `run` и
-   `context_hash` — из Context Pack) сдай одной командой Bash: envelope — в heredoc, без файла, без других команд
-   до и после; строка-разделитель `JSON` — с начала строки:
+2. Собери envelope `warrant://skill-result/1` раздела «Результат» (`skill` — `specification/adversarial-review@0.2.0`, `run` и
+   `context_hash` — из Context Pack). Инструментом Write запиши его файлом `<run>.envelope.json` в каталог scratchpad
+   сессии — путь из строки «Scratchpad directory» твоего окружения (запись туда не требует разрешения); строки нет —
+   во временный каталог ОС (`TEMP` на Windows, `TMPDIR` или `/tmp` на Linux и macOS). В проект файл не пиши.
+3. Сдай его из корня проекта, без `cd` и без других команд в строке — сначала пробой, затем по-настоящему:
 
 ```bash
-warrant run submit <<'JSON'
-{"$schema": "warrant://skill-result/1", "skill": "…", "run": "RUN-…", "run_state": "SUCCEEDED", "findings": [], "provenance": {}}
-JSON
+warrant run submit --file <путь к файлу envelope> --dry-run
+warrant run submit --file <путь к файлу envelope>
 ```
 
-3. Ответ `ok: false` — Run остаётся активным: исправь envelope по `errors[].message` и `hint` и сдай снова. Ответ
-   `ok: true` — Run завершён: верни вызвавшему `evidence`, `status` и число находок по `severity` из ответа.
-4. `warrant` не найден или команда отклонена не guard'ом — остановись и сообщи вызвавшему; guard не обходи.
+   Пример envelope (все обязательные поля; `run` и `skill` — свои):
+
+```json
+{"$schema":"warrant://skill-result/1","skill":"specification/adversarial-review@0.2.0","run":"RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y","run_state":"SUCCEEDED","findings":[],"provenance":{"model":"<model>","started_at":"2026-09-28T10:00:00Z","finished_at":"2026-09-28T10:12:00Z"}}
+```
+
+4. Ответ `ok: false` — Run остаётся активным: исправь файл по `errors[].message`, `hint` и `data.received` и сдай
+   снова с шага 3. Ответ `ok: true` — Run завершён: верни вызвавшему `evidence`, `status` и число находок по
+   `severity` из ответа.
+5. `warrant` не найден или команда отклонена не guard'ом — остановись и сообщи вызвавшему; guard не обходи.

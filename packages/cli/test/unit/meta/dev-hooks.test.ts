@@ -34,8 +34,8 @@ const WHITE_LIST: Record<string, { script: string; arg: string }[]> = {
 const AGENT_HOOKS: Record<string, unknown> = {
   "warrant-reviewer.md": { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "warrant guard --frontend claude" }] }] },
 };
-/** Commands the git hook decides on — exactly ADR-0033 п. 9; a new rule is a new decision, not a quiet addition. */
-const GIT_HOOK_RULES = ["force-push", "main-checkout", "openspec-archive"];
+/** Commands the git hook decides on — exactly ADR-0033 п. 9 and ADR-0043; a new rule is a new decision, not a quiet addition. */
+const GIT_HOOK_RULES = ["force-push", "long-command", "main-checkout", "openspec-archive"];
 
 interface HookGroup {
   matcher?: string;

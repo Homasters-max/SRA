@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { hookResponse, RULES, simpleCommands } from "../../../../../scripts/dev/git-hook-lib.js";
+import { commandCost, hookResponse, LONG_COMMAND_LIMIT, RULES, simpleCommands } from "../../../../../scripts/dev/git-hook-lib.js";
 
 const MAIN = "D:/project/SRA";
 const WT = "D:/project/SRA-x";
@@ -129,9 +129,30 @@ describe("git-hook — ADR-0033 п. 9", () => {
     expect(simpleCommands(`a "b; c" && d 'e|f' | g\nh`)).toEqual([["a", "b; c"], ["d", "e|f"], ["g"], ["h"]]);
   });
 
+  it("long-command: on win32 a Bash command over the limit is denied before any git rule, with the file way out (ADR-0043)", () => {
+    const win = io({ platform: "win32" });
+    const long = `echo ${"я".repeat(LONG_COMMAND_LIMIT)}`;
+    const res = hookResponse("pre-tool", call(long, WT), win);
+    expect(rulesOf(res)).toEqual(["long-command"]);
+    expect(res?.hookSpecificOutput.permissionDecisionReason).toContain("--body-file");
+    expect(rulesOf(hookResponse("pre-tool", call(`git commit -m x && ${long}`, MAIN), win))).toEqual(["long-command"]);
+    // each ' costs 4 more: `'"'"'` inside `eval '…'`
+    const quotes = "'".repeat(1500);
+    expect(commandCost(quotes)).toBe(7500);
+    expect(rulesOf(hookResponse("pre-tool", call(`echo ${quotes}`, WT), win))).toEqual(["long-command"]);
+    expect(hookResponse("pre-tool", call(`echo ${"x".repeat(LONG_COMMAND_LIMIT - 10)}`, WT), win)).toBeNull();
+  });
+
+  it("long-command: not on linux or darwin, not for PowerShell", () => {
+    const long = `echo ${"x".repeat(LONG_COMMAND_LIMIT + 1)}`;
+    expect(hookResponse("pre-tool", call(long, WT), io({ platform: "linux" }))).toBeNull();
+    expect(hookResponse("pre-tool", call(long, WT), io())).toBeNull();
+    expect(hookResponse("pre-tool", call(long, WT, "PowerShell"), io({ platform: "win32" }))).toBeNull();
+  });
+
   it("every rule says what it protects and what to do instead", () => {
     for (const rule of Object.values(RULES)) {
-      expect(rule.what).toMatch(/ADR-0033 п\. 9/);
+      expect(rule.what).toMatch(/ADR-0033 п\. 9|ADR-0043/);
       expect(rule.instead.length).toBeGreaterThan(0);
     }
   });

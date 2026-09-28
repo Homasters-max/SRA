@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "lattice-fixes",
-  "commit": "360949c00f2ffbe5775e2a3f520d8e957ea2833c",
+  "commit": "e78de5a94c2be233ab551a6e2dac72abdea98da6",
   "versions": {
     "warrant": "0.8.0",
     "openspec": "1.13.1",
@@ -11,9 +11,15 @@
   "evidence": [
     "EVID-01M3JMYAS4PX4YV6G9B2XEQ8ZK",
     "EVID-01M3JNS9HK9DHXFNSW2XNYNTKW",
-    "EVID-01M3JNV1Z61MSRY91061S77MYV"
+    "EVID-01M3JNV1Z61MSRY91061S77MYV",
+    "EVID-01M3JRXDWYJPPH4DASHK3DKBZH",
+    "EVID-01M3JRY9N6K2PXZ4WS44M0SCXY"
   ],
   "gates": {
+    "adversarial-review": "PASS",
+    "blocking-unknowns-resolved": "PASS",
+    "branch-isolated": "PASS",
+    "human-approval": "PASS",
     "ids-valid": "PASS",
     "required-artifacts-present": "PASS",
     "spec-valid": "PASS"

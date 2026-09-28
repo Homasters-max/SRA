@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3JRXDWYJPPH4DASHK3DKBZH",
+  "claim": {
+    "text": "Homasters-max approved lattice-fixes for SPECIFIED->APPROVED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "e78de5a94c2be233ab551a6e2dac72abdea98da6",
+    "base_commit": "e78de5a94c2be233ab551a6e2dac72abdea98da6",
+    "spec_revision": "openspec/changes/lattice-fixes@e78de5a94c2be233ab551a6e2dac72abdea98da6",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/80"
+  },
+  "context_hash": "sha256:e49c67bd5d611bfe11e728cf0131293a8a56d4e7312811089591e994d231b2f4",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-28T01:08:50.718Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

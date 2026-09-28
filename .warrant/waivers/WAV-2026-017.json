@@ -9,6 +9,7 @@
     "правки delta spec и строки I-N — в теле impl-PR; review-impl сверяет реализацию с правленой spec"
   ],
   "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
   "expires_at": "2026-10-12",
-  "waiver_state": "PROPOSED"
+  "waiver_state": "ACTIVE"
 }

@@ -50,13 +50,13 @@
 - [x] 4.2 `evidencePart`, `checksForTransition`, `weakenings` (§5); `CONFIG_INVALID` для `check` на незагруженный check (I-204).
 
   Проверка: app `gate`, `check` — SCN-VER-119, SCN-VER-123; прочие SCN REQ-VER-003 без правок ожидаемых значений.
-- [x] 4.4 `warrant ci`, правило `ci_evidence` (§5): запись check требования.
-
-  Проверка: app `ci` — SCN-VER-108, вариант с `check` (I-205).
 - [x] 4.3 `validate` — ссылка `check` (§5).
 
   Проверка: app `validate` — SCN-KRN-156.
 
+- [x] 4.4 `warrant ci`, правило `ci_evidence` (§5): запись check требования.
+
+  Проверка: app `ci` — SCN-VER-108, вариант с `check` (I-205).
 ## 5. Идентичность (S-1, BL-44, BL-83, L3)
 
 - [x] 5.1 `WarrantConfig.agents` (`core/config.ts`), `config.test.ts`; `validate` — `identities.agents` ∩ `roles` (§6).
@@ -77,6 +77,6 @@
 
 - [x] 7.1 Документы (§8): 04 — таблица восстановления (со строкой «запись вне manifest», I-203); 06 §2, §3, §8; `backlog.md` —
   удалить BL-44, BL-51, BL-81, BL-93, R-32; «Куда» BL-57, BL-83.
-- [x] 7.2 Waiver `spec-approved` на правку delta spec по I-202…I-208 (ADR-0024 п. 4) — `PROPOSED` в теле impl-PR; активирует
+- [x] 7.2 Waiver `spec-approved` на правку delta spec по I-202…I-208 и I-210 (ADR-0024 п. 4; WAV-2026-019 — ревью реализации) — `PROPOSED` в теле impl-PR; активирует
   maintainer по слову в PR.
 - [ ] 7.3 Ревью реализации — навык `review-impl`; `transition VERIFYING` последним коммитом impl-PR.

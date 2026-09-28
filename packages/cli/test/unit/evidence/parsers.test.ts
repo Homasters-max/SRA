@@ -211,6 +211,14 @@ describe("parser junit → test-report", () => {
     expect(result.metrics).toEqual({ tests: 6, failures: 1, errors: 0, skipped: 5 });
   });
 
+  it("SCN-VER-118 reads a name with an unescaped > whole (XML allows it in an attribute value)", () => {
+    const doc = `<testsuite><testcase name="a > b SCN-VER-009" classname='x > y'><skipped/></testcase><testcase name="ok"/></testsuite>`;
+    const result = parseJunitDocuments([doc]);
+    expect(result.status).toBe("NOT_PROVEN");
+    expect(result.limitations).toEqual(["junit: skipped SCN-VER-009"]);
+    expect(result.metrics).toEqual({ tests: 2, failures: 0, errors: 0, skipped: 1 });
+  });
+
   it("SCN-VER-118 reads the files of {out} in the order of their names", () => {
     const dir = makeTempDir("warrant-unit-junit-");
     try {

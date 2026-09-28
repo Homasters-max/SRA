@@ -38,8 +38,13 @@ function attribute(attributes: string, name: string): number {
   return Number.parseInt(match[1] ?? match[2] ?? "0", 10);
 }
 
-/** `<testcase` opening tag; group 1 is `/` when it closes itself. */
-const CASE_RE = /<testcase(?![\w:.-])[^>]*?(\/?)>/g;
+/**
+ * `<testcase` opening tag; group 1 is `/` when it closes itself. A quoted
+ * attribute value is taken whole, so an unescaped `>` inside `name` (XML
+ * allows it) does not end the tag early (review lattice-issues, REQ-VER-002);
+ * the alternatives start with different characters — no catastrophic backtracking.
+ */
+const CASE_RE = /<testcase(?![\w:.-])(?:[^>"']|"[^"]*"|'[^']*')*?(\/?)>/g;
 
 const CASE_END_RE = /<\/testcase\s*>/g;
 

@@ -1,0 +1,14 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-2026-019",
+  "change": "lattice-issues",
+  "gate": "spec-approved",
+  "reason": "I-202…I-208, I-210: находки review 2 spec (BL-93, EVID-01M3MZHGZ92Q04VA26FHB708AG) и строгая форма под Run review внесены правкой delta spec после APPROVED по ADR-0024 п. 4; заменяет WAV-2026-018 (без I-210)",
+  "risk": "LOW",
+  "compensating_controls": [
+    "строки I-202…I-208, I-210 design.md, diff delta spec в impl-PR, ревью review-impl"
+  ],
+  "owner": "human:Homasters-max",
+  "expires_at": "2026-10-13",
+  "waiver_state": "PROPOSED"
+}

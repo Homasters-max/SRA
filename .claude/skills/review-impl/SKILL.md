@@ -23,9 +23,7 @@ argument-hint: "<change> [вопросы maintainer'а]"
    ```
 2. Агент — тип `reviewer` (`.claude/agents/reviewer.md`, без `Write` и `Edit`), `description` = `<change> review`:
    ```text
-   Change <change>, ветка worktree/<change>, worktree <путь>. Прочитай openspec/changes/<change>/ (proposal, specs,
-   design, tasks) и ADR из proposal. Diff: <stat>. Покрытие SCN: <вывод scn-coverage>. Вопросы maintainer'а: <или
-   «нет»>. Отчёт — по твоей инструкции.
+   Change <change>, ветка worktree/<change>, worktree <путь>. Прочитай openspec/changes/<change>/ (proposal, specs, design, tasks) и ADR из proposal. Diff: <stat>. Покрытие SCN: <вывод scn-coverage>. Вопросы maintainer'а: <или «нет»>. Отчёт — по твоей инструкции.
    ```
 3. Разбор отчёта — самому, каждую находку проверить по `файл:строка`:
    - 🔴 — исправить в этой ветке (коммит `<change>: review — …` навыка `git-start`), затем снова шаг 4 `change-impl-pr` и шаги 1–3 этого навыка;

@@ -8,11 +8,9 @@ LATTICE — отдельный проект `D:\project\LATTICE` (`Homasters-max
 
 ```text
 Поток lattice (после phase-4). Решения — docs/drafts/2026-09-26-lattice-first/01-accepted-round-2.md, не гриллить.
-1) ADR WARRANT: порядок фаза 4 → slice LATTICE → WARRANT на LATTICE, строка roadmap после фазы 4 с критерием выхода
-   slice (Q14, Q16). 2) Перенос: git subtree split --prefix=lattice → D:\project\LATTICE, remote
-   Homasters-max/LATTICE (public — подтвердить maintainer'ом перед созданием), минимальный CI; в SRA — PR удаления
-   lattice/ со ссылкой, structure.test.ts, CLAUDE.md, удаление этого файла (Q9, Q18). 3) LATTICE-ADR-0001 в новом
-   репозитории; дальше — его NEXT-SESSION.md: grilling реестра LD-* (первый вопрос — стек TypeScript/Node, Q11).
+1) ADR WARRANT: порядок фаза 4 → slice LATTICE → WARRANT на LATTICE, строка roadmap после фазы 4 с критерием выхода slice (Q14, Q16).
+2) Перенос: git subtree split --prefix=lattice → D:\project\LATTICE, remote Homasters-max/LATTICE (public — подтвердить maintainer'ом перед созданием), минимальный CI; в SRA — PR удаления lattice/ со ссылкой, structure.test.ts, CLAUDE.md, удаление этого файла (Q9, Q18).
+3) LATTICE-ADR-0001 в новом репозитории; дальше — его NEXT-SESSION.md: grilling реестра LD-* (первый вопрос — стек TypeScript/Node, Q11).
 ```
 
 ## Открытые вопросы

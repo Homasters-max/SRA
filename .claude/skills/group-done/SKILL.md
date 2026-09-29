@@ -20,12 +20,9 @@ argument-hint: "<номер группы>"
    ```bash
    npm run typecheck
    npm test
-   node packages/cli/dist/bin/warrant.js validate
-   node packages/cli/dist/bin/warrant.js fmt --check
-   node packages/cli/dist/bin/warrant.js sync --check
-   npm run versions:check
+   node scripts/dev/check.js --no-build
    ```
-   `npm test` собирает `dist` и идёт до команд `warrant`; без флагов раннера (ADR-0025 п. 8). Успех JSON-вывода — `"ok": true` (у `sync --check` ещё `changed: []`) и код 0.
+   `npm test` собирает `dist` и идёт до `check.js`; без флагов раннера (ADR-0025 п. 8). `check.js` — `sync --check`, `validate`, `fmt --check`, `versions:check`: строка на проверку, код 0 — всё прошло.
 3. Галочки: в tasks.md под `## N.` каждую `- [ ] N.<k>` → `- [x] N.<k>`; другие группы не трогать.
 4. Состав коммита:
    ```bash

@@ -18,12 +18,10 @@ argument-hint: "[pr | merge <N> | after <N>]"
    ```bash
    npm run typecheck
    npm test
-   node packages/cli/dist/bin/warrant.js validate
-   node packages/cli/dist/bin/warrant.js fmt --check
-   npm run versions:check
+   node scripts/dev/check.js
    git fetch && node scripts/dev/pr-form.js "$(git branch --show-current)" main
    ```
-   Последний PR потока удаляет свой файл передачи или заменяет его файлом следующего и снимает `После: <поток>` у зависящих (`dev-context.test.ts` это проверит).
+   `check.js` собирает CLI и гоняет `sync --check`, `validate`, `fmt --check`, `versions:check` — строка на проверку, код 0 — всё прошло. Последний PR потока удаляет свой файл передачи или заменяет его файлом следующего и снимает `После: <поток>` у зависящих (`dev-context.test.ts` это проверит).
 2. **PR.** Тело — файлом (scratchpad): «Что», «Проверки», хвост атрибуции; заголовок — как у коммитов:
    ```bash
    git push -u origin <ветка>
@@ -33,12 +31,13 @@ argument-hint: "[pr | merge <N> | after <N>]"
    ```bash
    gh pr checks <N> --watch --interval 20
    ```
-   Сразу после `gh pr create` — `no checks reported`: CI ещё не стартовал, подождать 20 с и повторить. `warrant / warrant` в impl-PR до коммита `VERIFYING` (`CHANGE_NOT_VERIFYING`) — штатно. Красное — [ci.md](ci.md), исправление — коммитом `git-start`, push, снова шаг 3. Зелёное — отчёт и «жду merge #N».
-4. **Merge** — только по «merge #N» в чате для этого N; CI зелёный (шаг 3):
+   Сразу после `gh pr create` — `no checks reported`: CI ещё не стартовал, подождать 20 с и повторить. `warrant / warrant` в impl-PR до коммита `VERIFYING` (`CHANGE_NOT_VERIFYING`) — штатно. Красное — [ci.md](ci.md), исправление — коммитом `git-start`, push, снова шаг 3. Зелёное — отчёт и «жду merge #N». «merge #N» пришло до конца CI — не ждать: шаг 4 с `--auto`.
+4. **Merge** — только по «merge #N» в чате для этого N:
    ```bash
-   gh pr merge <N> --merge
-   gh pr view <N> --json state,mergeCommit
+   gh pr merge <N> --merge --auto
+   gh pr view <N> --json state,autoMergeRequest,mergeCommit
    ```
+   `--auto` — GitHub сливает сам, когда пройдут обязательные проверки `main` (`test (…)` и `warrant / warrant`, защита ветки); CI не опрашивать. Уже зелёный PR сливается сразу. Красный CI снимает слияние не сам — `gh pr merge <N> --disable-auto`, затем шаг 3.
    Только `--merge`: без `--delete-branch` (удаляет ветку worktree), без `--squash` и `--rebase` (I-97). Классификатор заблокировал — дать эту команду maintainer'у одной строкой и ждать.
 5. **После merge** — из основного checkout `D:\project\SRA`:
    ```bash

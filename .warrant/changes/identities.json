@@ -1,0 +1,24 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "identities",
+  "change_state": "PROPOSED",
+  "classification": {
+    "profiles": [
+      "chore",
+      "factory-change"
+    ],
+    "risk": {
+      "blast_radius": {
+        "value": "SYSTEM",
+        "from": "floor:core-sdd:2"
+      }
+    }
+  },
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-09-29T17:55:49.091Z",
+      "by": "cli:local"
+    }
+  ]
+}

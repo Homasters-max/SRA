@@ -204,7 +204,9 @@ SHALL доходить целиком (B4).
 <!-- id: REQ-KRN-009 -->
 
 Схема `warrant://gate/1` SHALL описывать gate ([06 §3](../../../../docs/06-verification.md)): `id`, `version`, `level` (`L0` | `L1` | `L2`),
-`applies_when.changed_paths[]`, `requires_evidence[{ "kind", "status" }]` со `status` из `evidence_status`,
+`applies_when.changed_paths[]`, `requires_evidence[{ "kind", "status", "check"? }]` со `status` из `evidence_status` и
+необязательным `check` — id check, чьи записи только и засчитываются требованию
+([ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 6),
 `waivable` (boolean), `accepts_attestation[]` ⊆ `ci`, `human-review`, `signature`, `none`.
 
 #### Scenario: Пример tests-passed
@@ -216,6 +218,11 @@ SHALL доходить целиком (B4).
 <!-- id: SCN-KRN-019 -->
 - **WHEN** в gate отсутствует `waivable`
 - **THEN** файл невалиден: значение по умолчанию не подразумевается (INV-10)
+
+#### Scenario: Требование с check
+<!-- id: SCN-KRN-159 -->
+- **WHEN** gate содержит `requires_evidence: [{ "kind": "test-report", "status": "PROVEN", "check": "dev-check" }]`, затем `check: "Dev Check"`
+- **THEN** первый файл валиден; второй невалиден: `check` — kebab-case id
 
 ### Requirement: Схема check
 <!-- id: REQ-KRN-010 -->
@@ -471,8 +478,10 @@ hash каждого pack, skill и сгенерированного файла �
 `warrant.json`, даёт `LOCK_MISMATCH` (B3); (3) объекты с одним `id` не объявлены
 в двух packs, а override в `.warrant/local/` несёт `"overrides": "<pack>:<id>"` ([08 §4](../../../../docs/08-packs.md)) и не ослабляет
 переопределяемый объект: не сужает `match` overlay, не удаляет элементы `extends` profile, не убирает gates, artifacts, evidence,
-approvals и `forbidden`; каталог `.warrant/local/<id>/` с `pack.json`, чей `id` не подключён в `warrant.json`, SHALL давать `CONFIG_INVALID`,
-а его файлы SHALL NOT попадать в project-слой;
+approvals и `forbidden`, не снимает и не меняет `check` элемента `requires_evidence` gate; каталог `.warrant/local/<id>/` с `pack.json`, чей `id` не подключён в `warrant.json`, SHALL давать `CONFIG_INVALID`,
+а его файлы SHALL NOT попадать в project-слой; `check` элемента `requires_evidence` gate называет загруженный check, чей `produces`
+(с учётом override) содержит `kind` элемента (иначе `CONFIG_INVALID` с `path` `…#/requires_evidence/<i>/check`,
+[ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 6);
 (4) `openspec/config.yaml` и `openspec/schemas/<schema>/**` побайтно равны результату генерации, `openspec schema validate`
 проходит, ключи `rules` входят в artifacts schema ([ADR-0015](../../../../docs/adr/WARRANT-ADR-0015-openspec-sync-contract.md));
 (5) stable ID в `openspec/specs/**` и `openspec/changes/**` (по `openspec show --json`) имеют верный формат, стоят
@@ -495,7 +504,10 @@ ID требования `openspec/specs/**`, которое delta Change, пер
 ([REQ-KRN-001](#requirement-адресация-и-форма-json-schema-kernel)), `kind` каждой записи объявлен подключённым pack, а `manifest.evidence[]` перечисляет ровно записи каталога;
 (13) каждая ссылка вида `REQ-AREA-NNN` или `SCN-AREA-NNN` в `tasks.md` активных Changes (`openspec/changes/<change>/tasks.md`, кроме
 `archive/`) и в файлах под `paths.tests` `warrant.json` (если задан) объявлена в `openspec/specs/**` или `openspec/changes/**`, включая
-archive (иначе `ID_DANGLING` с путём, строкой и ID; [ADR-0019](../../../../docs/adr/WARRANT-ADR-0019-post-edit-hints.md) п. 1d).
+archive (иначе `ID_DANGLING` с путём, строкой и ID; [ADR-0019](../../../../docs/adr/WARRANT-ADR-0019-post-edit-hints.md) п. 1d);
+(14) ни один логин `identities.agents[].login` `warrant.json` не входит ни в одну роль `roles` (иначе `CONFIG_INVALID` с `path`
+`.warrant/warrant.json#/identities/agents/<i>/login`; [ADR-0010](../../../../docs/adr/WARRANT-ADR-0010-trust-by-reference.md) п. 4,
+[ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 3).
 Любая находка SHALL давать `ok: false` и код выхода 3. Флага `--no-generated` SHALL NOT быть: `config.yaml` генерируется целиком
 ([REQ-KRN-025](#requirement-команда-sync)).
 
@@ -604,6 +616,16 @@ archive (иначе `ID_DANGLING` с путём, строкой и ID; [ADR-0019
 <!-- id: SCN-KRN-114 -->
 - **WHEN** `warrant.json` задаёт `paths.tests: "tests"`, `tests/search.test.py` ссылается на `REQ-SRC-001` из архивной delta и на необъявленный `REQ-SRC-777`, а архивный `tasks.md` ссылается на необъявленный ID
 - **THEN** `ID_DANGLING` сообщён только для `REQ-SRC-777`; без `paths.tests` файлы тестов не проверяются
+
+#### Scenario: check gate без такого check
+<!-- id: SCN-KRN-156 -->
+- **WHEN** `.warrant/local/gates/dev-passed.json` требует `{ "kind": "test-report", "status": "PROVEN", "check": "dev-check" }`, а check `dev-check` не загружен или его `produces` не содержит `test-report`
+- **THEN** `errors[]` содержит `CONFIG_INVALID` с `path`, оканчивающимся на `#/requires_evidence/0/check`, код 3; с check `dev-check`, производящим `test-report`, — ошибки нет
+
+#### Scenario: Агент в ролях
+<!-- id: SCN-KRN-157 -->
+- **WHEN** `warrant.json` содержит `roles.maintainer: ["kat", "warrant-agent[bot]"]` и `identities.agents: [{ "login": "warrant-agent[bot]", "kind": "bot" }]`
+- **THEN** `errors[]` содержит `CONFIG_INVALID` с `path` `.warrant/warrant.json#/identities/agents/0/login`, код 3; без агента в `roles` — ошибки нет
 
 ### Requirement: Команда fmt
 <!-- id: REQ-KRN-022 -->
@@ -1203,3 +1225,24 @@ envelope в тексте SHALL проходить схему `skill-result/1` ([
 <!-- id: SCN-KRN-153 -->
 - **WHEN** `warrant unknown add add-search --area SRC --text "…" --dry-run`
 - **THEN** `data.dry_run: true`, `data.unknown.id` — id, который выдал бы настоящий запуск, `data.would_write[]` содержит `.warrant/changes/add-search.json`, record не изменён, код 0
+
+### Requirement: Атомарная запись состояния
+<!-- id: REQ-KRN-036 -->
+
+CLI SHALL записывать каждый файл своего состояния — record `.warrant/changes/*.json`, записи evidence и `manifest.json`
+(в том числе импорт `warrant ci fetch`), файлы Run и указатель `current`, результат review, waivers — атомарно: во временный файл
+того же каталога (имя начинается с `.` и оканчивается `.tmp`), затем переименованием на место
+([ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 4). Запись, прерванная завершением процесса (исключение,
+сигнал, `kill`), SHALL оставлять прежнее содержимое файла (или его отсутствие) целым; сбой ОС или питания без `fsync` этим
+требованием не покрывается. Временный файл при ошибке записи или переименования SHALL удаляться. На Windows переименование,
+отклонённое `EPERM`, `EBUSY` или `EACCES`, SHALL выполняться не больше 5 раз всего с паузой 20 мс, затем — `BUSY`, код 2, с `hint`
+«файл держит другой процесс: повторите», без частичного файла (design I-206). Запись из нескольких файлов SHALL идти в порядке
+«записи evidence → `manifest.json` → record или Run»; `manifest.json` пересобирается из каталога при каждой записи evidence, поэтому
+запись вне `manifest.evidence[]` после обрыва восстанавливает следующая запись evidence Change (например, `warrant verify`), и
+находка `warrant validate` об этом ([REQ-KRN-021](#requirement-команда-validate) п. 12) SHALL называть это в `hint` (design I-203).
+`warrant validate` SHALL NOT читать временные файлы как часть состояния.
+
+#### Scenario: Сбой переименования
+<!-- id: SCN-KRN-158 -->
+- **WHEN** record `.warrant/changes/add-search.json` существует, и запись нового содержимого завершается сбоем переименования
+- **THEN** файл record — прежнее содержимое байт в байт, временного файла в каталоге нет; сбой `EBUSY` на всех 5 попытках — `BUSY`, код 2, иной сбой — ошибка записи; без сбоя — файл — новое содержимое, временного файла нет

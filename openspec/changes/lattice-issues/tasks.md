@@ -79,4 +79,4 @@
   удалить BL-44, BL-51, BL-81, BL-93, R-32; «Куда» BL-57, BL-83.
 - [x] 7.2 Waiver `spec-approved` на правку delta spec по I-202…I-208 и I-210 (ADR-0024 п. 4; WAV-2026-019 — ревью реализации) — `PROPOSED` в теле impl-PR; активирует
   maintainer по слову в PR.
-- [ ] 7.3 Ревью реализации — навык `review-impl`; `transition VERIFYING` последним коммитом impl-PR.
+- [x] 7.3 Ревью реализации — навык `review-impl`; `transition VERIFYING` последним коммитом impl-PR.

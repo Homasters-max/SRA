@@ -1,0 +1,157 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3Q0XPTZR7W5AD0G5QHZG509",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "Delta расходится с принятым ADR-0048 п. 5. ADR говорит: «SCN-VER-122 переводится на канарейку. Текстовая проверка YAML остаётся дешёвой, но не доказательством». В delta SCN-VER-122 остаётся чтением YAML (design D5). Послетеговая половина REQ-VER-016 («SHALL исполнять поставку так, как её получает потребитель») доказывается только SCN-VER-125, а это тоже чтение YAML (`WHEN читается canary.yml`). Прогон канарейки не доказывает ни один SCN. D5 обосновывает отступление (прогон workflow — не test-report), но оно не оформлено ни новым ADR, ни поправкой (`amends`), ни решением maintainer'а. Норма ADR и контракт Change расходятся.",
+      "targets": [
+        "SCN-VER-122",
+        "SCN-VER-125",
+        "REQ-VER-016",
+        "openspec/changes/release-path/design.md",
+        "docs/adr/WARRANT-ADR-0048-stabilization.md"
+      ],
+      "recommendation": "Оформить отступление явно: ADR с `amends: WARRANT-ADR-0048` (или решение maintainer'а в spec-PR, на которое ссылается D5) о том, что SCN-VER-122 и SCN-VER-125 доказываются чтением YAML, а прогон канарейки — сигнал без evidence. Либо уточнить формулировку REQ-VER-016: после тега spec требует только наличие и форму canary.yml, а не исполнение поставки."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-VER-016 объявляет красную канарейку «сигналом сломанной поставки». При этом молча предполагается, что `warrant ci` на коммите тега проходит. `readMergeHead` требует у HEAD ровно два родителя, иначе USAGE. Дальше коммит судится как archive-PR: verifyCiEvidence, replay archive, refs через форж. Значит, канарейка зелёная, только если тег стоит на merge-коммите зелёного archive-PR (D3). Этого предусловия нет ни в REQ, ни в SCN. Тег на другом коммите или падение судьи, не связанное с установкой, дают красную канарейку при исправной поставке. ADR-0048 п. 5 оставлял этот вопрос («поведение `warrant ci` на событии push тега», WS-16) открытым до spec-PR. D3 переносит проверку на первый прогон после тега v0.8.3.",
+      "targets": [
+        "REQ-VER-016",
+        "openspec/changes/release-path/design.md"
+      ],
+      "recommendation": "Записать в REQ-VER-016 предусловие: тег `v*` ставится на merge-коммит archive-PR релиза. Уточнить, что именно считается сигналом поставки: падение шага «Install warrant» или отказ `warrant ci` стартовать. Падение самого суждения `warrant ci` на теге — отдельный случай, строка backlog. Либо ограничить сигнал канарейки шагами до `warrant ci`."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "Новая фраза REQ-VER-014 — «обязательные проверки branch protection настраивает maintainer проекта; WARRANT их не требует и не проверяет (06 §8)». Она противоречит принятой модели угроз: ADR-0048 п. 2 и 06 §8, класс C, — «настройки форжа проверяются и показываются». Цикл 1 (WS-16) планирует проверку настроек форжа. R-44 предлагал только «WARRANT её не требует». Слова «и не проверяет» добавлены сверх R-44 и закрепляют в main spec запрет, который цикл 1 должен будет снимать.",
+      "targets": [
+        "REQ-VER-014",
+        "docs/06-verification.md",
+        "docs/adr/WARRANT-ADR-0048-stabilization.md"
+      ],
+      "recommendation": "Оставить формулировку R-44: «branch protection настраивает maintainer проекта; WARRANT её не требует». Слова «и не проверяет» убрать или заменить на «проверка настроек форжа — цикл 1 (ADR-0048 п. 2, WS-16)»."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-VER-014 и D1 не задают рабочий каталог и конфигурацию npm для `npm pack \"github:…#<тег>\"`. Шаг исполняется в checkout потребителя после его `setup`, поэтому действуют `.npmrc` проекта и настройки npm, которые мог выставить `setup`. Например, `ignore-scripts=true` (распространённая мера безопасности) не даст выполнить `prepare` git-зависимости. Tarball тогда выйдет без `dist`: это тот же отказ WS-01, против которого направлен Change. Канарейка SRA его не увидит, потому что у SRA нет `.npmrc`.",
+      "targets": [
+        "REQ-VER-014",
+        "SCN-VER-122",
+        "openspec/changes/release-path/design.md"
+      ],
+      "recommendation": "Записать в REQ-VER-014, что `npm pack` тега не зависит от npm-конфигурации проекта. Например, pack выполняется с рабочим каталогом `$RUNNER_TEMP` и с явным `--ignore-scripts=false`. Либо назвать это ограничение: потребитель с `ignore-scripts` должен учитывать его в 06 §8."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Триггеры канарейки шире допустимого входа `warrant`. `push` с `tags: [\"v*\"]` пропускает теги вне `v<semver>` (например, `v1`, `vnext`). `workflow_dispatch` можно запустить на ветке, и тогда `github.ref_name` = `main`. В обоих случаях шаг «Check the input warrant» падает, и канарейка краснеет, хотя поставка исправна. Это противоречит утверждению «красная канарейка — сигнал сломанной поставки».",
+      "targets": [
+        "REQ-VER-016",
+        "SCN-VER-125"
+      ],
+      "recommendation": "Для канарейки указать поведение на ref, который не является тегом `v<semver>`. Варианты: job пропускается (`if` по `github.ref_type == 'tag'`) или падает с ошибкой входа, и это прямо не считается сигналом поставки. Добавить это в SCN-VER-125."
+    },
+    {
+      "id": "F-6",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "missing-actor",
+      "statement": "Фраза «Тег, поставленный workflow с `GITHUB_TOKEN`, … канарейку для него запускает `gh workflow run canary.yml --ref <тег>`» не называет, кто её исполняет: workflow автотега, maintainer или агент. Автотег (ADR-0047 п. 4) — Non-Goal этого Change. Выходит, что норма обязывает будущий Change, а исполнитель не назван.",
+      "targets": [
+        "REQ-VER-016"
+      ],
+      "recommendation": "Назвать исполнителя: «workflow, поставивший тег, SHALL запускать …», либо перенести фразу в Change автотега и оставить здесь ссылку на WS-09."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "REQ-VER-014 описывает отказ только для входа неверной формы. Не сказано, что происходит, если тег синтаксически верен, но `npm pack \"github:…#<тег>\"` падает: тега нет в репозитории, сеть недоступна, сборка в `prepare` упала. Неясно, останавливается ли job до `warrant ci` и называет ли ошибка шага тег.",
+      "targets": [
+        "REQ-VER-014"
+      ],
+      "recommendation": "Добавить: отказ `npm pack` или `npm i -g` останавливает job до `warrant ci`, ошибка шага называет тег."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "SCN-VER-126 проверяет только `warrant --version`. `CLI_VERSION` читается из `package.json` во время исполнения, поэтому устаревший `dist` (pack с `--ignore-scripts`, D4) всё равно даст верную версию. Не найденные при загрузке данные (`packs`, `schemas`) команда `--version` не трогает. Отсутствие `commander` (WS-01) сценарий ловит: bin импортирует его при старте. Состав файлов держит `package-contents.test.ts`. Риск — ложнозелёный результат при устаревшем `dist` и лимите e2e в 60 с на Windows.",
+      "targets": [
+        "SCN-VER-126"
+      ],
+      "recommendation": "Убедиться, что e2e собирает `dist` или проверяет его свежесть. По желанию добавить в SCN-VER-126 одну команду, которая читает схемы или pack (например, `warrant validate` в пустом каталоге с ожидаемым кодом)."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Проходит ли `warrant ci` на коммите тега (merge archive-PR) при событиях push тега и workflow_dispatch с `--ref <тег>`? ADR-0048 п. 5 оставлял это открытым до spec-PR, D3 откладывает ответ до первого прогона после v0.8.3.",
+      "blocking": false,
+      "impact": [
+        "REQ-VER-016",
+        "design"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Релизные теги ставятся на merge-коммит archive-PR с двумя родителями. Проверено по v0.8.0, v0.8.1, v0.8.2."
+    },
+    {
+      "id": "A-2",
+      "statement": "`warrant ci` не читает имя события GitHub. Вид суждения выводится из родителей HEAD (`readMergeHead`) и record в diff. Переменные GITHUB_* используются только для attestation и номера attempt."
+    },
+    {
+      "id": "A-3",
+      "statement": "«Версия из `package.json` репозитория» в SCN-VER-126 — это корневой `package.json` (пакет `warrant`): у `packages/cli/package.json` поля version нет."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Как оформить отступление D5 от ADR-0048 п. 5, где сказано «SCN-VER-122 — на канарейку»?",
+      "options": [
+        "Новый ADR с `amends: WARRANT-ADR-0048`: YAML-чтение — доказательство SCN, прогон канарейки — сигнал без evidence",
+        "Решение maintainer'а комментарием в spec-PR и ссылка на него из D5",
+        "Следовать ADR буквально: считать прогон канарейки доказательством (потребует нового вида evidence)"
+      ]
+    },
+    {
+      "id": "D-2",
+      "question": "Что считать красной канарейкой, то есть сигналом поставки?",
+      "options": [
+        "Любой красный job",
+        "Только падение шагов установки CLI или отказ `warrant ci` стартовать; падение суждения — строка backlog",
+        "Канарейка на `workflow_dispatch` или по PR вместо push тега (запасной вариант ADR-0048 п. 5)"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:3e906145af50ef6b331d8cc93e695e2755c84918827bc18b94d0469be1ee8dcf",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-29T16:30:00Z",
+    "finished_at": "2026-09-29T16:55:00Z"
+  }
+}

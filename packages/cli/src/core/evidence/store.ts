@@ -7,10 +7,10 @@
  * directory `<state>/evidence/<change>/`: `manifest.json`, one `<EVID>.json`
  * per record and the raw check output under `raw/<check-id>/` (`{out}`).
  */
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { writeJsonFile } from "../canon/format-json.js";
+import { writeFileAtomic, writeJsonFile } from "../canon/format-json.js";
 import { cliError, type CliError } from "../errors.js";
 import { projectUri, stateDir } from "../fs.js";
 import { isPlainObject, strings } from "../json.js";
@@ -181,10 +181,7 @@ export function importRecords(input: ImportInput): ImportResult {
   if (errors.length > 0) return { ids: [], errors };
 
   for (const { file, bytes } of fresh) {
-    input.writes.write(projectUri(input.root, file), () => {
-      mkdirSync(dir, { recursive: true });
-      writeFileSync(file, bytes);
-    });
+    input.writes.write(projectUri(input.root, file), () => writeFileAtomic(file, bytes));
   }
   const manifest = readManifest(dir);
   const listed = new Set(strings(manifest?.["evidence"]));

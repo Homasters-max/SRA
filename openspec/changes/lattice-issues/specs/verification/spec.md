@@ -6,7 +6,8 @@
 `warrant check <change> [id...] [--paths <a,b>] [--base <ref>]` SHALL выполнить указанные checks (без `id` — checks перехода:
 для каждого элемента `requires_evidence` gates следующего перехода вперёд из `change_state` record с `check` — только этот check,
 для элемента без `check` — все checks, чьи `produces` содержат его `kind`; объединение по id, [ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 6;
-тот же набор — checks перехода у `verify` и `warrant ci`), каждый — командой `run.command`
+тот же набор — checks перехода у `verify` и `warrant ci`; `check` элемента, не называющий загруженный check с этим `kind` в
+`produces`, — `CONFIG_INVALID` с `path` элемента, код 3, до запуска checks, design I-204), каждый — командой `run.command`
 после подстановки плейсхолдеров `{out}`, `{change}`, `{paths}` ([REQ-KRN-010](#requirement-схема-check)); с `--paths` SHALL выполняться
 `run.scoped_command`, а запись SHALL нести `limitations: ["scoped: <paths>"]`; check без `scoped_command` при `--paths` SHALL выполнять
 полный `run.command` без этой пометки с предупреждением в stderr (I-80). Check без `run.command` (например, `tests-passed` pack'а без
@@ -102,7 +103,7 @@ Check с `execution.exclusive: true` SHALL брать file lock `<git-common-dir
 #### Scenario: Checks перехода при требовании с check
 <!-- id: SCN-VER-123 -->
 - **WHEN** gate следующего перехода требует `{ kind: "test-report", status: "PROVEN", check: "dev-check" }`, другой gate того же перехода — `{ kind: "test-report", status: "PROVEN" }`, загружены checks `tests-passed` и `dev-check`, оба производят `test-report`, и вызван `warrant check add-search` без `id`
-- **THEN** выполнены оба check; если бы второго gate не было — только `dev-check`, `tests-passed` не запускается и не даёт `CHECK_NOT_CONFIGURED`
+- **THEN** выполнены оба check; если бы второго gate не было — только `dev-check`, `tests-passed` не запускается и не даёт `CHECK_NOT_CONFIGURED`; если `dev-check` не загружен — `CONFIG_INVALID` с `path`, оканчивающимся на `#/requires_evidence/0/check`, код 3, ни один check не запущен
 
 ### Requirement: Команда gate и алгоритм verdict
 <!-- id: REQ-VER-003 -->
@@ -485,7 +486,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 #### Scenario: MERGED без CI-evidence
 <!-- id: SCN-VER-108 -->
 - **WHEN** честный archive-PR `add-search` вносит переход `MERGED` с `gates["tests-passed"]` `PASS`, чей `evidence[]` не содержит записей `ci`; либо `MERGED` с пустым `gates`
-- **THEN** `errors[]` содержит `RECORD_MISMATCH` с причиной `ci_evidence`; для пустого `gates` — с причиной `policy`; код 1
+- **THEN** `errors[]` содержит `RECORD_MISMATCH` с причиной `ci_evidence`; для пустого `gates` — с причиной `policy`; gate `PASS` перехода `MERGED` требует `{ kind: "test-report", check: "dev-check" }`, а `evidence[]` перехода несёт CI-запись `test-report` только от `tests-passed` — тоже `RECORD_MISMATCH` с причиной `ci_evidence` (design I-205); код 1
 
 #### Scenario: Решение UNKNOWN не ослабляется
 <!-- id: SCN-VER-116 -->
@@ -559,8 +560,9 @@ checks и `data.would_write[]` без запуска checks и без обращ
 WARRANT SHALL поставлять job `warrant` ([REQ-VER-011](#requirement-команда-ci)) как reusable workflow
 `.github/workflows/warrant.yml` своего репозитория с триггером `workflow_call` ([ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 7).
 Входы: `warrant` — обязательный: тег CLI (`v<semver>`), который устанавливается глобально из репозитория WARRANT, или буквально
-`checkout` — CLI из checkout вызывающего (только сам репозиторий WARRANT); другое значение SHALL останавливать job до `warrant ci`
-с ошибкой шага, называющей допустимые значения; `setup` — команды подготовки проекта (bash, default пусто), выполняемые после
+`checkout` — CLI из checkout вызывающего, только если checkout — репозиторий WARRANT (`packages/cli/package.json` с именем пакета
+CLI; design I-208); другое значение или `checkout` в чужом репозитории SHALL останавливать job до `warrant ci` с ошибкой шага,
+называющей допустимые значения; `setup` — команды подготовки проекта (bash, default пусто), выполняемые после
 checkout и merge PR в tip базы; `node-version` (default `22`); `openspec-version` (default `1.13.1`); `merge_commit` — merge-коммит
 impl-PR для recovery-прогона ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 4, default пусто).
 Шаги SHALL быть шагами job `warrant`: checkout head PR (или `merge_commit`) с полной историей, merge в tip базы (кроме recovery),
@@ -575,4 +577,4 @@ impl-PR для recovery-прогона ([ADR-0037](../../../../docs/adr/WARRANT-
 #### Scenario: Job warrant из reusable workflow
 <!-- id: SCN-VER-122 -->
 - **WHEN** читаются `.github/workflows/warrant.yml` и `.github/workflows/ci.yml` репозитория
-- **THEN** `warrant.yml` объявляет `workflow_call` со входами `setup`, `node-version`, `openspec-version`, `warrant` (обязательный), `merge_commit` и шаг `warrant ci`; job `warrant` в `ci.yml` — `uses: ./.github/workflows/warrant.yml` с `warrant: checkout`, без собственных `steps`, с правами `contents`, `actions`, `pull-requests`, `issues` на чтение; `merge_commit` передаётся из входа `workflow_dispatch`
+- **THEN** `warrant.yml` объявляет `workflow_call` со входами `setup`, `node-version`, `openspec-version`, `warrant` (обязательный), `merge_commit`, шаг проверки входа `warrant` до установки CLI и шаг `warrant ci`; job `warrant` в `ci.yml` — `uses: ./.github/workflows/warrant.yml` с `warrant: checkout`, без собственных `steps`, с правами `contents`, `actions`, `pull-requests`, `issues` на чтение; `merge_commit` передаётся из входа `workflow_dispatch`

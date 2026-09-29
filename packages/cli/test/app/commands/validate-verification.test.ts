@@ -307,6 +307,8 @@ describe("warrant validate (12): evidence records and manifests", () => {
     const run = await validate(p);
     const paths = run.errors.map((e) => `${e.code} ${e.path ?? ""}`);
     expect(paths).toEqual([`SEMANTIC_INVALID ${DIR}/manifest.json#/evidence`, `SEMANTIC_INVALID ${DIR}/manifest.json#/evidence/0`]);
+    // A record outside evidence[] is what an interrupted write leaves: the hint names the repair (REQ-KRN-036, I-203).
+    expect(run.errors[0]?.hint).toMatch(/next evidence write of the Change .*warrant verify .* rebuilds manifest\.json/);
   });
 });
 

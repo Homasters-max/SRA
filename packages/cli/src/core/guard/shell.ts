@@ -49,16 +49,21 @@ export function simpleCommands(words: readonly string[], depth = 1): string[][] 
  * one `depth` levels deep stays a command of its own. `asWritten` — the strict
  * form under a `review` Run (REQ-ENF-004): a leading `VAR=…` stays a word of
  * its command, and only exactly `bash -c <string>` / `sh -c <string>` is parsed.
+ * `operators`, when given, collects the operators that join the commands, of
+ * every level parsed (the strict form of a command that writes nothing, I-207).
  */
-export function leafCommands(words: readonly string[], asWritten = false, depth = 1): string[][] {
-  return split(words, !asWritten).flatMap((command) => {
+export function leafCommands(words: readonly string[], asWritten = false, depth = 1, operators?: string[]): string[][] {
+  return split(words, !asWritten, operators).flatMap((command) => {
     const script = asWritten ? exactShellString(command) : shellString(command);
-    return script !== undefined && depth > 0 ? leafCommands(shellWords(script), asWritten, depth - 1) : [command];
+    return script !== undefined && depth > 0 ? leafCommands(shellWords(script), asWritten, depth - 1, operators) : [command];
   });
 }
 
-/** `words` split at the operators into commands, without empty ones and, unless kept, without leading `VAR=…`. */
-function split(words: readonly string[], dropAssignments = true): string[][] {
+/**
+ * `words` split at the operators into commands, without empty ones and, unless
+ * kept, without leading `VAR=…`; the operators go to `operators` when given.
+ */
+function split(words: readonly string[], dropAssignments = true, operators?: string[]): string[][] {
   const out: string[][] = [];
   let current: string[] = [];
   const flush = (): void => {
@@ -69,8 +74,12 @@ function split(words: readonly string[], dropAssignments = true): string[][] {
     if (command.length > 0) out.push(command);
   };
   for (const word of words) {
-    if (SHELL_OPERATORS.has(word)) flush();
-    else current.push(word);
+    if (SHELL_OPERATORS.has(word)) {
+      flush();
+      operators?.push(word);
+    } else {
+      current.push(word);
+    }
   }
   flush();
   return out;

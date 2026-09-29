@@ -16,7 +16,8 @@ function config(tests?: string): WarrantConfig {
     defaults: { checkTimeoutS: undefined },
     paths: tests === undefined ? {} : { tests },
     roles: new Map(),
-    frontends: []
+    frontends: [],
+    agents: []
   };
 }
 
@@ -36,7 +37,7 @@ describe("validate registry: appliesTo", () => {
 
   it.each([
     [".warrant/local/areas.json", ["packs", "schema", "secrets", "canonical"]],
-    [".warrant/warrant.json", ["packs", "schema", "secrets", "canonical"]],
+    [".warrant/warrant.json", ["packs", "schema", "secrets", "canonical", "identities"]],
     [".warrant/warrant.lock.json", ["secrets", "canonical"]],
     [".warrant/schemas/config.1.schema.json", ["secrets"]],
     [".warrant/evidence/add-search/raw/unit/report.json", []],

@@ -12,6 +12,8 @@ export const MAX_TEXT_BYTES = 1024 * 1024;
 /**
  * A reference token. Ids contain `-`, so the boundaries are lookarounds over
  * the id alphabet rather than `\b` (same rule as `warrant id renumber`).
+ * `SCENARIO_RE` of `core/evidence/parsers/junit.ts` copies its `SCN` half
+ * (design I-209 of `lattice-issues`): a change here changes it too.
  */
 const REFERENCE_RE = /(?<![A-Za-z0-9-])(?:REQ|SCN)-[A-Z]{2,5}-\d{3}(?![A-Za-z0-9-])/g;
 

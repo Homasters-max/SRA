@@ -462,6 +462,8 @@ register(
         "after",
         "\nThe envelope names the active Run in \"run\" and the review skill of the pack in \"skill\"; evidence_status is\n" +
           "PROVEN without a BLOCKER finding, NOT_PROVEN with one, INCONCLUSIVE when run_state is FAILED or CANCELLED.\n" +
+          "A repeat after an interrupted submit reuses the record of the Run (data.reused: true); another envelope is\n" +
+          "EVIDENCE_CONFLICT: hand in the same one, or end the Run with `warrant run finish --state CANCELLED`.\n" +
           examples(["warrant run submit --file review.json --dry-run", "warrant run submit < review.json"])
       ),
   runGroup

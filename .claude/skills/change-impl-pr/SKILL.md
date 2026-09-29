@@ -34,7 +34,7 @@ argument-hint: "<change> <номер spec-PR>"
    $W transition <change> VERIFYING
    ```
 5. Ревью до PR — навык `review-impl` (п. 6): 🔴 — исправить в этой ветке и снова шаг 4; 🟡 / 💭 — строками R-N в `docs/backlog.md`; отчёт — разделом «Ревью» в тело PR.
-6. PR — шаги 1–3 `git-land`; тело — группы, решения I-N, waivers, отчёт ревью. CI: `test` ubuntu + windows и job `warrant` (`warrant ci` на результате merge с tip `main`: `kind: impl`, artifact `evidence-<change>-<attempt>`, `human-approval` — в `deferred[]`). До коммита `VERIFYING` красный `CHANGE_NOT_VERIFYING` — штатно. Зелёный — «жду merge #N». `main` сдвинулся до merge — Re-run job `warrant` пересчитает merge (иначе evidence `STALE` `tree`).
+6. PR — шаги 1–3 `git-land`; тело — группы, решения I-N, waivers, отчёт ревью. CI: `test` ubuntu + windows и `warrant / warrant` (`warrant ci` на результате merge с tip `main`: `kind: impl`, artifact `evidence-<change>-<attempt>`, `human-approval` — в `deferred[]`). До коммита `VERIFYING` красный `CHANGE_NOT_VERIFYING` — штатно. Зелёный — «жду merge #N». `main` сдвинулся до merge — Re-run `warrant / warrant` пересчитает merge (иначе evidence `STALE` `tree`).
 7. По «merge #N» — шаги 4–5 `git-land` (только `--merge`, I-97). Затем навык `change-archive-pr <change>` с номером этого PR.
 
 ## Стоп

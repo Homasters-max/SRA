@@ -1,11 +1,11 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "no-claude-md",
-  "commit": "01d37f6c53dce48c78afc2bb678b9bcb1506f6a9",
+  "commit": "897330262f0e83819297dc9cb0361496c08c8b87",
   "versions": {
-    "warrant": "0.8.1",
+    "warrant": "0.8.2",
     "openspec": "1.13.1",
-    "lock_hash": "sha256:427b21d2885bb44fb426604ec315ca88a91493c406ec91228a98e4adba41e1ab",
+    "lock_hash": "sha256:3d651be008c2c44603861a8050619d88510b935969934e0e4ccbb85cfc359eac",
     "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03"
   },
   "evidence": [
@@ -13,15 +13,22 @@
     "EVID-01M3MQ0RKRKW35A7T5RC2CY10P",
     "EVID-01M3MQ1YVJFJQ7VJ6QCHAZ3NBH",
     "EVID-01M3MQR6MANSB1V8WGR8X0ZHVT",
-    "EVID-01M3MQS1FGW4JZ5RKEDYXNKT3C"
+    "EVID-01M3MQS1FGW4JZ5RKEDYXNKT3C",
+    "EVID-01M3P57ZAWRM6FGN5TNXHH22D0"
   ],
   "gates": {
     "adversarial-review": "PASS",
+    "analyze-clean": "PASS",
     "blocking-unknowns-resolved": "PASS",
     "branch-isolated": "PASS",
+    "evidence-complete": "PASS",
+    "factory-golden-passed": "PASS",
     "human-approval": "PASS",
     "ids-valid": "PASS",
     "required-artifacts-present": "PASS",
-    "spec-valid": "PASS"
+    "scope-valid": "PASS",
+    "spec-approved": "PASS",
+    "spec-valid": "PASS",
+    "tests-passed": "PASS"
   }
 }

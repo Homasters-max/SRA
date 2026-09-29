@@ -5,24 +5,15 @@
  * the kernel schemas, every file of every bundled pack except `golden/`, and the
  * `SKILL.md` of every skill a bundled pack provides (`provides.skills`, found
  * next to `packs/` by `sync`). A path missing from `files` of package.json used
- * to surface only on an installed CLI (debt `files`: skill `adversarial-review`).
+ * to surface only on an installed CLI (debt `files`: skill `adversarial-review`). The list comes from the one
+ * `npm pack` of the e2e global setup (`helpers/pack-checkout.ts`, WS-30).
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-import spawnCjs from "cross-spawn";
-import { describe, expect, it } from "vitest";
+import { describe, expect, inject, it } from "vitest";
 
 import { REPO_ROOT } from "../helpers/cli.js";
-
-const spawn = spawnCjs as unknown as typeof import("cross-spawn");
-
-function packedFiles(): Set<string> {
-  const run = spawn.sync("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], { cwd: REPO_ROOT, encoding: "utf8" });
-  if (run.status !== 0) throw new Error(`npm pack --dry-run failed: ${run.stderr}`);
-  const report = JSON.parse(run.stdout) as { files: { path: string }[] }[];
-  return new Set((report[0]?.files ?? []).map((f) => f.path.split(path.sep).join("/")));
-}
 
 function filesUnder(rel: string): string[] {
   const out: string[] = [];
@@ -38,7 +29,7 @@ function filesUnder(rel: string): string[] {
 }
 
 describe("package contents (R-15)", () => {
-  const packed = packedFiles();
+  const packed = new Set(inject("checkoutPack").files);
   const missing = (files: string[]): string[] => files.filter((f) => !packed.has(f));
 
   it("ships the bin and every kernel schema", () => {

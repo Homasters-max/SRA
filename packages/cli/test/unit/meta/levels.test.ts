@@ -79,7 +79,8 @@ describe("contract and e2e need openspec 1.13.1, they are not skipped without it
       ["unit", []],
       ["app", []],
       ["contract", ["test/helpers/require-openspec.ts"]],
-      ["e2e", ["test/helpers/require-openspec.ts"]]
+      // e2e also packs the checkout once, before any test (WS-30)
+      ["e2e", ["test/helpers/require-openspec.ts", "test/helpers/pack-checkout.ts"]]
     ]);
   });
 

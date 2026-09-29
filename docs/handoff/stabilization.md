@@ -9,8 +9,7 @@
 ```text
 Поток stabilization. Норма merge — ADR-0050, не гриллить. Работай автономно до результата; maintainer'а зови только для merge spec-PR и (до 0.9.0) impl-PR — ссылка и строка «Enable auto-merge», CI не ждать.
 1) Change identities: если spec-PR #106 слит — worktree D:/project/SRA-identities (незакоммиченные правки warrant.json и навыков уже там): git switch -c worktree/identities origin/main, transition APPROVED --ref <#106> --by Homasters-max, IMPLEMENTING, группы, I-N по review 2 (тело #106), навыки — merge по ADR-0050 п. 8, VERIFYING, impl-PR; archive-PR — ботом. Не слит — ссылка maintainer'у.
-2) Флейки WS-30 и BL-105.
-3) Цикл 1, 0.9.0: architecture-audit, затем spec-PR — WS-03 (один gate engine, вопрос N44), A-34, WS-06, WS-13, WS-14, WS-15 (floor), ADR-0050 п. 2–4.
+2) Цикл 1, 0.9.0: architecture-audit, затем spec-PR — WS-03 (один gate engine, вопрос N44), A-34, WS-06, WS-13, WS-14, WS-15 (floor), ADR-0050 п. 2–4.
 ```
 
 ## Открытые вопросы
@@ -24,4 +23,4 @@
 - `gh` в Claude Code — бот `homasters`: spec- и impl-PR он не сливает (судья требует `merged_by` из `roles.maintainer`); archive-, docs-, process- и fix-PR сливает сам `--auto`.
 - Команды merge и чистки — по одной, без `&&`; разрешения — `C:\Users\Xiaomi\.claude\settings.json`, читаются при старте.
 - Навыки в `main` ещё велят агенту сливать spec- и impl-PR — до merge impl-PR `identities` следовать ADR-0050 п. 8.
-- CI: флейки WS-30 и `npm pack` на windows (BL-105) — один Re-run всего run, второе падение — разбор; канарейка: красный «Install warrant» — поставка сломана.
+- CI: флейк «does not provide an export named …» закрыт (`npm pack` запускал `prepare`); красный тест — разбор, Re-run — только при явной инфраструктуре; канарейка: красный «Install warrant» — поставка сломана.

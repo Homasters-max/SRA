@@ -60,6 +60,7 @@ WARRANT — governance-слой фабрики SEF поверх OpenSpec (specif
 - Код ищется через `cs`, читается диапазонами. Держится у субагентов: хук `PreToolUse` — `deny` (ADR-0031).
 - Хуки разработки — только из белого списка. Держится: `dev-hooks.test.ts` (ADR-0032 п. 11).
 - Навыки, `AGENTS.md`, файлы передачи, `backlog.md` — по форме ADR-0032. Держится: `dev-context.test.ts`.
+- Git и `gh` выполняет сессия сама, maintainer'у не передаёт: worktree, ветки, коммиты, push, PR, merge по ADR-0049 п. 2, чистка после merge (ADR-0033 п. 1, навыки `git-start`, `git-land`). Отказ классификатора auto-режима — команда maintainer'у одной строкой в блоке `bash`, без повторов и обходов.
 - Основной checkout — только `main`, работа — в worktree; force push и `openspec archive` запрещены. Держится: хук `git-hook.js` (ADR-0033 п. 9). Одна ветка — один worktree, ветку проверять перед коммитом — шаг 1 `group-done`.
 - Длинный текст (коммит, PR, envelope, JSON) — файлом (`Write`) и флагом пути, не в команде Bash: Git Bash на Windows обрезает команду длиннее ~7,7 тыс. символов. Держится: `git-hook.js` `long-command` (ADR-0043).
 - Отклонение от spec или design — вопросом maintainer'у, принятое — строкой `I-N` (навык `decision`); норма во время реализации меняется только новым ADR.

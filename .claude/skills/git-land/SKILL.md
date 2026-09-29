@@ -31,15 +31,17 @@ argument-hint: "[pr | merge <N> | after <N>]"
    ```bash
    gh pr checks <N> --watch --interval 20
    ```
-   Сразу после `gh pr create` — `no checks reported`: CI ещё не стартовал, подождать 20 с и повторить. `warrant / warrant` в impl-PR до коммита `VERIFYING` (`CHANGE_NOT_VERIFYING`) — штатно. Красное — [ci.md](ci.md), исправление — коммитом `git-start`, push, снова шаг 3. Зелёное — отчёт и «жду merge #N». «merge #N» пришло до конца CI — не ждать: шаг 4 с `--auto`.
-4. **Merge** — только по «merge #N» в чате для этого N:
+   Сразу после `gh pr create` — `no checks reported`: CI ещё не стартовал, подождать 20 с и повторить. `warrant / warrant` в impl-PR до коммита `VERIFYING` (`CHANGE_NOT_VERIFYING`) — штатно. Красное — [ci.md](ci.md), исправление — коммитом `git-start`, push, снова шаг 3. Шаг 4 не ждёт зелёного: `--auto` сливает при зелёных проверках. PR, которому нужно слово maintainer'а, — отчёт и «жду merge #N»; «merge #N» пришло до конца CI — шаг 4 с `--auto`.
+4. **Merge** — сессия сливает сама ([ADR-0049](../../../docs/adr/WARRANT-ADR-0049-flow.md) п. 2), одной командой без цепочки:
+   - archive-PR и docs/process-PR без защиты агента (`.claude/**`, `**/AGENTS.md`, `CLAUDE.md`, `scripts/dev/*-hook.js`) — сразу, без слова maintainer'а;
+   - spec-PR, impl-PR и PR с защитой агента — по «merge #N» в чате для этого N или по ответу на план `fast-mode`.
    ```bash
    gh pr merge <N> --merge --auto
    gh pr view <N> --json state,autoMergeRequest,mergeCommit
    ```
    `--auto` — GitHub сливает сам, когда пройдут обязательные проверки `main` (`test (…)` и `warrant / warrant`, защита ветки); CI не опрашивать. Уже зелёный PR сливается сразу. Красный CI снимает слияние не сам — `gh pr merge <N> --disable-auto`, затем шаг 3.
    Только `--merge`: без `--delete-branch` (удаляет ветку worktree), без `--squash` и `--rebase` (I-97). Классификатор заблокировал — дать эту команду maintainer'у одной строкой и ждать.
-5. **После merge** — из основного checkout `D:\project\SRA`:
+5. **После merge** — сессия чистит сама, из основного checkout `D:\project\SRA`, каждой командой отдельным вызовом (отказ одной не блокирует остальные):
    ```bash
    git pull --ff-only
    git worktree remove ../SRA-<имя>
@@ -50,7 +52,8 @@ argument-hint: "[pr | merge <N> | after <N>]"
 
 ## Стоп
 
-- Нет «merge #N» от maintainer'а в чате — не сливать; слово относится только к своему N.
+- Spec-PR, impl-PR или PR с защитой агента без «merge #N» от maintainer'а в чате — не сливать; слово относится только к своему N.
+- Классификатор auto-режима отклонил команду git или `gh` — не повторять и не обходить: команда maintainer'у одной строкой в блоке `bash`, работа продолжается с остальным.
 - Тот же сбой CI после двух исправлений или нестабильный тест — стоп и отчёт ([ci.md](ci.md)); обход запрещён.
 - `worktree remove` отказал (изменения в worktree) или `branch -d` — «not fully merged» — не `--force` и не `-D`: показать и спросить.
 

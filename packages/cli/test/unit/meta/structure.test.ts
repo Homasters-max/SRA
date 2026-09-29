@@ -23,6 +23,7 @@ const ROOT_WHITE_LIST = [
   ".gitignore",
   ".warrant",
   "AGENTS.md",
+  "CHANGELOG.md",
   "README.md",
   "docs",
   "lattice",

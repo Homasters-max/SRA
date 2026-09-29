@@ -26,8 +26,8 @@
 
 ## 3. CHANGELOG и версия (D6, D7)
 
-- [ ] 3.1 `scripts/versions-lib.js`: `.github/workflows/warrant.yml` — в содержимом CLI; проверка CHANGELOG (D6), компонент `changelog`.
-- [ ] 3.2 `packages/cli/test/e2e/versions.test.ts`: bump без раздела CHANGELOG — ошибка; minor без «Вердикт» и «Миграция для потребителя» — ошибка; patch с разделом — нет ошибок; правка `warrant.yml` без bump — ошибка `cli`.
-- [ ] 3.3 `CHANGELOG.md` (раздел `0.8.3`), `structure.test.ts` — корень; версия `0.8.3` (`npm version 0.8.3 --no-git-tag-version`), `warrant sync`, `npm run golden:update`, если версия CLI в них видна.
+- [x] 3.1 `scripts/versions-lib.js`: `.github/workflows/warrant.yml` — в содержимом CLI; проверка CHANGELOG (D6), компонент `changelog`.
+- [x] 3.2 `packages/cli/test/e2e/versions.test.ts`: bump без раздела CHANGELOG — ошибка; minor без «Вердикт» и «Миграция для потребителя» — ошибка; patch с разделом — нет ошибок; правка `warrant.yml` без bump — ошибка `cli`.
+- [x] 3.3 `CHANGELOG.md` (раздел `0.8.3`), `structure.test.ts` — корень; версия `0.8.3` (`npm version 0.8.3 --no-git-tag-version`), `warrant sync`, `npm run golden:update`, если версия CLI в них видна.
 
   Проверка: `node scripts/dev/check.js`, `npx vitest run --config packages/cli/vitest.config.ts versions structure`.

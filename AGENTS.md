@@ -12,7 +12,7 @@ WARRANT — governance-слой фабрики SEF поверх OpenSpec (specif
 | `packages/cli/` | CLI `warrant`: `src/`, `test/` (уровни ADR-0025), `schemas/`; конвенции — [packages/cli/AGENTS.md](packages/cli/AGENTS.md) |
 | `packs/core-sdd/` | pack по умолчанию: profiles, gates, checks, golden |
 | `sra/skills/` | reasoning-skills SRA, поставляемые с pack |
-| `scripts/dev/` | инструменты разработки: `cs.js` (поиск по коду), `brief.js` (состояние), `hygiene.js`, хуки, метрики; не поставляются |
+| `scripts/dev/` | инструменты разработки: `cs.js` (поиск по коду), `brief.js` (состояние), `check.js` (быстрые проверки), `hygiene.js`, хуки, метрики; не поставляются |
 | `.warrant/` | конфигурация и состояние WARRANT самого репозитория (record, evidence, waivers) |
 | `.claude/` | `settings.json` (только хуки), `skills/` (навыки проекта) |
 | `lattice/` | компонент LATTICE — не трогать |

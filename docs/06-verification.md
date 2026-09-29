@@ -248,7 +248,7 @@ Reviewer ищет:
 | B | Обходящий агент: правит свою защиту, пишет запись руками, сливает сам, подбирает профиль | **Обнаружение** — судья краснеет или даёт находку; предотвращать не обязан |
 | C | Злонамеренный автор PR или админ форжа: подделка attestation, workflow из PR, снятие protection | **Вне WARRANT**; настройки форжа проверяются и показываются |
 
-Maintainer доверен и вне модели (`enforce_admins` форжа — его выбор). Вторая линия против B — merge spec-PR и impl-PR maintainer'ом своим аккаунтом ([ADR-0049](adr/WARRANT-ADR-0049-flow.md) п. 2).
+Maintainer доверен и вне модели (`enforce_admins` форжа — его выбор). Вторая линия против B — merge spec-PR maintainer'ом своим аккаунтом и приёмка impl человеком, где policy держит `human-approval` на `MERGED`: класс путей, меняющих собственную проверку ([ADR-0050](adr/WARRANT-ADR-0050-agent-merge.md) п. 1–3).
 
 **Общий аккаунт (класс B).** Агент и maintainer под одним аккаунтом форжа неразличимы: решение blocking UNKNOWN комментарием, merge и `human-approval`, сделанные агентом, `warrant ci` иначе засчитал бы как акты maintainer'а ([ADR-0044](adr/WARRANT-ADR-0044-lattice-issues.md) п. 3, реализует [ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md) п. 4 со стороны CLI).
 

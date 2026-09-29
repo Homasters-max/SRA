@@ -1,0 +1,125 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3Q1A1HQXP1V7A92SKBHVK1N",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "F-1 прошлого раунда закрыт в spec лишь частично. REQ-VER-016 теперь честно говорит: «Красная канарейка — не evidence и не gate». Но design D5 обосновывает вывод «Отступления от ADR нет» тем, что доказательство поставки переходит к «исполняемым SCN-VER-126 (до merge) и SCN-VER-125 с прогоном канарейки (после тега)». Это неверно: SCN-VER-125 — «WHEN читается `.github/workflows/canary.yml`», то есть та самая текстовая проверка YAML, которую ADR-0048 п. 5 называет «не доказательством». Форму `github:…#<тег>` (отказ WS-01) не доказывает ни один SCN: SCN-VER-126 исполняет tarball checkout'а, а прогон канарейки evidence не даёт. Буквальная норма ADR «SCN-VER-122 переводится на канарейку» не выполнена, а design утверждает обратное. Решение D-1 прошлого раунда не записано.",
+      "targets": [
+        "SCN-VER-125",
+        "SCN-VER-122",
+        "REQ-VER-016",
+        "openspec/changes/release-path/design.md",
+        "docs/adr/WARRANT-ADR-0048-stabilization.md"
+      ],
+      "recommendation": "Переписать D5 по факту. До merge поставку доказывает SCN-VER-126 (tarball checkout'а). Форма тега после тега — сигнал канарейки без evidence. SCN-VER-122 и SCN-VER-125 — дешёвая проверка структуры YAML. Отличие от буквы ADR-0048 п. 5 принимает maintainer в spec-PR (D-1), либо оно оформляется поправкой ADR. Фразу «исполняемым … SCN-VER-125» убрать."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Остаток F-5 прошлого раунда. Запуск с ветки теперь пропускается (`if: startsWith(github.ref, 'refs/tags/v')`). Но триггер `tags: [\"v*\"]` и это `if` пропускают теги вне `v<semver>`: `vnext`, `v1`, `v1.0`. На них шаг «Check the input warrant» падает. REQ-VER-016 при этом классифицирует красную канарейку только по двум шагам: «упал шаг установки CLI — поставка сломана, patch»; «упал `warrant ci` — строка backlog». Остальные падения не классифицированы: проверка входа (тег не semver), checkout, `setup` (`npm ci`), установка OpenSpec. Кто-то может прочитать любое красное до `warrant ci` как «поставка сломана».",
+      "targets": [
+        "REQ-VER-016",
+        "SCN-VER-125"
+      ],
+      "recommendation": "Сузить триггер до формы входа, например `tags: [\"v[0-9]*\"]`, и `if` по тому же образцу. Либо дописать в REQ-VER-016: падение шагов до «Install warrant» (вход, checkout, `setup`, OpenSpec) — не сигнал поставки, а ошибка входа или инфраструктуры."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Поправка F-7 разорвала перечисление значений входа `warrant` в REQ-VER-014. Фраза читается так: «тег CLI (`v<semver>`), который устанавливается … (… BL-52, ADR-0040 п. 7); тега нет, сборка или реестр npm отказали — шаг установки падает до `warrant ci`, или буквально `checkout` — CLI из checkout …». Альтернатива «или буквально `checkout`» стоит после условия отказа. Её можно прочесть как продолжение этого условия, а не как второе допустимое значение входа. Поведение восстанавливается только по старому тексту.",
+      "targets": [
+        "REQ-VER-014"
+      ],
+      "recommendation": "Разбить на отдельные предложения. Первое: значения входа — тег `v<semver>` или `checkout`. Затем форма установки тега. Затем отказ: «тега нет, `npm pack` или `npm i -g` отказали — шаг установки падает до `warrant ci`»."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-VER-016 вводит норму SHALL: «тот workflow SHALL запускать `gh workflow run canary.yml --ref <тег>`». Этот workflow (автотег) — Non-Goal Change, в репозитории его нет. Сценария у нормы нет, и в этом Change её нельзя проверить тестом. Кроме того, молча предполагается, что `github.token` workflow автотега имеет `actions: write`: без этого права `gh workflow run` падает. Канарейка тогда не запустится, и это будет незаметно.",
+      "targets": [
+        "REQ-VER-016",
+        "openspec/changes/release-path/design.md"
+      ],
+      "recommendation": "Перенести норму и её SCN в Change автотега (WS-09), здесь оставить ссылку, как уже делает D9. Если норма остаётся здесь, указать право `actions: write` у job, который ставит тег."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-VER-016 и SCN-VER-126 требуют, чтобы изолированным был только префикс установки, но не говорят, куда пишется tarball `npm pack` checkout'а. По умолчанию `npm pack` пишет `.tgz` в текущий каталог, то есть в корень checkout. e2e входит в `npm test`, а его в job `warrant` запускает check `tests-passed` на рабочем дереве (REQ-VER-011). Параллельно работает `structure.test.ts` с белым списком корня. Лишний `.tgz` в корне даст гонку: красный `structure` или грязное дерево для других checks.",
+      "targets": [
+        "REQ-VER-016",
+        "SCN-VER-126"
+      ],
+      "recommendation": "Дописать в REQ-VER-016 или SCN-VER-126, что tarball и префикс пишутся во временный каталог вне checkout (`--pack-destination`) и что после теста дерево checkout не меняется."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "По ADR-0048 п. 3 CLI и каждый pack версионируются отдельно, и «у каждого релиза есть раздел CHANGELOG». Design D6 знает только раздел `## <версия CLI>` и требует «Вердикт» и «Миграцию» в нём, «если выросли major или minor CLI или любого pack». Для minor-bump pack без bump CLI раздела новой версии CLI нет. Неясно, что проверяет `versions:check`: ошибку, раздел прежней версии CLI или ничего. Два прочтения дают разный результат проверки.",
+      "targets": [
+        "openspec/changes/release-path/design.md",
+        "openspec/changes/release-path/proposal.md"
+      ],
+      "recommendation": "Уточнить D6 для случая, когда pack меняет minor, а CLI не меняет версию. Например: такой bump требует и patch CLI (раздел CLI с подразделами), или раздел CHANGELOG именуется по версии pack. Добавить этот случай в задачу 3.2."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "e2e SCN-VER-126 делает `npm i` зависимостей из tarball через реестр npm (`--prefer-offline`). Этот e2e входит в полный `npm test`, то есть в evidence gate `tests-passed` job `warrant`. Сбой сети или медленная установка на Windows (замер 11 с сделан на машине maintainer'а, предел e2e — 60 с) дают `tests-passed FAIL` при исправном коде. Design признаёт риск и предлагает повтор run.",
+      "targets": [
+        "SCN-VER-126",
+        "openspec/changes/release-path/design.md"
+      ],
+      "recommendation": "Замерить тест на `windows-latest` в impl-PR. При повторных сбоях — строка backlog о кэше или офлайн-установке."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Закрытыми считаю F-2, F-3, F-4, F-6, F-7 и F-8 прошлого раунда. В REQ-VER-016 записано предусловие тега и разведены сигналы. Слова «и не проверяет» убраны. Появились `$RUNNER_TEMP` и `--ignore-scripts=false`. Исполнитель `gh workflow run` назван. Отказ установки описан. SCN-VER-126 вызывает `warrant validate`. F-1 и F-5 закрыты частично — см. F-1 и F-2 этого раунда."
+    },
+    {
+      "id": "A-2",
+      "statement": "`warrant validate` в пустом каталоге завершается кодом 3 с `CONFIG_MISSING` по SCN-KRN-007 main spec kernel. Поэтому то, что SCN-VER-126 не называет код выхода, не дефект."
+    },
+    {
+      "id": "A-3",
+      "statement": "`--ignore-scripts=false` в командной строке перекрывает `ignore-scripts` из user-конфигурации npm, и pacote исполняет `prepare` git-зависимости при `npm pack`. Работу этого флага я не проверял: ручная проверка proposal сделана без него и без `.npmrc`."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Принимает ли maintainer такое чтение ADR-0048 п. 5: форму тега доказывает сигнал канарейки без evidence, а SCN-VER-122 и SCN-VER-125 остаются проверкой YAML?",
+      "options": [
+        "Принять решением в spec-PR и сослаться на него из D5",
+        "Поправка ADR-0048 (`amends`)",
+        "Искать исполняемое доказательство формы тега до merge (например, `npm pack` ветки вместо тега в e2e)"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:4ddcfd5d87617e474079917b1bf51d28450c7251efdf8c1c795237472606c94c",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-29T17:05:00Z",
+    "finished_at": "2026-09-29T17:30:00Z"
+  }
+}

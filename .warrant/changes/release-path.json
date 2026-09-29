@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "release-path",
+  "change_state": "SPECIFIED",
+  "classification": {
+    "profiles": [
+      "chore",
+      "factory-change"
+    ]
+  },
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-09-29T16:45:15.422Z",
+      "by": "cli:local"
+    },
+    {
+      "to": "SPECIFIED",
+      "at": "2026-09-29T16:56:58.571Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+      "gates": {
+        "ids-valid": "PASS",
+        "required-artifacts-present": "PASS",
+        "spec-valid": "PASS"
+      },
+      "evidence": [
+        "EVID-01M3Q1HTHVFC3RPTZTK4VESFDE"
+      ]
+    }
+  ]
+}

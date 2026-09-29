@@ -1,11 +1,15 @@
 # CI of the WARRANT repository (phase 3, task 1.1; P-9, design D-17).
 #
-# Job `test`, one per OS: the kernel has only ever run on Windows, and every
+# Job `test` on each OS: the kernel has only ever run on Windows, and every
 # path, spawn and lock decision of phase 3 must hold on Linux too. `npm test`
 # runs all four test levels (ADR-0025 п. 8: unit, app, contract, e2e) on every
 # PR; OpenSpec 1.13.1 is installed first because `contract` and `e2e` fail
 # without it (globalSetup), they are not skipped. `timeout-minutes` stops a hung
-# run instead of GitHub's 6 h default (test-levels, task 6.1, I-139).
+# run instead of GitHub's 6 h default (test-levels, task 6.1, I-139). On windows
+# the suite is split into two shards (`vitest --shard`, two parallel jobs): it ran
+# 4 min against 2 on ubuntu and held the whole PR; the shards together run every
+# test file of every level (REQ-VER-015, Change ci-shards). Typecheck, install
+# and validate run once per OS: ubuntu and shard 1/2.
 # Job `warrant` (phase-4c, design §8, ADR-0037; ADR-0044 п. 7): the verdict of every PR — the reusable workflow warrant.yml, see below.
 name: ci
 
@@ -41,12 +45,18 @@ concurrency:
 
 jobs:
   test:
-    name: test (${{ matrix.os }})
+    name: test (${{ matrix.os }}${{ matrix.shard && format(', {0}', matrix.shard) || '' }})
     if: github.event_name != 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            shard: ""
+          - os: windows-latest
+            shard: "1/2"
+          - os: windows-latest
+            shard: "2/2"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     defaults:
@@ -83,21 +93,26 @@ jobs:
       - name: Test
         env:
           GH_TOKEN: ${{ github.token }}
-        run: npm test
+          SHARD: ${{ matrix.shard }}
+        run: npm test -- ${SHARD:+--shard=$SHARD}
 
       - name: Typecheck
+        if: matrix.shard != '2/2'
         run: npm run typecheck
 
       - name: Install warrant from the checkout
+        if: matrix.shard != '2/2'
         run: npm i -g .
 
       - name: warrant validate (repository)
+        if: matrix.shard != '2/2'
         run: warrant validate
 
       # `packages/cli/test/fixtures` holds schema and pack fixtures, not a
       # WARRANT project; the golden project `feature` of pack core-sdd is the
       # smallest real one, and it is validated from a copy outside the checkout.
       - name: warrant validate (fixture project)
+        if: matrix.shard != '2/2'
         run: |
           fixture="$(mktemp -d)/feature"
           cp -R packs/core-sdd/golden/feature "$fixture"

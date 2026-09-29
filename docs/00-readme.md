@@ -63,12 +63,13 @@ Evidence показывает результат.
 | [../lattice/](../lattice/README.md) | Заготовка отдельного проекта LATTICE: реестр решений, объектная модель, план slice | Component | normative | later |
 | [12-evolution](12-evolution.md) | Развитие самой системы, метрики | Kernel | normative | later |
 | [13-roadmap](13-roadmap.md) | MVP, фазы, открытые вопросы | — | informative | MVP |
+| [14-system-guide](14-system-guide.md) | Руководство по архитектуре и работе системы: для архитектора, тимлида, программиста и проектов-потребителей | Обзор | informative | MVP |
 | [backlog](backlog.md) | Реестр долга: открытые пункты и куда они уходят ([ADR-0032](adr/WARRANT-ADR-0032-dev-context.md)) | — | informative | MVP |
 | [handoff/](handoff/) | Передача между сессиями разработки — файл на поток; правила процесса — [process/rules.md](process/rules.md) | — | informative | MVP |
 
 Решения, принятые при проектировании — [adr/](adr/). Исходные черновики — [archive/2026-09-22-openspec-drafts/](archive/2026-09-22-openspec-drafts/README.md).
 
-**Порядок чтения:** 01 → 02 → 03 → 04 → 05 → 06 → 06a → 07 → 08, далее packs по необходимости.
+**Порядок чтения:** 01 → 02 → 03 → 04 → 05 → 06 → 06a → 07 → 08, далее packs по необходимости. Обзор всей системы для нового читателя — [14-system-guide](14-system-guide.md): архитектура, потоки данных, агенты, доверие, подключение проекта.
 
 ## Конвенции документов
 

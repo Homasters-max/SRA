@@ -19,7 +19,7 @@
 
 ## 2. Канарейка (D2, D3)
 
-- [ ] 2.1 `.github/workflows/canary.yml`: `push` тегов `v*`, `workflow_dispatch`, job `canary` — `uses: ./.github/workflows/warrant.yml`, `warrant: ${{ github.ref_name }}`, `setup: npm ci`, права на чтение.
+- [ ] 2.1 `.github/workflows/canary.yml`: `push` тегов `v*`, `workflow_dispatch`, job `canary` — `if: startsWith(github.ref, 'refs/tags/v')`, `uses: ./.github/workflows/warrant.yml`, `warrant: ${{ github.ref_name }}`, `setup: npm ci`, права на чтение.
 - [ ] 2.2 `workflows.test.ts`: SCN-VER-125.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts workflows`.

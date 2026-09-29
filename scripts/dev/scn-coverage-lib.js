@@ -1,7 +1,7 @@
 /**
  * Logic of `scripts/dev/scn-coverage.js` (ADR-0033 п. 6, R4): which scenarios of a Change's delta specs no test names.
  * A scenario is `<!-- id: SCN-… -->` in a spec file, outside `## REMOVED Requirements`; a test names it by the id
- * anywhere in its text (the SCN tag in the test name, packages/cli/CLAUDE.md). Pure — the caller reads the files.
+ * anywhere in its text (the SCN tag in the test name, packages/cli/AGENTS.md). Pure — the caller reads the files.
  * A development check for the skill `review-impl`; the product check `scn-covered` is BL-25 (phase 5).
  */
 

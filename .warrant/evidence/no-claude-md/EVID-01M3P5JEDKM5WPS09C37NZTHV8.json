@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3P5JEDKM5WPS09C37NZTHV8",
+  "claim": {
+    "text": "openspec-validate passed for no-claude-md",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "7614d05740f7d4328ea8ac0bd9ef2ef1ecaf3f05",
+    "base_commit": "f071d3cf1b1db9146337a519a2d836c0479ad2f5",
+    "spec_revision": "openspec/changes/no-claude-md@7614d05740f7d4328ea8ac0bd9ef2ef1ecaf3f05",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:f6112d5a8f4052857bf9464def865504136e740cffe39736b11acc7fa374d9ed",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "created_at": "2026-09-29T08:47:45.590Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/no-claude-md/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:8f1419faaed9a63c5c7b27f898a5e36ee0f0876fe852226ed08ea8dc2b5aa53e"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

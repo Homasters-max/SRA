@@ -1,0 +1,43 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3P2SVGCX2H1K7Q0N4RSPCW3",
+  "claim": {
+    "text": "tests-passed passed for lattice-issues",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "d1a84aefd94ee709570576e07b7d678b3e3bc926",
+    "base_commit": "9cc7413ba32f4c37dfe8c70b71fbddba700a92e9",
+    "spec_revision": "openspec/changes/lattice-issues@d1a84aefd94ee709570576e07b7d678b3e3bc926",
+    "tree": "e3efd62bed640bcabf0299b5591a308f66894183",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "ci",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/36539681936/attempts/1"
+  },
+  "context_hash": "sha256:f93da9a5ab5c3db4b33375fa317f719b4d67301834f90966bad0544b510ebb4f",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "created_at": "2026-09-29T07:59:22.637Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/lattice-issues/raw/tests-passed/junit.xml",
+      "sha256": "sha256:fb4b045ebe159c61a4c524deaa7ce375e66370688226925ed69c5a04fc6c1258"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 1,
+    "tests": 1589
+  }
+}

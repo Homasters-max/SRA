@@ -59,6 +59,10 @@
           "status": {
             "description": "Status the evidence must carry.",
             "$ref": "warrant://common/1#/$defs/evidence_status"
+          },
+          "check": {
+            "description": "Id of the check whose records alone satisfy this requirement; records of other producers of the kind are ignored (ADR-0044 section 6).",
+            "$ref": "warrant://common/1#/$defs/kebab_id"
           }
         },
         "required": ["kind", "status"],

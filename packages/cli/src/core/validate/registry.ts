@@ -1,5 +1,5 @@
 /**
- * Registry of the checks of `warrant validate` — checks (1)–(13) of
+ * Registry of the checks of `warrant validate` — checks (1)–(14) of
  * REQ-KRN-021 (A-9, design phase-4a §3).
  *
  * Every finding is collected: the run never stops at the first error, so one
@@ -26,13 +26,14 @@ import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { checkCanonical, isRawEvidencePath, SCHEMA_COPIES_PREFIX, WARRANT_DIR } from "../canon/files.js";
-import type { WarrantConfig } from "../config.js";
+import { agentRoleErrors, CONFIG_REL, type WarrantConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
 import type { CliError } from "../errors.js";
 import { absolutePath, projectPath, reportPath, walkFiles } from "../fs.js";
 import { checkImmutableFiles, checkImmutableIds } from "../ids/immutable.js";
 import { checkIds, checkIdsIn, loadAreas, scanIds, type FoundId, type ScanResult } from "../ids/scan.js";
 import { checkLock, LOCK_REL } from "../packs/hash.js";
+import { gateCheckErrors } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import { readAllRecords, type RecordFile } from "../record/read.js";
 import { validateFile } from "../schemas/semantic.js";
@@ -146,11 +147,15 @@ function checkWarrantFiles(v: ValidateRun, files?: readonly string[]): CliError[
 /** The checks of `validate`, in the order of REQ-KRN-021 as the command has always run them. */
 export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
   {
-    // Loaded by `validateRun`: its errors are those of checks (1) and (3) for config, packs and overrides.
+    // Loaded by `validateRun`: its errors are those of checks (1) and (3) for config, packs and overrides;
+    // plus `requires_evidence[].check` of every loaded gate against the loaded checks (check (3), ADR-0044 п. 6).
     id: "packs", // check (1), (3)
     level: "file",
     appliesTo: (file) => (isWarrantJson(file) && file !== LOCK_REL) || /^packs\/.+\.json$/.test(file),
-    run: async (v, files) => (files === undefined ? v.loaded.errors : findingsOf(v.loaded.errors, files))
+    run: async (v, files) => {
+      const errors = [...v.loaded.errors, ...gateCheckErrors(v.loaded)];
+      return files === undefined ? errors : findingsOf(errors, files);
+    }
   },
   {
     id: "schema", // check (1)
@@ -275,6 +280,13 @@ export const VALIDATE_CHECKS: readonly ValidateCheck[] = [
       files === undefined
         ? checkDangling(v.ctx.root, v.loaded.config, v.declared)
         : checkDangling(v.ctx.root, v.loaded.config, v.scan().ids, files.map((file) => absolutePath(v.ctx.root, file)))
+  },
+  {
+    // Agent identities outside roles (ADR-0010 п. 4, ADR-0044 п. 3).
+    id: "identities", // check (14)
+    level: "file",
+    appliesTo: (file) => file === CONFIG_REL.split(path.sep).join("/"),
+    run: async (v) => agentRoleErrors(v.loaded.config)
   }
 ];
 

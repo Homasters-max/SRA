@@ -1,0 +1,73 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3MPW0ZD96SR9JTDQRM117Q5",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "The first sub-case of SCN-KRN-155 is 'warrant sync ... затем CLAUDE.md удалён'. Under the new REQ-KRN-033, sync does not create CLAUDE.md, so the WHEN does not say where the file comes from before it is deleted (a user file, or one written by 0.8.1). The THEN claims 'удалённый CLAUDE.md не создан'. But the WHEN has no sync after the deletion, only the earlier one. A test can meet the THEN by checking right after the deletion, and then it never runs the next sync, which is the step the proposal's Why names ('удалённый пользователем CLAUDE.md следующий sync создаёт заново'). The 'sync --check — код 0' clause covers this only indirectly.",
+      "targets": [
+        "SCN-KRN-155"
+      ],
+      "recommendation": "Spell out the sequence in the WHEN. CLAUDE.md exists first (for example with the single line '@AGENTS.md', as 0.8.1 wrote it). Then warrant sync runs, then CLAUDE.md is deleted, then warrant validate, warrant sync --check and warrant sync run again. The THEN then states that the last sync did not create CLAUDE.md."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "REQ-KRN-033 explicitly forbids touching the legacy line: 'SHALL NOT создавать, менять и удалять CLAUDE.md, в том числе строку @AGENTS.md, записанную прежними версиями'. Proposal What Changes repeats it. No scenario covers a CLAUDE.md that contains '@AGENTS.md'. SCN-KRN-155 covers only a missing file and a file without the line. An implementation that strips the legacy line as a cleanup would pass every scenario and still break the requirement.",
+      "targets": [
+        "REQ-KRN-033",
+        "SCN-KRN-155"
+      ],
+      "recommendation": "Add a third starting state to SCN-KRN-155: CLAUDE.md with the line '@AGENTS.md' and other text. After sync the file is byte-identical, and validate gives no GENERATED_DRIFT for CLAUDE.md. Reference it in tasks 1.2."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Proposal Impact lists the tests as 'app sync-frontend (SCN-KRN-132, SCN-KRN-134), app init (SCN-KRN-154)'. It omits SCN-KRN-155, the new scenario, which tasks 1.2 places in app sync-frontend. Impact and tasks disagree on the set of scenarios the impl-PR must trace.",
+      "targets": [
+        "openspec/changes/no-claude-md/proposal.md",
+        "SCN-KRN-155"
+      ],
+      "recommendation": "Add SCN-KRN-155 to the app sync-frontend entry in proposal Impact."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Claude Code reads the root AGENTS.md without an import from CLAUDE.md. Taken as given from the maintainer, not verified."
+    },
+    {
+      "id": "A-2",
+      "statement": "PR #87 (the repository moving to AGENTS.md) merges before the impl-PR, as the proposal and design §3 state. With frontends not enabled in the repository, sync --check here does not depend on it."
+    },
+    {
+      "id": "A-3",
+      "statement": "The code in packages/cli/src/core/sync/{claude,plan,subset}.ts was not read, because the code-search hooks restrict reading code. The design's account of claudeMdTarget, subsetTargets and readAtSessionStart is taken as accurate."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "How are the product statements of ADR-0034 п. 6 (4a: 'AGENTS.md с @AGENTS.md в CLAUDE.md') and ADR-0032 'Последствия' superseded? The proposal plans an in-place note 'снято Change no-claude-md, D1'. Project precedent amends accepted ADRs through a later ADR (for example, ADR-0034 amends ADR-0020), and the project rule says a norm changes only through a new ADR.",
+      "options": [
+        "In-place note in ADR-0034 and ADR-0032 pointing to design D1 of no-claude-md (as proposed)",
+        "A short new ADR (or an 'Изменения' entry in an existing new ADR) that amends ADR-0034 п. 6 and ADR-0032, with the notes pointing to it"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:d81e5dfedcaaedd4ebfc5569d1e33e1fe6f9b5850a9bcd5a49746df2e0f98737",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-28T11:00:00Z",
+    "finished_at": "2026-09-28T11:20:00Z"
+  }
+}

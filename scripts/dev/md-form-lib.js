@@ -1,12 +1,12 @@
 /**
- * Form of Markdown in the repository (ADR-0044): a paragraph and a list item are one line — no line breaks by width,
+ * Form of Markdown in the repository (ADR-0046): a paragraph and a list item are one line — no line breaks by width,
  * no hard breaks; a place is addressed by id → section → file, never by line number (`file.md:42`).
  * Pure: text in, findings out; the walk over files and the exceptions live in `test/unit/meta/md-form.test.ts`.
  *
  * The detector needs no Markdown parser: inside a paragraph (outside frontmatter, fenced code, tables, HTML) two
  * adjacent non-blank lines are one paragraph unless the second one starts a block (heading, list item, quote marker
  * with a block, table row, fence, thematic break, HTML block, link definition). Checked against the Prettier parser
- * of md-wrap on the whole repository before and after the cleanup of 2026-09-28 (ADR-0044 Context).
+ * of md-wrap on the whole repository before and after the cleanup of 2026-09-28 (ADR-0046 Context).
  */
 
 /** A line that starts a block of its own: it can never be the continuation of the previous paragraph. */

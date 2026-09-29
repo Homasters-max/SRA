@@ -1,0 +1,43 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3P57ZAWRM6FGN5TNXHH22D0",
+  "claim": {
+    "text": "tests-passed passed for no-claude-md",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "a37b7ab76258094be94481d58711af0c1202f5ad",
+    "base_commit": "f071d3cf1b1db9146337a519a2d836c0479ad2f5",
+    "spec_revision": "openspec/changes/no-claude-md@a37b7ab76258094be94481d58711af0c1202f5ad",
+    "tree": "3817766303baa8028c7b0f6e564fa46892a882d5",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "ci",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/36544181911/attempts/1"
+  },
+  "context_hash": "sha256:16b2d76d029ec7db10fb86ba4376b6575fcd68b0521a37a7382ac8183e1fb788",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "created_at": "2026-09-29T08:42:02.461Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/no-claude-md/raw/tests-passed/junit.xml",
+      "sha256": "sha256:2c6f8a68d5a20eb238b787febf376967ab1704f1e57d218d3dbcbf020bad81f1"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 1,
+    "tests": 1591
+  }
+}

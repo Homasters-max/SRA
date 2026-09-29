@@ -1,5 +1,5 @@
 /**
- * Detector of `scripts/dev/md-form-lib.js` (ADR-0044): what is a line break inside a paragraph and what is a boundary
+ * Detector of `scripts/dev/md-form-lib.js` (ADR-0046): what is a line break inside a paragraph and what is a boundary
  * of structure; line addresses of Markdown files.
  */
 import { describe, expect, it } from "vitest";

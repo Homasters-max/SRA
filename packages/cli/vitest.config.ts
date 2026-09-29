@@ -13,10 +13,18 @@ import { fileURLToPath } from "node:url";
  *   on the pool the heavy levels alone use (I-119); both need openspec 1.13.1
  *   on PATH (`globalSetup` `require-openspec.ts`): without it the run fails, it
  *   is not skipped (ADR-0025 п. 5).
+ *
+ * Outside CI the `threads` pool is capped at `LOCAL_THREADS` (a third of the
+ * cores): on a developer machine busy with other sessions the default (cores
+ * − 1) made single `app` tests cross 5 s; with the cap the wall time of
+ * `test:fast` is the same. The 5 s limit stays (ADR-0025 п. 8); CI keeps the
+ * default.
  */
 export const LEVELS = ["unit", "app", "contract", "e2e"] as const;
 
 const HEAVY_FORKS = Math.max(1, Math.min(4, availableParallelism() - 1));
+
+const LOCAL_THREADS = process.env.CI ? undefined : Math.max(2, Math.floor(availableParallelism() / 3));
 
 const FORBID_SPAWN = "test/helpers/forbid-spawn.ts";
 
@@ -62,7 +70,10 @@ const heavy = (name: "contract" | "e2e") => ({
 export default defineConfig({
   root: dirname(fileURLToPath(import.meta.url)),
   test: {
-    poolOptions: { forks: { maxForks: HEAVY_FORKS, minForks: 1 } },
+    poolOptions: {
+      forks: { maxForks: HEAVY_FORKS, minForks: 1 },
+      threads: LOCAL_THREADS === undefined ? {} : { maxThreads: LOCAL_THREADS, minThreads: 1 }
+    },
     projects: [light("unit"), light("app"), heavy("contract"), heavy("e2e")]
   }
 });

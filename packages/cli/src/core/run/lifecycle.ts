@@ -7,9 +7,9 @@
  * Commands keep their options and output; `run submit` ends its Run through
  * `finishRun` with its own files in the same plan (REQ-ENF-007).
  */
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import path from "node:path";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 
+import { writeFileAtomic } from "../canon/format-json.js";
 import type { Ctx } from "../ctx.js";
 import { WarrantError, type CliError } from "../errors.js";
 import { projectUri } from "../fs.js";
@@ -68,8 +68,7 @@ export async function startRun(ctx: RunCtx, run: Run, env: NodeJS.ProcessEnv): P
       const again = readCurrent(root, env);
       if (again.kind === "active") throw runActive(root, again, env);
       writeRunFile(root, run, env);
-      mkdirSync(path.dirname(pointer), { recursive: true });
-      writeFileSync(pointer, `${run.id}\n`, "utf8");
+      writeFileAtomic(pointer, `${run.id}\n`);
     })
   );
 }

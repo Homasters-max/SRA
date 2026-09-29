@@ -37,6 +37,6 @@
 
 ## Вне объёма
 
-- Правка `docs/integrations/` и `lattice/` (CLAUDE.md) — только чтение.
+- Правка `docs/integrations/` и `lattice/` (AGENTS.md) — только чтение.
 - Storage и API LATTICE (01 §11); SQL и второй формат (ADR-0006).
 - Граф кода — graft / `cs`; домен хранит только якорь символа.

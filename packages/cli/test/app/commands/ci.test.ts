@@ -6,7 +6,8 @@
  * 098 — the forge unavailable and `--dry-run` — SCN-VER-084, 085 — the CI
  * evidence and the repeated archive of an archive-PR (group 5) — SCN-VER-079,
  * 080, 091, 096, 102, 106. Decisions of UNKNOWNs through the forge and the
- * UNKNOWNs of the base kept (slice-fixes, group 3) — SCN-VER-111…116.
+ * UNKNOWNs of the base kept (slice-fixes, group 3) — SCN-VER-111…116. Agent
+ * identities of the base (lattice-issues, group 5) — SCN-VER-120, 121.
  *
  * Each case builds the synced core-sdd project on `main` of `FakeGit`, opens a
  * pull request on a branch and merges it into `main` with a merge commit: HEAD
@@ -319,20 +320,22 @@ describe("warrant ci: the structure of the record", () => {
 /**
  * The spec-PR merged by `S` (pull 5) — `specWork` edits it — then an impl-PR
  * whose first commit records `APPROVED` with the ref of the spec-PR and
- * `IMPLEMENTING` (SCN-VER-090).
+ * `IMPLEMENTING` (SCN-VER-090). `base` — the author of the spec-PR (`kat` by
+ * default) and a change of the base project before its first commit.
  */
 async function firstImplCommit(
   mergedBy: string,
   extra: Record<string, unknown> = CHORE,
   work?: (p: ProjectBuilder) => void,
-  specWork?: (p: ProjectBuilder) => void
+  specWork?: (p: ProjectBuilder) => void,
+  base: { author?: string; setup?: (p: ProjectBuilder) => void } = {}
 ): Promise<ProjectBuilder> {
-  const p = await changeRepo("PROPOSED", extra);
+  const p = await changeRepo("PROPOSED", extra, base.setup);
   const spec = pullRequest(p, "spec/add-search", (b) => {
     advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } });
     specWork?.(b);
   });
-  p.withForge({ pulls: [fakePull(5, { mergeCommit: spec.merge, headSha: spec.head, mergedBy, author: "kat" })] });
+  p.withForge({ pulls: [fakePull(5, { mergeCommit: spec.merge, headSha: spec.head, mergedBy, author: base.author ?? "kat" })] });
   pullRequest(p, "worktree/add-search", (b) => {
     advance(b, "APPROVED", { gates: { "human-approval": "PASS" }, ref: SPEC_PR });
     advance(b, "IMPLEMENTING", { gates: { "branch-isolated": "PASS" } });
@@ -341,8 +344,27 @@ async function firstImplCommit(
   return p;
 }
 
+const AGENT = "warrant-agent[bot]";
+
+/** The base project with `identities.agents` `[AGENT]`; `maintainers` — `roles.maintainer`. */
+function withAgent(maintainers: string[] = ["kat"]): (p: ProjectBuilder) => void {
+  return (p) =>
+    p.write(".warrant/warrant.json", {
+      ...p.json(".warrant/warrant.json"),
+      roles: { maintainer: maintainers },
+      identities: { agents: [{ login: AGENT, kind: "bot" }] }
+    });
+}
+
+/** Codes of the findings `SHARED_IDENTITY` and `APPROVER_IS_AUTHOR`, in order. */
+function identityFindings(result: Result): string[] {
+  return result.data["findings"]
+    .map((f: Data) => f["code"] as string)
+    .filter((code: string) => code === "SHARED_IDENTITY" || code === "APPROVER_IS_AUTHOR");
+}
+
 describe("warrant ci: refs through the forge", () => {
-  it("first commit of an impl-PR: record and ref in order, not VERIFYING yet (SCN-VER-090, SCN-VER-081)", async () => {
+  it("first commit of an impl-PR: record and ref in order, not VERIFYING yet (SCN-VER-090, SCN-VER-081, SCN-VER-120)", async () => {
     const p = await firstImplCommit("kat");
     const result = await ci(p);
     expect(result.data["kind"]).toBe("impl");
@@ -353,8 +375,11 @@ describe("warrant ci: refs through the forge", () => {
     expect(codes(result)).not.toContain("RECORD_MISMATCH");
     expect(codes(result)).not.toContain("REF_NOT_VERIFIED");
     expect(codes(result)).toContain("CHANGE_NOT_VERIFYING");
-    // Merged by the maintainer who authored the spec-PR: a finding, not a violation (ADR-0037 п. 5).
-    expect(result.data["findings"].filter((f: Data) => f["code"] === "APPROVER_IS_AUTHOR")).toHaveLength(1);
+    // Merged by the maintainer who authored the spec-PR, no identities.agents in the base: findings, not a violation (ADR-0044 п. 3).
+    expect(identityFindings(result)).toEqual(["SHARED_IDENTITY", "APPROVER_IS_AUTHOR"]);
+    expect(result.data["findings"].find((f: Data) => f["code"] === "SHARED_IDENTITY")["message"]).toContain(
+      `transition 2 (APPROVED) ref ${SPEC_PR}: merged by kat`
+    );
     expect(result.exitCode).toBe(1);
     expect(p.forge.calls).toEqual(["pullRequest 5"]);
   });
@@ -366,7 +391,8 @@ describe("warrant ci: refs through the forge", () => {
     expect(ref).toHaveLength(1);
     expect(ref[0]?.message).toContain("merged_by");
     expect(ref[0]?.path).toBe(`${RECORD}#/transitions/2/ref`);
-    expect(result.data["findings"].filter((f: Data) => f["code"] === "APPROVER_IS_AUTHOR")).toEqual([]);
+    // A ref with REF_NOT_VERIFIED gives no SHARED_IDENTITY.
+    expect(identityFindings(result)).toEqual([]);
     expect(result.data["findings"].filter((f: Data) => f["code"] === "ROLES_CHANGED")).toEqual([]);
     expect(result.exitCode).toBe(1);
   });
@@ -385,6 +411,27 @@ describe("warrant ci: refs through the forge", () => {
     expect(ref[0]?.path).toBe(`${RECORD}#/transitions/2/ref`);
     expect(result.data["findings"].filter((f: Data) => f["code"] === "ROLES_CHANGED")).toHaveLength(1);
     expect(result.exitCode).toBe(1);
+  });
+
+  it("identities.agents in the base: a self-merge and a merge by an agent are REF_NOT_VERIFIED merged_by, no identity findings (SCN-VER-120)", async () => {
+    const refErrors = (result: Result): string[] => result.errors.filter((e) => e.code === "REF_NOT_VERIFIED").map((e) => e.message);
+
+    const self = await ci(await firstImplCommit("kat", CHORE, undefined, undefined, { setup: withAgent() }));
+    expect(refErrors(self)).toEqual([expect.stringContaining(`ref ${SPEC_PR}: merged_by: kat merged pull request 5 they authored`)]);
+    expect(identityFindings(self)).toEqual([]);
+    expect(self.exitCode).toBe(1);
+
+    const opened = await ci(await firstImplCommit("kat", CHORE, undefined, undefined, { author: AGENT, setup: withAgent() }));
+    expect(refErrors(opened)).toEqual([]);
+    expect(identityFindings(opened)).toEqual([]);
+
+    // Outside roles.maintainer — the reason of roles; also in it (a configuration error) — the reason of the agent.
+    const outside = await ci(await firstImplCommit(AGENT, CHORE, undefined, undefined, { setup: withAgent() }));
+    expect(refErrors(outside)).toEqual([expect.stringContaining(`ref ${SPEC_PR}: merged_by: ${AGENT} merged pull request 5, not a member`)]);
+    const inside = await ci(await firstImplCommit(AGENT, CHORE, undefined, undefined, { setup: withAgent(["kat", AGENT]) }));
+    expect(refErrors(inside)).toEqual([expect.stringContaining(`ref ${SPEC_PR}: merged_by: ${AGENT} merged pull request 5 and is an agent identity`)]);
+    expect(identityFindings(inside)).toEqual([]);
+    expect(inside.exitCode).toBe(1);
   });
 });
 
@@ -434,6 +481,25 @@ describe("warrant ci: decisions of UNKNOWNs through the forge (REQ-VER-013)", ()
     expect(result.data["findings"].filter((f: Data) => f["code"] === "DECISION_NOT_VERIFIED")).toEqual([]);
     expect(result.exitCode).toBe(0);
     expect(p.forge.calls).toContain("comment issue 11");
+  });
+
+  it("a comment of an agent of identities.agents: REF_NOT_VERIFIED decision: author; the maintainer's with none: SHARED_IDENTITY (SCN-VER-121)", async () => {
+    const byAgent = await firstImplCommit("kat", CHORE, undefined, (b) => withUnknowns(b, [decided(UNK, DECISION_REF)]), {
+      author: AGENT,
+      setup: withAgent(["kat", AGENT])
+    });
+    byAgent.withForge({ comments: [issueComment(11, AGENT, `Decision on ${UNK}: the inverted index.`)] });
+    const agent = await ci(byAgent);
+    expect(decisionErrors(agent)).toEqual([expect.stringContaining(`ref ${DECISION_REF}: decision: author: ${AGENT} wrote the comment and is an agent identity`)]);
+    expect(identityFindings(agent)).toEqual([]);
+    expect(agent.exitCode).toBe(1);
+
+    const kat = await ci(await decisionPr(DECISION_REF, [issueComment(11, "kat", `Decision on ${UNK}: the inverted index.`)]));
+    expect(decisionErrors(kat)).toEqual([]);
+    const shared = kat.data["findings"].filter((f: Data) => f["code"] === "SHARED_IDENTITY").map((f: Data) => f["message"] as string);
+    // One for the decision, one for the ref of APPROVED.
+    expect(shared.filter((m: string) => m.startsWith(`unknowns/0 (${UNK}) ref`))).toEqual([expect.stringContaining("written by kat")]);
+    expect(shared).toHaveLength(2);
   });
 
   it("a comment of a login outside roles.maintainer of the base, or one not naming the UNKNOWN: REF_NOT_VERIFIED author / text (SCN-VER-112)", async () => {
@@ -532,7 +598,8 @@ describe("warrant ci: decisions of UNKNOWNs through the forge (REQ-VER-013)", ()
  * CI records — run 42, attempt 1, whose artifact `evidence-add-search-1` the
  * fake forge holds (`artifact: false` — expired); the archive branch commits
  * them with `transition MERGED --ref` of the impl-PR (pull 9) and, with
- * `archive`, `warrant archive`; `main` merges the archive branch: HEAD.
+ * `archive`, `warrant archive`; `main` — after one more commit of `base`,
+ * when given — merges the archive branch: HEAD.
  */
 async function archivePr(
   options: {
@@ -542,6 +609,7 @@ async function archivePr(
     archive?: boolean;
     work?: (p: ProjectBuilder, evidence: string[]) => void;
     record?: (record: Data) => void;
+    base?: (p: ProjectBuilder) => void;
   } = {}
 ): Promise<{ p: ProjectBuilder; m: string; head: string; evidence: string[] }> {
   const p = await changeRepo("IMPLEMENTING", CHORE, (b) => b.write(".warrant/warrant.json", { ...b.json(".warrant/warrant.json"), paths: { src: "src" } }));
@@ -573,6 +641,10 @@ async function archivePr(
   options.work?.(p, evidence);
   p.commit("archive: MERGED");
   p.checkout("main", { force: true });
+  if (options.base !== undefined) {
+    options.base(p);
+    p.commit("base of the archive-PR");
+  }
   p.merge("archive/add-search", { label: "Merge archive" });
   return { p, m: impl.merge, head: impl.head, evidence };
 }
@@ -596,7 +668,7 @@ describe("warrant ci: archive-PR", () => {
     expect(result.exitCode).toBe(1);
   });
 
-  it("MERGED with a PASS gate of checks but no CI record: ci_evidence; with empty gates: policy (SCN-VER-108)", async () => {
+  it("MERGED with a PASS gate of checks but no CI record: ci_evidence; with empty gates: policy; a CI record of another check: ci_evidence (SCN-VER-108)", async () => {
     const local = await archivePr({
       record: (record) => {
         const merged = record.transitions.at(-1);
@@ -612,6 +684,35 @@ describe("warrant ci: archive-PR", () => {
     const policy = await ci(empty.p);
     expect(policy.errors.filter((e) => e.code === "RECORD_MISMATCH").map((e) => e.message.includes(": policy: "))).toEqual([true]);
     expect(policy.exitCode).toBe(1);
+
+    // The base narrows tests-passed to check dev-check: the CI record of tests-passed does not back it (I-205).
+    const narrowed = await archivePr({
+      base: (b) => {
+        b.write(".warrant/local/checks/dev-check.json", {
+          $schema: "warrant://check/1",
+          id: "dev-check",
+          version: "1.0.0",
+          level: "L1",
+          produces: ["test-report"],
+          parser: "junit",
+          run: { command: ["dev-tests", "{out}"] }
+        });
+        b.write(".warrant/local/gates/tests-passed.json", {
+          $schema: "warrant://gate/1",
+          id: "tests-passed",
+          version: "1.0.0",
+          overrides: "core-sdd:tests-passed",
+          level: "L1",
+          requires_evidence: [{ kind: "test-report", status: "PROVEN", check: "dev-check" }],
+          waivable: false,
+          accepts_attestation: ["ci"]
+        });
+      }
+    });
+    const other = await ci(narrowed.p);
+    const mismatches = other.errors.filter((e) => e.code === "RECORD_MISMATCH").map((e) => e.message);
+    expect(mismatches.filter((m) => m.includes("ci_evidence"))).toEqual([expect.stringContaining("test-report record of check dev-check")]);
+    expect(other.exitCode).toBe(1);
   });
 
   it("the forge unreachable while a ref needs it: FORGE_UNAVAILABLE with the hint, exit 3 (SCN-VER-084)", async () => {

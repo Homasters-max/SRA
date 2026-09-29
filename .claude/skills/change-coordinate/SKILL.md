@@ -6,7 +6,7 @@ argument-hint: "<change> <номер группы>"
 
 # Координатор: группы задач — субагентам
 
-Координатор читает spec/design/tasks целиком, пишет субагенту полный промпт, принимает отчёт, сам гоняет проверки `group-done` и проверяет команду руками. Ничего сверх tasks.md: новая потребность — сначала правка tasks/design; отклонение от spec/design — вопросом maintainer'у, принятое — навык `decision` ([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 7). Конвенции кода — `packages/cli/CLAUDE.md`.
+Координатор читает spec/design/tasks целиком, пишет субагенту полный промпт, принимает отчёт, сам гоняет проверки `group-done` и проверяет команду руками. Ничего сверх tasks.md: новая потребность — сначала правка tasks/design; отклонение от spec/design — вопросом maintainer'у, принятое — навык `decision` ([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 7). Конвенции кода — `packages/cli/AGENTS.md`.
 
 ## Вход
 

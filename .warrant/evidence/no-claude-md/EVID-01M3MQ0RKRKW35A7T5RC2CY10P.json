@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3MQ0RKRKW35A7T5RC2CY10P",
+  "claim": {
+    "text": "specification/adversarial-review@0.2.0 reviewed the spec of no-claude-md: 0 BLOCKER, 0 MAJOR, 3 MINOR, 0 INFO",
+    "targets": []
+  },
+  "kind": "review",
+  "level": "L2",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "6c3aac852e09d15f7ab6192cd746fbed9a3c305f",
+    "spec_revision": "openspec/changes/no-claude-md@6c3aac852e09d15f7ab6192cd746fbed9a3c305f",
+    "spec_tree": "sha256:d7fb98aa1513e82e5c4f2763c2ec411bc04984a0306d96ce6d4816558aca3edb",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "skill",
+    "id": "specification/adversarial-review",
+    "version": "0.2.0",
+    "run": "RUN-01M3MPW0ZD96SR9JTDQRM117Q5"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:d81e5dfedcaaedd4ebfc5569d1e33e1fe6f9b5850a9bcd5a49746df2e0f98737",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "created_at": "2026-09-28T19:14:11.704Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/runs/RUN-01M3MPW0ZD96SR9JTDQRM117Q5.result.json",
+      "sha256": "sha256:73cddc6494fa14dd23d3041ef43c9c534d3d57db91a66b39e058561541331e99"
+    }
+  ],
+  "limitations": [
+    "produced locally, unattested",
+    "same model family as author"
+  ],
+  "metrics": {
+    "BLOCKER": 0,
+    "INFO": 0,
+    "MAJOR": 0,
+    "MINOR": 3
+  }
+}

@@ -26,7 +26,7 @@ Envelope review длиннее ~8 тыс. символов не доходит �
 ## Consequences
 
 - ADR-0033 п. 9 — заметка `amended_by`; `dev-hooks.test.ts` — правило `long-command` в закреплённом наборе.
-- `docs/process/rules.md` — строка правила; `CLAUDE.md` — жёсткое правило.
+- `docs/process/rules.md` — строка правила; `AGENTS.md` — жёсткое правило.
 - Навык `change-spec-pr` шаг 3: субагент сдаёт envelope `--file`; до выпуска `lattice-fixes` (CLI 0.8.1) старый субагент сдаёт heredoc — envelope не длиннее 6 000 символов, полный текст находок — в тело PR.
 - Память сессий — `windows-bash-command-limit`.
 

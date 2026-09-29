@@ -34,7 +34,7 @@ argument-hint: "<change>"
    $W waive <change> <gate> --reason "<почему нет producer'а>" --risk HIGH --control "<контроль>" --owner human:<maintainer> --expires <YYYY-MM-DD>
    ```
    Waivers нет — сразу шаг 7 до PR.
-5. PR — шаги 1–3 `git-land`. Тело начинается разделом «Waivers на решение»: WAV, gate, risk, reason, expires и строка «merge #N = активация этих waivers (ADR-0033 п. 4)», затем находки review. CI (`test`, job `warrant` — `kind: spec`, правило путей) зелёный — «жду merge #N».
+5. PR — шаги 1–3 `git-land`. Тело начинается разделом «Waivers на решение»: WAV, gate, risk, reason, expires и строка «merge #N = активация этих waivers (ADR-0033 п. 4)», затем находки review. CI (`test`, `warrant / warrant` — `kind: spec`, правило путей) зелёный — «жду merge #N».
 6. Blocking UNKNOWN (ответ меняет spec): `$W unknown add <change> --area <AREA> --text "<вопрос>" --blocking` → `$W status <change>` — `WAIT`, next `clarify`. Решение — комментарий maintainer'а в этом PR с id `UNK-…` в тексте:
    ```bash
    $W unknown resolve <change> <UNK> --as decision --text "<ответ>" --ref <URL …#issuecomment-<id> | …#pullrequestreview-<id>>

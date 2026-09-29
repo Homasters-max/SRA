@@ -1,5 +1,5 @@
 ---
-id: WARRANT-ADR-0044
+id: WARRANT-ADR-0046
 title: Форма Markdown — абзац и пункт списка одной строкой, адрес места — id → раздел → файл, не номер строки; держит `md-form.test.ts`
 adr_state: ACCEPTED
 date: 2026-09-28

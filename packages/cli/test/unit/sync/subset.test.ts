@@ -49,7 +49,7 @@ describe("claude settings target", () => {
 
 describe("driftPath", () => {
   it("is the file for a line and file#pointer inside JSON", () => {
-    expect(driftPath("CLAUDE.md", "")).toBe("CLAUDE.md");
+    expect(driftPath(".gitignore", "")).toBe(".gitignore");
     expect(driftPath(".claude/settings.json", "/permissions/deny")).toBe(".claude/settings.json#/permissions/deny");
   });
 });

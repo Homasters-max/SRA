@@ -5,7 +5,10 @@ adr_state: ACCEPTED
 date: 2026-09-25
 supersedes: []
 amends: [WARRANT-ADR-0034]
+amended_by: [WARRANT-ADR-0044]
 ---
+
+> Уточнено [ADR-0044](WARRANT-ADR-0044-lattice-issues.md) п. 5: под Run `review` guard пропускает команды без записи и `warrant run finish --state CANCELLED`; повтор `run submit` того же Run переиспользует записанный EVID.
 
 ## Context
 

@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3P9Z0V02VD8373AF2SXKC3X",
+  "claim": {
+    "text": "openspec-validate passed for ci-shards",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "09605ccd256b785a77a1635fcf581f0bc2662cb2",
+    "base_commit": "2a872c9856ae8e7a531c32ad54968929e5a5a332",
+    "spec_revision": "openspec/changes/ci-shards@09605ccd256b785a77a1635fcf581f0bc2662cb2",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:4bdeb317bf71e2f4b6504836a8c21ec17988a021f5bc068d32d3d2e3d39a204f",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "created_at": "2026-09-29T10:04:31.970Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/ci-shards/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:7c9096a74aa8d98fb0b40afb0f5a29e632ba7265e0b1820c15dcc091479ca303"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

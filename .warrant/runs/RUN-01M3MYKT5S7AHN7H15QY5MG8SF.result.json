@@ -1,0 +1,291 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3MYKT5S7AHN7H15QY5MG8SF",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "REQ-ENF-004 (и SCN-ENF-044) разрешает под Run `review` «команду без записи» `warrant verify <change> --dry-run [...]`, но у `warrant verify` нет флага `--dry-run`: main REQ-VER-006 — `warrant verify <change> [--transition] [--base] [--paths]`, REQ-KRN-034 не включает verify в список команд с `--dry-run`, docs/04 строка 205 — та же сигнатура, `VerifyOptions` в `commands/verify.ts` поля dry-run не имеет; delta REQ-VER-006 не модифицирует. Два прочтения: либо разрешённая команда всегда даёт `USAGE` (правило бесполезно, SCN-ENF-044 проверяет только решение guard), либо неизвестный флаг игнорируется и verify выполняет checks и пишет evidence под Run, который «только читает» — прямое противоречие утверждению «команда без записи».",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-044",
+        "REQ-VER-006",
+        "REQ-KRN-034",
+        "openspec/changes/lattice-issues/proposal.md"
+      ],
+      "recommendation": "Либо добавить в delta MODIFIED REQ-VER-006 флаг `--dry-run` с наблюдаемой семантикой (например, как `warrant ci --dry-run`: план — checks перехода и `would_write[]`, без запуска checks и без записи evidence) и сценарий; либо заменить в списке guard `warrant verify … --dry-run` на существующую команду без записи (например, `warrant gate <change>`, если она ничего не пишет) и согласовать proposal, design §4 и ADR-0044 п. 5 (последнее — новым ADR или заметкой)."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "Proposal (What Changes, «Gate по check») обещает: «`check` без `id` выбирает check по `check` gate, если он задан»; design §5 — «для требования с `check` выбирается только этот check, а не все checks kind'а». Delta REQ-VER-002 сохраняет прежнее правило дословно: «без `id` — все checks, чьи `produces` пересекаются с `requires_evidence` gates следующего перехода». Через REQ-VER-002 это же правило определяет набор checks у `warrant verify` (REQ-VER-006) и в impl-PR `warrant ci` (REQ-VER-011). Реализация по spec и по proposal даёт разный `data.checks[]` и разный исход (лишний check kind'а может дать `CHECK_NOT_CONFIGURED`, код 3). Сценария на выбор нет.",
+      "targets": [
+        "REQ-VER-002",
+        "openspec/changes/lattice-issues/proposal.md",
+        "REQ-VER-006",
+        "REQ-VER-011"
+      ],
+      "recommendation": "Переписать в delta REQ-VER-002 правило выбора checks без `id`: для элемента `requires_evidence` с `check` — только этот check, для элемента без `check` — прежнее пересечение по kind, итог — объединение по id; добавить сценарий (gate требует `test-report` с `check: dev-check`, pack содержит `tests-passed` с тем же kind → `warrant check add-search` выполняет только `dev-check`, `data.checks[]` перечисляет его) и явно сказать, что то же действует для verify и `warrant ci`."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "BLOCKER",
+      "category": "missing-error-behavior",
+      "statement": "REQ-ENF-007: при повторе `run submit` найденная запись `review` переиспользуется «не переписывая запись и manifest», а результат `<RUN-id>.result.json` переписывается и Run завершается с `run_state` из (нового) envelope. Не сказано, что делать, если повторный envelope отличается от первого: запись несёт `artifacts[]` с `sha256` файла envelope, `metrics` по severity и `evidence_status` первой сдачи — после перезаписи результата они расходятся с файлом; `data.evidence_status` и `data.findings{}` вывода не определены (из записи или из нового envelope); Run может стать `CANCELLED` при записи `PROVEN`. Design §4 здесь говорит об `EVIDENCE_CONFLICT` «при других байтах», spec — нет. Два прочтения ведут к разному наблюдаемому поведению; SCN-ENF-043 покрывает только тот же файл.",
+      "targets": [
+        "REQ-ENF-007",
+        "SCN-ENF-043"
+      ],
+      "recommendation": "Определить в REQ-ENF-007: повтор переиспользует запись, только если канонический envelope побайтно равен артефакту записи (sha256 совпадает); иначе — ошибка (например, `EVIDENCE_CONFLICT` с `hint` про `warrant run finish --state CANCELLED` и новый Run), код 3, ничего не записано. Указать, что вывод берёт `evidence_status` и `findings` из переиспользованной записи. Добавить сценарий повтора с другим envelope."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-ENF-007: запись evidence и `manifest.json` — два отдельных файла (атомарность REQ-KRN-036 — пофайловая), порядок записи result → evidence → manifest → Run. Обрыв между записью evidence и manifest оставляет запись без id в `manifest.evidence[]`; повтор по spec «не переписывает запись и manifest», поэтому manifest так и не получает id, и `warrant validate` (REQ-KRN-021 п. 12, «`manifest.evidence[]` перечисляет ровно записи каталога») падает после «успешного» восстановления.",
+      "targets": [
+        "REQ-ENF-007",
+        "SCN-ENF-043",
+        "REQ-KRN-021"
+      ],
+      "recommendation": "Требовать при повторе дописать id в `manifest.evidence[]`, если его там нет (manifest — только добавление id, запись не трогается); добавить в SCN-ENF-043 вариант «запись есть, manifest без id» с ожиданием, что после повтора `warrant validate` проходит."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "REQ-ENF-007 / SCN-ENF-035: `--dry-run` перечисляет в `would_write[]` файл envelope, запись evidence, manifest, Run и `current`. Для повтора с переиспользованием записи (запись и manifest не пишутся) содержимое `would_write[]` и наличие `data.reused` в пробном выводе не определены.",
+      "targets": [
+        "REQ-ENF-007",
+        "SCN-ENF-035"
+      ],
+      "recommendation": "Указать, что пробный повтор выводит `data.reused: true` и `would_write[]` без записи evidence (и без manifest, если он не дописывается); добавить это в SCN-ENF-043 или SCN-ENF-035."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "REQ-ENF-004: термин «строгая форма `warrant run submit`» в spec не определён (main spec говорил «начинается с»), а для новых «команд без записи» (`warrant status [...]`, `git log [...]` и т. д.) не сказано, как судятся перенаправления (`warrant status > notes.txt`, `git log >> f`), подстановка `$(…)` и обратные кавычки в аргументах, фоновый `&`, присваивания окружения (`WARRANT_STATE_DIR=… warrant status`). Каждое из них превращает команду без записи в запись или исполнение произвольного кода. Design §4 требует `deny` (как `isSubmit`), spec — нет; сценариев на это нет.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-044",
+        "SCN-ENF-027"
+      ],
+      "recommendation": "Определить в требовании «строгую форму» для всех разрешённых под `review` команд: простая команда без перенаправлений, без подстановок команд и процессов, без присваиваний окружения и фонового запуска; иначе `deny`. Добавить в SCN-ENF-044 `git log > x.txt` и `warrant status $(touch x)` — `deny`."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-ENF-004: `git status | log | diff | show [...]` «без `--output` и `-o`» не задаёт, как опознаётся запрещённый аргумент: форма через пробел (`--output x.patch`), сокращения длинных опций, которые принимает parse-options git (`--outp=x.patch`), и глобальные опции перед подкомандой (`git -c diff.external=… diff --ext-diff`, `git -C <dir>`, `--git-dir`), которые позволяют исполнить произвольную программу или писать в другой репозиторий. Разрешает ли форма опции между `git` и подкомандой — не сказано.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-044"
+      ],
+      "recommendation": "Сказать явно: подкоманда — второе слово строки (опции до неё — `deny`); аргумент, равный `-o` или начинающийся с префикса длиной ≥ 3 от `--output` (`--ou…`), в любой форме — `deny`; рассмотреть и `--ext-diff`. Добавить `git diff --output x.patch`, `git diff --outp=x` и `git -c k=v log` в SCN-ENF-044 как `deny`."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-ENF-002: множество `UNCOMMITTED_IN_SCOPE` — «файлы рабочего дерева внутри `write_scope`, которые отличаются от HEAD или не отслеживаются git». Буквально «не отслеживаются» включает игнорируемые `.gitignore` файлы (`src/__pycache__/**`, `node_modules` под `paths.src`, артефакты сборки) — тогда находка есть почти на каждом `implement`. Не сказано и про удалённые в рабочем дереве отслеживаемые файлы (их в рабочем дереве нет), изменения только в индексе и порядок `paths[]`. SCN-ENF-045 проверяет точный список `paths`, а его содержимое при таких файлах зависит от прочтения.",
+      "targets": [
+        "REQ-ENF-002",
+        "SCN-ENF-045"
+      ],
+      "recommendation": "Определить множество через наблюдаемое правило: пути `write_scope`, которые `git status` показывает изменёнными, добавленными, удалёнными или неотслеживаемыми, без игнорируемых; `paths[]` отсортированы (порядок code units). Добавить в SCN-ENF-045 игнорируемый файл под `src/` (не входит) и удалённый отслеживаемый (входит)."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-011: при непустом `identities.agents` отклоняется только `merged_by = pr.author`. `merged_by`, входящий в `identities.agents` базы (ошибка конфигурации: логин и в `roles.maintainer`, и среди агентов — `warrant ci` читает конфигурацию базы без проверки REQ-KRN-021 п. 14), принимается как подтверждение maintainer'а. REQ-VER-013 в той же ситуации отклоняет автора решения (`decision: author`, SCN-VER-121). Слияние PR App'ом агента засчитывается как акт maintainer'а — ровно угроза S-1.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-120",
+        "REQ-VER-013"
+      ],
+      "recommendation": "Добавить в правило ref: `merged_by` ∈ `identities.agents` базы — `REF_NOT_VERIFIED` с причиной `merged_by` (и то же для `produced_by.id` записи `human-approval`); сценарий в SCN-VER-120 по образцу SCN-VER-121."
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-011 правило `ci_evidence` требует у нового перехода `MERGED` для gate `PASS` запись kind'а с `attestation.type: \"ci\"` — по kind, без учёта нового `requires_evidence[].check` (REQ-VER-003, REQ-KRN-009). Verdicts переходов `warrant ci` не пересчитывает, поэтому record, где gate с `check: dev-check` помечен `PASS`, проходит archive-PR по CI-записи другого check того же kind (`tests-passed`) — маскировка, которую Change и устраняет.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-003"
+      ],
+      "recommendation": "Уточнить `ci_evidence`: для элемента `requires_evidence` с `check` запись `attestation.type: \"ci\"` должна иметь `produced_by.id`, равный `check` (иначе `RECORD_MISMATCH` с причиной `ci_evidence`); добавить вариант в SCN-VER-108."
+    },
+    {
+      "id": "F-11",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-VER-014: вход `warrant` по умолчанию пуст и означает «CLI из checkout вызывающего репозитория» (design: `npm i -g .`). Это верно только для самого репозитория WARRANT: проект, не передавший вход, установит глобально собственный пакет или упадёт с непонятной ошибкой; поведение при отказе не описано. Кроме того, ref reusable workflow (`@v0.8.2`) и вход `warrant` задаются независимо — молча предполагается, что проект держит их равными; расхождение (workflow одной версии, CLI другой) не обработано.",
+      "targets": [
+        "REQ-VER-014",
+        "SCN-VER-122"
+      ],
+      "recommendation": "Определить поведение: либо по умолчанию CLI берётся из ref самого reusable workflow (`job_workflow_sha`/ref вызова), либо пустой `warrant` у вызывающего не-WARRANT репозитория — явный отказ шага с сообщением; указать, что ref workflow и `warrant` должны совпадать (или один выводится из другого). Добавить проверку в сценарий."
+    },
+    {
+      "id": "F-12",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-014: «`permissions` задаёт вызывающий», но минимальный набор прав, нужный job `warrant` (`contents: read`, `pull-requests: read`, `actions: read` для run и artifact archive-PR), не назван; без него проект узнаёт о нехватке только по `FORGE_UNAVAILABLE` в CI.",
+      "targets": [
+        "REQ-VER-014"
+      ],
+      "recommendation": "Перечислить обязательные `permissions` вызывающего в требовании (или ссылкой на 06 §8) и проверить их наличие в `ci.yml` сценарием SCN-VER-122."
+    },
+    {
+      "id": "F-13",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-actor",
+      "statement": "REQ-VER-014: вызов через reusable workflow меняет имя проверки на `warrant / warrant` (design §7). Spec не называет действующее лицо, которое обновляет обязательные проверки в branch protection / rulesets этого репозитория и подключённых проектов (maintainer); если обязательной стоит проверка `warrant`, PR после перехода не сливается.",
+      "targets": [
+        "REQ-VER-014",
+        "openspec/changes/lattice-issues/proposal.md"
+      ],
+      "recommendation": "Указать в proposal (Impact) или требовании шаг maintainer'а: обновить имя обязательной проверки в настройках репозитория одновременно с merge impl-PR; для проектов — в 06 §8."
+    },
+    {
+      "id": "F-14",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-VER-011 даёт `SHARED_IDENTITY` на «каждый проверенный ref», REQ-VER-013 — на «каждое проверенное решение без нарушения». Для ref не ясно, выдаётся ли находка и при `REF_NOT_VERIFIED` (ref проверен, но не подтверждён); формулировки двух требований расходятся.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-013"
+      ],
+      "recommendation": "Выровнять: «каждый ref без нарушения» (как у решений) или явно «каждый ref, прошедший проверку формы и форжа, независимо от исхода»."
+    },
+    {
+      "id": "F-15",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-120, последняя часть: «spec-PR открыл `warrant-agent[bot]`, слил `kat` — `REF_NOT_VERIFIED` и находок нет» читается двояко: «нет ни `REF_NOT_VERIFIED`, ни находок» или «`REF_NOT_VERIFIED`, находок нет». Требование однозначно (kat ∈ roles и ≠ автор — подтверждено), но сценарий как тест неоднозначен.",
+      "targets": [
+        "SCN-VER-120"
+      ],
+      "recommendation": "Переписать: «— `REF_NOT_VERIFIED` нет, `SHARED_IDENTITY` и `APPROVER_IS_AUTHOR` нет, код 0»."
+    },
+    {
+      "id": "F-16",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-VER-002: limitation `junit: skipped <SCN>[, <SCN>…]` — «id без повторов в порядке появления». Parser читает несколько документов junit в `{out}` («если таких все»); порядок появления между документами зависит от порядка перечисления файлов, который не задан — текст limitation недетерминирован между ОС.",
+      "targets": [
+        "REQ-VER-002",
+        "SCN-VER-118"
+      ],
+      "recommendation": "Задать порядок документов (например, пути относительно `{out}` в порядке code units) или порядок id (сортировка)."
+    },
+    {
+      "id": "F-17",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-VER-002 сохраняет общее правило «`evidence_status` (`PROVEN` при отсутствии падений, иначе `NOT_PROVEN`…)», а новый абзац делает `NOT_PROVEN` отчёт без падений с пропущенным testcase сценария. Исключение названо ниже («даже если падений нет»), но общее правило не отсылает к нему.",
+      "targets": [
+        "REQ-VER-002"
+      ],
+      "recommendation": "В общем правиле перечислить исключения: «`PROVEN` при отсутствии падений и пропущенных testcase сценария (ниже)…»."
+    },
+    {
+      "id": "F-18",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-KRN-036: «переименование … SHALL повторяться ограниченное число раз» — без числа и паузы требование не проверить тестом (design задаёт 5 раз по 20 мс).",
+      "targets": [
+        "REQ-KRN-036",
+        "SCN-KRN-158"
+      ],
+      "recommendation": "Записать в требовании наблюдаемую границу (не больше 5 попыток / суммарно не дольше ~100 мс) и вариант в SCN-KRN-158: временный отказ `EBUSY` один раз — запись успешна."
+    },
+    {
+      "id": "F-19",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-KRN-036: «Прерванная запись SHALL оставлять прежнее содержимое файла целым» не уточняет, о каком прерывании речь: гибель процесса (goal design) или сбой ОС/питания — для последнего без `fsync` файла и каталога rename не гарантирует целостность нового содержимого.",
+      "targets": [
+        "REQ-KRN-036"
+      ],
+      "recommendation": "Сказать явно: гарантия — при прерывании процесса CLI; сбой ОС/питания вне требования (или требовать `fsync`)."
+    },
+    {
+      "id": "F-20",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Proposal, «Версии»: «pack `core-sdd` — только если меняются его golden-копии схем», при этом proposal (Impact) и design §5 сами меняют копии схемы gate в golden (`warrant sync`). Условие определимо уже сейчас, и tasks 1.1 («только `kernel` в lock») с ним расходится.",
+      "targets": [
+        "openspec/changes/lattice-issues/proposal.md"
+      ],
+      "recommendation": "Решить в proposal однозначно: поднимается ли версия pack `core-sdd` (и почему), и согласовать tasks 1.1 / 4.1."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Отсутствие `--dry-run` у `warrant verify` проверено по main REQ-VER-006, REQ-KRN-034, docs/04 и `VerifyOptions` в packages/cli/src/commands/verify.ts; как разбор аргументов CLI обрабатывает неизвестный флаг (ошибка или игнор), не проверялось."
+    },
+    {
+      "id": "A-2",
+      "statement": "Принято, что порядок записи при `run submit` — result, evidence, manifest, затем Run (design, «Что уже есть»), и что атомарность REQ-KRN-036 пофайловая, а не транзакционная для группы файлов."
+    },
+    {
+      "id": "A-3",
+      "statement": "Принято без проверки, что git принимает сокращения длинных опций diff (`--outp`) через parse-options; если нет — F-7 сужается до формы через пробел и глобальных опций."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Что остаётся в списке команд без записи под Run `review` вместо несуществующего `warrant verify <change> --dry-run` (F-1)?",
+      "options": [
+        "Добавить `--dry-run` в REQ-VER-006 (план без запуска checks и без записи) и оставить в списке",
+        "Заменить на `warrant gate <change>` (если команда ничего не пишет)",
+        "Убрать verify из списка; оставить только `warrant status`"
+      ]
+    },
+    {
+      "id": "D-2",
+      "question": "Как ведёт себя повтор `run submit` с envelope, отличным от первой сдачи (F-3)?",
+      "options": [
+        "Ошибка (`EVIDENCE_CONFLICT`), код 3, ничего не записано; отмена — `run finish --state CANCELLED`",
+        "Переиспользовать запись, результат не переписывать, вывод — из записи",
+        "Новая запись evidence с новым id (отказ от идемпотентности при другом содержимом)"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:8b70aa35fab4684be05ee3e31934c784bf814ec7472ca43c73fa33e24f4e59ca",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-29T10:00:00Z",
+    "finished_at": "2026-09-29T10:45:00Z"
+  }
+}

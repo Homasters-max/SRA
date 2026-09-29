@@ -25,7 +25,7 @@ import { CLI_VERSION } from "../../version.js";
 import { CURRENT_FILE } from "../run/store.js";
 import { agentsMd, AGENTS_MD_MARKER, AGENTS_MD_REL } from "./agents.js";
 import { REVIEW_SKILL } from "../run/types.js";
-import { CLAUDE_FRONTEND, CLAUDE_REVIEWER_REL, claudeMdTarget, claudeSettingsTarget, reviewerAgent } from "./claude.js";
+import { CLAUDE_FRONTEND, CLAUDE_REVIEWER_REL, claudeSettingsTarget, reviewerAgent } from "./claude.js";
 import { mergeRules, type OpenspecRules } from "./rules.js";
 import { driftPath, linesTarget, type SubsetTarget } from "./subset.js";
 
@@ -540,7 +540,7 @@ export function planSync(input: PlanInput): SyncPlan {
     if (reviewer.stale) removed.push(CLAUDE_REVIEWER_REL);
   }
 
-  const subsets = planSubsets(root, subsetTargets(loaded, agents !== undefined && !("error" in agents)), errors);
+  const subsets = planSubsets(root, subsetTargets(loaded), errors);
 
   // (4) The lock, hashing everything planned above but not itself.
   if (openspecVersion !== null) {
@@ -591,14 +591,13 @@ export const RUNS_CURRENT_IGNORE = `.warrant/runs/${CURRENT_FILE}`;
 
 /**
  * Managed subsets of this project: `.gitignore` always; with `frontends ∋
- * claude` `.claude/settings.json`, and `CLAUDE.md` when `AGENTS.md` is generated.
+ * claude` `.claude/settings.json`. `CLAUDE.md` is never touched: Claude Code reads `AGENTS.md` itself (design no-claude-md D1).
  * Without `frontends` no frontend file is touched (SCN-KRN-134).
  */
-function subsetTargets(loaded: LoadResult, agentsGenerated: boolean): SubsetTarget[] {
+function subsetTargets(loaded: LoadResult): SubsetTarget[] {
   const targets = [linesTarget(".gitignore", [RUNS_CURRENT_IGNORE])];
   if (loaded.config.frontends.includes(CLAUDE_FRONTEND)) {
     targets.push(claudeSettingsTarget);
-    if (agentsGenerated) targets.push(claudeMdTarget);
   }
   return targets;
 }

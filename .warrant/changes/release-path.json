@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://change-record/1",
   "change": "release-path",
-  "change_state": "IMPLEMENTING",
+  "change_state": "VERIFYING",
   "classification": {
     "profiles": [
       "chore",
@@ -56,6 +56,14 @@
       "gates": {
         "branch-isolated": "PASS"
       },
+      "evidence": []
+    },
+    {
+      "to": "VERIFYING",
+      "at": "2026-09-29T17:06:22.090Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+      "gates": {},
       "evidence": []
     }
   ]

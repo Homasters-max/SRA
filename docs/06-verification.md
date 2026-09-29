@@ -238,15 +238,25 @@ Reviewer ищет:
 - CI MUST блокировать merge при `FAIL`, `BLOCKED` и отсутствии required evidence.
 - `warrant ci` ([04 §7](04-lifecycle.md)) считает checks `VERIFYING->MERGED` на результате merge, который строит сам job (tip базы на момент запуска + head PR): CI-запись несёт `subject.commit` — head PR и `subject.tree` — дерево результата merge, так что evidence судит то, что вливается в `main` (R-12). Сдвиг `main` до merge — `STALE` `tree`, лечится Re-run job; после merge — run `workflow_dispatch` на merge-коммите ([ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 3, 4). В MVP красный job — сигнал maintainer'у: branch protection вне MVP.
 
-### Угроза «общий аккаунт»
+### Модель угроз
 
-Агент и maintainer под одним аккаунтом форжа неразличимы: решение blocking UNKNOWN комментарием, merge и `human-approval`, сделанные агентом, `warrant ci` иначе засчитал бы как акты maintainer'а ([ADR-0044](adr/WARRANT-ADR-0044-lattice-issues.md) п. 3, реализует [ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md) п. 4 со стороны CLI).
+Против кого WARRANT что обещает ([ADR-0048](adr/WARRANT-ADR-0048-stabilization.md) п. 2). Каждое обещание норм называет класс, которому противостоит.
 
-- Идентичность агента — GitHub App. App и его установку создаёт maintainer; логин App (`…[bot]`) — в `identities.agents[].login` `.warrant/warrant.json`. Токен установки живёт только в окружении агента, `gh` на машине агента авторизован только App'ом: токен человека агенту недоступен. **WARRANT этого не проверяет** — это граница доверия проекта.
+| Класс | Противник | Обещание |
+|---|---|---|
+| A | Ошибающийся агент: честен, но пропустил тест, забыл gate, криво оформил запись | **Гарантия** — gates и судья в CI не пропускают |
+| B | Обходящий агент: правит свою защиту, пишет запись руками, сливает сам, подбирает профиль | **Обнаружение** — судья краснеет или даёт находку; предотвращать не обязан |
+| C | Злонамеренный автор PR или админ форжа: подделка attestation, workflow из PR, снятие protection | **Вне WARRANT**; настройки форжа проверяются и показываются |
+
+Maintainer доверен и вне модели (`enforce_admins` форжа — его выбор). Вторая линия против B — merge spec-PR и impl-PR maintainer'ом своим аккаунтом ([ADR-0049](adr/WARRANT-ADR-0049-flow.md) п. 2).
+
+**Общий аккаунт (класс B).** Агент и maintainer под одним аккаунтом форжа неразличимы: решение blocking UNKNOWN комментарием, merge и `human-approval`, сделанные агентом, `warrant ci` иначе засчитал бы как акты maintainer'а ([ADR-0044](adr/WARRANT-ADR-0044-lattice-issues.md) п. 3, реализует [ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md) п. 4 со стороны CLI).
+
+- Идентичность агента — машинный пользователь ([ADR-0049](adr/WARRANT-ADR-0049-flow.md) п. 3): отдельный аккаунт форжа, collaborator с `write`; GitHub App — позже. Аккаунт создаёт maintainer; логин — в `identities.agents[].login` `.warrant/warrant.json`. Токен бота живёт только в окружении агента, `gh` на машине агента авторизован только им: токен человека агенту недоступен. **WARRANT этого не проверяет** — это граница доверия проекта.
 - `warrant validate`: логин и в `identities.agents`, и в любой роли `roles` — `CONFIG_INVALID` (роли не содержат ботов).
-- Пока `identities.agents` базы пуст: каждый проверенный акт (решение UNKNOWN, ref `APPROVED` / `MERGED` с `merged_by`) — информационная находка `SHARED_IDENTITY` в `data.findings[]`, код выхода от неё не меняется; `merged_by` = автор PR — ещё находка `APPROVER_IS_AUTHOR`. Шум осознанный: он и есть сигнал завести App.
+- Пока `identities.agents` базы пуст: каждый проверенный акт (решение UNKNOWN, ref `APPROVED` / `MERGED` с `merged_by`) — информационная находка `SHARED_IDENTITY` в `data.findings[]`, код выхода от неё не меняется; `merged_by` = автор PR — ещё находка `APPROVER_IS_AUTHOR`. Шум осознанный: он и есть сигнал завести идентичность агента.
 - Когда `identities.agents` непуст: `merged_by` = автор PR или агент — `REF_NOT_VERIFIED` с причиной `merged_by`; автор решения UNKNOWN из `identities.agents` — деталь `author`.
-- Активация waiver (`--by`) — локальная запись, форж её не видит; проверка исполнителя — вне этой угрозы (BL-75).
+- Активация waiver (`--by`) — локальная запись, форж её не видит; проверка исполнителя — WS-04 [backlog](backlog.md).
 
 ### Job `warrant` — reusable workflow
 

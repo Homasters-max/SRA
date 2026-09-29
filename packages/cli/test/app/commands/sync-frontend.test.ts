@@ -1,8 +1,8 @@
 /**
  * Files of a frontend and `AGENTS.md` in `warrant sync` and `warrant validate`
  * (REQ-KRN-033, design phase-4a §8): the managed subset of
- * `.claude/settings.json`, the `@AGENTS.md` line of `CLAUDE.md`, the Run line of
- * `.gitignore`, the generated `AGENTS.md` (SCN-KRN-130…134) and the subagent
+ * `.claude/settings.json`, the Run line of `.gitignore`, the generated
+ * `AGENTS.md` (SCN-KRN-130…134), `CLAUDE.md` left alone (SCN-KRN-155) and the subagent
  * `.claude/agents/warrant-reviewer.md` of the review Run (SCN-KRN-139, 140;
  * design phase-4b §6) and its absence without the review skill (SCN-KRN-142).
  */
@@ -164,7 +164,7 @@ describe("warrant validate: managed subset", () => {
 });
 
 describe("warrant sync: AGENTS.md and CLAUDE.md", () => {
-  it("AGENTS.md holds only the rules with paths [\"**\"], CLAUDE.md imports it (SCN-KRN-132)", async () => {
+  it("AGENTS.md holds only the rules with paths [\"**\"], no CLAUDE.md is created (SCN-KRN-132)", async () => {
     const p = rule(rule(project(["claude"]), "language-split", ["**"], "Docs are Russian."), "src-style", ["src/**"], "Keep modules small.");
     rule(p, "ids-by-cli", ["**"], "IDs are allocated by the CLI.\n");
     const run = await sync(p);
@@ -174,7 +174,7 @@ describe("warrant sync: AGENTS.md and CLAUDE.md", () => {
       `${AGENTS_MD_MARKER}\n\nIDs are allocated by the CLI.\n\nDocs are Russian.\n`
     );
     expect(p.read("AGENTS.md")).not.toContain("Keep modules small.");
-    expect(p.read("CLAUDE.md")).toBe("@AGENTS.md\n");
+    expect(exists(p, "CLAUDE.md")).toBe(false);
     expect(p.read(".warrant/warrant.lock.json")).toContain('"AGENTS.md"');
     expect(await validate(p)).toMatchObject({ ok: true });
 
@@ -183,11 +183,27 @@ describe("warrant sync: AGENTS.md and CLAUDE.md", () => {
     expect((await validateErrors(p)).map((e) => [e.code, e.path])).toContainEqual(["GENERATED_DRIFT", "AGENTS.md"]);
   });
 
-  it("appends @AGENTS.md to an existing CLAUDE.md once", async () => {
-    const p = rule(project(["claude"]), "language-split", ["**"], "Docs are Russian.").write("CLAUDE.md", "# Project\n\nNotes");
-    await sync(p);
-    expect(p.read("CLAUDE.md")).toBe("# Project\n\nNotes\n@AGENTS.md\n");
-    expect((await sync(p)).data["changed"]).toEqual([]);
+  it("a deleted CLAUDE.md is not checked and not recreated (SCN-KRN-155)", async () => {
+    // CLAUDE.md as 0.8.1 wrote it, then sync, then the user deletes it.
+    const p = rule(project(["claude"]), "language-split", ["**"], "Docs are Russian.").write("CLAUDE.md", "@AGENTS.md\n");
+    expect((await sync(p)).errors).toEqual([]);
+    rmSync(path.join(p.root, "CLAUDE.md"));
+    expect(await validate(p)).toMatchObject({ ok: true });
+    expect((await sync(p, { check: true })).exitCode).toBe(0);
+    const again = await sync(p);
+    expect(again.data["changed"]).toEqual([]);
+    expect(exists(p, "CLAUDE.md")).toBe(false);
+  });
+
+  it.each([
+    ["without the line @AGENTS.md", "# Project\n\nNotes"],
+    ["with the line @AGENTS.md of an earlier version", "# Project\n\nNotes\n@AGENTS.md\n"]
+  ])("an existing CLAUDE.md %s stays byte for byte and is not checked (SCN-KRN-155)", async (_, text) => {
+    const p = rule(project(["claude"]), "language-split", ["**"], "Docs are Russian.").write("CLAUDE.md", text);
+    expect((await sync(p)).errors).toEqual([]);
+    expect(p.read("CLAUDE.md")).toBe(text);
+    expect(await validate(p)).toMatchObject({ ok: true });
+    expect((await sync(p, { check: true })).exitCode).toBe(0);
   });
 
   it("without rules with paths [\"**\"] no AGENTS.md and no CLAUDE.md are created", async () => {

@@ -1,0 +1,14 @@
+{
+  "$schema": "warrant://evidence-manifest/1",
+  "change": "ci-shards",
+  "commit": "216dfca2eb4d46f372e4091a256e525ef0defebc",
+  "versions": {
+    "warrant": "0.8.2",
+    "openspec": "1.13.1",
+    "lock_hash": "sha256:3d651be008c2c44603861a8050619d88510b935969934e0e4ccbb85cfc359eac",
+    "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03"
+  },
+  "evidence": [
+    "EVID-01M3P9M9W19TAXV1JM91Y7ETVK"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "release-path",
+  "change_state": "PROPOSED",
+  "classification": {
+    "profiles": [
+      "chore",
+      "factory-change"
+    ]
+  },
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-09-29T16:45:15.422Z",
+      "by": "cli:local"
+    }
+  ]
+}

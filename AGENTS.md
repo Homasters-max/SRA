@@ -61,6 +61,7 @@ WARRANT — governance-слой фабрики SEF поверх OpenSpec (specif
 - Навыки, `AGENTS.md`, файлы передачи, `backlog.md` — по форме ADR-0032. Держится: `dev-context.test.ts`.
 - Основной checkout — только `main`, работа — в worktree; force push и `openspec archive` запрещены. Держится: хук `git-hook.js` (ADR-0033 п. 9). Одна ветка — один worktree, ветку проверять перед коммитом — шаг 1 `group-done`.
 - Длинный текст (коммит, PR, envelope, JSON) — файлом (`Write`) и флагом пути, не в команде Bash: Git Bash на Windows обрезает команду длиннее ~7,7 тыс. символов. Держится: `git-hook.js` `long-command` (ADR-0043).
+- Markdown: абзац и пункт списка — одна строка любой длины, по ширине не переносить (и в шаблонах промптов); адрес места — id элемента → раздел → файл, не номер строки (`файл.md:42`). Держится: `md-form.test.ts` (ADR-0046).
 - Отклонение от spec или design — вопросом maintainer'у, принятое — строкой `I-N` (навык `decision`); норма во время реализации меняется только новым ADR.
 - Не реализовывать `guard`, `ci`, `run`, `analyze` вне фазы 4; не добавлять profiles без failure mode (ADR-0013); не трогать `docs/integrations/`, `lattice/`; второй формат конфигурации не изобретать (`warrant.json` — 08 §3).
 

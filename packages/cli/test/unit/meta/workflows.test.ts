@@ -171,3 +171,43 @@ describe("job test — windows by two vitest shards (REQ-VER-015)", () => {
     }
   });
 });
+
+describe("the CLI from a tag — the tarball of the tag (REQ-VER-014, release-path design D1)", () => {
+  const steps = block(reusable, ["jobs", "warrant", "steps"]);
+
+  it("SCN-VER-122 a tag is packed outside the checkout with scripts on, then its .tgz installed; no npm i -g github:", () => {
+    const install = stepBlock(steps, "Install warrant");
+    const run = (install ?? []).map((l) => l.text).join("\n");
+    expect(run).toContain('pack="$RUNNER_TEMP/warrant-pack"');
+    expect(run).toContain('(cd "$pack" && npm pack "github:Homasters-max/SRA#$WARRANT_TAG" --ignore-scripts=false)');
+    expect(run).toContain('npm i -g "$pack"/*.tgz');
+    expect(run).not.toMatch(/npm i(nstall)? -g "?github:/);
+    expect(value(block(install ?? [], ["env"]), "WARRANT_TAG")).toBe("${{ steps.source.outputs.tag }}");
+    const check = (stepBlock(steps, "Check the input warrant") ?? []).map((l) => l.text).join("\n");
+    expect(check).toContain('echo "kind=tag" >> "$GITHUB_OUTPUT"');
+    expect(check).toContain('echo "kind=checkout" >> "$GITHUB_OUTPUT"');
+    expect(check).not.toContain("package=github:");
+  });
+});
+
+const canary = yamlLines(".github/workflows/canary.yml");
+
+describe("canary — the shipped workflow with the CLI of the tag (REQ-VER-016)", () => {
+  it("SCN-VER-125 on a tag v* or workflow_dispatch, one job: ./.github/workflows/warrant.yml with the tag, read rights", () => {
+    expect(keysOf(block(canary, ["on"])).sort()).toEqual(["push", "workflow_dispatch"]);
+    expect(value(block(canary, ["on", "push"]), "tags")).toBe('["v*"]');
+    expect(keysOf(block(canary, ["jobs"]))).toEqual(["canary"]);
+    const job = block(canary, ["jobs", "canary"]);
+    expect(value(job, "if")).toBe("startsWith(github.ref, 'refs/tags/v')");
+    expect(value(job, "uses")).toBe("./.github/workflows/warrant.yml");
+    expect(keysOf(job)).not.toContain("steps");
+    expect(value(block(canary, ["jobs", "canary", "with"]), "warrant")).toBe("${{ github.ref_name }}");
+    const permissions = block(canary, ["jobs", "canary", "permissions"]);
+    expect(Object.fromEntries(keysOf(permissions).map((key) => [key, value(permissions, key)]))).toEqual({
+      contents: "read",
+      actions: "read",
+      "pull-requests": "read",
+      issues: "read",
+    });
+  });
+});

@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3Q1HTHVFC3RPTZTK4VESFDE",
+  "claim": {
+    "text": "openspec-validate passed for release-path",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "bc583ed03647f436ce8fd3e110e641d38fa00dbb",
+    "base_commit": "fe7176509fe4e29be74872abaf9c6901e6f7b408",
+    "spec_revision": "openspec/changes/release-path@bc583ed03647f436ce8fd3e110e641d38fa00dbb",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:e23fc2d97d9ccf422cd87761c305ba229c18f76e857f1f40da3be357dcc1c69d",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "created_at": "2026-09-29T16:56:45.373Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/release-path/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:cc4c63505c75bd97b9c5ee0f49addf0ac928e8223e43a6a519834cf9b77fc77d"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

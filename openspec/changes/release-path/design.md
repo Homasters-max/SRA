@@ -48,3 +48,12 @@
 
 - **e2e с `npm i` зависит от реестра npm.** `--prefer-offline` берёт кэш `npm ci` job'а; сбой сети — инфраструктура, повтор run.
 - **Канарейка на теге судит коммит тега** (D3). Если `warrant ci` на push-событии поведёт себя иначе, чем на archive-PR, канарейка покраснеет не по поставке. Первый прогон — в archive-PR; расхождение — строка backlog.
+
+## Решения по ходу реализации
+
+| # | Решение | Где |
+|---|---|---|
+| I-213 | Review 2 spec, F-1 (MINOR): D5 уточняется — SCN-VER-125 читает `canary.yml` и доказательством поставки не является; до merge поставку доказывает исполняемый SCN-VER-126 (tarball checkout'а), форму `github:…#<тег>` — прогон канарейки на теге `v0.8.3` в archive-PR (не SCN, не evidence). Delta spec не меняется: в ней канарейка уже «не evidence и не gate» | design D5, задача 2.2 |
+| I-214 | Review 2 spec, F-2 (MINOR): красный шаг «Check the input warrant» канарейки — тег `v*` не в форме `v<semver>` (не релиз), не сломанная поставка; красные checkout, `setup`, установка OpenSpec — инфраструктура, повтор run. Классификация — в комментарии `canary.yml` | `.github/workflows/canary.yml`, задача 2.1 |
+| I-215 | Review 2 spec, F-6 (MINOR): pack выпускается только в релизе CLI (тег — версия CLI), поэтому проверка CHANGELOG срабатывает по росту версии CLI; рост major/minor pack в том же релизе требует «Вердикт» и «Миграция для потребителя» в разделе версии CLI. Версия CLI ниже тега — только ошибка «lower than», без ошибки CHANGELOG | `scripts/versions-lib.js`, задача 3.1 |
+| I-216 | Review 2 spec, F-5 (MINOR): e2e пишет tarball `--pack-destination` во временный каталог ОС, не в checkout (параллельный `structure.test.ts` не видит лишнего файла в корне) | `install-tarball.test.ts`, задача 1.3 |

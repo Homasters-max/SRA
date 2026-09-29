@@ -6,16 +6,16 @@
 
 ## 1. Установка из тега (D1, D4, D8)
 
-- [ ] 1.1 `.github/workflows/warrant.yml` (D1): выход шага «Check the input warrant» — `kind`, `tag`; шаг «Install warrant» — `npm pack` тега в `$RUNNER_TEMP/warrant-pack` и `npm i -g` tarball, для `checkout` — `npm i -g .`; комментарии.
+- [x] 1.1 `.github/workflows/warrant.yml` (D1): выход шага «Check the input warrant» — `kind`, `tag`; шаг «Install warrant» — `npm pack` тега в `$RUNNER_TEMP/warrant-pack` и `npm i -g` tarball, для `checkout` — `npm i -g .`; комментарии.
 
   Проверка: `workflows.test.ts` (1.2).
-- [ ] 1.2 `packages/cli/test/unit/meta/workflows.test.ts`: SCN-VER-122 — форма tarball, нет `npm i -g github:`.
+- [x] 1.2 `packages/cli/test/unit/meta/workflows.test.ts`: SCN-VER-122 — форма tarball, нет `npm i -g github:`.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts workflows`.
-- [ ] 1.3 `packages/cli/test/e2e/install-tarball.test.ts` (D4): SCN-VER-126.
+- [x] 1.3 `packages/cli/test/e2e/install-tarball.test.ts` (D4): SCN-VER-126.
 
   Проверка: `npm run build`, затем `npx vitest run --config packages/cli/vitest.config.ts install-tarball`.
-- [ ] 1.4 `docs/06-verification.md` §8: таблица входов — форма tarball; «вне MVP» про branch protection — по REQ-VER-014 (D8).
+- [x] 1.4 `docs/06-verification.md` §8: таблица входов — форма tarball; «вне MVP» про branch protection — по REQ-VER-014 (D8).
 
 ## 2. Канарейка (D2, D3)
 

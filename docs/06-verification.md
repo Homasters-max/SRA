@@ -236,7 +236,7 @@ Reviewer ищет:
 - CI MUST заново вычислять все L0/L1 gates для merge.
 - Доверие evidence определяется тем, где оно произведено, а не подписью: воспроизводимое (L0/L1) CI пересчитывает, невоспроизводимое принимается только с attestation, которую допускает gate ([06a §3](06a-evidence.md)).
 - CI MUST блокировать merge при `FAIL`, `BLOCKED` и отсутствии required evidence.
-- `warrant ci` ([04 §7](04-lifecycle.md)) считает checks `VERIFYING->MERGED` на результате merge, который строит сам job (tip базы на момент запуска + head PR): CI-запись несёт `subject.commit` — head PR и `subject.tree` — дерево результата merge, так что evidence судит то, что вливается в `main` (R-12). Сдвиг `main` до merge — `STALE` `tree`, лечится Re-run job; после merge — run `workflow_dispatch` на merge-коммите ([ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 3, 4). В MVP красный job — сигнал maintainer'у: branch protection вне MVP.
+- `warrant ci` ([04 §7](04-lifecycle.md)) считает checks `VERIFYING->MERGED` на результате merge, который строит сам job (tip базы на момент запуска + head PR): CI-запись несёт `subject.commit` — head PR и `subject.tree` — дерево результата merge, так что evidence судит то, что вливается в `main` (R-12). Сдвиг `main` до merge — `STALE` `tree`, лечится Re-run job; после merge — run `workflow_dispatch` на merge-коммите ([ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 3, 4). Красный job — сигнал maintainer'у; обязательные проверки branch protection настраивает maintainer проекта, WARRANT их не требует (показ настроек форжа — класс C «Модели угроз», цикл 1 стабилизации).
 
 ### Модель угроз
 
@@ -264,7 +264,7 @@ WARRANT поставляет job `warrant` как reusable workflow `.github/wor
 
 | Вход | Default | Что |
 |---|---|---|
-| `warrant` | обязателен | Источник CLI: тег `v<semver>` — `npm i -g github:Homasters-max/SRA#<тег>`; `checkout` — CLI из checkout, только в репозитории WARRANT; иное — шаг проверки входа падает до установки чего-либо и называет допустимые значения |
+| `warrant` | обязателен | Источник CLI: тег `v<semver>` — tarball тега: `npm pack "github:Homasters-max/SRA#<тег>" --ignore-scripts=false` во временном каталоге runner'а вне checkout, затем `npm i -g` файла `.tgz` (`npm i -g github:…` не исполняет `prepare` и ставит CLI без `dist` — BL-52, ADR-0040 п. 7; тега нет или сборка упала — шаг установки красный до `warrant ci`); `checkout` — CLI из checkout, только в репозитории WARRANT; иное — шаг проверки входа падает до установки чего-либо и называет допустимые значения |
 | `setup` | `""` | Команды подготовки проекта (bash): зависимости и инструменты checks; после checkout и merge |
 | `node-version` | `22` | Версия Node.js |
 | `openspec-version` | `1.13.1` | Версия OpenSpec |
@@ -290,14 +290,16 @@ jobs:
       actions: read
       pull-requests: read
       issues: read
-    uses: Homasters-max/SRA/.github/workflows/warrant.yml@v0.8.2
+    uses: Homasters-max/SRA/.github/workflows/warrant.yml@v0.8.3
     with:
-      warrant: v0.8.2
+      warrant: v0.8.3
       setup: npm ci
       merge_commit: ${{ inputs.merge_commit || '' }}
 ```
 
 - Тег в `uses` и вход `warrant` — один и тот же тег CLI; подъём версии — правка обеих строк.
+- Первый тег с рабочей установкой из tarball — `v0.8.3`: с `v0.8.2` и раньше reusable workflow ставит CLI без `dist` (WS-01).
+- Канарейка поставки — `.github/workflows/canary.yml` репозитория WARRANT: на push тега `v*` (и `workflow_dispatch --ref <тег>`) вызывает `./.github/workflows/warrant.yml` того же коммита с `warrant: <тег>` (REQ-VER-016). Красный шаг «Install warrant» — поставка сломана, patch до того, как потребитель поднимет pin.
 - Права — `read` на `contents`, `actions`, `pull-requests`, `issues`: форж `warrant ci` читает PR, runs, artifacts и комментарии через `gh` с `github.token` вызывающего. Секретов workflow не несёт.
 - Имя проверки в GitHub — `warrant / warrant` (job вызывающего / job workflow). Проект с обязательной проверкой в branch protection обновляет её имя сам.
 - `workflow_dispatch` с `merge_commit` нужен recovery-прогону: подсказка `NO_CI_EVIDENCE` `warrant ci fetch` называет файл workflow run'а head PR (`gh workflow run <файл> -f merge_commit=<M>`).

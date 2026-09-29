@@ -17,9 +17,9 @@
 #       name: warrant
 #       if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
 #       permissions: { contents: read, actions: read, pull-requests: read, issues: read }
-#       uses: Homasters-max/SRA/.github/workflows/warrant.yml@v0.8.2
+#       uses: Homasters-max/SRA/.github/workflows/warrant.yml@v0.8.3
 #       with:
-#         warrant: v0.8.2
+#         warrant: v0.8.3
 #         setup: npm ci
 #         merge_commit: ${{ inputs.merge_commit || '' }}
 #
@@ -90,9 +90,10 @@ jobs:
               echo "::error::input warrant is checkout, but the checkout is not the WARRANT repository (no packages/cli/package.json of @warrant/cli); $allowed"
               exit 2
             fi
-            echo "package=." >> "$GITHUB_OUTPUT"
+            echo "kind=checkout" >> "$GITHUB_OUTPUT"
           elif [[ "$WARRANT_SOURCE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "package=github:Homasters-max/SRA#$WARRANT_SOURCE" >> "$GITHUB_OUTPUT"
+            echo "kind=tag" >> "$GITHUB_OUTPUT"
+            echo "tag=$WARRANT_SOURCE" >> "$GITHUB_OUTPUT"
           else
             echo "::error::input warrant is '$WARRANT_SOURCE'; $allowed"
             exit 2
@@ -134,10 +135,26 @@ jobs:
           OPENSPEC_VERSION: ${{ inputs.openspec-version }}
         run: npm i -g "@fission-ai/openspec@$OPENSPEC_VERSION"
 
+      # A tag installs from the tarball of that tag (ADR-0040 п. 7, BL-52, WS-01):
+      # `npm i -g github:…` does not run `prepare`, so the CLI arrives without
+      # dist. `npm pack` builds it; it runs outside the checkout, so the
+      # project's .npmrc does not apply, and --ignore-scripts=false overrides a
+      # user config left by `setup` (release-path, design D1). A missing tag, a
+      # failed build or registry fails this step before `warrant ci`.
       - name: Install warrant
         env:
-          WARRANT_PACKAGE: ${{ steps.source.outputs.package }}
-        run: npm i -g "$WARRANT_PACKAGE"
+          WARRANT_KIND: ${{ steps.source.outputs.kind }}
+          WARRANT_TAG: ${{ steps.source.outputs.tag }}
+        run: |
+          if [ "$WARRANT_KIND" = checkout ]; then
+            npm i -g .
+          else
+            pack="$RUNNER_TEMP/warrant-pack"
+            mkdir -p "$pack"
+            (cd "$pack" && npm pack "github:Homasters-max/SRA#$WARRANT_TAG" --ignore-scripts=false)
+            npm i -g "$pack"/*.tgz
+          fi
+          warrant --version
 
       # The output goes outside the checkout: the checks of VERIFYING->MERGED
       # run on the working tree (structure.test.ts lists the root). The step

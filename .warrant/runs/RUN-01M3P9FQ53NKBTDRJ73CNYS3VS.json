@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01M3P9FQ53NKBTDRJ73CNYS3VS",
+  "change": "ci-shards",
+  "operation": "review",
+  "skill": "specification/adversarial-review@0.2.0",
+  "model": "claude-opus-5-5",
+  "write_scope": [],
+  "scope": [],
+  "branch": "spec/ci-shards",
+  "started_at": "2026-09-29T09:56:10.575Z",
+  "finished_at": "2026-09-29T09:58:40.773Z",
+  "run_state": "SUCCEEDED",
+  "context_hash": "sha256:e0ac48cfa79b96e6dbdffb13dd5c1e46f845aad77349473abb59d1804df6e79d",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "spec_tree": "sha256:95546453a83189a6f7e81feb6fe30384daa068c7853ce8ff9fd21f4cb7bc09c3",
+  "evidence": [
+    "EVID-01M3P9M9W19TAXV1JM91Y7ETVK"
+  ],
+  "guard_events": []
+}

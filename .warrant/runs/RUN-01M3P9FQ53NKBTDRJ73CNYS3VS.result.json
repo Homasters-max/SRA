@@ -1,0 +1,114 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3P9FQ53NKBTDRJ73CNYS3VS",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-015 требует выполнять typecheck и `warrant validate` для репозитория и фикстуры один раз на ОС, а SCN-VER-124 проверяет пропуск в shard `2/2` только шагов `Typecheck` и `warrant validate (repository)`. Шаги `warrant validate (fixture project)` и `Install warrant from the checkout` в сценарий не входят (design §2 и D2 их перечисляют). Реализация, где проверка фикстуры идёт в обоих windows shard, проходит сценарий, но нарушает требование.",
+      "targets": [
+        "SCN-VER-124",
+        "REQ-VER-015"
+      ],
+      "recommendation": "Добавить в THEN SCN-VER-124: шаги `Install warrant from the checkout` и `warrant validate (fixture project)` тоже пропускаются в shard `2/2`, а в job ubuntu и shard `1/2` выполняются (условие `matrix.shard != '2/2'`)."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "proposal (Impact, Non-Goals) считает, что branch protection `main` с обязательной проверкой `test (windows-latest)` существует, и велит maintainer'у заменить её до merge impl-PR. Main spec REQ-VER-014 и 06 §8 говорят «branch protection вне MVP», ADR-0033 и ADR-0034 фиксируют, что на приватном репозитории бесплатного плана она недоступна (`403`). REQ-VER-015 пишет «если они настроены». Delta и proposal расходятся в том, есть ли у шага maintainer'а предмет.",
+      "targets": [
+        "openspec/changes/ci-shards/proposal.md",
+        "REQ-VER-015",
+        "REQ-VER-014"
+      ],
+      "recommendation": "Привести proposal к REQ-VER-015: шаг maintainer'а — условный («если настроены»). Если protection или ruleset уже включены (например, ради `gh pr merge --auto` из PR #95), так и написать и сослаться на факт; тогда устаревший текст «вне MVP» в REQ-VER-014 и ADR-0033 — отдельная правка."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Переход обязательных проверок не описан. Если список меняется до merge impl-PR, открытые PR на старом `ci.yml` никогда не выдают `test (windows-latest, 1/2)` и `2/2` и висят в ожидании, а их auto-merge (`gh pr merge --auto`, PR #95) не срабатывает. Если список меняется после merge, уже PR на новом `ci.yml` ждут `test (windows-latest)`, который больше не появляется. Ни REQ-VER-015, ни proposal не говорят, что делать с PR в полёте.",
+      "targets": [
+        "REQ-VER-015",
+        "openspec/changes/ci-shards/proposal.md"
+      ],
+      "recommendation": "Описать порядок (например, обновить список сразу после merge impl-PR и сделать rebase открытых PR на `main`, либо на время перехода держать в списке оба набора имён) или явно сказать, что переход не нужен, потому что обязательных проверок нет (см. F-2)."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "Утверждение «вместе покрывают все файлы тестов» держится на семантике `vitest --shard` для конфига с несколькими projects (unit, app, contract, e2e и разбиение heavy/light в `packages/cli/vitest.config.ts`). Ни один сценарий не проверяет, что объединение двух shard равно полному набору. SCN-VER-124 проверяет только передачу флага.",
+      "targets": [
+        "REQ-VER-015",
+        "SCN-VER-124"
+      ],
+      "recommendation": "Назвать это свойство гарантией vitest (`--shard` делит файлы всех projects) в требовании или design. Либо добавить проверку, что число файлов в двух shard равно числу файлов полного прогона (`vitest list`), хотя бы как ручную проверку задачи 1.1."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-VER-015: «SHALL гонять полный `npm test` … на `windows-latest` — двумя параллельными job `vitest --shard`». Каждый shard — суженный прогон, «полным» является только их объединение. Рядом стоит ADR-0025 п. 8 («суженный прогон в gate не засчитывается»; check `tests-passed` — полный `npm test` в job `warrant`), и формулировка допускает прочтение, будто shard-прогон — это `tests-passed`.",
+      "targets": [
+        "REQ-VER-015"
+      ],
+      "recommendation": "Переформулировать: «все файлы тестов всех уровней на каждой ОС: на ubuntu — одним `npm test`, на windows — объединением shard `1/2` и `2/2`». Добавить, что check `tests-passed` (job `warrant`) остаётся полным `npm test` и от shard не зависит."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-124: «шаг `Test` передаёт `--shard` в `npm test` из `matrix.shard`» — без условия для пустого `shard` у ubuntu. Проверку по тексту шага проходит и реализация, которая на ubuntu передаёт `--shard=` с пустым значением (vitest упадёт), и D4 (`${SHARD:+--shard=$SHARD}`). Точные имена проверок из REQ (`test (ubuntu-latest)` без хвоста) сценарий тоже не проверяет: он требует лишь, чтобы имя включало `matrix.shard`.",
+      "targets": [
+        "SCN-VER-124"
+      ],
+      "recommendation": "Уточнить THEN: при пустом `matrix.shard` флаг `--shard` не передаётся, и имя job для ubuntu — ровно `test (ubuntu-latest)`. Если выражения GitHub не вычисляются в тесте, прямо указать, что имена проверяются прогоном CI impl-PR (задача 1.1)."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Требование «вместе покрывают все файлы» наблюдаемо, только когда падение одного shard не отменяет другой. `strategy.fail-fast: false` в текущем `ci.yml` есть, но REQ-VER-015 и SCN-VER-124 его не закрепляют. При `fail-fast: true` красный shard `1/2` отменит shard `2/2` и job ubuntu, и падения в другой половине останутся невидимыми до следующего прогона.",
+      "targets": [
+        "REQ-VER-015",
+        "SCN-VER-124"
+      ],
+      "recommendation": "Добавить в SCN-VER-124: `strategy.fail-fast` job `test` равен `false`."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Включены ли сейчас на `main` branch protection или ruleset с обязательными проверками (ADR-0033 фиксирует `403` на 2026-09-25; PR #95 ввёл `gh pr merge --auto`)? От ответа зависят F-2 и F-3.",
+      "blocking": false
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Check `tests-passed` репозитория (`.warrant/local/checks/tests-passed.json`, полный `npm test`) выполняется в job `warrant` через `warrant.yml` и от matrix job `test` не зависит, поэтому sharding не сужает evidence gate (ADR-0025 п. 8, ADR-0017 п. 4)."
+    },
+    {
+      "id": "A-2",
+      "statement": "`vitest --shard=k/n` делит все файлы тестов всех projects конфига, пересечения и пропуска нет. Проверено по документации vitest, а не прогоном."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:e0ac48cfa79b96e6dbdffb13dd5c1e46f845aad77349473abb59d1804df6e79d",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-29T10:00:00Z",
+    "finished_at": "2026-09-29T10:20:00Z"
+  }
+}

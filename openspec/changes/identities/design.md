@@ -32,3 +32,16 @@
 ### 3. Группа 2
 
 - `.claude/skills/git-land/SKILL.md` шаг 4, `.claude/skills/fast-mode/SKILL.md` шаг 4 — D4.
+
+## Решения по ходу реализации
+
+| # | Решение | Где |
+|---|---|---|
+| I-217 | Review 2 spec, F-1 (MAJOR): правило merge D4 — во всех навыках, где оно звучит, не только в шаге 4: `git-land` (описание, вход, шаги 3–4, «Стоп»), `fast-mode` (шаги 1, 4), `change-spec-pr` (шаги 5, 7, «Стоп»), `change-impl-pr` (шаги 6, 7, «Стоп»), `change-archive-pr` (описание, шаг 5, «Стоп»); ссылка нормы — ADR-0050 п. 8 | `.claude/skills/**`, задача 2.1 |
+| I-218 | Review 2 spec, F-2 (MAJOR): maintainer сливает spec-PR только после push коммита `transition SPECIFIED` — слитый без него spec-PR не несёт перехода, ref `APPROVED` отказывает; агент делает `SPECIFIED` до просьбы слить | `change-spec-pr` шаги 5, 7, задача 2.1 |
+| I-219 | Review 2 spec, F-3 (MAJOR): восстановление D5 (1) через revert не работает — судья отказывает укороченной записи Change; путь через lifecycle (`VERIFYING->IMPLEMENTING`, `ABANDONED --supersedes`) проверить до записи в норму — строка WS-32 | `docs/backlog.md` |
+| I-220 | Review 2 spec, F-5 (MINOR): риск D5 (2) — не класс B (обнаружение), а граница доверия 06 §8: токен maintainer'а на машине агента судья не отличает — строка WS-33 | `docs/backlog.md` |
+| I-221 | Review 2 spec, F-6 (MINOR): archive-PR сливает бот `--auto`, «merge #N» не ждёт | `change-archive-pr`, `git-land` шаг 4, задача 2.1 |
+| I-222 | Review impl, 🔴: «merge #N» ADR-0033 п. 4 был и merge, и активацией waivers spec-PR; merge теперь — кнопка maintainer'а после `SPECIFIED`, а активация нужна до `SPECIFIED`. Сигнал активации — слово maintainer'а в чате «активируй WAV-…» (та же форма, что «merge #N»: слово в чате, `--by <maintainer>`), в теле spec-PR — строкой раздела «Waivers на решение» | `change-spec-pr` шаги 5, 7, «Стоп» |
+| I-223 | Review impl, 🔴: ссылка maintainer'у на auto-merge — spec-PR после push `SPECIFIED` (I-218), impl-PR после коммита `VERIFYING`; в `git-land` шаги 3–4 и `fast-mode` шаг 4 так же, как в `change-*-pr`. Бот сливает archive-, docs-, process- и fix-PR (ADR-0050 п. 8) | `git-land`, `fast-mode`, задача 2.1 |
+| I-224 | Review impl, 🟡: `fast-mode` «Стоп» — повтор флейка всем run (`gh run rerun <run>`, BL-72), не `--failed`: повтор только упавших job не пересобирает artifact job `warrant` | `fast-mode`, задача 2.1 |

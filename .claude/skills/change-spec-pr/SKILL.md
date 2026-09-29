@@ -34,13 +34,13 @@ argument-hint: "<change>"
    $W waive <change> <gate> --reason "<почему нет producer'а>" --risk HIGH --control "<контроль>" --owner human:<maintainer> --expires <YYYY-MM-DD>
    ```
    Waivers нет — сразу шаг 7 до PR.
-5. PR — шаги 1–3 `git-land`. Тело начинается разделом «Waivers на решение»: WAV, gate, risk, reason, expires и строка «merge #N = активация этих waivers (ADR-0033 п. 4)», затем находки review. CI (`test`, `warrant / warrant` — `kind: spec`, правило путей) зелёный — «жду merge #N».
+5. PR — шаги 1–3 `git-land`. Тело начинается разделом «Waivers на решение»: WAV, gate, risk, reason, expires и строка «слово maintainer'а в чате „активируй WAV-…“ = активация этих waivers (ADR-0033 п. 4, I-222)», затем находки review. CI (`test`, `warrant / warrant` — `kind: spec`, правило путей) — ссылка maintainer'у на auto-merge только после push коммита `transition SPECIFIED` (шаг 7): слитый без него spec-PR не несёт перехода, ref `APPROVED` — отказ `change`.
 6. Blocking UNKNOWN (ответ меняет spec): `$W unknown add <change> --area <AREA> --text "<вопрос>" --blocking` → `$W status <change>` — `WAIT`, next `clarify`. Решение — комментарий maintainer'а в этом PR с id `UNK-…` в тексте:
    ```bash
    $W unknown resolve <change> <UNK> --as decision --text "<ответ>" --ref <URL …#issuecomment-<id> | …#pullrequestreview-<id>>
    ```
    Коммит `<change>: unknown <UNK> — decision`; исправить до `APPROVED` — тот же вызов с `--replace`. `warrant unknown` — только в `PROPOSED` и `SPECIFIED` ([ADR-0040](../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 2, 3).
-7. По «merge #N» — активация, проверка, переход; коммит `<change>: waivers WAV-…, verify PROPOSED->SPECIFIED, transition SPECIFIED`, push:
+7. По слову maintainer'а в чате «активируй WAV-…» (без waivers — сразу, шаг 4) — активация, проверка, переход; коммит `<change>: waivers WAV-…, verify PROPOSED->SPECIFIED, transition SPECIFIED`, push:
    ```bash
    $W waive --activate <WAV> --by <maintainer>
    $W verify <change>
@@ -53,7 +53,7 @@ argument-hint: "<change>"
 - `openspec validate`, `classify` или `verify` — ошибка или `FAIL` gate, у которого producer есть: исправить артефакты, а не снимать waiver'ом.
 - Gate не waivable — waiver невозможен: показать gate и спросить.
 - Субагент не сдал envelope (`warrant` не найден, отказ не guard'а) — `$W run finish --state FAILED`, показать причину; evidence руками не писать.
-- Нет «merge #N» или blocking UNKNOWN открыт — не активировать waivers и не сливать.
+- Нет слова «активируй WAV-…» или blocking UNKNOWN открыт — не активировать waivers и не просить auto-merge; spec-PR агент не сливает.
 
 ## Отчёт
 

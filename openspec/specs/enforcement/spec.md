@@ -60,8 +60,12 @@ hash набора пар «путь → blob» файлов `proposal.md` и `sp
 закоммитить spec. `--scope` (glob через запятую) SHALL только сужать: guard разрешает путь, лишь если он подходит и под
 `write_scope`, и под `scope` (пустой `scope` — без сужения). Состояние Change не допускает операцию → `STATE_INVALID`;
 `implement` без `paths.src` и `paths.tests` → `CONFIG_INVALID`; активный Run уже есть → `RUN_ACTIVE`; каждая из этих ошибок SHALL
-нести `hint`, код выхода 3, ничего не записано. Вывод — Context Pack:
-`data{ run, change, operation, write_scope[], scope[], rules[], items[], context_hash }`, где `rules[]` — правила `rule/1`,
+нести `hint`, код выхода 3, ничего не записано. Для `specify` и `implement` файлы внутри `write_scope`, которые отличаются от HEAD
+в индексе или рабочем дереве (в том числе удалённые) или не отслеживаются git и не игнорируются (`.gitignore`), SHALL давать
+находку `{ code: "UNCOMMITTED_IN_SCOPE", paths[], hint }` (`paths` — пути проекта в порядке code units) в
+`data.findings[]` — граница результата Run — коммит ([ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 5); Run
+стартует, код выхода от находки не меняется; без git находки нет. Вывод — Context Pack:
+`data{ run, change, operation, write_scope[], scope[], rules[], items[], context_hash, findings[] }`, где `rules[]` — правила `rule/1`,
 хотя бы один файл проекта которых подходит под итоговый scope Run ([ADR-0022](../../../../docs/adr/WARRANT-ADR-0022-path-rules.md) п. 6;
 у `review` — пусто), `items[]` — существующие `proposal.md`, `specs/**`, `design.md`, `tasks.md` Change, `context_hash` — hash
 содержимого `items` и `rules`. `--task` SHALL сохраняться в `task` без проверки.
@@ -105,6 +109,11 @@ hash набора пар «путь → blob» файлов `proposal.md` и `sp
 <!-- id: SCN-ENF-036 -->
 - **WHEN** `warrant run start add-search --operation implement` при `change_state: IMPLEMENTING`, `paths.src: "src"` и `paths.tests: "tests"`
 - **THEN** `write_scope` равен `["src/**", "tests/**", "openspec/changes/add-search/tasks.md", "openspec/changes/add-search/design.md", "openspec/changes/add-search/specs/**"]`; guard при этом Run даёт `allow` правке `openspec/changes/add-search/specs/search/spec.md` и `deny` правке `openspec/changes/add-search/proposal.md`
+
+#### Scenario: Незакоммиченное в scope
+<!-- id: SCN-ENF-045 -->
+- **WHEN** `warrant run start add-search --operation implement` при `change_state: IMPLEMENTING`, а `src/search.py` изменён в рабочем дереве и `tests/test_new.py` не отслеживается git; `docs/notes.md` вне `write_scope` тоже изменён
+- **THEN** Run создан, код 0; `data.findings[]` содержит `{ code: "UNCOMMITTED_IN_SCOPE" }` с `paths` `["src/search.py", "tests/test_new.py"]` и `hint` закоммитить или убрать чужую работу; при чистом дереве `data.findings` пуст
 
 ### Requirement: Команда run finish
 <!-- id: REQ-ENF-003 -->
@@ -153,8 +162,27 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
   Run: например `.warrant/local/**`, `.github/workflows/**`), в `deny` обоих случаев выше SHALL получать вместо `warrant run start`
   и `warrant run finish` hint: правку делает человек (maintainer) вне сессии агента, в Change `factory-change`
   ([ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 7); остальные пути (например `docs/**`) — прежние подсказки;
-- `shell` при активном Run `review` — `allow`, только если каждая простая команда строки после shell-разбора начинается с
-  `warrant run submit`, иначе `deny` с hint `warrant run submit`;
+- `shell` при активном Run `review` — `allow`, только если каждая простая команда строки после shell-разбора — строгая форма
+  `warrant run submit` (прежние правила: heredoc — данные, I-167) или команда без записи
+  ([ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 5):
+  - `warrant status [...]`, `warrant gate <change> [...]` (обе ничего не пишут), `warrant <слова> --help` или `-h`, где слова —
+    только имена подкоманд (`warrant -- --help` — `deny`), `warrant run finish --state CANCELLED [--dry-run]`;
+  - `git status | log | diff | show [...]`: подкоманда — первое слово после `git` (глобальные опции `-c`, `-C`, `--git-dir` и
+    любые другие перед подкомандой — `deny`), ни один аргумент не начинается с `-o`, не равен префиксу `--output` длиной от
+    `--ou` и не начинается с `--output=`, не равен префиксу `--ext-diff` длиной от `--ext` (`--oneline`, `--ours` разрешены;
+    design I-207, I-210);
+  - `cd <путь>` — ровно один путь, который не начинается с `-` и `~`, если путь после `realpath` лежит внутри проекта события от
+    каждого каталога, в котором строка может оказаться к этому месту (`cd`, который не удался, оставляет прежний каталог:
+    `cd a || cd ..` — `deny`); иначе `deny`: `run finish` и `run submit` без id Run действуют на Run того checkout, куда ведёт
+    `cd` (design I-202, I-210).
+
+  Строгая форма команды без записи: простые команды соединены только `&&`, `||`, `;` и переводом строки; перенаправление (в том
+  числе `<<` без разделителя и `<<<`), конвейер `|`, `&`, подстановка `$(…)` или `` `…` ``, присваивание `VAR=…`, группы `( … )`
+  и `{ …; }`, `!` — `deny`; слово, в котором после снятия кавычек есть `<`, `>`, `&`, `$`, `` ` ``, `(`, `)`, `{` или `}`, — `deny`
+  (раскрытия `$VAR` и `{a,b}` собирают запрещённый аргумент); тело heredoc такой команды — данные: frontend и разбор `bash -c`
+  отбрасывают его до решения, как у `warrant run submit` (I-167); строка только из `warrant run submit` сохраняет прежние
+  соединители; `--state=CANCELLED` равен `--state CANCELLED` (design I-207, I-210). Иначе `deny` с hint, называющим
+  `warrant run submit`, отмену `warrant run finish --state CANCELLED` и `warrant status`;
 - `shell` в остальных случаях — `deny`, если простая команда строки после shell-разбора начинается с одного из
   `execution.guard_prefixes` check с `exclusive: true` или `local ≠ allowed` (по умолчанию — первые токены `run.command` до первого
   флага или плейсхолдера; пара `-m <модуль>` сразу после первого токена — часть префикса: `python -m pytest`, а не `python`), с hint `warrant check <change> <id> [--paths …]`; иначе `allow`
@@ -213,7 +241,7 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 #### Scenario: Shell под review
 <!-- id: SCN-ENF-027 -->
 - **WHEN** при активном Run `review` guard получает `pre` `shell` с `argv: ["bash", "-c", "warrant run submit --file result.json"]`, затем с `argv: ["bash", "-c", "cat x && warrant run submit"]`
-- **THEN** первое — `allow`, второе — `deny` с hint `warrant run submit`
+- **THEN** первое — `allow`, второе — `deny` с hint, называющим `warrant run submit` и `warrant run finish --state CANCELLED`
 
 #### Scenario: Префикс команды модуля
 <!-- id: SCN-ENF-037 -->
@@ -239,6 +267,11 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 <!-- id: SCN-ENF-041 -->
 - **WHEN** при активном Run `review` guard получает `pre` `edit` пути `<os.tmpdir()>/review-envelope.json`, затем пути вне проекта и вне временного каталога, затем `openspec/changes/add-search/proposal.md`
 - **THEN** первое — `allow`, второе и третье — `deny`; hint второго содержит абсолютный путь временного каталога и `warrant run submit --file`; в Run три события, у первых двух `paths` пуст
+
+#### Scenario: Чтение и отмена под review
+<!-- id: SCN-ENF-044 -->
+- **WHEN** при активном Run `review` guard получает `pre` `shell` с `argv: ["bash", "-c", "warrant status add-search"]`, затем `["bash", "-c", "git diff main -- openspec && warrant gate add-search"]`, затем `["bash", "-c", "warrant run finish --state CANCELLED"]`; затем `["bash", "-c", "git diff --outp=x.patch"]`, `["bash", "-c", "git -c diff.external=x diff"]`, `["bash", "-c", "warrant status > s.txt"]`, `["bash", "-c", "git log | head"]`, `["bash", "-c", "warrant run finish"]` и `["bash", "-c", "cd ../other && warrant run finish --state CANCELLED"]` (`../other` вне проекта); `["bash", "-c", "git log --oneline"]`
+- **THEN** первые три и последняя — `allow`; остальные шесть — `deny` с hint, называющим `warrant run finish --state CANCELLED`
 
 ### Requirement: Адаптер claude
 <!-- id: REQ-ENF-005 -->
@@ -321,8 +354,15 @@ stdin для активного Run операции `review` ([ADR-0034](../../
 `severity`, `artifacts[]` — файл envelope с `sha256`; `evidence_status` — `PROVEN`, если `run_state: SUCCEEDED` и нет находки
 `BLOCKER`; `NOT_PROVEN`, если есть `BLOCKER`; `INCONCLUSIVE` при `FAILED` или `CANCELLED`
 ([ADR-0036](../../../../docs/adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 4); завершить Run: `run_state` из envelope,
-`finished_at`, id записи в `evidence[]`, `skill`, `model` из `provenance`, удалить `current`. Вывод —
-`data{ run, change, evidence, evidence_status, findings{ BLOCKER, MAJOR, MINOR, INFO } }`, код 0 при любом `evidence_status`.
+`finished_at`, id записи в `evidence[]`, `skill`, `model` из `provenance`, удалить `current`. Если запись `kind: "review"` с
+`produced_by.run`, равным id активного Run, уже есть (прежняя сдача оборвалась до записи Run;
+[ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 5), команда SHALL сравнить sha256 канонической формы нового
+envelope с `artifacts[0].sha256` записи: равны — переиспользовать id записи без новой и без перезаписи записи, дописать id в
+`manifest.evidence[]`, если его там нет, записать результат, завершить Run по `run_state` envelope и вывести `evidence_status` и
+`findings` записи и `data.reused: true`; различаются — `EVIDENCE_CONFLICT` с `path` записи и `hint` сдать тот же envelope или
+отменить Run (`warrant run finish --state CANCELLED`), код 3, ничего не записано. Без такой записи — `data.reused: false`.
+`--dry-run` при повторе SHALL выводить `data.reused: true` и `would_write[]` без файла записи evidence. Вывод —
+`data{ run, change, evidence, evidence_status, findings{ BLOCKER, MAJOR, MINOR, INFO }, reused }`, код 0 при любом `evidence_status`.
 
 #### Scenario: Review без блокеров
 <!-- id: SCN-ENF-030 -->
@@ -358,3 +398,8 @@ stdin для активного Run операции `review` ([ADR-0034](../../
 <!-- id: SCN-ENF-042 -->
 - **WHEN** `warrant run submit` получает на stdin `{"$schema":"warrant://skill-result/1","run":"RUN-…","findings":[]}`, затем текст `not json`
 - **THEN** оба — `SKILL_RESULT_INVALID`, код 3; первое — `data.received` с `root: "object"`, `keys: ["$schema", "findings", "run"]` и `bytes` — длиной входа в UTF-8; второе — `root: "not-json"`, `keys: []`; значения полей envelope в выводе не повторяются; `--file` на несуществующий путь — `USAGE` с `path`, без `data.received`; `--file` на файл из пробелов — `USAGE`; envelope с чужим `run` (SCN-ENF-033) — `data.received` с `root: "object"`
+
+#### Scenario: Повтор после обрыва
+<!-- id: SCN-ENF-043 -->
+- **WHEN** при активном Run `review` `RUN-1` в каталоге evidence Change уже есть запись `kind: "review"` с `produced_by.run: "RUN-1"`, которой нет в `manifest.evidence[]` (сдача оборвалась до manifest), и `warrant run submit --file envelope.json` вызван снова с тем же envelope; затем — с envelope, у которого другой `findings[]`
+- **THEN** в первом случае новой записи нет, `data.evidence` — id прежней, `data.reused` равен `true`, `manifest.evidence[]` содержит этот id, Run завершён с ним в `evidence[]` один раз, `current` удалён, код 0; во втором — `EVIDENCE_CONFLICT`, код 3, ничего не записано, Run остаётся активным; первая сдача без такой записи — `data.reused: false`

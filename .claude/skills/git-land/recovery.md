@@ -9,7 +9,8 @@
 | Коммит в основном checkout `main` | хук его не пустит; если всё же случился — `git branch <новая> HEAD`, затем `git reset --keep origin/main`, работу продолжить в worktree новой ветки |
 | Потерян коммит (reset, удалённая ветка) | `git reflog` → `git branch <имя> <sha>`; удалённая слитая ветка — её коммиты уже в `main`, PR в GitHub — «Restore branch» |
 | Конфликт `docs/handoff/*` | файл потока пишет только его ветка: взять версию своей ветки для своего потока, `main` — для чужих |
-| Конфликт `docs/backlog.md` | строки независимы: оставить обе стороны; одинаковый новый `BL-N` — свой перенумеровать на максимальный + 1 |
+| Конфликт `docs/backlog.md` | не возникает при дописывании строк — `merge=union` (ADR-0047 п. 5); одинаковый новый номер ловит `dev-context.test.ts` и называет следующий свободный — свою строку перенумеровать в merge-коммите |
+| Конфликт версий: `package.json`, `package-lock.json`, `warrant.lock.json` (репозиторий, golden) | `git checkout --theirs <файлы>`; `npm run versions:check` требует bump — `npm version <x.y.z> --no-git-tag-version`; затем `node packages/cli/dist/bin/warrant.js sync`, `npm run golden:update`, `node scripts/dev/check.js` (ADR-0047 п. 6) |
 | Конфликт номеров `I-N` в design.md | свой номер — следующий после занятого в `main` (навык `decision`), ссылки на него в коммите и tasks.md поправить |
 | Ветка отстала от `main` | в worktree `git fetch && git merge origin/main` (merge-коммит допустим в ветке; rebase опубликованной — нет) |
 | `worktree remove` отказал | `git -C ../SRA-<имя> status --short` — изменения закоммитить или показать maintainer'у; `--force` не использовать |

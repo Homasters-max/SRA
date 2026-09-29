@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3PAPH7XQB28C9JSR4SFSMDV",
+  "claim": {
+    "text": "Homasters-max approved ci-shards for SPECIFIED->APPROVED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "e5bb45fee3a17a3d285d0e61b44041de56f61f0d",
+    "base_commit": "2a872c9856ae8e7a531c32ad54968929e5a5a332",
+    "spec_revision": "openspec/changes/ci-shards@e5bb45fee3a17a3d285d0e61b44041de56f61f0d",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/96"
+  },
+  "context_hash": "sha256:e99d61bbacedaa73c8585a5e20e7e7b68496e6d7e668c574c2d60e84dd277af0",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "created_at": "2026-09-29T10:17:22.430Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

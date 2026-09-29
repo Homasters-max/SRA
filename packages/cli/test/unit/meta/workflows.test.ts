@@ -114,3 +114,60 @@ describe("job warrant — the reusable workflow warrant.yml, called by ci.yml (R
     });
   });
 });
+
+/** The lines of the step item `- name: <name>` without its first line; null when there is no such step. */
+function stepBlock(steps: Line[] | null, name: string): Line[] | null {
+  if (steps === null) return null;
+  const level = Math.min(...steps.map((l) => l.indent));
+  const at = steps.findIndex((l) => l.indent === level && l.text === `- name: ${name}`);
+  if (at < 0) return null;
+  const end = steps.findIndex((l, i) => i > at && l.indent <= level);
+  return steps.slice(at + 1, end < 0 ? steps.length : end);
+}
+
+/** The items of a YAML list of flat mappings (`- os: x` then `shard: y`) as objects. */
+function listItems(lines: Line[] | null): Record<string, string>[] {
+  if (lines === null) return [];
+  const items: Record<string, string>[] = [];
+  for (const l of lines) {
+    const text = l.text.startsWith("- ") ? l.text.slice(2) : l.text;
+    if (l.text.startsWith("- ")) items.push({});
+    const m = /^([^:\s]+):\s*(.*)$/.exec(text);
+    if (m && items.length > 0) items[items.length - 1]![m[1]!] = m[2]!.replace(/^"(.*)"$/, "$1");
+  }
+  return items;
+}
+
+describe("job test — windows by two vitest shards (REQ-VER-015)", () => {
+  const steps = block(ci, ["jobs", "test", "steps"]);
+
+  it("SCN-VER-124 matrix: ubuntu without a shard, windows 1/2 and 2/2, fail-fast off", () => {
+    expect(value(block(ci, ["jobs", "test", "strategy"]), "fail-fast")).toBe("false");
+    expect(listItems(block(ci, ["jobs", "test", "strategy", "matrix", "include"]))).toEqual([
+      { os: "ubuntu-latest", shard: "" },
+      { os: "windows-latest", shard: "1/2" },
+      { os: "windows-latest", shard: "2/2" },
+    ]);
+  });
+
+  it("SCN-VER-124 the name and --shard carry the shard only when it is not empty", () => {
+    expect(value(block(ci, ["jobs", "test"]), "name")).toBe(
+      "test (${{ matrix.os }}${{ matrix.shard && format(', {0}', matrix.shard) || '' }})",
+    );
+    const test = stepBlock(steps, "Test");
+    expect(value(test, "run")).toBe("npm test -- ${SHARD:+--shard=$SHARD}");
+    expect(value(block(test ?? [], ["env"]), "SHARD")).toBe("${{ matrix.shard }}");
+    expect(value(test, "if")).toBeUndefined();
+  });
+
+  it("SCN-VER-124 typecheck, install and validate run once per OS: in ubuntu and shard 1/2, skipped in 2/2", () => {
+    for (const name of [
+      "Typecheck",
+      "Install warrant from the checkout",
+      "warrant validate (repository)",
+      "warrant validate (fixture project)",
+    ]) {
+      expect(value(stepBlock(steps, name), "if"), name).toBe("matrix.shard != '2/2'");
+    }
+  });
+});

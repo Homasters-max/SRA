@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3Q1ZQ8N80ZP46ZC39XG8XVX",
+  "claim": {
+    "text": "Homasters-max approved release-path for SPECIFIED->APPROVED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "4c87a55273a30c5fb0d2cd347ad6baa35b9138c0",
+    "base_commit": "fe7176509fe4e29be74872abaf9c6901e6f7b408",
+    "spec_revision": "openspec/changes/release-path@4c87a55273a30c5fb0d2cd347ad6baa35b9138c0",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/103"
+  },
+  "context_hash": "sha256:55b6c66a68f201c4ca5023adf89d78b1d491949d0d099b9285bc6bcd1c22659f",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "created_at": "2026-09-29T17:04:20.758Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

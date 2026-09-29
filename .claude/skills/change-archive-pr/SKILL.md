@@ -1,6 +1,6 @@
 ---
 name: change-archive-pr
-description: "Закрыть Change archive-PR — warrant ci fetch evidence слитого impl-PR, transition MERGED по URL impl-PR, warrant archive, файл передачи, merge по слову maintainer'а, тег релиза. Использовать, когда impl-PR Change слит, когда Change нужно закрыть и архивировать, или просят «/change-archive-pr»."
+description: "Закрыть Change archive-PR — warrant ci fetch evidence слитого impl-PR, transition MERGED по URL impl-PR, warrant archive, файл передачи, merge сессией `--auto`, тег релиза. Использовать, когда impl-PR Change слит, когда Change нужно закрыть и архивировать, или просят «/change-archive-pr»."
 argument-hint: "<change> <номер impl-PR>"
 ---
 
@@ -35,7 +35,7 @@ argument-hint: "<change> <номер impl-PR>"
    ```bash
    $W archive <change>
    ```
-5. PR, CI, «merge #N», после merge — шаги 1–5 `git-land`. Job `warrant` судит archive-PR: run и artifact записей `MERGED` через форж, повтор archive на базе (R-16).
+5. PR, `--auto` сессией (archive-PR — механика, ADR-0050 п. 8), после merge — шаги 1–5 `git-land`. Job `warrant` судит archive-PR: run и artifact записей `MERGED` через форж, повтор archive на базе (R-16).
 6. Тег на merge-коммите archive-PR: версия CLI выросла относительно последнего тега и такого тега нет; не выросла — тега нет, пометка в отчёте:
    ```bash
    node -p "require('./package.json').version"
@@ -49,7 +49,7 @@ argument-hint: "<change> <номер impl-PR>"
 
 - `ci fetch` — `PR_NOT_MERGED` (squash, rebase, не слит), `PR_NOT_IMPL`, `EVIDENCE_CONFLICT`, `FORGE_UNAVAILABLE` — показать вывод; записи artifact'а руками не раскладывать (BL-12), ближайший run не брать.
 - `transition MERGED` (`STALE` `tree`, `REF_MISMATCH`, `COMMIT_NOT_MERGED`) или `archive` отказали — показать вывод; record руками не править (ADR-0009).
-- Нет «merge #N» — не сливать и не ставить тег. Push тега заблокирован — дать команду maintainer'у.
+- archive-PR красный — не сливать и не ставить тег. Push тега заблокирован — дать команду maintainer'у.
 
 ## Отчёт
 

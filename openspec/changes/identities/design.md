@@ -32,3 +32,13 @@
 ### 3. Группа 2
 
 - `.claude/skills/git-land/SKILL.md` шаг 4, `.claude/skills/fast-mode/SKILL.md` шаг 4 — D4.
+
+## Решения по ходу реализации
+
+| # | Решение | Где |
+|---|---|---|
+| I-217 | Review 2 spec, F-1 (MAJOR): правило merge D4 — во всех навыках, где оно звучит, не только в шаге 4: `git-land` (описание, вход, шаги 3–4, «Стоп»), `fast-mode` (шаги 1, 4), `change-spec-pr` (шаги 5, 7, «Стоп»), `change-impl-pr` (шаги 6, 7, «Стоп»), `change-archive-pr` (описание, шаг 5, «Стоп»); ссылка нормы — ADR-0050 п. 8 | `.claude/skills/**`, задача 2.1 |
+| I-218 | Review 2 spec, F-2 (MAJOR): maintainer сливает spec-PR только после push коммита `transition SPECIFIED` — слитый без него spec-PR не несёт перехода, ref `APPROVED` отказывает; агент делает `SPECIFIED` до просьбы слить | `change-spec-pr` шаги 5, 7, задача 2.1 |
+| I-219 | Review 2 spec, F-3 (MAJOR): восстановление D5 (1) через revert не работает — судья отказывает укороченной записи Change; путь через lifecycle (`VERIFYING->IMPLEMENTING`, `ABANDONED --supersedes`) проверить до записи в норму — строка WS-32 | `docs/backlog.md` |
+| I-220 | Review 2 spec, F-5 (MINOR): риск D5 (2) — не класс B (обнаружение), а граница доверия 06 §8: токен maintainer'а на машине агента судья не отличает — строка WS-33 | `docs/backlog.md` |
+| I-221 | Review 2 spec, F-6 (MINOR): archive-PR сливает бот `--auto`, «merge #N» не ждёт | `change-archive-pr`, `git-land` шаг 4, задача 2.1 |

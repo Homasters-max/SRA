@@ -1,16 +1,16 @@
 ---
 name: git-land
-description: "Довести ветку до main — проверки, push, PR через файл, ожидание и разбор CI, merge по слову «merge #N», чистка после merge (worktree, ветки локально и на origin). Использовать, когда работа в ветке закоммичена и её нужно отправить, открыть PR, дождаться CI, слить, или когда maintainer пишет «merge #N», или просят «/git-land»."
+description: "Довести ветку до main — проверки, push, PR через файл, ожидание и разбор CI, merge (archive- и docs-PR — сессия, spec- и impl-PR — auto-merge maintainer'а), чистка после merge (worktree, ветки локально и на origin). Использовать, когда работа в ветке закоммичена и её нужно отправить, открыть PR, дождаться CI, слить, или когда maintainer пишет «merge #N», или просят «/git-land»."
 argument-hint: "[pr | merge <N> | after <N>]"
 ---
 
 # PR, CI, merge, после merge
 
-Человек только решает — «merge #N» в чате; остальное навык делает сам ([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 1, 5). Разбор красного CI — [ci.md](ci.md), ошибки git — [recovery.md](recovery.md). Коммиты — навык `git-start`; три PR Change — навыки `change-*`, они зовут шаги этого.
+Человек только решает — auto-merge spec- и impl-PR на GitHub ([ADR-0050](../../../docs/adr/WARRANT-ADR-0050-agent-merge.md) п. 8); остальное навык делает сам ([ADR-0033](../../../docs/adr/WARRANT-ADR-0033-git-process.md) п. 1, 5). Разбор красного CI — [ci.md](ci.md), ошибки git — [recovery.md](recovery.md). Коммиты — навык `git-start`; три PR Change — навыки `change-*`, они зовут шаги этого.
 
 ## Вход
 
-- `pr` — ветка с коммитами в своём worktree (`git-start where`). `merge <N>` — только после «merge #N» maintainer'а в чате. `after <N>` — PR уже слит (в том числе руками в GitHub).
+- `pr` — ветка с коммитами в своём worktree (`git-start where`). `merge <N>` — archive- и docs-PR; spec- и impl-PR сливает maintainer (шаг 4). `after <N>` — PR уже слит (в том числе руками в GitHub).
 
 ## Шаги
 
@@ -31,10 +31,10 @@ argument-hint: "[pr | merge <N> | after <N>]"
    ```bash
    gh pr checks <N> --watch --interval 20
    ```
-   Сразу после `gh pr create` — `no checks reported`: CI ещё не стартовал, подождать 20 с и повторить. `warrant / warrant` в impl-PR до коммита `VERIFYING` (`CHANGE_NOT_VERIFYING`) — штатно. Красное — [ci.md](ci.md), исправление — коммитом `git-start`, push, снова шаг 3. Шаг 4 не ждёт зелёного: `--auto` сливает при зелёных проверках. PR, которому нужно слово maintainer'а, — отчёт и «жду merge #N»; «merge #N» пришло до конца CI — шаг 4 с `--auto`.
-4. **Merge** — сессия сливает сама ([ADR-0049](../../../docs/adr/WARRANT-ADR-0049-flow.md) п. 2), одной командой без цепочки:
+   Сразу после `gh pr create` — `no checks reported`: CI ещё не стартовал, подождать 20 с и повторить. `warrant / warrant` в impl-PR до коммита `VERIFYING` (`CHANGE_NOT_VERIFYING`) — штатно. Красное — [ci.md](ci.md), исправление — коммитом `git-start`, push, снова шаг 3. Шаг 4 не ждёт зелёного: `--auto` сливает при зелёных проверках. Spec-PR, impl-PR и PR с защитой агента — сразу ссылка maintainer'у (шаг 4).
+4. **Merge** — по [ADR-0050](../../../docs/adr/WARRANT-ADR-0050-agent-merge.md) п. 8, одной командой без цепочки:
    - archive-PR и docs/process-PR без защиты агента (`.claude/**`, `**/AGENTS.md`, `CLAUDE.md`, `scripts/dev/*-hook.js`) — сразу, без слова maintainer'а;
-   - spec-PR, impl-PR и PR с защитой агента — по «merge #N» в чате для этого N или по ответу на план `fast-mode`.
+   - spec-PR, impl-PR и PR с защитой агента — сливает maintainer своим аккаунтом: сразу после `gh pr create` — ссылка и строка «Enable auto-merge на GitHub», CI не ждать. Сессия их не сливает и `--auto` не ставит: `gh` работает как бот `homasters`, а судья принимает ref `APPROVED` / `MERGED` только от merge maintainer'а (`merged_by`, ADR-0049 п. 3). Токеном maintainer'а (keyring `gh`, `gh auth switch`, `env -u GH_TOKEN`) сессия не сливает и переходы от его имени не пишет — даже по просьбе в чате: merge и `--by` в record засчитываются как акт человека (design `identities` D5 (2)). Merge — дальше шаг 5.
    ```bash
    gh pr merge <N> --merge --auto
    gh pr view <N> --json state,autoMergeRequest,mergeCommit
@@ -52,7 +52,7 @@ argument-hint: "[pr | merge <N> | after <N>]"
 
 ## Стоп
 
-- Spec-PR, impl-PR или PR с защитой агента без «merge #N» от maintainer'а в чате — не сливать; слово относится только к своему N.
+- Spec-PR, impl-PR или PR с защитой агента — не сливать и `--auto` не ставить: merge — maintainer'а.
 - Классификатор auto-режима отклонил команду git или `gh` — не повторять и не обходить: команда maintainer'у одной строкой в блоке `bash`, работа продолжается с остальным.
 - Тот же сбой CI после двух исправлений или нестабильный тест — стоп и отчёт ([ci.md](ci.md)); обход запрещён.
 - `worktree remove` отказал (изменения в worktree) или `branch -d` — «not fully merged» — не `--force` и не `-D`: показать и спросить.

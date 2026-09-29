@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3QNPSAQNSXB7WX3K0F9N7F3",
+  "claim": {
+    "text": "Homasters-max approved identities for VERIFYING->MERGED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "c347dc7bb0ef4723680fddc5f657fbffa0ebae66",
+    "base_commit": "13df3cd2ccbe2ed4fe99493882a2b94ddf75dc3e",
+    "spec_revision": "openspec/changes/identities@c347dc7bb0ef4723680fddc5f657fbffa0ebae66",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/114"
+  },
+  "context_hash": "sha256:375da3467bf7be81e34389ae70e55ac9df8d818c59007d93ce1bc8f3e3c53e27",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-29T22:48:59.480Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

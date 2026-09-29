@@ -2,13 +2,13 @@
 
 ## Цель
 
-Фаза стабилизации ([ADR-0048](../adr/WARRANT-ADR-0048-stabilization.md)): честный судья, поставка, идентичность агента. Цикл 0 закрыт (`release-path`, CLI 0.8.3). Merge агентом и приёмка человеком — [ADR-0050](../adr/WARRANT-ADR-0050-agent-merge.md) (spec одобряет человек; impl-PR агентом — с 0.9.0). Агент работает как машинный пользователь `homasters`. Долг — строки `WS-N` [backlog](../backlog.md).
+Фаза стабилизации ([ADR-0048](../adr/WARRANT-ADR-0048-stabilization.md)): честный судья, поставка, идентичность агента. Цикл 0 закрыт (`release-path`, CLI 0.8.3). Merge агентом и приёмка человеком — [ADR-0050](../adr/WARRANT-ADR-0050-agent-merge.md) (spec одобряет человек; impl-PR агентом — с 0.9.0). Агент работает как машинный пользователь `homasters`, объявленный судье в `identities.agents` (Change `identities` закрыт). Долг — строки `WS-N` [backlog](../backlog.md).
 
 ## Готовый запрос
 
 ```text
-Поток stabilization. Норма merge — ADR-0050, не гриллить. Работай автономно до результата; maintainer'а зови только для merge spec-PR и (до 0.9.0) impl-PR — ссылка и строка «Enable auto-merge», CI не ждать.
-1) Change identities: если spec-PR #106 слит — worktree D:/project/SRA-identities (незакоммиченные правки warrant.json и навыков уже там): git switch -c worktree/identities origin/main, transition APPROVED --ref <#106> --by Homasters-max, IMPLEMENTING, группы, I-N по review 2 (тело #106), навыки — merge по ADR-0050 п. 8, VERIFYING, impl-PR; archive-PR — ботом. Не слит — ссылка maintainer'у.
+Поток stabilization. Норма merge — ADR-0050, не гриллить. Работай автономно до результата; maintainer'а зови только для merge spec-PR и (до 0.9.0) impl-PR — полная ссылка на PR и «Merge pull request / Enable auto-merge в браузере на GitHub, не в панели Claude Desktop», CI не ждать.
+1) process-PR R-44: остатки «merge #N» вне навыков Change identities (repo-hygiene, docs/process/rules.md, AGENTS.md, orchestration.md, description git-land, fast-mode) — защита агента, сливает maintainer.
 2) Цикл 1, 0.9.0: architecture-audit, затем spec-PR — WS-03 (один gate engine, вопрос N44), A-34, WS-06, WS-13, WS-14, WS-15 (floor), ADR-0050 п. 2–4.
 ```
 
@@ -21,6 +21,6 @@
 
 - WARRANT пассивен: судья, policy, evidence, контракт CLI. Исполнитель Change — внешний потребитель контракта (ADR-0050 п. 7); в этом репозитории его не строить.
 - `gh` в Claude Code — бот `homasters`: spec- и impl-PR он не сливает (судья требует `merged_by` из `roles.maintainer`); archive-, docs-, process- и fix-PR сливает сам `--auto`.
-- Команды merge и чистки — по одной, без `&&`; разрешения — `C:\Users\Xiaomi\.claude\settings.json`, читаются при старте.
-- Навыки в `main` ещё велят агенту сливать spec- и impl-PR — до merge impl-PR `identities` следовать ADR-0050 п. 8.
+- PR-панель Claude Desktop (кнопки merge и auto-merge) работает токеном сессии — от бота: #113 так слит ботом, судья отказал ref `MERGED`, восстановление — повтор impl-PR #114 (I-225, WS-32). Auto-merge, включённый ботом (`enabledBy: homasters`), на spec- и impl-PR — снять `gh pr merge N --disable-auto` и попросить maintainer'а в браузере.
+- Классификатор auto-режима не пускает агента писать `transition APPROVED --by <maintainer>`, удалять evidence и коммитить `.claude/**` — одна команда maintainer'у (PowerShell: без `sed`), остальное продолжать. Команды merge и чистки — по одной, без `&&`; разрешения — `C:UsersXiaomi.claudesettings.json`, читаются при старте.
 - CI: флейк «does not provide an export named …» закрыт (`npm pack` запускал `prepare`); красный тест — разбор, Re-run — только при явной инфраструктуре; канарейка: красный «Install warrant» — поставка сломана.

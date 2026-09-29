@@ -1,0 +1,36 @@
+# Canary of delivery (release-path, REQ-VER-016, ADR-0048 п. 5, WS-02): the
+# reusable workflow warrant.yml of the tagged commit with the CLI of that tag —
+# what a project under WARRANT gets from `uses: …/warrant.yml@<tag>` and
+# `warrant: <tag>`. `uses:` takes no expressions, so the workflow is called by
+# the local path: on a tag push (and on `workflow_dispatch --ref <tag>`) it is
+# the file of the tagged commit.
+#
+# The tag stands on the merge commit of the release archive-PR: `warrant ci`
+# judges it as that archive-PR (the merge step runs only for pull_request).
+# A red canary is not evidence and not a gate: a red «Install warrant» — the
+# delivery is broken, ship a patch before the consumer pins; a red «warrant ci»
+# — the verdict on the tagged commit, a backlog row (design D3). A red «Check the
+# input warrant» — the tag is not v<semver>, not a release; a red checkout, setup
+# or OpenSpec install — infrastructure, re-run (design I-214).
+#
+# A tag pushed by a workflow with GITHUB_TOKEN starts no push workflows: that
+# workflow runs `gh workflow run canary.yml --ref <tag>` (design D9).
+name: canary
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  canary:
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      issues: read
+    uses: ./.github/workflows/warrant.yml
+    with:
+      warrant: ${{ github.ref_name }}
+      setup: npm ci

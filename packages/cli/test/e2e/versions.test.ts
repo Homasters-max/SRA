@@ -111,6 +111,7 @@ describe.skipIf(!hasGit)("version discipline (R-14)", () => {
     put(root, "package.json", pkg("1.0.1", { scripts: { test: "vitest" } }));
     put(root, "packs/p/pack.json", packJson("0.1.1"));
     put(root, "sra/skills/c/s/SKILL.md", skill("0.1.1", "sharper body"));
+    put(root, "CHANGELOG.md", "# Changelog\n\n## 1.0.1 — 2026-09-29\n\n- fix\n");
     expect(check(root).errors).toEqual([]);
   });
 
@@ -131,5 +132,37 @@ describe.skipIf(!hasGit)("version discipline (R-14)", () => {
     put(root, "packs/q/pack.json", JSON.stringify({ id: "q", version: "0.1.0" }));
     put(root, "packs/q/gates/g.json", "{}\n");
     expect(check(root).errors).toEqual([]);
+  });
+
+  // release-path, design D6, D7 (ADR-0048 п. 3): the release section of CHANGELOG.md; warrant.yml ships with the CLI.
+  it("a CLI bump needs its CHANGELOG section; a minor bump of the CLI or a pack needs «Вердикт» and «Миграция для потребителя»", () => {
+    const root = released();
+    put(root, "packages/cli/src/a.ts", "export const a = 2;\n");
+    put(root, "package.json", pkg("1.0.1"));
+    const missing = check(root);
+    expect(components(missing)).toEqual(["changelog"]);
+    expect(missing.errors[0]?.message).toContain('no section "## 1.0.1"');
+
+    put(root, "CHANGELOG.md", "# Changelog\n\n## 1.0.1 — 2026-09-29\n\n- fix\n\n## 1.0.0\n\n### Вердикт\n");
+    expect(check(root).errors).toEqual([]);
+
+    put(root, "packs/p/gates/g.json", '{"level":"L1"}\n');
+    put(root, "packs/p/pack.json", packJson("0.2.0"));
+    const minor = check(root);
+    expect(components(minor)).toEqual(["changelog", "changelog"]);
+    expect(minor.errors.map((e) => e.message).join("\n")).toContain("pack p 0.1.0 → 0.2.0");
+
+    put(
+      root,
+      "CHANGELOG.md",
+      "# Changelog\n\n## 1.0.1 — 2026-09-29\n\n### Вердикт\n\n- gate g\n\n### Миграция для потребителя\n\n- nothing\n",
+    );
+    expect(check(root).errors).toEqual([]);
+  });
+
+  it("the reusable workflow warrant.yml is CLI content: changed without a bump is an error", () => {
+    const root = released();
+    put(root, ".github/workflows/warrant.yml", "name: warrant\n");
+    expect(components(check(root))).toEqual(["cli"]);
   });
 });

@@ -5,7 +5,8 @@
  * Релиз — последний tag `v*`, достижимый из HEAD. Компоненты — то, что
  * поставляется и версионируется отдельно:
  *   - CLI: версия в `package.json`; содержимое — `packages/cli/src`,
- *     `packages/cli/schemas`, `packages/cli/package.json`, `scripts/build.js` и
+ *     `packages/cli/schemas`, `packages/cli/package.json`, `scripts/build.js`,
+ *     `.github/workflows/warrant.yml` (проект берёт его по тегу) и
  *     поставляемые поля `package.json` (зависимости, `bin`, `files`, …; скрипты
  *     и devDependencies в поставку не входят);
  *   - каждый pack `packs/<id>/`: версия в `pack.json`; содержимое — каталог без
@@ -18,6 +19,9 @@
  * Версия ниже релизной — тоже ошибка. Компонент, которого в релизе не было, —
  * новый, ему bump не нужен.
  *
+ * CHANGELOG.md (ADR-0048 п. 3): выросла версия CLI — есть раздел `## <версия>`;
+ * выросли major или minor CLI или pack — в нём «Вердикт» и «Миграция для потребителя».
+ *
  * Общий код `scripts/versions-check.js` (`npm run versions:check`) и e2e-теста
  * `packages/cli/test/e2e/versions.test.ts`. Plain Node ESM, только git.
  */
@@ -28,7 +32,11 @@ import path from "node:path";
 /** Поля `package.json`, которые меняют установленный CLI. */
 export const SHIPPED_PACKAGE_FIELDS = ["name", "type", "bin", "main", "exports", "files", "engines", "dependencies", "optionalDependencies", "peerDependencies"];
 
-const CLI_PATHS = ["packages/cli/src", "packages/cli/schemas", "packages/cli/package.json", "scripts/build.js"];
+/** `warrant.yml` — тоже поставка CLI: проект берёт его по тегу (`uses: …/warrant.yml@v<версия>`, release-path D7). */
+const CLI_PATHS = ["packages/cli/src", "packages/cli/schemas", "packages/cli/package.json", "scripts/build.js", ".github/workflows/warrant.yml"];
+
+/** Подразделы раздела CHANGELOG, обязательные при росте major или minor CLI или pack (ADR-0048 п. 3). */
+export const CHANGELOG_MINOR_SUBSECTIONS = ["### Вердикт", "### Миграция для потребителя"];
 
 function git(root, args) {
   const run = spawnSync("git", args, { cwd: root, encoding: "utf8" });
@@ -178,5 +186,41 @@ export function checkVersions(root) {
       });
     }
   }
+  errors.push(...changelogErrors(root, tag, list));
   return { tag, components: list, errors };
+}
+
+/** «0.8.3» → «0.8»: major.minor, по которому patch отличается от minor. */
+function majorMinor(version) {
+  return version.split(/[.-]/).slice(0, 2).join(".");
+}
+
+/** Строки раздела `## <version>` файла CHANGELOG.md до следующего `## `; null — раздела нет. */
+function changelogSection(text, version) {
+  if (text === null) return null;
+  const lines = text.split(/\r?\n/);
+  const at = lines.findIndex((line) => line === `## ${version}` || line.startsWith(`## ${version} `));
+  if (at < 0) return null;
+  const end = lines.findIndex((line, i) => i > at && line.startsWith("## "));
+  return lines.slice(at + 1, end < 0 ? lines.length : end);
+}
+
+/**
+ * CHANGELOG релиза (ADR-0048 п. 3, release-path D6): релиз — тег версии CLI, поэтому раздел ищется по ней. Выросла версия
+ * CLI с тега — в CHANGELOG.md есть `## <версия>`; выросли major или minor CLI или любого pack — в разделе ещё подразделы
+ * CHANGELOG_MINOR_SUBSECTIONS. Pack без подъёма CLI не выпускается — проверять нечего.
+ */
+function changelogErrors(root, tag, list) {
+  const cli = list.find((c) => c.id === "cli");
+  if (cli === undefined || cli.now === null || cli.then === null || !versionLess(cli.then, cli.now)) return [];
+  const section = changelogSection(readText(root, "CHANGELOG.md"), cli.now);
+  if (section === null) {
+    return [{ component: "changelog", message: `CHANGELOG.md has no section "## ${cli.now}" for CLI ${cli.now} (${cli.then} in ${tag})` }];
+  }
+  const grown = list.filter((c) => (c.id === "cli" || c.id.startsWith("pack ")) && c.now !== null && c.then !== null && majorMinor(c.now) !== majorMinor(c.then));
+  if (grown.length === 0) return [];
+  return CHANGELOG_MINOR_SUBSECTIONS.filter((sub) => !section.some((line) => line.trim() === sub)).map((sub) => ({
+    component: "changelog",
+    message: `CHANGELOG.md, section ${cli.now}: no "${sub}" — ${grown.map((c) => `${c.id} ${c.then} → ${c.now}`).join(", ")} changes major or minor`
+  }));
 }

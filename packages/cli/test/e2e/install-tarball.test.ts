@@ -36,18 +36,18 @@ function run(command: string, args: string[], cwd: string): { status: number | n
 describe("the CLI from its tarball (REQ-VER-016)", () => {
   it("SCN-VER-126 npm pack → npm i -g --prefix → warrant --version and validate in an empty directory", () => {
     const out = temp("warrant-pack-");
-    const packed = run("npm", ["pack", "--ignore-scripts", "--pack-destination", out, "--silent"], REPO_ROOT);
-    expect(packed.status, packed.stderr).toBe(0);
+    const packed = run("npm", ["pack", "--ignore-scripts", "--pack-destination", out], REPO_ROOT);
+    expect(packed.status, packed.stderr + packed.stdout).toBe(0);
     const tarball = readdirSync(out).find((name) => name.endsWith(".tgz"));
     expect(tarball).toBeDefined();
 
     const prefix = temp("warrant-prefix-");
     const installed = run(
       "npm",
-      ["i", "-g", "--prefix", prefix, "--prefer-offline", "--no-audit", "--no-fund", "--silent", path.join(out, tarball as string)],
+      ["i", "-g", "--prefix", prefix, "--prefer-offline", "--no-audit", "--no-fund", path.join(out, tarball as string)],
       out,
     );
-    expect(installed.status, installed.stderr).toBe(0);
+    expect(installed.status, installed.stderr + installed.stdout).toBe(0);
 
     const bin = process.platform === "win32" ? path.join(prefix, "warrant.cmd") : path.join(prefix, "bin", "warrant");
     const empty = temp("warrant-empty-");

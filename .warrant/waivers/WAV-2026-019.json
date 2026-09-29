@@ -9,6 +9,7 @@
     "строки I-202…I-208, I-210 design.md, diff delta spec в impl-PR, ревью review-impl"
   ],
   "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
   "expires_at": "2026-10-13",
-  "waiver_state": "PROPOSED"
+  "waiver_state": "ACTIVE"
 }

@@ -1,15 +1,13 @@
 # lattice
 
-После: stabilization
-
 ## Цель
 
-LATTICE (`D:\project\LATTICE`, `Homasters-max/LATTICE`) подключён к WARRANT 0.8.2 (Change `pin-v0-8-2` в архиве) и держит копию job `warrant` по waiver WAV-2026-002 до 2026-10-13. Reusable workflow при `warrant: v<tag>` сломан — голое `npm i -g github:…#tag`, WS-01. Исправление — Change `release-path` потока stabilization, patch 0.8.3 ([ADR-0048](../adr/WARRANT-ADR-0048-stabilization.md) п. 5). После тега `v0.8.3` сессия LATTICE переходит на reusable workflow и удаляет копию job до истечения waiver.
+LATTICE (`D:\project\LATTICE`, `Homasters-max/LATTICE`) подключён к WARRANT 0.8.2 (Change `pin-v0-8-2` в архиве) и держит копию job `warrant` по waiver WAV-2026-002 до 2026-10-13. Reusable workflow при `warrant: v<tag>` сломан — голое `npm i -g github:…#tag`, WS-01. Исправлено Change `release-path` — CLI 0.8.3 ([ADR-0048](../adr/WARRANT-ADR-0048-stabilization.md) п. 5, CHANGELOG 0.8.3). Сессия LATTICE переходит на reusable workflow `@v0.8.3` и удаляет копию job до истечения waiver.
 
 ## Готовый запрос
 
 ```text
-Сессия LATTICE: переход на WARRANT v0.8.3 — только после тега v0.8.3 (Change release-path SRA); до него копия job и WAV-2026-002 остаются.
+Сессия LATTICE: переход на WARRANT v0.8.3 (установка CLI из тега исправлена, WS-01), до 2026-10-13.
 1) CLI — github:Homasters-max/SRA#v0.8.3; warrant sync; перезапустить сессию Claude Code.
 2) Job warrant — вызов reusable workflow вместо копии (пример — SRA docs/06-verification.md §8):
    jobs.warrant.uses: Homasters-max/SRA/.github/workflows/warrant.yml@v0.8.3

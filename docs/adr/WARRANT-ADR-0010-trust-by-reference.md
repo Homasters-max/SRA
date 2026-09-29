@@ -5,12 +5,14 @@ adr_state: ACCEPTED
 date: 2026-09-22
 supersedes: []
 amends: [WARRANT-ADR-0009]
-amended_by: [WARRANT-ADR-0020, WARRANT-ADR-0037]
+amended_by: [WARRANT-ADR-0020, WARRANT-ADR-0037, WARRANT-ADR-0044]
 ---
 
 > Уточнено [ADR-0020](WARRANT-ADR-0020-warrant-sef-boundary.md): п. 1 относится к транспорту `github`; у `forge` вторая реализация `sef-hub` (proposed) с attestation `sef-approval` и `sef-gate`; в `sef-hub` record пишет CLI WARRANT по вызову SEF.
 >
 > Уточнено [ADR-0037](WARRANT-ADR-0037-phase-4c-ci.md): п. 2 — ref `human-approval` — URL слитого PR, проверка `merged_by ∈ roles.maintainer`; «автор ≠ автор PR» до bot-идентичности (п. 4) — информационная находка, не отказ.
+>
+> Уточнено [ADR-0044](WARRANT-ADR-0044-lattice-issues.md): п. 4 со стороны CLI — `identities.agents` читается, `validate` запрещает логин и в `roles.*`, и в `identities.agents`; пока список пуст, `warrant ci` даёт находку `SHARED_IDENTITY` на каждом проверенном акте; идентичность агента — GitHub App.
 
 ## Context
 

@@ -118,6 +118,15 @@ function checkRecord(
 }
 
 /**
+ * A record outside `manifest.evidence[]` is what an interrupted write leaves:
+ * records are written before the manifest, which every evidence write rebuilds
+ * from the directory (REQ-KRN-036, design I-203).
+ */
+function rebuildHint(change: string): string {
+  return `an interrupted write leaves this; the next evidence write of the Change (e.g. \`warrant verify ${change}\`) rebuilds ${MANIFEST_FILE} from the directory`;
+}
+
+/**
  * Check (12) over `.warrant/evidence/<change>/`: each `*.json` other than
  * `manifest.json` is an evidence record; `raw/` and other subdirectories hold
  * check output and are not looked at.
@@ -161,7 +170,8 @@ export function checkEvidence(root: string, loaded: LoadResult): CliError[] {
         errors.push({
           code: "SEMANTIC_INVALID",
           message: `evidence directory holds ${recordIds.length} record(s) but no ${MANIFEST_FILE}`,
-          path: manifestRel
+          path: manifestRel,
+          hint: rebuildHint(change)
         });
       }
       continue;
@@ -197,7 +207,8 @@ export function checkEvidence(root: string, loaded: LoadResult): CliError[] {
       errors.push({
         code: "SEMANTIC_INVALID",
         message: `record ${id} in ${dirRel}/ is not listed in manifest evidence[]`,
-        path: `${manifestRel}#/evidence`
+        path: `${manifestRel}#/evidence`,
+        hint: rebuildHint(change)
       });
     }
   }

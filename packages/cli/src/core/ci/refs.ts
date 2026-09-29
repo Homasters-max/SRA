@@ -4,9 +4,11 @@
  * repository, merged by a member of the role of `approvals[]` of the transition
  * — roles and approvals from the base of requirements (I-171) — and tied to
  * the Change: the spec-PR brought the transition `SPECIFIED`, the impl-PR is
- * the merge M of the head the CI records were made on. `merged_by` equal to the
- * author is a finding (`APPROVER_IS_AUTHOR`), not a violation, until a bot
- * identity (BL-44).
+ * the merge M of the head the CI records were made on. Agent identities are
+ * `identities.agents` of the base (ADR-0044 п. 3): while it is empty, every
+ * ref without a violation is the finding `SHARED_IDENTITY`, and `merged_by`
+ * equal to the author the finding `APPROVER_IS_AUTHOR`; once it is not,
+ * `merged_by` equal to the author or an agent is `REF_NOT_VERIFIED` (BL-44).
  */
 import type { Ctx } from "../ctx.js";
 import { cliError, type CliError } from "../errors.js";
@@ -27,6 +29,13 @@ import type { NewTransition } from "./record.js";
 
 /** Reasons of `REF_NOT_VERIFIED` (REQ-VER-011); `decision` — the ref of a decision of an UNKNOWN (REQ-VER-013, `decisions.ts`). */
 export type RefReason = "repository" | "merged" | "merged_by" | "change" | "merge_commit" | "by" | "decision";
+
+/**
+ * The tail of the finding `SHARED_IDENTITY` (REQ-VER-011, REQ-VER-013): with no
+ * `identities.agents` in the base, an act of the maintainer cannot be told from
+ * an act of an agent under the same account (ADR-0010 п. 4, ADR-0044 п. 3).
+ */
+export const SHARED_IDENTITY_NOTE = "an agent and the maintainer share the account, no identities.agents in the base (ADR-0010 п. 4)";
 
 export interface RefJudgement {
   errors: CliError[];
@@ -98,6 +107,7 @@ export async function judgeRefs(
   if (verified.length === 0) return out;
   const line = new Set((await ctx.git.firstParents(subject.base)) ?? []);
   const resolved = basePolicy(base, change, subject.record as ChangeRecord);
+  const agents = base.loaded.config.agents;
 
   for (const t of verified) {
     const ref = typeof t.entry["ref"] === "string" ? t.entry["ref"] : "";
@@ -125,6 +135,15 @@ export async function judgeRefs(
     const roles = resolved.ok ? approvalRoles(resolved.policy, transition) : approvalRoles({ approvals: [] }, transition);
     if (!roleMembers(base.loaded.config, roles).has(pr.mergedBy)) {
       fail("merged_by", `${pr.mergedBy} merged pull request ${pr.number}, not a member of roles ${roles.join(", ")} of the base`);
+      continue;
+    }
+    // With agent identities in the base, a self-merge and a merge by an agent are refused (INV-03, ADR-0044 п. 3).
+    if (agents.includes(pr.mergedBy)) {
+      fail("merged_by", `${pr.mergedBy} merged pull request ${pr.number} and is an agent identity (identities.agents of the base)`);
+      continue;
+    }
+    if (agents.length > 0 && pr.mergedBy === pr.author) {
+      fail("merged_by", `${pr.mergedBy} merged pull request ${pr.number} they authored (INV-03)`);
       continue;
     }
 
@@ -168,10 +187,12 @@ export async function judgeRefs(
       fail("by", `the ${HUMAN_APPROVAL} record names ${String(producedBy?.["id"])}, the pull request was merged by ${pr.mergedBy}`);
       continue;
     }
+    if (agents.length > 0) continue;
+    out.findings.push({ code: "SHARED_IDENTITY", message: `${where}: merged by ${pr.mergedBy}: ${SHARED_IDENTITY_NOTE}` });
     if (pr.mergedBy === pr.author) {
       out.findings.push({
         code: "APPROVER_IS_AUTHOR",
-        message: `${where}: ${pr.mergedBy} merged pull request ${pr.number} they authored (INV-03 in full needs a bot identity, BL-44)`
+        message: `${where}: ${pr.mergedBy} merged pull request ${pr.number} they authored (INV-03 in full needs identities.agents, BL-44)`
       });
     }
   }

@@ -1,5 +1,5 @@
 /**
- * `warrant validate` — checks (1)–(13) of REQ-KRN-021, run from the registry
+ * `warrant validate` — checks (1)–(14) of REQ-KRN-021, run from the registry
  * `core/validate/registry.ts` (A-9): which checks there are, their order and
  * what each reads live there.
  *

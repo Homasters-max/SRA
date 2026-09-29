@@ -234,3 +234,17 @@ describe("rule/1", () => {
     expect(pointers(fixture("rule", "invalid-missing-paths.json"))).toContain("/paths");
   });
 });
+
+describe("gate/1: requires_evidence[].check (ADR-0044 п. 6)", () => {
+  const withRequirement = (entry: Record<string, unknown>): Record<string, unknown> => ({
+    ...fixture("gate", "valid-tests-passed.json"),
+    requires_evidence: [entry]
+  });
+
+  it("accepts a kebab-case check id and rejects any other (SCN-KRN-159)", () => {
+    expectValid(withRequirement({ kind: "test-report", status: "PROVEN", check: "dev-check" }));
+    expect(pointers(withRequirement({ kind: "test-report", status: "PROVEN", check: "Dev Check" }))).toContain(
+      "/requires_evidence/0/check"
+    );
+  });
+});

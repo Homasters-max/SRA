@@ -90,6 +90,20 @@ export function weakenings(kind: ObjectKind, original: unknown, override: unknow
     const over = Array.isArray(override["requires_evidence"]) ? override["requires_evidence"].map(evidenceKey) : [];
     for (const item of missing(orig, over)) lost.push(`requires_evidence: ${item}`);
 
+    // `check` narrows the records a requirement accepts (ADR-0044 п. 6): adding
+    // it strengthens; dropping or changing it weakens.
+    const checked = (e: Record<string, unknown>): string =>
+      `${evidenceKey(e)}/${typeof e["check"] === "string" ? e["check"] : ""}`;
+    const overRequired = Array.isArray(override["requires_evidence"]) ? override["requires_evidence"].filter(isPlainObject) : [];
+    const overChecked = new Set(overRequired.map(checked));
+    const overKeys = new Set(over);
+    for (const entry of Array.isArray(original["requires_evidence"]) ? original["requires_evidence"] : []) {
+      if (!isPlainObject(entry) || typeof entry["check"] !== "string") continue;
+      // A requirement dropped whole is reported above.
+      if (!overKeys.has(evidenceKey(entry)) || overChecked.has(checked(entry))) continue;
+      lost.push(`requires_evidence:${String(entry["kind"])}.check: ${entry["check"]}`);
+    }
+
     if (original["waivable"] === false && override["waivable"] === true) {
       lost.push("waivable: false -> true");
     }

@@ -7,7 +7,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { knownFrontends, loadConfig, testFiles } from "../../../src/core/config.js";
+import { agentRoleErrors, knownFrontends, loadConfig, testFiles } from "../../../src/core/config.js";
 import { readSchemaFile } from "../../../src/core/schemas/loader.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 
@@ -19,11 +19,12 @@ const READ: Record<string, string> = {
   defaults: "defaults",
   paths: "paths",
   roles: "roles",
-  frontends: "frontends"
+  frontends: "frontends",
+  identities: "agents"
 };
 
 /** Properties of `config/1` nobody reads yet: the first reader adds the field (design §2). */
-const NOT_READ = ["$schema", "identities", "trusted_signers"];
+const NOT_READ = ["$schema", "trusted_signers"];
 
 /** Example of docs/08-packs.md §3. */
 const EXAMPLE = {
@@ -81,7 +82,8 @@ describe("WarrantConfig ↔ config/1", () => {
       defaults: { checkTimeoutS: 1800 },
       paths: { adr: "docs/adr", glossary: "docs/glossary.md", tests: "tests" },
       roles: new Map([["data-owner", ["<login>"]]]),
-      frontends: []
+      frontends: [],
+      agents: []
     });
   });
 
@@ -100,6 +102,28 @@ describe("WarrantConfig ↔ config/1", () => {
     expect(config.defaults).toEqual({ checkTimeoutS: undefined });
     expect(config.paths).toEqual({});
     expect(config.frontends).toEqual([]);
+    expect(config.agents).toEqual([]);
+  });
+
+  it("reads the logins of identities.agents in file order (ADR-0044 п. 3)", () => {
+    const identities = {
+      agents: [
+        { login: "warrant-agent[bot]", kind: "bot" },
+        { login: "ci-agent", description: "nightly runs" }
+      ]
+    };
+    expect(loadConfig(project({ ...EXAMPLE, identities })).agents).toEqual(["warrant-agent[bot]", "ci-agent"]);
+    expect(loadConfig(project({ ...EXAMPLE, identities: {} })).agents).toEqual([]);
+  });
+
+  it("agentRoleErrors: CONFIG_INVALID at the login of an agent that is also in a role, none otherwise; loadConfig does not check it", () => {
+    const identities = { agents: [{ login: "ci-agent" }, { login: "warrant-agent[bot]", kind: "bot" }] };
+    const both = loadConfig(project({ ...EXAMPLE, roles: { maintainer: ["kat", "warrant-agent[bot]"] }, identities }));
+    expect(agentRoleErrors(both)).toEqual([
+      expect.objectContaining({ code: "CONFIG_INVALID", path: ".warrant/warrant.json#/identities/agents/1/login" })
+    ]);
+    expect(agentRoleErrors(both)[0]?.message).toContain("maintainer");
+    expect(agentRoleErrors(loadConfig(project({ ...EXAMPLE, roles: { maintainer: ["kat"] }, identities })))).toEqual([]);
   });
 
   it("reads frontends, and knownFrontends is the enum of config/1 (SCN-KRN-126)", () => {

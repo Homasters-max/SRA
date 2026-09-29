@@ -106,7 +106,9 @@ describe("warrant run start", () => {
     expect(p.read(`${RUNS}/${id}.json`)).toBe(canonicalText(stored as never).text);
     expect(await validateErrors(p)).toEqual([]);
 
-    expect(Object.keys(run.data)).toEqual(["run", "change", "operation", "write_scope", "scope", "rules", "items", "context_hash"]);
+    expect(Object.keys(run.data)).toEqual(["run", "change", "operation", "write_scope", "scope", "rules", "items", "context_hash", "findings"]);
+    // Not a git work tree: no UNCOMMITTED_IN_SCOPE (REQ-ENF-002).
+    expect(run.data["findings"]).toEqual([]);
     expect(run.data["write_scope"]).toEqual(["openspec/changes/add-search/**"]);
     expect(run.data["items"].map((i: Data) => i.path)).toEqual([
       "openspec/changes/add-search/proposal.md",
@@ -177,6 +179,34 @@ describe("warrant run start", () => {
     };
     expect(await edit("openspec/changes/add-search/specs/search/spec.md")).toBe("allow");
     expect(await edit("openspec/changes/add-search/proposal.md")).toBe("deny");
+  });
+
+  it("uncommitted work inside write_scope: UNCOMMITTED_IN_SCOPE in data.findings[], the Run starts, exit 0; a clean tree has none (SCN-ENF-045)", async () => {
+    const p = await repo("IMPLEMENTING", (b) => b.write("src/search.py", "def search(): pass\n").write("docs/notes.md", "# Notes\n"));
+    p.commit("base");
+    const clean = await start(p, "add-search", { operation: "implement" });
+    expect(clean.errors).toEqual([]);
+    expect(clean.data["findings"]).toEqual([]);
+    expect((await finish(p, { state: "CANCELLED" })).exitCode).toBe(0);
+
+    p.write("src/search.py", "def search(q): return q\n").write("tests/test_new.py", "def test_new(): pass\n").write("docs/notes.md", "# Notes 2\n");
+    const run = await start(p, "add-search", { operation: "implement" });
+    expect(run.errors).toEqual([]);
+    expect(run.exitCode).toBe(0);
+    expect(runFiles(p)).toContain(`${run.data["run"] as string}.json`);
+    expect(run.data["findings"]).toEqual([
+      { code: "UNCOMMITTED_IN_SCOPE", paths: ["src/search.py", "tests/test_new.py"], hint: expect.stringContaining("commit") }
+    ]);
+    expect(run.data["findings"][0].hint).toContain("remove");
+    expect(await finish(p, { state: "CANCELLED" })).toMatchObject({ exitCode: 0 });
+
+    // specify: the directory of the Change is its write_scope; a deleted file counts too.
+    p.remove("openspec/changes/add-search/tasks.md");
+    const record = p.read(".warrant/changes/add-search.json").replace('"IMPLEMENTING"', '"PROPOSED"');
+    writeFileSync(path.join(p.root, ".warrant", "changes", "add-search.json"), record);
+    const specify = await start(p, "add-search", { operation: "specify" });
+    expect(specify.errors).toEqual([]);
+    expect(specify.data["findings"]).toEqual([{ code: "UNCOMMITTED_IN_SCOPE", paths: ["openspec/changes/add-search/tasks.md"], hint: expect.any(String) }]);
   });
 
   it("implement without paths.src and paths.tests: CONFIG_INVALID with a hint, nothing written", async () => {

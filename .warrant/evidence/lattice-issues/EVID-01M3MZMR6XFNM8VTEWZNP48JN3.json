@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3MZMR6XFNM8VTEWZNP48JN3",
+  "claim": {
+    "text": "openspec-validate passed for lattice-issues",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "d7431fa905dc9c5cbf5ee89fb6ba7327fc0bccbc",
+    "base_commit": "11f312e398d29fbfbdb9061cc6eaac1a9f6e649f",
+    "spec_revision": "openspec/changes/lattice-issues@d7431fa905dc9c5cbf5ee89fb6ba7327fc0bccbc",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:715be33d918b512e703d6ad5850d4b9f8a48ad8434d356c88bb67c6274cb1de2",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "created_at": "2026-09-28T21:44:55.262Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/lattice-issues/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:f23faef0fa9fee4996e77cee8bbf0e4fb33efbbe0927f7f062506cb5397508b9"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

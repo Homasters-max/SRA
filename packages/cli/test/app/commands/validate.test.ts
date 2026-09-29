@@ -1,5 +1,5 @@
 /**
- * `warrant validate` in the test process: checks (1)–(7) of REQ-KRN-021 on
+ * `warrant validate` in the test process: checks (1)–(7), (14) of REQ-KRN-021 on
  * projects built by `ProjectBuilder` (SCN-KRN-005, 007, 043, 044, 045, 046, 048,
  * 078, 079, 080, 082, 094, 125, SCN-SDD-010). Moved from e2e (ADR-0025, task 5.2);
  * the parse of argv (`--no-generated`), the exit code of the binary and the
@@ -424,5 +424,68 @@ describe("warrant validate: id equals the file base name (task 3.6)", () => {
     expect(finding).toBeDefined();
     expect(finding?.path).toBe(".warrant/local/overlays/quiet.json#/id");
     expect(finding?.message).toContain("quiet");
+  });
+});
+
+describe("warrant validate: requires_evidence[].check (ADR-0044 п. 6)", () => {
+  const devCheck = (produces: string[]): object => ({
+    $schema: "warrant://check/1",
+    id: "dev-check",
+    version: "1.0.0",
+    level: "L1",
+    produces,
+    parser: "junit",
+    run: { command: ["dev-tests", "{out}"] }
+  });
+
+  it("names a check that is not loaded or does not produce the kind; a producing check passes (SCN-KRN-156)", async () => {
+    const p = await project().synced();
+    p.write(".warrant/local/gates/dev-passed.json", {
+      $schema: "warrant://gate/1",
+      id: "dev-passed",
+      version: "1.0.0",
+      level: "L1",
+      requires_evidence: [{ kind: "test-report", status: "PROVEN", check: "dev-check" }],
+      waivable: false
+    });
+
+    const missing = await validate(p);
+    expect(missing.errors).toEqual([
+      expect.objectContaining({ code: "CONFIG_INVALID", path: ".warrant/local/gates/dev-passed.json#/requires_evidence/0/check" })
+    ]);
+    expect(missing.errors[0]?.message).toContain("dev-check");
+    expect(missing.exitCode).toBe(3);
+
+    p.write(".warrant/local/checks/dev-check.json", devCheck(["spec-report"]));
+    const other = await validate(p);
+    expect(other.errors).toEqual([
+      expect.objectContaining({ code: "CONFIG_INVALID", path: ".warrant/local/gates/dev-passed.json#/requires_evidence/0/check" })
+    ]);
+    expect(other.exitCode).toBe(3);
+
+    p.write(".warrant/local/checks/dev-check.json", devCheck(["test-report"]));
+    const valid = await validate(p);
+    expect(valid.errors).toEqual([]);
+    expect(valid.exitCode).toBe(0);
+  });
+});
+
+describe("warrant validate: identities.agents outside roles (ADR-0044 п. 3)", () => {
+  it("an agent login in roles.maintainer: CONFIG_INVALID at its login; without the agent in roles, no error (SCN-KRN-157)", async () => {
+    const p = await project().synced();
+    const config = p.json(".warrant/warrant.json");
+    const identities = { agents: [{ login: "warrant-agent[bot]", kind: "bot" }] };
+    p.write(".warrant/warrant.json", { ...config, roles: { maintainer: ["kat", "warrant-agent[bot]"] }, identities });
+
+    const both = await validate(p);
+    expect(both.errors).toEqual([
+      expect.objectContaining({ code: "CONFIG_INVALID", path: ".warrant/warrant.json#/identities/agents/0/login" })
+    ]);
+    expect(both.exitCode).toBe(3);
+
+    p.write(".warrant/warrant.json", { ...config, roles: { maintainer: ["kat"] }, identities });
+    const valid = await validate(p);
+    expect(valid.errors).toEqual([]);
+    expect(valid.exitCode).toBe(0);
   });
 });

@@ -7,9 +7,9 @@
 ## Готовый запрос
 
 ```text
-Поток stabilization. Прочитай docs/drafts/2026-09-29-dark-factory/ (README, 01-accepted, 03-open) — решения Q1–Q7 приняты, не гриллить заново. Работай автономно, до конечного результата; maintainer'а зови только для merge spec-PR и (до 0.9.0) impl-PR — дай ссылку и строку «Enable auto-merge», не жди CI.
+Поток stabilization. Прочитай docs/drafts/2026-09-29-dark-factory/ (README, 01-accepted, 03-open) — решения Q1–Q7 приняты, не гриллить заново; Q8 (граница WARRANT и фабрики) — подтвердить раскладку первой. Работай автономно, до конечного результата; maintainer'а зови только для merge spec-PR и (до 0.9.0) impl-PR — дай ссылку и строку «Enable auto-merge», не жди CI.
 1) Change identities (03-open §2): если spec-PR #106 слит — impl-PR из D:/project/SRA-identities (незакоммиченные правки уже там), I-N по review 2, затем archive-PR ботом; не слит — ссылка maintainer'у.
-2) ADR-0050 «Тёмная фабрика: человек до запуска» по 01-accepted (меняет ADR-0049 п. 1, 2, 5, 8 и ADR-0047 п. 1–2), docs/process/dark-factory.md из 02-scheme-v2 по 03-open §1, правка docs/process/flow.md, строки backlog; тот же PR удаляет папку черновиков. Классификатор откажет — дай maintainer'у файлы и строки.
+2) ADR-0050 «WARRANT в тёмной фабрике: граница и обязательства» по Q8 (меняет ADR-0049 п. 1, 2, 5, 8 и ADR-0047 п. 1–2); решения фабрики Q1–Q6 — docs/process/dark-factory.md из 02-scheme-v2 по 03-open §1 с пометкой «документ фабрики», правка docs/process/flow.md, строки backlog; тот же PR удаляет папку черновиков. Классификатор откажет — дай maintainer'у файлы и строки.
 3) Флейки WS-30 и BL-105, затем scripts/dev/flow.js v0 — весь путь после запуска (01-accepted, порядок работ п. 4), задача по расписанию (Q5).
 ```
 
@@ -21,8 +21,8 @@
 
 ## Не забыть
 
+- WARRANT — отдельный проект, компонент фабрики: в WARRANT — только судья, policy, evidence, контракт CLI; исполнение, бюджеты, отчёт, merge — фабрика (Q8).
 - `gh` в Claude Code — бот `homasters`: spec- и impl-PR он сливать не должен (судья требует `merged_by` из `roles.maintainer`); archive-, docs- и fix-PR сливает сам `--auto`.
 - Команды merge и чистки — по одной, без `&&`; правила разрешений — в `C:\Users\Xiaomi\.claude\settings.json`, читаются при старте.
 - FAIL — только при изменении утверждённой spec или по бюджету Q4; ревью реализации — advisory, не доказательство (поправки maintainer'а к Q4, Q6).
-- Канарейка `canary.yml`: красный «Install warrant» — поставка сломана; красный `warrant ci` — строка backlog.
-- Флейки: WS-30 и `npm pack` на windows (BL-105) — один Re-run всего run, второе падение — разбор.
+- CI: флейки WS-30 и `npm pack` на windows (BL-105) — один Re-run всего run, второе падение — разбор; канарейка `canary.yml`: красный «Install warrant» — поставка сломана, красный `warrant ci` — строка backlog.

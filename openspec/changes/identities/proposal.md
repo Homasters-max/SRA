@@ -7,6 +7,7 @@
 ## What Changes
 
 - `.warrant/warrant.json`: `identities.agents: [{ "login": "homasters", "kind": "machine-user", "description": … }]`.
+- Навыки `git-land`, `fast-mode`: spec-PR и impl-PR агент не сливает — сливает maintainer (design D4); с `GH_TOKEN` бота merge агентом судья не засчитывает уже сейчас.
 - С этого merge судья (`core/ci/refs.ts`, `ci/decisions.ts`) отказывает ref `APPROVED` / `MERGED`, если PR слит агентом или автором PR, и решение UNKNOWN от агента; `SHARED_IDENTITY` пропадает. Код не меняется — поведение уже в spec (REQ-VER-011, ADR-0044 п. 3).
 - Процесс: spec-PR и impl-PR сливает maintainer своим аккаунтом (ADR-0049 п. 2); archive-PR и docs/process-PR — бот `--auto`.
 - **Версии:** без изменений — `.warrant/warrant.json` репозитория не поставляется.
@@ -30,4 +31,5 @@
 ## Impact
 
 - `.warrant/warrant.json` — `identities`.
+- `.claude/skills/git-land/SKILL.md`, `.claude/skills/fast-mode/SKILL.md` — шаг merge.
 - `docs/handoff/stabilization.md`, `docs/backlog.md` (WS-04) — в archive-PR.

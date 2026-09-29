@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "ci-shards",
-  "commit": "caca396bd1ea6ca28bd0ebffeeca7efe17ab91c1",
+  "commit": "09605ccd256b785a77a1635fcf581f0bc2662cb2",
   "versions": {
     "warrant": "0.8.2",
     "openspec": "1.13.1",
@@ -10,6 +10,12 @@
   },
   "evidence": [
     "EVID-01M3P9M9W19TAXV1JM91Y7ETVK",
-    "EVID-01M3P9X34946HPN8MGDR791483"
-  ]
+    "EVID-01M3P9X34946HPN8MGDR791483",
+    "EVID-01M3P9Z0V02VD8373AF2SXKC3X"
+  ],
+  "gates": {
+    "ids-valid": "PASS",
+    "required-artifacts-present": "PASS",
+    "spec-valid": "PASS"
+  }
 }

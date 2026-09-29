@@ -209,6 +209,12 @@ describe("docs/backlog.md — ADR-0032 п. 5", () => {
   it("IDs: PREFIX-N, unique", () => {
     const ids = tableLines.slice(2).map((l) => cells(l.line)[0]!);
     expect(ids.filter((id) => !/^[A-Z]+-\d+$/.test(id))).toEqual([]);
-    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+    // merge=union keeps the rows of both branches (ADR-0047 п. 5): a repeated ID names the next free number.
+    const next = (id: string) => {
+      const prefix = id.replace(/-\d+$/, "");
+      const max = Math.max(...ids.filter((x) => x.startsWith(`${prefix}-`)).map((x) => Number(x.slice(prefix.length + 1))));
+      return `${id} repeated: renumber the own row to ${prefix}-${max + 1}`;
+    };
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i).map(next)).toEqual([]);
   });
 });

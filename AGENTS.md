@@ -29,6 +29,7 @@ WARRANT — governance-слой фабрики SEF поверх OpenSpec (specif
 
 | Задача | Навык / инструмент |
 |---|---|
+| Быстрый режим: задача одной сессией до merge, `--auto`, без остановок | `fast-mode` — [ADR-0047](docs/adr/WARRANT-ADR-0047-pr-cycle.md) |
 | Найти код, кто вызывает, что обновить при изменении символа | `code-search` (`node scripts/dev/cs.js`) — [ADR-0028](docs/adr/WARRANT-ADR-0028-graft-adoption.md) |
 | Архитектурный аудит (обязательно перед spec-PR фазы) | `architecture-audit` |
 | Начать поток в worktree, «где я», коммит через файл | `git-start` |

@@ -1,1 +1,3 @@
 * text=auto eol=lf
+# ADR-0047 п. 5: rows of two branches appended to the table both survive a merge; a repeated ID fails dev-context.test.ts
+docs/backlog.md merge=union

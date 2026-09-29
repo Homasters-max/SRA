@@ -4,7 +4,7 @@
 
 ## 1. Идентичность агента (D1, D2)
 
-- [ ] 1.1 `.warrant/warrant.json`: `identities.agents` — `homasters`, `kind: "machine-user"`, `description`; `warrant fmt`.
+- [x] 1.1 `.warrant/warrant.json`: `identities.agents` — `homasters`, `kind: "machine-user"`, `description`; `warrant fmt`.
 
   Проверка: `node scripts/dev/check.js`; `node packages/cli/dist/bin/warrant.js validate` — без `CONFIG_INVALID`; `gh api users/homasters --jq .login` — `homasters` (F-5).
 

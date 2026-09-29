@@ -11,5 +11,14 @@
     "maintainer": [
       "Homasters-max"
     ]
+  },
+  "identities": {
+    "agents": [
+      {
+        "login": "homasters",
+        "kind": "machine-user",
+        "description": "WARRANT agent: Claude Code sessions of the maintainer, GH_TOKEN of this account (ADR-0049 п. 3)"
+      }
+    ]
   }
 }

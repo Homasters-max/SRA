@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "identities",
-  "commit": "e725b75c44f2eeceeeacb7cfeed67a47af9cee5c",
+  "commit": "6754e99bb04f89ef37ac05503d1171769e98cbc8",
   "versions": {
     "warrant": "0.8.3",
     "openspec": "1.13.1",
@@ -9,6 +9,7 @@
     "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829"
   },
   "evidence": [
-    "EVID-01M3Q54B7DCD4TDVE0S1AP8N3K"
+    "EVID-01M3Q54B7DCD4TDVE0S1AP8N3K",
+    "EVID-01M3Q5E0C0YJ67M9ZFQ3C7A3B0"
   ]
 }

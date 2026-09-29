@@ -1,0 +1,120 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3Q56SEDAPEA3BCTC2AS6Q06",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "Group 2 (task 2.1) edits only git-land step 4 and «Стоп» and fast-mode step 4. Other skill text still makes the maintainer's word the trigger for the agent to merge a spec-PR or impl-PR, which contradicts D4 («spec-PR и impl-PR агент не сливает»). change-impl-pr step 7: «По «merge #N» — шаги 4–5 git-land». change-spec-pr step 8: «CI и merge — шаги 3–4 git-land». git-land line 9 («Человек только решает — «merge #N» в чате; остальное навык делает сам»), input `merge <N>`, the description and the end of step 3 (««merge #N» пришло до конца CI — шаг 4 с --auto»). fast-mode description («merge --auto при зелёном CI») and step 1 (««Запускай» … = разрешение сливать при зелёном CI»). After group 2 these lines point to a step that no longer merges, or they still permit the merge. So the failure the Change targets stays reachable through the skills: merged_by homasters, and REF_NOT_VERIFIED in the next PR.",
+      "targets": [
+        "openspec/changes/identities/tasks.md",
+        "openspec/changes/identities/design.md",
+        ".claude/skills/change-spec-pr/SKILL.md",
+        ".claude/skills/change-impl-pr/SKILL.md",
+        ".claude/skills/git-land/SKILL.md",
+        ".claude/skills/fast-mode/SKILL.md"
+      ],
+      "recommendation": "Widen task 2.1 and D4 to every place that routes a spec-PR or impl-PR merge to the agent: change-spec-pr steps 7–8 and «Стоп», change-impl-pr step 7 and «Стоп», git-land description, line 9, input `merge <N>` and step 3, and fast-mode description, steps 1 and 6. The new trigger for the agent to continue is `git-land after <N>`. Or list these lines as out of scope with a named follow-up PR."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "In the spec-PR flow, the maintainer's word comes BEFORE the last commit of the PR. change-spec-pr step 7: on «merge #N» the agent activates waivers, runs verify, records `transition SPECIFIED`, commits and pushes. Only after that comes the merge. D4 moves the merge to the maintainer's account but does not say what the maintainer waits for before merging. If he merges on seeing a green PR (or right after giving the word), the spec-PR lands without the SPECIFIED transition and without active waivers. Then the APPROVED ref in the impl-PR fails with reason `change` (refs.ts:177-180: the merge commit must bring the transition into the record), and the spec-PR cannot be merged again. The spec-PR now needs two human acts (word, then merge), and their order is not defined.",
+      "targets": [
+        "openspec/changes/identities/design.md",
+        ".claude/skills/change-spec-pr/SKILL.md"
+      ],
+      "recommendation": "Define the spec-PR sequence in D4: word (activation) → agent commits SPECIFIED and waivers, pushes, CI green → agent reports «готов к merge #N» with the link → maintainer merges → agent `git-land after <N>`. Or: with no waivers, the agent does step 7 before opening the PR (as the skill already allows), so the merge is the only human act. State that the maintainer does not merge a spec-PR whose head has no SPECIFIED transition."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "The D5 (1) recovery for a spec-PR or impl-PR the bot merged («revert merge-коммита отдельным PR, …, затем те же правки новым PR») contradicts the judge. The spec-PR and the impl-PR add transitions to `.warrant/changes/<change>.json`: SPECIFIED, or VERIFYING, and for a new Change the whole record. Reverting the merge removes them. `warrant ci` of the revert PR then fails in two ways. newTransitions (core/ci/record.ts:86-95) requires that «transitions[] on HEAD … start with the … transitions of the record of the base» (reason `prefix`). readSubjectOf (core/ci/kind.ts) refuses a deleted record («a Change ends in ARCHIVED or ABANDONED»). `warrant / warrant` is a required check and `--admin` is forbidden, so the revert PR cannot merge. The recovery as written cannot be carried out, and the class B risk is then detected but not recoverable.",
+      "targets": [
+        "openspec/changes/identities/design.md"
+      ],
+      "recommendation": "Replace the recovery in D5 with one that works under the append-only record. Candidates, to check against the lifecycle: bot-merged impl-PR — `transition IMPLEMENTING` (VERIFYING->IMPLEMENTING) and a new impl-PR bringing VERIFYING, merged by the maintainer, whose URL becomes the MERGED ref. Bot-merged spec-PR — no backward move from SPECIFIED exists, so `transition ABANDONED` and a new Change with `--supersedes`. Alternatively, state that such a Change cannot be completed and has to be abandoned."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "The skill edits of group 2 reach main only with the identities impl-PR. Until then, the identities spec-PR and impl-PR go through the current skills: git-land step 4 and fast-mode step 4 have the agent run `gh pr merge --merge --auto` (as homasters) after «merge #N» or the answer to the plan. D4 says the refusal applies «уже сейчас», and D2 names the maintainer as the merger of the impl-PR. Nothing in tasks.md or design says the identities spec-PR is merged by the maintainer by hand. A bot merge of it makes the APPROVED ref of the identities impl-PR fail (homasters is not in roles.maintainer, refs.ts:136).",
+      "targets": [
+        "openspec/changes/identities/design.md",
+        "openspec/changes/identities/tasks.md"
+      ],
+      "recommendation": "In D2 or D4, say that both PRs of this Change (spec-PR and impl-PR) are merged by Homasters-max by hand, with the skills overridden until group 2 lands. Or move the skill edit into a process-PR merged before the identities spec-PR."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "D5 files both residual risks under «класс B модели угроз (06 §8: обнаружение, не предотвращение)». Risk (2) is not class B. If the agent acts with the maintainer's token (keyring gh, GCM), the forge records Homasters-max, and the judge cannot tell it apart from a human act, so nothing detects it. 06 §8 puts this outside the model: «gh на машине агента авторизован только им: токен человека агенту недоступен. WARRANT этого не проверяет — это граница доверия проекта». D5 (2) states that SRA does not hold this boundary, but calls it detection.",
+      "targets": [
+        "openspec/changes/identities/design.md",
+        "docs/06-verification.md"
+      ],
+      "recommendation": "Split D5: (1) class B, detected by the judge. (2) The project trust boundary of 06 §8 is not held in SRA: no prevention and no detection. Accept it as a risk, and make the WS-04 backlog line say so."
+    },
+    {
+      "id": "F-6",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "contradiction",
+      "statement": "D4 and the proposal say the archive-PR is merged by the bot with `--auto`, without the maintainer's word. change-archive-pr still says «Нет «merge #N» — не сливать и не ставить тег» (step 5 and «Стоп»). This is stricter than D4 and does not break the judge, but the skills disagree with each other. change-archive-pr is not in group 2.",
+      "targets": [
+        "openspec/changes/identities/design.md",
+        ".claude/skills/change-archive-pr/SKILL.md"
+      ],
+      "recommendation": "Either add change-archive-pr to group 2, or name it in the wave-1 process-PR (ADR-0049 Consequences)."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/identities/tasks.md",
+      "change": "Task 2.1: list every skill line that routes a spec-PR or impl-PR merge to the agent. That is change-spec-pr steps 7–8 and «Стоп», change-impl-pr step 7 and «Стоп», git-land description, line 9, input `merge <N>` and step 3, and fast-mode description, steps 1, 4 and 6. The agent continues with `git-land after <N>` (F-1)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/identities/design.md",
+      "change": "D4: the spec-PR order is word → agent's SPECIFIED/waiver commit → CI green → «готов к merge #N» → maintainer merges → `after <N>` (F-2). Both PRs of this Change are merged by Homasters-max by hand until group 2 lands (F-4)."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/identities/design.md",
+      "change": "D5: recovery via lifecycle, not revert. impl-PR: VERIFYING->IMPLEMENTING plus a new impl-PR. spec-PR: ABANDONED plus a new Change with --supersedes (F-3). Risk (2) is the unheld trust boundary of 06 §8, not class B (F-5)."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Status of the previous round (RUN-01M3Q4YZAX2HTM23VGB7ZHWGTB). F-4 (D3 as a refinement of ADR-0049 п. 3), F-5 (canonical login check in task 1.1), F-6 (acceptance via `warrant ci` of the archive-PR, design §2) and F-7 (PR opened by the bot, D4) are resolved. F-1 is partly resolved: group 2 exists but its scope is incomplete (new F-1, F-4). F-2 got a recovery path, but it does not work under the judge (new F-3). F-3 is accepted as a residual risk, but framed as class B (new F-5)."
+    },
+    {
+      "id": "A-2",
+      "statement": "The recoveries suggested in F-3 are unchecked: VERIFYING->IMPLEMENTING plus a new impl-PR as the MERGED ref, and ABANDONED plus --supersedes. They were inferred from lifecycle.ts (two backward moves, ABANDONED before MERGED) and from refs.ts / fetch.ts, not run."
+    },
+    {
+      "id": "A-3",
+      "statement": "`transition SPECIFIED` is committed into the spec-PR branch (change-spec-pr step 7) and the APPROVED ref requires the spec-PR merge commit to bring SPECIFIED (refs.ts:177-180, confirmation.broughtBy). broughtBy for APPROVED was not read in core; this is inferred from the skill and from the check."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:cb736cd8d66f76f23a9b7b7f22f0307ebb7079573f255325929a921dcc803951",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-29T18:40:00Z",
+    "finished_at": "2026-09-29T19:00:00Z"
+  }
+}

@@ -29,6 +29,8 @@ const LOCAL_THREADS = process.env.CI ? undefined : Math.max(2, Math.floor(availa
 const FORBID_SPAWN = "test/helpers/forbid-spawn.ts";
 
 const REQUIRE_OPENSPEC = "test/helpers/require-openspec.ts";
+/** The one `npm pack` of the checkout, before any test (WS-30): its `prepare` rebuilds dist. */
+const PACK_CHECKOUT = "test/helpers/pack-checkout.ts";
 
 /**
  * Light levels run first, heavy levels after them (`sequence.groupOrder`,
@@ -53,14 +55,14 @@ const light = (name: "unit" | "app") => ({
   }
 });
 
-const heavy = (name: "contract" | "e2e") => ({
+const heavy = (name: "contract" | "e2e", setup: string[] = []) => ({
   extends: true as const,
   test: {
     name,
     include: [`test/${name}/**/*.test.ts`],
     pool: "forks" as const,
     sequence: { groupOrder: HEAVY_GROUP },
-    globalSetup: [REQUIRE_OPENSPEC],
+    globalSetup: [REQUIRE_OPENSPEC, ...setup],
     testTimeout: 60_000,
     hookTimeout: 60_000
   }
@@ -74,6 +76,6 @@ export default defineConfig({
       forks: { maxForks: HEAVY_FORKS, minForks: 1 },
       threads: LOCAL_THREADS === undefined ? {} : { maxThreads: LOCAL_THREADS, minThreads: 1 }
     },
-    projects: [light("unit"), light("app"), heavy("contract"), heavy("e2e")]
+    projects: [light("unit"), light("app"), heavy("contract"), heavy("e2e", [PACK_CHECKOUT])]
   }
 });

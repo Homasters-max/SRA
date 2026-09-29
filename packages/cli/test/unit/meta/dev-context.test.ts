@@ -1,8 +1,8 @@
 /**
  * Form of the WARRANT development context (ADR-0032 п. 10): every project skill `.claude/skills/<name>/SKILL.md` but
  * OpenSpec's follows the standard of п. 6 (frontmatter, sections Вход → Шаги → Стоп → Отчёт, ≤ 80 lines); there is no
- * `.claude/commands/` and no OpenSpec archive / sync-specs skill (п. 8); `CLAUDE.md` ≤ 100 lines and
- * `packages/cli/CLAUDE.md` ≤ 60 (п. 7); every `docs/handoff/<stream>.md` has the sections of п. 3 in order, ≤ 60 lines,
+ * `.claude/commands/` and no OpenSpec archive / sync-specs skill (п. 8); `AGENTS.md` ≤ 100 lines and
+ * `packages/cli/AGENTS.md` ≤ 60 (п. 7); every `docs/handoff/<stream>.md` has the sections of п. 3 in order, ≤ 60 lines,
  * ≤ 5 items to remember; `docs/backlog.md` is one table `ID | Что | Куда | Источник` with unique IDs (п. 5);
  * `docs/NEXT-SESSION.md` is gone (п. 2). ADR-0033 п. 12: a handoff's `После:` names streams with a handoff file in
  * this checkout (a predecessor's last PR removes the line with its file), no cycles; `docs/drafts/` holds dated
@@ -137,10 +137,10 @@ describe(".claude/skills — standard of ADR-0032 п. 6", () => {
   });
 });
 
-describe("CLAUDE.md — ADR-0032 п. 7", () => {
-  it("root CLAUDE.md ≤ 100 lines, packages/cli/CLAUDE.md ≤ 60", () => {
-    expect(linesOf(read("CLAUDE.md")).length).toBeLessThanOrEqual(100);
-    expect(linesOf(read("packages", "cli", "CLAUDE.md")).length).toBeLessThanOrEqual(60);
+describe("AGENTS.md — ADR-0032 п. 7", () => {
+  it("root AGENTS.md ≤ 100 lines, packages/cli/AGENTS.md ≤ 60", () => {
+    expect(linesOf(read("AGENTS.md")).length).toBeLessThanOrEqual(100);
+    expect(linesOf(read("packages", "cli", "AGENTS.md")).length).toBeLessThanOrEqual(60);
   });
 });
 

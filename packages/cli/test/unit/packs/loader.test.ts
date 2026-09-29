@@ -247,6 +247,22 @@ describe("weakenings", () => {
     );
     expect(lost).toEqual(["accepts_attestation: none"]);
   });
+
+  it("treats adding requires_evidence[].check as strengthening, dropping or changing it as weakening (ADR-0044 п. 6)", () => {
+    const plain = { kind: "test-report", status: "PROVEN" };
+    const checked = { ...plain, check: "dev-check" };
+    const gate = (entry: Record<string, unknown>): Record<string, unknown> => ({ requires_evidence: [entry], waivable: false });
+    expect(weakenings("gate", gate(plain), gate(checked))).toEqual([]);
+    expect(weakenings("gate", gate(checked), gate(checked))).toEqual([]);
+    expect(weakenings("gate", gate(checked), gate(plain))).toEqual(["requires_evidence:test-report.check: dev-check"]);
+    expect(weakenings("gate", gate(checked), gate({ ...plain, check: "tests-passed" }))).toEqual([
+      "requires_evidence:test-report.check: dev-check"
+    ]);
+    // A requirement dropped whole is named once, by kind and status.
+    expect(weakenings("gate", gate(checked), { requires_evidence: [], waivable: false })).toEqual([
+      "requires_evidence: test-report/PROVEN"
+    ]);
+  });
 });
 
 describe("loadPacks: rules and evidence kinds (phase 3)", () => {

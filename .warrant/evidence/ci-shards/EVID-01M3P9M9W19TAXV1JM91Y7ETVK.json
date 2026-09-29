@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3P9M9W19TAXV1JM91Y7ETVK",
+  "claim": {
+    "text": "specification/adversarial-review@0.2.0 reviewed the spec of ci-shards: 0 BLOCKER, 3 MAJOR, 4 MINOR, 0 INFO",
+    "targets": []
+  },
+  "kind": "review",
+  "level": "L2",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "216dfca2eb4d46f372e4091a256e525ef0defebc",
+    "spec_revision": "openspec/changes/ci-shards@216dfca2eb4d46f372e4091a256e525ef0defebc",
+    "spec_tree": "sha256:95546453a83189a6f7e81feb6fe30384daa068c7853ce8ff9fd21f4cb7bc09c3",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "skill",
+    "id": "specification/adversarial-review",
+    "version": "0.2.0",
+    "run": "RUN-01M3P9FQ53NKBTDRJ73CNYS3VS"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:e0ac48cfa79b96e6dbdffb13dd5c1e46f845aad77349473abb59d1804df6e79d",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "created_at": "2026-09-29T09:58:40.769Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/runs/RUN-01M3P9FQ53NKBTDRJ73CNYS3VS.result.json",
+      "sha256": "sha256:f5b58257dbdf43da12a0d6f656a726fa014e031b7963b571aac35c9dceb436b7"
+    }
+  ],
+  "limitations": [
+    "produced locally, unattested",
+    "same model family as author"
+  ],
+  "metrics": {
+    "BLOCKER": 0,
+    "INFO": 0,
+    "MAJOR": 3,
+    "MINOR": 4
+  }
+}

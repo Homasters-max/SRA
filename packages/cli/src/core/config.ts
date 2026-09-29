@@ -4,14 +4,14 @@
  * `loadConfig` validates the file against `config/1` and builds a
  * `WarrantConfig`; every reader of the configuration goes through it rather
  * than through string keys of the raw JSON. A property of `config/1` that
- * nobody reads yet (`identities`, `trusted_signers`, `packs[id].params`) is
- * left out and is added by its first reader
- * (`test/unit/config/config.test.ts` holds the list).
+ * nobody reads yet (`trusted_signers`, `packs[id].params`) is left out and
+ * is added by its first reader (`test/unit/config/config.test.ts` holds the
+ * list). Of `identities` only `agents[].login` is read (ADR-0044 п. 3).
  */
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { WarrantError, type CliError } from "./errors.js";
+import { cliError, WarrantError, type CliError } from "./errors.js";
 import { readJson, walkFiles } from "./fs.js";
 import { isPlainObject, strings } from "./json.js";
 import { readSchemaFile } from "./schemas/loader.js";
@@ -37,6 +37,8 @@ export interface WarrantConfig {
   readonly roles: ReadonlyMap<string, readonly string[]>;
   /** Frontends `warrant sync` generates files for (ADR-0034 п. 1); empty when absent. */
   readonly frontends: readonly string[];
+  /** Logins of `identities.agents[].login` (ADR-0010 п. 4, ADR-0044 п. 3), in file order; empty when absent. */
+  readonly agents: readonly string[];
 }
 
 const PATH_KEYS = ["adr", "glossary", "tests", "src"] as const;
@@ -76,6 +78,12 @@ function roleEntries(roles: unknown): Map<string, readonly string[]> {
   return out;
 }
 
+function agentLogins(identities: unknown): string[] {
+  const agents = isPlainObject(identities) ? identities["agents"] : undefined;
+  if (!Array.isArray(agents)) return [];
+  return agents.flatMap((agent) => (isPlainObject(agent) && typeof agent["login"] === "string" ? [agent["login"]] : []));
+}
+
 function pathEntries(paths: unknown): WarrantConfig["paths"] {
   const out: { adr?: string; glossary?: string; tests?: string; src?: string } = {};
   if (!isPlainObject(paths)) return out;
@@ -98,8 +106,31 @@ function toWarrantConfig(json: Record<string, unknown>): WarrantConfig {
     },
     paths: pathEntries(json["paths"]),
     roles: roleEntries(json["roles"]),
-    frontends: strings(json["frontends"])
+    frontends: strings(json["frontends"]),
+    agents: agentLogins(json["identities"])
   };
+}
+
+/**
+ * Check (14) of `validate` (REQ-KRN-021, ADR-0044 п. 3): no login of
+ * `identities.agents` is in a role of `roles` — roles hold no agents
+ * (ADR-0010 п. 4). `loadConfig` does not check it, so the other commands
+ * keep working; `validate` and the job `warrant` show it.
+ */
+export function agentRoleErrors(config: WarrantConfig): CliError[] {
+  const reported = CONFIG_REL.split(path.sep).join("/");
+  const errors: CliError[] = [];
+  for (const [i, login] of config.agents.entries()) {
+    const roles = [...config.roles].filter(([, logins]) => logins.includes(login)).map(([role]) => role);
+    if (roles.length === 0) continue;
+    errors.push(
+      cliError("CONFIG_INVALID", `agent identity ${login} is also in roles ${roles.join(", ")}: roles hold no agents (ADR-0010 п. 4)`, {
+        path: `${reported}#/identities/agents/${i}/login`,
+        hint: `remove ${login} from roles, or from identities.agents if it is a person`
+      })
+    );
+  }
+  return errors;
 }
 
 /** Reads `.warrant/warrant.json`, throwing when it is missing or unusable (SCN-KRN-007). */

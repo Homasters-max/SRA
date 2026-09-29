@@ -1,12 +1,16 @@
 # CI of the WARRANT repository (phase 3, task 1.1; P-9, design D-17).
 #
-# Job `test`, one per OS: the kernel has only ever run on Windows, and every
+# Job `test` on each OS: the kernel has only ever run on Windows, and every
 # path, spawn and lock decision of phase 3 must hold on Linux too. `npm test`
 # runs all four test levels (ADR-0025 п. 8: unit, app, contract, e2e) on every
 # PR; OpenSpec 1.13.1 is installed first because `contract` and `e2e` fail
 # without it (globalSetup), they are not skipped. `timeout-minutes` stops a hung
-# run instead of GitHub's 6 h default (test-levels, task 6.1, I-139).
-# Job `warrant` (phase-4c, design §8, ADR-0037): the verdict of every PR — see below.
+# run instead of GitHub's 6 h default (test-levels, task 6.1, I-139). On windows
+# the suite is split into two shards (`vitest --shard`, two parallel jobs): it ran
+# 4 min against 2 on ubuntu and held the whole PR; the shards together run every
+# test file of every level (REQ-VER-015, Change ci-shards). Typecheck, install
+# and validate run once per OS: ubuntu and shard 1/2.
+# Job `warrant` (phase-4c, design §8, ADR-0037; ADR-0044 п. 7): the verdict of every PR — the reusable workflow warrant.yml, see below.
 name: ci
 
 on:
@@ -41,12 +45,18 @@ concurrency:
 
 jobs:
   test:
-    name: test (${{ matrix.os }})
+    name: test (${{ matrix.os }}${{ matrix.shard && format(', {0}', matrix.shard) || '' }})
     if: github.event_name != 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            shard: ""
+          - os: windows-latest
+            shard: "1/2"
+          - os: windows-latest
+            shard: "2/2"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     defaults:
@@ -83,21 +93,26 @@ jobs:
       - name: Test
         env:
           GH_TOKEN: ${{ github.token }}
-        run: npm test
+          SHARD: ${{ matrix.shard }}
+        run: npm test -- ${SHARD:+--shard=$SHARD}
 
       - name: Typecheck
+        if: matrix.shard != '2/2'
         run: npm run typecheck
 
       - name: Install warrant from the checkout
+        if: matrix.shard != '2/2'
         run: npm i -g .
 
       - name: warrant validate (repository)
+        if: matrix.shard != '2/2'
         run: warrant validate
 
       # `packages/cli/test/fixtures` holds schema and pack fixtures, not a
       # WARRANT project; the golden project `feature` of pack core-sdd is the
       # smallest real one, and it is validated from a copy outside the checkout.
       - name: warrant validate (fixture project)
+        if: matrix.shard != '2/2'
         run: |
           fixture="$(mktemp -d)/feature"
           cp -R packs/core-sdd/golden/feature "$fixture"
@@ -105,102 +120,21 @@ jobs:
           warrant validate
 
   # The verdict of a PR (phase-4c, design §8, REQ-VER-011): `warrant ci` on the
-  # result of the merge. The kind of the PR and its Change come from the record
-  # in the diff, not from the branch name (ADR-0034 п. 13): a spec-PR is judged
-  # by its paths, an impl-PR by the checks of VERIFYING->MERGED on the merge
-  # result (CI evidence with subject.tree, uploaded as the artifact
-  # `evidence-<change>-<attempt>`), an archive-PR by the CI evidence it refers
-  # to and the replay of `openspec archive` (R-16). It commits nothing
-  # (ADR-0010 п. 1). A red job is the maintainer's signal not to merge.
-  # No `needs: test`: a failing suite is itself evidence (tests-passed FAIL).
+  # result of the merge — the reusable workflow warrant.yml, the one source of
+  # the job for this repository and for projects under WARRANT (lattice-issues,
+  # REQ-VER-014). The CLI comes from the checkout. The check is named
+  # `warrant / warrant`. No `needs: test`: a failing suite is itself evidence
+  # (tests-passed FAIL).
   warrant:
     name: warrant
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    defaults:
-      run:
-        shell: bash
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      # The PR head (or M of a recovery run) with full history: the merge below
-      # needs the base branch, `warrant ci` the parents of HEAD and the base tree.
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.merge_commit || github.event.pull_request.head.sha }}
-          fetch-depth: 0
-
-      # The job computes the merge itself (ADR-0037 п. 3): the tip of the base
-      # branch at the start of the job, not of the event, so a Re-run before the
-      # merge judges the current main and heals STALE `tree`. HEAD^1 — the base,
-      # HEAD^2 — the PR head (subject.commit, I-97). A recovery run judges M itself.
-      - name: Merge the PR into the tip of its base
-        if: github.event_name == 'pull_request'
-        env:
-          BASE_REF: ${{ github.base_ref }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          git fetch --no-tags origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
-          git checkout --quiet --detach "origin/$BASE_REF"
-          if ! git -c user.name=warrant-ci -c user.email=warrant-ci@users.noreply.github.com \
-              merge --no-ff --no-edit "$HEAD_SHA"; then
-            git merge --abort || true
-            echo "::error::the PR head $HEAD_SHA does not merge into $BASE_REF without conflicts: update the branch"
-            exit 3
-          fi
-          echo "merge result $(git rev-parse HEAD): base $(git rev-parse HEAD^1), head $(git rev-parse HEAD^2)"
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install OpenSpec
-        run: npm i -g @fission-ai/openspec@1.13.1
-
-      - name: Install warrant from the checkout
-        run: npm i -g .
-
-      # The output goes outside the checkout: the checks of VERIFYING->MERGED
-      # run on the working tree (structure.test.ts lists the root). The step
-      # fails with the exit code of `warrant ci`; the artifact is named by it.
-      - name: warrant ci
-        id: ci
-        run: |
-          set +e
-          warrant ci > "$RUNNER_TEMP/ci.json"
-          code=$?
-          set -e
-          cat "$RUNNER_TEMP/ci.json"
-          node -e '
-            const fs = require("fs");
-            let j = {};
-            try { j = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); } catch {}
-            const d = j.data ?? {};
-            const a = d.artifact ?? {};
-            const out = [`change=${j.change ?? ""}`, `artifact_name=${a.name ?? ""}`, `artifact_path=${a.path ?? ""}`];
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, out.join("\n") + "\n");
-            const errors = (j.errors ?? []).map((e) => e.code).join(", ");
-            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-              `warrant ci: exit ${process.argv[2]}, kind ${d.kind ?? "?"}, change ${j.change ?? "none"}` +
-              (errors ? `, errors ${errors}` : "") + "\n");
-          ' "$RUNNER_TEMP/ci.json" "$code"
-          exit "$code"
-
-      # The whole directory, raw/ included (junit and stdout behind
-      # artifacts[].sha256); `warrant ci fetch` imports only the EVID-*.json of
-      # the chosen run. The name carries the attempt: artifacts v4 are
-      # immutable, and a Re-run is a new attempt of the same run. Only an
-      # impl-PR (and a recovery run) has `data.artifact`.
-      - name: Upload evidence
-        if: always() && steps.ci.outputs.change != '' && steps.ci.outputs.artifact_name != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.ci.outputs.artifact_name }}
-          path: ${{ steps.ci.outputs.artifact_path }}/
-          include-hidden-files: true
-          if-no-files-found: warn
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      issues: read
+    uses: ./.github/workflows/warrant.yml
+    with:
+      warrant: checkout
+      setup: npm ci
+      merge_commit: ${{ inputs.merge_commit || '' }}

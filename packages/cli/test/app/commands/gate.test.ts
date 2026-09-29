@@ -15,7 +15,7 @@
  * one. The check `openspec-validate` is answered by `FakeCheckRunner`
  * (`withOpenspecValidate`).
  */
-import { readFileSync, renameSync, rmSync } from "node:fs";
+import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -620,5 +620,85 @@ describe("warrant gate: review bound to the spec tree (REQ-VER-003, ADR-0036 п.
       expect.objectContaining({ code: "STALE", evidence: ID, reason: "spec_tree", kind: "review" }),
       expect.objectContaining({ code: "NO_EVIDENCE", gate: "adversarial-review", kind: "review" })
     ]);
+  });
+});
+
+describe("warrant gate: requires_evidence[].check (ADR-0044 п. 6)", () => {
+  const TRANSITION = "IMPLEMENTING->VERIFYING";
+
+  /** junit of one test: failed or passed. */
+  const junit = (failed: boolean): string =>
+    `<?xml version="1.0" encoding="UTF-8" ?>\n<testsuite name="t" tests="1" failures="${failed ? 1 : 0}" errors="0" skipped="0">\n</testsuite>\n`;
+
+  /**
+   * `tests-passed` overridden by `fake-tests {out}` (passes), project check
+   * `dev-check` by `dev-tests {out}` (fails), and on `IMPLEMENTING->VERIFYING`
+   * gate `dev-passed` requiring the records of `dev-check` and gate
+   * `any-passed` requiring `test-report` of any producer.
+   */
+  async function twoProducers(): Promise<ProjectBuilder> {
+    return repo("IMPLEMENTING", FEATURE, (b) => {
+      const writer = (failed: boolean) => (spec: { cwd: string; argv: string[] }) => ({
+        exit: failed ? 1 : 0,
+        effect: () => writeFileSync(path.resolve(spec.cwd, spec.argv[1] as string, "junit.xml"), junit(failed), "utf8")
+      });
+      b.withCheck("fake-tests", writer(false), { id: "tests-passed", args: ["{out}"] });
+      b.withCheck("dev-tests", writer(true));
+      b.write(".warrant/local/checks/dev-check.json", {
+        $schema: "warrant://check/1",
+        id: "dev-check",
+        version: "1.0.0",
+        level: "L1",
+        produces: ["test-report"],
+        parser: "junit",
+        run: { command: ["dev-tests", "{out}"] }
+      });
+      for (const [id, requirement] of [
+        ["dev-passed", { kind: "test-report", status: "PROVEN", check: "dev-check" }],
+        ["any-passed", { kind: "test-report", status: "PROVEN" }]
+      ] as const) {
+        b.write(`.warrant/local/gates/${id}.json`, {
+          $schema: "warrant://gate/1",
+          id,
+          version: "1.0.0",
+          level: "L1",
+          requires_evidence: [requirement],
+          waivable: false
+        });
+      }
+      b.write(".warrant/local/overlays/dev-gates.json", {
+        $schema: "warrant://overlay/1",
+        id: "dev-gates",
+        version: "1.0.0",
+        match: {},
+        gates: { [TRANSITION]: ["any-passed", "dev-passed"] }
+      });
+    });
+  }
+
+  it("takes the record of the named check, not the fresher one of another producer (SCN-VER-119)", async () => {
+    const p = await twoProducers();
+    expect(await validateErrors(p)).toEqual([]);
+    const dev = await check(p, "dev-check");
+    expect(dev.data["checks"][0]).toMatchObject({ id: "dev-check", evidence_status: "NOT_PROVEN" });
+    const tests = await check(p, "tests-passed");
+    expect(tests.data["checks"][0]).toMatchObject({ id: "tests-passed", evidence_status: "PROVEN" });
+
+    const run = await gate(p, [], { transition: TRANSITION });
+    expect(run.data["gates"]).toEqual({ "any-passed": "PASS", "dev-passed": "FAIL" });
+    expect(run.data["findings"]).toEqual([
+      expect.objectContaining({ code: "EVIDENCE_STATUS", gate: "dev-passed", evidence: dev.data["checks"][0].evidence })
+    ]);
+  });
+
+  it("without a record of the named check is BLOCKED with NO_EVIDENCE naming it (SCN-VER-119)", async () => {
+    const p = await twoProducers();
+    expect((await check(p, "tests-passed")).exitCode).toBe(0);
+    const run = await gate(p, [], { transition: TRANSITION });
+    expect(run.data["gates"]).toEqual({ "any-passed": "PASS", "dev-passed": "BLOCKED" });
+    expect(run.data["findings"]).toEqual([
+      expect.objectContaining({ code: "NO_EVIDENCE", gate: "dev-passed", kind: "test-report", check: "dev-check" })
+    ]);
+    expect(run.data["findings"][0].message).toContain("dev-check");
   });
 });

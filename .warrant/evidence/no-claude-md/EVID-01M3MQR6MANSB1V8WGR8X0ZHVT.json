@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3MQR6MANSB1V8WGR8X0ZHVT",
+  "claim": {
+    "text": "Homasters-max approved no-claude-md for SPECIFIED->APPROVED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "01d37f6c53dce48c78afc2bb678b9bcb1506f6a9",
+    "base_commit": "01d37f6c53dce48c78afc2bb678b9bcb1506f6a9",
+    "spec_revision": "openspec/changes/no-claude-md@01d37f6c53dce48c78afc2bb678b9bcb1506f6a9",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/88"
+  },
+  "context_hash": "sha256:f4d19ac4442c5a64fed613356695fc27bc44845c73a28a074676e725b7d7f983",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "created_at": "2026-09-28T19:26:59.722Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

@@ -1,6 +1,6 @@
 # Процессные правила → чем держатся
 
-Полная таблица правил разработки WARRANT ([ADR-0032](../adr/WARRANT-ADR-0032-dev-context.md) п. 2, 7). Норма — в ADR; `CLAUDE.md` — короткий указатель на жёсткие правила. Принцип (R-14…R-16): у правила о **форме** есть проверка в `npm test` / `validate` / CI, прозой остаются только правила о **решении** (что выбрать), и они помечены как таковые. Новое правило о форме без проверки не принимается (ADR-0022, INV-04).
+Полная таблица правил разработки WARRANT ([ADR-0032](../adr/WARRANT-ADR-0032-dev-context.md) п. 2, 7). Норма — в ADR; `AGENTS.md` — короткий указатель на жёсткие правила. Принцип (R-14…R-16): у правила о **форме** есть проверка в `npm test` / `validate` / CI, прозой остаются только правила о **решении** (что выбрать), и они помечены как таковые. Новое правило о форме без проверки не принимается (ADR-0022, INV-04).
 
 | Правило | Где записано | Чем держится |
 |---|---|---|
@@ -28,7 +28,7 @@
 | Лишнее не копится: слитые ветки и worktree, остатки, битые ссылки, устаревший снимок аудита, истекающие waivers, черновики, auto-memory | ADR-0033 п. 13 | `scripts/dev/hygiene.js` (`test/unit/dev/hygiene.test.ts`), счётчик в `brief.js`; исправляет навык `repo-hygiene`; когда запускать — правило о решении |
 | У каждого вида знания одно место; вычислимое прозой не пишется | ADR-0032 п. 1 | правило о решении; состояние — `scripts/dev/brief.js` (хук `SessionStart`) |
 | Навыки — `.claude/skills/<name>/SKILL.md` по стандарту; frontmatter — YAML (описание с ` #` или `: ` — в кавычках); `.claude/commands/` нет; `openspec-archive-change`, `openspec-sync-specs` нет | ADR-0032 п. 6, 8, ADR-0033 п. 2 | `test/unit/meta/dev-context.test.ts` (frontmatter разбирается пакетом `yaml`) |
-| `CLAUDE.md` ≤ 100 строк, `packages/cli/CLAUDE.md` ≤ 60 | ADR-0032 п. 7 | `dev-context.test.ts` |
+| `AGENTS.md` ≤ 100 строк, `packages/cli/AGENTS.md` ≤ 60 | ADR-0032 п. 7 | `dev-context.test.ts` |
 | Передача — `docs/handoff/<поток>.md`: разделы по порядку, ≤ 60 строк, «Не забыть» ≤ 5; `docs/NEXT-SESSION.md` нет | ADR-0032 п. 2, 3 | `dev-context.test.ts`; что считать потоком — правило о решении |
 | Долг — одна таблица `docs/backlog.md`, уникальные ID; закрытая строка удаляется | ADR-0032 п. 5 | `dev-context.test.ts` (колонки, ID); удаление — правило о решении |
 | auto-memory — только `user`/`feedback`, индекс ≤ 10 строк | ADR-0032 п. 9 | предупреждение `brief.js` (память вне репозитория, тест её не видит) |
@@ -43,7 +43,7 @@
 | Длинный текст (коммит, PR, envelope, JSON) — файлом и флагом пути (`-F`, `--body-file`, `--file`), не в команде Bash | ADR-0043 | `git-hook.js` — `deny` на `win32` для команды Bash дороже 7 000 (длина + 4 на `'`; Git Bash обрезает `-c` на ~8 192), с выходом через файл (`test/unit/dev/git-hook.test.ts`) |
 | Закрыть Change — `warrant archive`, не `openspec archive` | ADR-0011 п. 4, ADR-0033 п. 9 | `git-hook.js` — `deny` на `openspec archive` (в том числе совет навыка `openspec-apply-change`, BL-22); навык `change-archive-pr` — `dev-context.test.ts` (A8) |
 | Ревью реализации на соответствие spec — до merge impl-PR, агентом без записи | ADR-0033 п. 6 | шаг 5 навыка `change-impl-pr` → `review-impl`; агент `reviewer` без `Write`/`Edit` — `dev-context.test.ts`; покрытие SCN — `scripts/dev/scn-coverage.js` (`test/unit/dev/scn-coverage.test.ts`) |
-| Linux-сбой CI воспроизводится локально | ADR-0033 п. 6 | `npm run test:linux` (Docker, `test/unit/dev/test-linux.test.ts`); ловушки — `packages/cli/CLAUDE.md` «Платформенные ловушки» |
+| Linux-сбой CI воспроизводится локально | ADR-0033 п. 6 | `npm run test:linux` (Docker, `test/unit/dev/test-linux.test.ts`); ловушки — `packages/cli/AGENTS.md` «Платформенные ловушки» |
 | Отклонение от spec — строкой `I-N` в design.md, вопросом maintainer'у | pack `rules.design` | правило о решении; нумерацию ведёт навык `decision` |
 | Изменение нормативного документа во время реализации — только через новый ADR | ADR-0021, 12 §7 | правило о решении |
 

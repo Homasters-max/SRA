@@ -58,6 +58,8 @@ export function worstVerdict(verdicts: Iterable<Verdict>): Verdict | null {
 export interface Requirement {
   kind: string;
   status: string;
+  /** The check whose records alone satisfy the requirement (ADR-0044 п. 6); absent — any producer of the kind. */
+  check?: string;
 }
 
 /** `requires_evidence` of a gate document. */
@@ -67,7 +69,11 @@ export function requirementsOf(gate: Record<string, unknown> | undefined): Requi
   return list
     .filter(isPlainObject)
     .filter((r) => typeof r["kind"] === "string" && typeof r["status"] === "string")
-    .map((r) => ({ kind: r["kind"] as string, status: r["status"] as string }));
+    .map((r) => {
+      const requirement: Requirement = { kind: r["kind"] as string, status: r["status"] as string };
+      if (typeof r["check"] === "string") requirement.check = r["check"];
+      return requirement;
+    });
 }
 
 /**
@@ -130,6 +136,23 @@ function fromCheck(record: EvidenceInput): boolean {
   return producerType(record) === "check";
 }
 
+/**
+ * Whether the record may satisfy the requirement: of its kind and, for a
+ * requirement with `check`, produced by that check — records of other
+ * producers of the kind neither close nor mask it (ADR-0044 п. 6, REQ-VER-003).
+ */
+export function satisfies(requirement: Requirement, record: EvidenceInput): boolean {
+  if (record.json["kind"] !== requirement.kind) return false;
+  if (requirement.check === undefined) return true;
+  const producedBy = record.json["produced_by"];
+  return fromCheck(record) && isPlainObject(producedBy) && producedBy["id"] === requirement.check;
+}
+
+/** ` of check <id>` for a requirement with `check`, else nothing. */
+function ofCheck(requirement: Requirement): string {
+  return requirement.check === undefined ? "" : ` of check ${requirement.check}`;
+}
+
 function evidencePart(
   gate: string,
   requirements: readonly Requirement[],
@@ -140,7 +163,7 @@ function evidencePart(
   const chosen: { requirement: Requirement; record: EvidenceInput }[] = [];
   let missing = false;
   for (const requirement of requirements) {
-    const candidates = admissible.filter((r) => r.json["kind"] === requirement.kind);
+    const candidates = admissible.filter((r) => satisfies(requirement, r));
     const accepted = candidates.filter(accepts);
     const record = freshest(accepted);
     if (record !== undefined) {
@@ -154,14 +177,19 @@ function evidencePart(
         gate,
         kind: requirement.kind,
         items: candidates.map((r) => r.id).sort(),
-        message: `${requirement.kind}: only records with an attestation this gate does not accept on ${MERGE_TRANSITION}; records from CI are needed`
+        ...(requirement.check === undefined ? {} : { check: requirement.check }),
+        message: `${requirement.kind}${ofCheck(requirement)}: only records with an attestation this gate does not accept on ${MERGE_TRANSITION}; records from CI are needed`
       });
     } else {
       findings.push({
         code: "NO_EVIDENCE",
         gate,
         kind: requirement.kind,
-        message: `no admissible ${requirement.kind} record; run the check that produces it`
+        ...(requirement.check === undefined ? {} : { check: requirement.check }),
+        message:
+          requirement.check === undefined
+            ? `no admissible ${requirement.kind} record; run the check that produces it`
+            : `no admissible ${requirement.kind} record of check ${requirement.check}; run ${requirement.check}`
       });
     }
   }
@@ -298,8 +326,10 @@ function baseOutcome(
   }
 
   // Step 2: a failed check of this `verify` leaves its gates without input.
-  const kinds = new Set(requirements.map((r) => r.kind));
-  const failed = (signals.checkFailures ?? []).filter((f) => f.kinds.some((k) => kinds.has(k)));
+  // A requirement with `check` is starved only by a failure of that check.
+  const failed = (signals.checkFailures ?? []).filter((f) =>
+    requirements.some((r) => f.kinds.includes(r.kind) && (r.check === undefined || r.check === f.check))
+  );
   if (failed.length > 0) {
     return {
       verdict: "BLOCKED",

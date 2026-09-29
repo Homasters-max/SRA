@@ -1,0 +1,43 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3PB1XDTVS052F72YBXZN363",
+  "claim": {
+    "text": "tests-passed passed for ci-shards",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "89c7ba0d652405446a1375a0be549793df43924c",
+    "base_commit": "e5bb45fee3a17a3d285d0e61b44041de56f61f0d",
+    "spec_revision": "openspec/changes/ci-shards@89c7ba0d652405446a1375a0be549793df43924c",
+    "tree": "78538ea9f0b3586d244d41798bae6ccdcd867582",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "ci",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/36555005976/attempts/1"
+  },
+  "context_hash": "sha256:7c54ae1e69cc718e8460a3827244eb3dad75665dfd922e74918266da930636df",
+  "effective_policy_hash": "sha256:6ea1c035ed7a91b1b352c085cf482f464b11bbe388478304723cc7a9c88bcc03",
+  "created_at": "2026-09-29T10:23:35.355Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/ci-shards/raw/tests-passed/junit.xml",
+      "sha256": "sha256:b9141610d73835a0a2431356f60dd9edc854e55f6170b8810a4cd7706eb9674a"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 1,
+    "tests": 1599
+  }
+}

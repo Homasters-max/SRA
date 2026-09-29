@@ -2,10 +2,13 @@
  * The shell parse of `guard` (design §6, ADR-0017 п. 5, task 5.2): the
  * tokenizer (`core/shell.ts`) — quotes, `\`, operators, a newline, a heredoc as
  * data (I-167) —, simple commands with `VAR=…` dropped and `bash -c` parsed one level deep, the default prefix of
- * `run.command` and the prefix match.
+ * `run.command` and the prefix match; the strict form under a `review` Run
+ * (REQ-ENF-004, I-202, I-207).
  */
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { projectPath } from "../../../src/core/fs.js";
 import { reviewShellAnswer, SUBMIT_HINT } from "../../../src/core/guard/decide.js";
 import { defaultPrefix, leafCommands, matchesPrefix, simpleCommands, startsWithPrefix } from "../../../src/core/guard/shell.js";
 import type { Run } from "../../../src/core/run/types.js";
@@ -226,6 +229,12 @@ describe("reviewShellAnswer (REQ-ENF-004)", () => {
     expect(reviewShellAnswer(shellWords("warrant run submit # <<X\nrm -rf src\nX"), run).reason).toContain("`warrant run submit # <<X`");
   });
 
+  it("the operators that join the commands: collected when asked, of every level parsed", () => {
+    const operators: string[] = [];
+    expect(leafCommands(["bash", "-c", "a | b\nc && d"], true, 1, operators)).toEqual([["a"], ["b"], ["c"], ["d"]]);
+    expect(operators).toEqual(["|", "\n", "&&"]);
+  });
+
   it("no command, no argv, a longer bash nesting and a lookalike are denied", () => {
     for (const argv of [undefined, [], ["bash", "-c", ""], ["bash", "-c", 'bash -c "warrant run submit"'], ["warrant", "run", "finish"], ["npx", "warrant", "run", "submit"]]) {
       expect(reviewShellAnswer(argv, run).decision, JSON.stringify(argv)).toBe("deny");
@@ -278,5 +287,103 @@ describe("defaultPrefix, matchesPrefix and startsWithPrefix", () => {
     expect(startsWithPrefix(["npm"], ["npm", "test"])).toBe(false);
     expect(startsWithPrefix(["pytests"], ["pytest"])).toBe(false);
     expect(startsWithPrefix(["pytest"], [])).toBe(false);
+  });
+});
+
+describe("reviewShellAnswer: commands that write nothing and the cancel (SCN-ENF-044, I-202, I-207)", () => {
+  const run = { id: "RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y", change: "add-search", operation: "review" } as Run;
+  const root = path.resolve("/work/project");
+  const places = { cwd: root, inProject: (dir: string) => projectPath(root, dir) !== undefined };
+  const decision = (line: string): string => reviewShellAnswer(shellWords(line), run, places).decision;
+
+  it("allowed: status, gate, --help, the cancel, git status|log|diff|show, cd inside, joined by &&, ||, ; and a newline", () => {
+    for (const line of [
+      "warrant status",
+      "warrant status add-search --json",
+      "warrant gate add-search spec-approved",
+      "warrant --help",
+      "warrant run submit --help",
+      "warrant transition -h",
+      "warrant run finish --state CANCELLED",
+      "warrant run finish --dry-run --state=CANCELLED",
+      "git status --porcelain",
+      "git log --oneline -5",
+      "git diff main -- openspec",
+      "git show --stat HEAD~1",
+      "git diff --ours || git log --oneline",
+      "cd openspec && git status; warrant status\nwarrant gate add-search",
+      "cd . || cd openspec/changes",
+      "warrant run submit --file a.json\nwarrant status"
+    ]) {
+      expect(decision(line), line).toBe("allow");
+    }
+  });
+
+  it("denied: writes, global options of git, arguments that write, a pipe, &, redirections, substitutions, groups, !, assignments", () => {
+    for (const line of [
+      "warrant verify add-search",
+      "warrant gate",
+      "warrant run finish",
+      "warrant run finish --state FAILED",
+      "warrant run finish --state CANCELLED --state CANCELLED",
+      "warrant -- --help",
+      "warrant run --file x --help",
+      "git -C .. status",
+      "git --no-pager log",
+      "git commit -m x",
+      "git checkout --ours x",
+      "git diff -o x.patch",
+      "git diff -ox.patch",
+      "git diff --ou x.patch",
+      "git diff --output=x.patch",
+      "git diff --outp=x.patch",
+      "git log --ext-diff",
+      "git log --ext-d",
+      "git log | head",
+      "warrant status | warrant gate add-search",
+      "warrant status & rm -rf src",
+      "warrant status > s.txt",
+      "warrant status 2>&1",
+      "git diff < x",
+      "git log $(rm -rf src)",
+      "git log `rm -rf src`",
+      "git log $HOME",
+      "git diff --{output=x,}",
+      "( warrant status )",
+      "{ warrant status; }",
+      "! warrant status",
+      "X=1 warrant status",
+      "cd",
+      "cd ..",
+      "cd ../other && warrant run finish --state CANCELLED",
+      "cd -",
+      "cd ~",
+      "cd -P openspec",
+      "cd a b",
+      "cat x"
+    ]) {
+      const answer = reviewShellAnswer(shellWords(line), run, places);
+      expect(answer.decision, line).toBe("deny");
+      expect(answer.hints, line).toEqual([SUBMIT_HINT]);
+    }
+  });
+
+  it("the hint names the result, the cancel and the state; the reason names the command or the operator", () => {
+    expect(SUBMIT_HINT).toContain("warrant run submit");
+    expect(SUBMIT_HINT).toContain("warrant run finish --state CANCELLED");
+    expect(SUBMIT_HINT).toContain("warrant status");
+    expect(reviewShellAnswer(shellWords("git log | warrant status"), run, places).reason).toContain("`|`");
+    expect(reviewShellAnswer(shellWords("git -c a=b diff"), run, places).reason).toContain("`git -c a=b diff`");
+  });
+
+  it("cd without places, and a cd whose every possible start does not stay inside, are denied", () => {
+    expect(reviewShellAnswer(shellWords("cd openspec"), run).decision).toBe("deny");
+    expect(decision("cd openspec || cd ..")).toBe("deny");
+    expect(decision("cd openspec && cd ..")).toBe("deny");
+    expect(reviewShellAnswer(shellWords("cd .."), run, { ...places, cwd: path.join(root, "openspec") }).decision).toBe("allow");
+  });
+
+  it("submits alone keep every operator of the tokenizer (I-167)", () => {
+    expect(decision("warrant run submit | warrant run submit")).toBe("allow");
   });
 });

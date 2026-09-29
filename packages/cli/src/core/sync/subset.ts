@@ -49,7 +49,7 @@ function hasLine(text: string, line: string): boolean {
 }
 
 /**
- * A text file where `sync` owns whole lines (`.gitignore`, `CLAUDE.md`): a
+ * A text file where `sync` owns whole lines (`.gitignore`): a
  * missing line is appended at the end, on its own line, with the file's line
  * ending; the file is created when absent.
  */

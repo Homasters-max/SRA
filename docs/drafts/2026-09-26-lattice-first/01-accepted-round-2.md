@@ -14,7 +14,7 @@
 
 | # | Решение |
 |---|---|
-| Q9 | Новый репозиторий `D:\project\LATTICE`: `lattice/` переносится из SRA с историей (`git subtree split --prefix=lattice`). В SRA `lattice/` удаляется PR'ом, остаётся ссылка; тем же PR — белый список `structure.test.ts` и правило «не трогать `lattice/`» в `CLAUDE.md`. Контракты `docs/integrations/01, 02, 05` остаются в SRA |
+| Q9 | Новый репозиторий `D:\project\LATTICE`: `lattice/` переносится из SRA с историей (`git subtree split --prefix=lattice`). В SRA `lattice/` удаляется PR'ом, остаётся ссылка; тем же PR — белый список `structure.test.ts` и правило «не трогать `lattice/`» в `AGENTS.md`. Контракты `docs/integrations/01, 02, 05` остаются в SRA |
 | Q10 | Первым в LATTICE — vertical slice из README; WARRANT подключается к нему, LATTICE растёт по потребности потребителей. LD-B-06 в силе; меняется только порядок: slice — до продолжения WARRANT после фазы 4, не параллельно. Домены поиска (REQ, SCN, Change, TERM и связи) — второй потребитель после slice |
 | Q11 | Порядок в LATTICE — по его `NEXT-SESSION.md`: grilling реестра LD-* (противоречия, непроверяемые строки) → данные раньше кода (`meta/*.json`, `spec/types.json`, `evidence/types.json`) → код slice. Стек — TypeScript/Node, как WARRANT (ADR-0013): сверить со строками LD-* первым вопросом grilling реестра |
 | Q12 | Фаза 4 WARRANT (`phase-4c` и остальные Change фазы) доводится до конца; LATTICE — после неё. Уточнение maintainer'а к рекомендации (б) |

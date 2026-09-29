@@ -8,7 +8,8 @@
  * it: `write_scope` comes from the operation (`specify` ⇐ `PROPOSED`,
  * `implement` ⇐ `IMPLEMENTING`, `review` ⇐ `PROPOSED` with an empty one and the
  * `spec_tree` of the committed spec), `--scope` only narrows it; the output is
- * the Context Pack. `run finish` ends the active Run and removes `current`;
+ * the Context Pack with `findings[]` — `UNCOMMITTED_IN_SCOPE` of `specify` and
+ * `implement`. `run finish` ends the active Run and removes `current`;
  * `run submit` ends a `review` Run with its envelope and evidence. One active
  * Run per worktree (F5): a Run is active while `current` names it and it is
  * `RUNNING`.
@@ -31,7 +32,7 @@ import { resolveForProject, type Classification } from "../core/resolve/index.js
 import { contextPack } from "../core/run/context-pack.js";
 import { assertNoActiveRun, finishRun, startRun } from "../core/run/lifecycle.js";
 import { committedSpecTree } from "../core/run/review.js";
-import { writeScopeOf } from "../core/run/scope.js";
+import { uncommittedInScope, writeScopeOf } from "../core/run/scope.js";
 import { submitReview, type SubmitInput } from "../core/run/submit.js";
 import { isFinalRunState, isRunOperation, type Run, type RunOperation } from "../core/run/types.js";
 import { failures, success, type CommandResult } from "../io/output.js";
@@ -121,6 +122,8 @@ async function start(ctx: Ctx, change: string | undefined, opts: RunStartOptions
   }
 
   const pack = contextPack({ root, change, rules: loaded.rules, writeScope, scope });
+  // Work already in the scope is not the Run's: a finding, the Run starts (REQ-ENF-002, ADR-0044 п. 5).
+  const findings = operation === "review" ? [] : await uncommittedInScope(ctx, writeScope);
   const run: Run = {
     $schema: "warrant://run/1",
     id: allocateUlid("RUN"),
@@ -149,7 +152,8 @@ async function start(ctx: Ctx, change: string | undefined, opts: RunStartOptions
       scope,
       rules: pack.rules,
       items: pack.items,
-      context_hash: pack.context_hash
+      context_hash: pack.context_hash,
+      findings
     },
     change
   );
@@ -194,7 +198,7 @@ async function submit(ctx: Ctx, opts: RunSubmitOptions, readInput: () => Promise
   };
   const done = await submitReview(ctx, read, env);
   return success(
-    { run: done.run, change: done.change, evidence: done.evidence, evidence_status: done.status, findings: done.findings },
+    { run: done.run, change: done.change, evidence: done.evidence, evidence_status: done.status, findings: done.findings, reused: done.reused },
     done.change
   );
 }

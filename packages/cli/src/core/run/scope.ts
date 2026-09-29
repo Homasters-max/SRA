@@ -4,7 +4,9 @@
  * `write_scope` and, if `scope` is not empty, `scope` too.
  */
 import type { WarrantConfig } from "../config.js";
+import type { Ctx } from "../ctx.js";
 import { WarrantError } from "../errors.js";
+import { toProjectPaths } from "../git/paths.js";
 import { pathMatcher } from "../glob.js";
 import type { RunOperation } from "./types.js";
 
@@ -62,4 +64,38 @@ export function globBase(glob: string): string {
     fixed.push(segment);
   }
   return fixed.join("/");
+}
+
+/** A finding of `run start` in `data.findings[]` (REQ-ENF-002): the Run starts, the exit code does not change. */
+export interface StartFinding {
+  code: "UNCOMMITTED_IN_SCOPE";
+  paths: string[];
+  hint: string;
+}
+
+/**
+ * `UNCOMMITTED_IN_SCOPE` (REQ-ENF-002, ADR-0044 п. 5): the files inside
+ * `writeScope` that differ from `HEAD` in the index or the work tree
+ * (deleted ones too) or are untracked and not ignored — git's own answer
+ * (`GitPort.dirty`), project paths in code-unit order. The result of a Run is
+ * bounded by a commit: work already there is not the Run's. Without git (no
+ * work tree, `git status` failed) there is no finding.
+ */
+export async function uncommittedInScope(ctx: Pick<Ctx, "git">, writeScope: readonly string[]): Promise<StartFinding[]> {
+  if (writeScope.length === 0) return [];
+  const prefix = await ctx.git.prefix();
+  if (prefix === null) return [];
+  const bases = [...new Set(writeScope.map((glob) => globBase(glob) || "."))];
+  const dirty = await ctx.git.dirty(bases);
+  if (!dirty.ok) return [];
+  const inside = pathMatcher(writeScope);
+  const paths = [...new Set(toProjectPaths(prefix, dirty.value).filter((file) => inside(file)))].sort();
+  if (paths.length === 0) return [];
+  return [
+    {
+      code: "UNCOMMITTED_IN_SCOPE",
+      paths,
+      hint: "the result of a Run is bounded by a commit: commit this work, or remove what is not yours (`git status`), before the Run writes beside it"
+    }
+  ];
 }

@@ -2,8 +2,7 @@
  * Files of the `claude` frontend `sync` keeps (REQ-KRN-033, ADR-0034 п. 3,
  * design phase-4a §8): the managed subset of `.claude/settings.json` — the
  * static deny of ADR-0014 п. 1 and the hook groups of `warrant guard
- * --frontend claude` (F19) — the `@AGENTS.md` line of `CLAUDE.md` (F7) and
- * the subagent `warrant-reviewer` of the review Run (design phase-4b §6).
+ * --frontend claude` (F19) — and the subagent `warrant-reviewer` of the review Run (design phase-4b §6).
  * The generator is one of the places the frontend name may appear (design §9).
  */
 import { canonicalHash } from "../canon/hash.js";
@@ -13,13 +12,12 @@ import { isPlainObject } from "../json.js";
 import { REVIEW_SKILL } from "../run/types.js";
 import type { Json } from "../schemas/loader.js";
 import { AGENTS_MD_MARKER, AGENTS_MD_REL } from "./agents.js";
-import { driftPath, linesTarget, subsetTarget, type Merged, type OwnEntry, type SubsetTarget } from "./subset.js";
+import { driftPath, subsetTarget, type Merged, type OwnEntry, type SubsetTarget } from "./subset.js";
 
 /** Name of this frontend in `frontends[]` of `config/1`. */
 export const CLAUDE_FRONTEND = "claude";
 
 export const CLAUDE_SETTINGS_REL = ".claude/settings.json";
-export const CLAUDE_MD_REL = "CLAUDE.md";
 
 /** Command of our hooks; a group is ours when one of its hooks runs exactly this. */
 export const GUARD_COMMAND = "warrant guard --frontend claude";
@@ -150,9 +148,6 @@ function merge(current: Buffer | undefined): Merged {
 /** The managed subset of `.claude/settings.json`, written in canonical JSON. */
 export const claudeSettingsTarget: SubsetTarget = subsetTarget({ path: CLAUDE_SETTINGS_REL, own, merge });
 
-/** `CLAUDE.md` imports the generated `AGENTS.md` (F7). */
-export const claudeMdTarget: SubsetTarget = linesTarget(CLAUDE_MD_REL, ["@AGENTS.md"]);
-
 /** The subagent of the review Run (REQ-KRN-033, ADR-0034 п. 10, design phase-4b §6): an exact-bytes target. */
 export const CLAUDE_REVIEWER_REL = ".claude/agents/warrant-reviewer.md";
 
@@ -170,7 +165,7 @@ export const REVIEWER_HOOK_MATCHER = "Bash|Write";
  * design I-200). `sync` that wrote one of them tells the user to restart the session.
  */
 export function readAtSessionStart(rel: string): boolean {
-  return rel.startsWith(".claude/agents/") || [CLAUDE_SETTINGS_REL, CLAUDE_MD_REL, AGENTS_MD_REL].includes(rel);
+  return rel.startsWith(".claude/agents/") || [CLAUDE_SETTINGS_REL, AGENTS_MD_REL].includes(rel);
 }
 
 export const RESTART_HINT = "restart the Claude Code session: agents and hooks are read when it starts";

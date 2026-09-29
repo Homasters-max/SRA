@@ -113,7 +113,8 @@ describe("warrant run submit: the evidence of a review", () => {
       change: "add-search",
       evidence: evid,
       evidence_status: "PROVEN",
-      findings: { BLOCKER: 0, MAJOR: 1, MINOR: 0, INFO: 0 }
+      findings: { BLOCKER: 0, MAJOR: 1, MINOR: 0, INFO: 0 },
+      reused: false
     });
     expect(evid).toMatch(/^EVID-[0-9A-HJKMNP-TV-Z]{26}$/);
 
@@ -182,6 +183,80 @@ describe("warrant run submit: the evidence of a review", () => {
     expect(result.errors).toEqual([]);
     expect(result.data["evidence_status"]).toBe("PROVEN");
     expect(result.data["findings"]).toEqual({ BLOCKER: 0, MAJOR: 0, MINOR: 0, INFO: 0 });
+  });
+});
+
+describe("warrant run submit: a repeat after an interrupted submit (SCN-ENF-043)", () => {
+  /**
+   * A submit of `sent` interrupted after its record, before the manifest and
+   * the Run: the record stays, the Run and `current` are as before, the id is
+   * out of `manifest.evidence[]`. Returns the id of the record.
+   */
+  async function interrupted(p: ProjectBuilder, id: string, sent: Data): Promise<string> {
+    const runBefore = p.read(`${RUNS}/${id}.json`);
+    const first = await submit(p, sent);
+    expect(first.errors).toEqual([]);
+    const evid = first.data["evidence"] as string;
+    p.write(`${RUNS}/${id}.json`, runBefore).write(CURRENT, `${id}\n`);
+    p.write(`${EVIDENCE}/manifest.json`, { ...p.json(`${EVIDENCE}/manifest.json`), evidence: [] });
+    return evid;
+  }
+
+  it("the same envelope: the record of the Run reused, its id added to the manifest, the Run finished with it once, current gone", async () => {
+    const { p, id, skill } = await reviewing();
+    const sent = envelope(id, skill);
+    const evid = await interrupted(p, id, sent);
+    const record = p.read(`${EVIDENCE}/${evid}.json`);
+
+    const again = await submit(p, sent);
+    expect(again.errors).toEqual([]);
+    expect(again.exitCode).toBe(0);
+    expect(again.data).toEqual({
+      run: id,
+      change: "add-search",
+      evidence: evid,
+      evidence_status: "PROVEN",
+      findings: { BLOCKER: 0, MAJOR: 1, MINOR: 0, INFO: 0 },
+      reused: true
+    });
+    expect(evidenceFiles(p)).toEqual([`${evid}.json`, "manifest.json"]);
+    expect(p.read(`${EVIDENCE}/${evid}.json`)).toBe(record);
+    expect(p.json(`${EVIDENCE}/manifest.json`)["evidence"]).toEqual([evid]);
+    expect(p.json(`${RUNS}/${id}.json`)).toMatchObject({ run_state: "SUCCEEDED", evidence: [evid], skill });
+    expect(existsSync(path.join(p.root, ".warrant", "runs", "current"))).toBe(false);
+    expect(await validateErrors(p)).toEqual([]);
+  });
+
+  it("another envelope: EVIDENCE_CONFLICT naming the record, a hint to cancel, exit 3, nothing written, the Run active", async () => {
+    const { p, id, skill } = await reviewing();
+    const evid = await interrupted(p, id, envelope(id, skill));
+    const before = p.tree();
+    const other = await submit(p, envelope(id, skill, ["MAJOR", "MINOR"]));
+    expect(other.exitCode).toBe(3);
+    expect(other.errors[0]).toMatchObject({ code: "EVIDENCE_CONFLICT", path: `${EVIDENCE}/${evid}.json` });
+    expect(other.errors[0]?.hint).toContain("warrant run finish --state CANCELLED");
+    expect(p.tree()).toEqual(before);
+    expect(p.json(`${RUNS}/${id}.json`)["run_state"]).toBe("RUNNING");
+    expect(p.read(CURRENT)).toBe(`${id}\n`);
+  });
+
+  it("--dry-run of a repeat: reused, would_write[] without the record; the id already in the manifest is not rewritten", async () => {
+    const { p, id, skill } = await reviewing();
+    const sent = envelope(id, skill);
+    const evid = await interrupted(p, id, sent);
+    const before = p.tree();
+    const dry = await submit(p, sent, {}, p.dryRun());
+    expect(dry.errors).toEqual([]);
+    expect(dry.data).toMatchObject({ evidence: evid, reused: true, dry_run: true });
+    expect(dry.data["would_write"]).toEqual([`${EVIDENCE}/manifest.json`, `${RUNS}/${id}.json`, `${RUNS}/${id}.result.json`, CURRENT]);
+    expect(p.tree()).toEqual(before);
+
+    // The id listed already (the interruption came after the manifest): the manifest is not a write of the repeat.
+    p.write(`${EVIDENCE}/manifest.json`, { ...p.json(`${EVIDENCE}/manifest.json`), evidence: [evid] });
+    const listed = await submit(p, sent, {}, p.dryRun());
+    expect(listed.data["would_write"]).toEqual([`${RUNS}/${id}.json`, `${RUNS}/${id}.result.json`, CURRENT]);
+    const real = await submit(p, sent);
+    expect(withoutDryRun(listed.data)).toEqual(withoutDryRun(real.data));
   });
 });
 

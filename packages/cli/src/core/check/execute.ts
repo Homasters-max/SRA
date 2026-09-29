@@ -20,7 +20,7 @@ import { projectPath, projectUri } from "../fs.js";
 import type { GitFacts } from "../git/facts.js";
 import { allocateUlid } from "../ids/allocate.js";
 import { isPlainObject, strings } from "../json.js";
-import { gateDefinitions, packObjects } from "../packs/objects.js";
+import { effectiveCheck, gateCheckErrors, gateDefinitions, packObjects } from "../packs/objects.js";
 import type { LoadResult, PackObject } from "../packs/types.js";
 import type { EffectivePolicy } from "../resolve/index.js";
 import type { PendingRecord } from "../evidence/store.js";
@@ -31,35 +31,39 @@ import { expandArgv } from "./placeholders.js";
 export const DEFAULT_TIMEOUT_S = 1800;
 
 /**
- * The check document in force: a project-local override replaces the pack
- * object (08 §4), and the fields it leaves out are the pack's (`produces`,
- * `parser`, …), so an override that only supplies `run` still says what it
- * produces and how its output is read.
- */
-export function effectiveCheck(object: PackObject): Record<string, unknown> {
-  const own = isPlainObject(object.json) ? object.json : {};
-  if (object.overridden === undefined || !isPlainObject(object.overridden.json)) return own;
-  const merged: Record<string, unknown> = { ...object.overridden.json, ...own };
-  delete merged["overrides"];
-  return merged;
-}
-
-/**
- * Checks of a transition: those whose `produces` meets a `requires_evidence`
- * kind of the transition's gates in the effective policy, sorted by id.
+ * Checks of a transition, sorted by id: for each `requires_evidence` element
+ * of the transition's gates in the effective policy, the one check it names in
+ * `check` (ADR-0044 п. 6), else every check whose `produces` meets its kind;
+ * the union by id (REQ-VER-002, SCN-VER-123). The same set for `check`
+ * without ids, `verify` and `warrant ci`. An element whose `check` does not
+ * name a loaded check producing its kind is `CONFIG_INVALID`, exit 3, before
+ * any check runs (I-204).
  */
 export function checksForTransition(loaded: LoadResult, policy: EffectivePolicy, transition: string): PackObject[] {
+  const inPolicy = policy.gates[transition] ?? [];
+  const invalid = gateCheckErrors(loaded, inPolicy);
+  if (invalid.length > 0) {
+    const [first] = invalid as [CliError];
+    throw new WarrantError(first.code, first.message, {
+      ...(first.path === undefined ? {} : { path: first.path }),
+      ...(first.hint === undefined ? {} : { hint: first.hint }),
+      exitCode: EXIT.CONFIG
+    });
+  }
   const gates = gateDefinitions(loaded);
   const kinds = new Set<string>();
-  for (const gateId of policy.gates[transition] ?? []) {
+  const named = new Set<string>();
+  for (const gateId of inPolicy) {
     const required = gates.get(gateId)?.["requires_evidence"];
     if (!Array.isArray(required)) continue;
     for (const entry of required) {
-      if (isPlainObject(entry) && typeof entry["kind"] === "string") kinds.add(entry["kind"]);
+      if (!isPlainObject(entry) || typeof entry["kind"] !== "string") continue;
+      if (typeof entry["check"] === "string") named.add(entry["check"]);
+      else kinds.add(entry["kind"]);
     }
   }
   return packObjects(loaded, "check")
-    .filter((o) => strings(effectiveCheck(o)["produces"]).some((kind) => kinds.has(kind)))
+    .filter((o) => named.has(o.id) || strings(effectiveCheck(o)["produces"]).some((kind) => kinds.has(kind)))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 

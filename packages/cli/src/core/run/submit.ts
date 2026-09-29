@@ -11,6 +11,11 @@
  * record is judged by the spec tree the Run read (`subject.spec_tree`), not by
  * `base_commit`, and is attested by nobody (`attestation: none`, limitations
  * of ADR-0034 п. 10).
+ *
+ * A submit is idempotent per Run (ADR-0044 п. 5): a record of the Run left by
+ * a submit interrupted before the Run was written is reused when it holds the
+ * same canonical envelope (sha256), and listed in the manifest if missing;
+ * another envelope is `EVIDENCE_CONFLICT`.
  */
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -20,11 +25,11 @@ import { bytesHash } from "../canon/hash.js";
 import type { Ctx } from "../ctx.js";
 import { WarrantError, type CliError } from "../errors.js";
 import { buildEvidenceRecord, evidenceSubject, NO_GIT_COMMIT, NO_GIT_LIMITATION, type EvidenceStatus } from "../evidence/record.js";
-import { evidenceDir, MANIFEST_FILE } from "../evidence/store.js";
-import { manifestVersions, storeRecord } from "../evidence/write.js";
+import { evidenceDir, MANIFEST_FILE, readManifest, readRecords, type StoredRecord } from "../evidence/store.js";
+import { manifestVersions, storeRecord, writeManifest } from "../evidence/write.js";
 import { projectUri, readJson } from "../fs.js";
 import { allocateUlid } from "../ids/allocate.js";
-import { isPlainObject } from "../json.js";
+import { isPlainObject, strings } from "../json.js";
 import { LOCK_REL } from "../packs/hash.js";
 import { loadPacks } from "../packs/loader.js";
 import { packSkills } from "../packs/objects.js";
@@ -71,6 +76,8 @@ export interface Submitted {
   evidence: string;
   status: EvidenceStatus;
   findings: SeverityCounts;
+  /** The record of an earlier, interrupted submit of the same envelope was taken instead of a new one. */
+  reused: boolean;
 }
 
 /** Findings by `severity`, every severity present. */
@@ -180,7 +187,9 @@ function withReceived(thrown: unknown, input: SubmitInput): unknown {
  * `RUN_NOT_ACTIVE`; a Run of another operation — `STATE_INVALID`; an envelope
  * off its schema, of another Run or of another skill — `SKILL_RESULT_INVALID`.
  * Nothing is written before every check passed; the writes are one plan
- * `[result, evidence, manifest, Run, current]` (`ctx.writes`, `--dry-run`).
+ * `[result, evidence, manifest, Run, current]` (`ctx.writes`, `--dry-run`);
+ * a repeat writes `[result, manifest (if the id is missing there), Run,
+ * current]` and no record, or `EVIDENCE_CONFLICT` and nothing.
  */
 export async function submitReview(ctx: Ctx, read: () => Promise<SubmitInput>, env: NodeJS.ProcessEnv): Promise<Submitted> {
   const { root } = ctx;
@@ -207,8 +216,47 @@ export async function submitReview(ctx: Ctx, read: () => Promise<SubmitInput>, e
   const status = reviewStatus(envelope.run_state, findings);
   const resultFile = path.join(runsDir(root, env), `${id}${RESULT_SUFFIX}`);
   const resultUri = projectUri(root, resultFile);
+  const sha256 = bytesHash(canonicalText(envelope as unknown as Json).text);
   const head = await ctx.git.head();
   const commit = head ?? NO_GIT_COMMIT;
+  const dir = evidenceDir(root, run.change, env);
+  const versions = await manifestVersions(ctx, run.effective_policy_hash);
+  const writeResult = (): void => {
+    mkdirSync(path.dirname(resultFile), { recursive: true });
+    writeJsonFile(resultFile, envelope as unknown as Json);
+  };
+  const runFields = (now: Run, evidence: string): Partial<Pick<Run, "evidence" | "skill" | "model">> => ({
+    evidence: (now.evidence ?? []).includes(evidence) ? [...(now.evidence ?? [])] : [...(now.evidence ?? []), evidence],
+    skill: envelope.skill,
+    ...(typeof envelope.provenance.model === "string" && envelope.provenance.model !== "" ? { model: envelope.provenance.model } : {})
+  });
+
+  // A repeat after an interrupted submit: the record of this Run is written already (ADR-0044 п. 5).
+  const earlier = earlierRecord(dir, id);
+  if (earlier !== undefined) {
+    const reported = projectUri(root, earlier.file);
+    const artifacts = earlier.json["artifacts"];
+    const recorded = Array.isArray(artifacts) && isPlainObject(artifacts[0]) ? artifacts[0]["sha256"] : undefined;
+    if (recorded !== sha256) {
+      throw new WarrantError("EVIDENCE_CONFLICT", `${earlier.id} of ${id} holds another envelope than the one handed in`, {
+        path: reported,
+        hint: "hand in the same envelope again, or end the Run: `warrant run finish --state CANCELLED`"
+      });
+    }
+    const listed = strings(readManifest(dir)?.["evidence"]).includes(earlier.id);
+    const subject = earlier.json["subject"];
+    const recordCommit = isPlainObject(subject) && typeof subject["commit"] === "string" ? subject["commit"] : commit;
+    await finishRun(ctx, envelope.run_state, env, {
+      targets: [resultUri, ...(listed ? [] : [projectUri(root, path.join(dir, MANIFEST_FILE))])],
+      write: () => {
+        writeResult();
+        if (!listed) writeManifest(dir, { change: run.change, commit: recordCommit, versions });
+      },
+      fields: (now) => runFields(now, earlier.id)
+    });
+    return { run: id, change: run.change, evidence: earlier.id, status, findings, reused: true };
+  }
+
   const evidence = allocateUlid("EVID");
   const at = envelope.skill.lastIndexOf("@");
   const record = buildEvidenceRecord({
@@ -223,27 +271,28 @@ export async function submitReview(ctx: Ctx, read: () => Promise<SubmitInput>, e
     contextHash: run.context_hash,
     effectivePolicyHash: run.effective_policy_hash,
     createdAt: new Date().toISOString(),
-    artifacts: [{ uri: resultUri, sha256: bytesHash(canonicalText(envelope as unknown as Json).text) }],
+    artifacts: [{ uri: resultUri, sha256 }],
     limitations: [...(head === null ? [NO_GIT_LIMITATION] : []), ...REVIEW_LIMITATIONS],
     metrics: { ...findings }
   });
-  const dir = evidenceDir(root, run.change, env);
   const checked = validateFile(record as Json, projectUri(root, path.join(dir, `${evidence}.json`)));
   if (!checked.ok) throw new WarrantError("INTERNAL", `the review record would not match its schema: ${checked.errors[0]?.message ?? ""}`);
-  const versions = await manifestVersions(ctx, run.effective_policy_hash);
 
   await finishRun(ctx, envelope.run_state, env, {
     targets: [resultUri, projectUri(root, path.join(dir, `${evidence}.json`)), projectUri(root, path.join(dir, MANIFEST_FILE))],
     write: () => {
-      mkdirSync(path.dirname(resultFile), { recursive: true });
-      writeJsonFile(resultFile, envelope as unknown as Json);
+      writeResult();
       storeRecord({ root, writes: ctx.writes, change: run.change, env, record, commit, versions, what: `review of ${run.change}` });
     },
-    fields: (now: Run) => ({
-      evidence: [...(now.evidence ?? []), evidence],
-      skill: envelope.skill,
-      ...(typeof envelope.provenance.model === "string" && envelope.provenance.model !== "" ? { model: envelope.provenance.model } : {})
-    })
+    fields: (now) => runFields(now, evidence)
   });
-  return { run: id, change: run.change, evidence, status, findings };
+  return { run: id, change: run.change, evidence, status, findings, reused: false };
+}
+
+/** The record `kind: review` an earlier submit of the Run `run` wrote in `dir`, if any (REQ-ENF-007, ADR-0044 п. 5). */
+function earlierRecord(dir: string, run: string): StoredRecord | undefined {
+  return readRecords(dir).find((one) => {
+    const by = one.json["produced_by"];
+    return one.json["kind"] === REVIEW_KIND && isPlainObject(by) && by["run"] === run;
+  });
 }

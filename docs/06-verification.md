@@ -73,6 +73,14 @@ Check — детерминированная исполняемая провер
 - `warrant check <id> --paths …` запускает `scoped_command`; без значения пути берутся из diff. Evidence суженного прогона несёт `limitations: ["scoped: <paths>"]` и исключается пред-фильтром допустимости (§3).
 - Для checks с `exclusive` или `local ≠ allowed` guard отвечает `deny` на Bash-команду с совпавшим префиксом и подсказывает `warrant check`.
 
+### Тест сценария
+
+Тест, который доказывает сценарий, несёт id SCN в своём имени — ссылку формата `SCN-<AREA>-NNN` ([ADR-0012](adr/WARRANT-ADR-0012-id-allocation.md)): `it("SCN-VER-117 …")`. Имя попадает в атрибут `name` элемента `<testcase>` отчёта JUnit, и parser `junit` его читает ([ADR-0044](adr/WARRANT-ADR-0044-lattice-issues.md) п. 2). Упоминание id только в теле файла теста засчитывает `analyze` (§5, L0), но не parser.
+
+- Пропущенный testcase (`<skipped>`, в том числе `todo`), в имени которого есть ссылка на SCN, делает запись `NOT_PROVEN` с limitation `junit: skipped SCN-…` (id через запятую, в порядке появления, без повторов), даже если остальные тесты прошли: тест сценария нельзя выключить `skip` / `todo` незаметно для gate.
+- Статус parser'а `junit`, первое совпадение: падение или ошибка → `NOT_PROVEN`; пропущенный тест сценария → `NOT_PROVEN`; все тесты пропущены (`tests − skipped ≤ 0`) → `INCONCLUSIVE` (R-4, для отчётов без таких имён); иначе `PROVEN`.
+- Честный пропуск (платформа, окружение) снимается waiver'ом или тестом без SCN в имени, который зовёт сценарий на своей ОС.
+
 ## 3. Gate
 
 Gate — правило перехода; агрегирует evidence в `gate_verdict`.
@@ -88,6 +96,19 @@ Gate — правило перехода; агрегирует evidence в `gate
   "waivable": false
 }
 ```
+
+### Требование к check
+
+Элемент `requires_evidence[]` MAY нести `check` — id check ([ADR-0044](adr/WARRANT-ADR-0044-lattice-issues.md) п. 6). Такое требование закрывает только самая свежая допустимая запись kind'а с `produced_by.type: "check"` и `produced_by.id`, равным `check`; записи других producers того же kind его не закрывают и не маскируют, а `NO_EVIDENCE` называет check. Без `check` — самая свежая запись kind'а, как прежде. Проект со своей проверкой объявляет check в `.warrant/local/checks/` и gate в `.warrant/local/`:
+
+```json
+"requires_evidence": [{ "kind": "test-report", "status": "PROVEN", "check": "dev-check" }]
+```
+
+- `check` называет загруженный check, чей `produces` (с учётом override) содержит `kind`; иначе `warrant validate` — `CONFIG_INVALID` с `path` `…#/requires_evidence/<i>/check`, а `check` без `id`, `verify` и `warrant ci` — та же ошибка, код 3, до запуска checks.
+- Checks перехода (`check` без `id`, `verify`, `warrant ci`): для требования с `check` — только этот check, без `check` — все checks, чьи `produces` содержат `kind`; объединение по id. Правило `ci_evidence` `warrant ci` для требования с `check` ждёт CI-запись этого check.
+- Check, упавший в этом `verify` (не дал evidence, REQ-VER-006), лишает gate входа (`BLOCKED` с `NO_INPUT`), только если питает его требование: для требования с `check` — только падение этого check (I-211 Change `lattice-issues`). Иначе упавший `tests-passed` маскировал бы требование с `check: "dev-check"`.
+- Override gate: добавить `check` — усиление; снять или сменить — ослабление, `OVERRIDE_WEAKENS` ([05](05-policy.md)).
 
 ### Алгоритм verdict
 
@@ -186,7 +207,7 @@ Change → DCT → transformation → dataset → quality check → EVID
 
 Traceability MUST строиться из ID и ссылок в artifacts. Матрица — projection, вычисляемая `analyze`; graph database не требуется.
 
-Связь test → SCN / REQ задаётся тегом или аннотацией в тесте (`@SCN-ING-003`) — формат задаёт pack тестового стека.
+Связь test → SCN / REQ задаётся тегом или аннотацией в тесте (`@SCN-ING-003`) — формат задаёт pack тестового стека; для отчёта JUnit id SCN стоит в имени теста (§2, «Тест сценария»).
 
 ## 7. Adversarial review
 
@@ -216,3 +237,59 @@ Reviewer ищет:
 - Доверие evidence определяется тем, где оно произведено, а не подписью: воспроизводимое (L0/L1) CI пересчитывает, невоспроизводимое принимается только с attestation, которую допускает gate ([06a §3](06a-evidence.md)).
 - CI MUST блокировать merge при `FAIL`, `BLOCKED` и отсутствии required evidence.
 - `warrant ci` ([04 §7](04-lifecycle.md)) считает checks `VERIFYING->MERGED` на результате merge, который строит сам job (tip базы на момент запуска + head PR): CI-запись несёт `subject.commit` — head PR и `subject.tree` — дерево результата merge, так что evidence судит то, что вливается в `main` (R-12). Сдвиг `main` до merge — `STALE` `tree`, лечится Re-run job; после merge — run `workflow_dispatch` на merge-коммите ([ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 3, 4). В MVP красный job — сигнал maintainer'у: branch protection вне MVP.
+
+### Угроза «общий аккаунт»
+
+Агент и maintainer под одним аккаунтом форжа неразличимы: решение blocking UNKNOWN комментарием, merge и `human-approval`, сделанные агентом, `warrant ci` иначе засчитал бы как акты maintainer'а ([ADR-0044](adr/WARRANT-ADR-0044-lattice-issues.md) п. 3, реализует [ADR-0010](adr/WARRANT-ADR-0010-trust-by-reference.md) п. 4 со стороны CLI).
+
+- Идентичность агента — GitHub App. App и его установку создаёт maintainer; логин App (`…[bot]`) — в `identities.agents[].login` `.warrant/warrant.json`. Токен установки живёт только в окружении агента, `gh` на машине агента авторизован только App'ом: токен человека агенту недоступен. **WARRANT этого не проверяет** — это граница доверия проекта.
+- `warrant validate`: логин и в `identities.agents`, и в любой роли `roles` — `CONFIG_INVALID` (роли не содержат ботов).
+- Пока `identities.agents` базы пуст: каждый проверенный акт (решение UNKNOWN, ref `APPROVED` / `MERGED` с `merged_by`) — информационная находка `SHARED_IDENTITY` в `data.findings[]`, код выхода от неё не меняется; `merged_by` = автор PR — ещё находка `APPROVER_IS_AUTHOR`. Шум осознанный: он и есть сигнал завести App.
+- Когда `identities.agents` непуст: `merged_by` = автор PR или агент — `REF_NOT_VERIFIED` с причиной `merged_by`; автор решения UNKNOWN из `identities.agents` — деталь `author`.
+- Активация waiver (`--by`) — локальная запись, форж её не видит; проверка исполнителя — вне этой угрозы (BL-75).
+
+### Job `warrant` — reusable workflow
+
+WARRANT поставляет job `warrant` как reusable workflow `.github/workflows/warrant.yml` (`on: workflow_call`) в своём репозитории ([ADR-0044](adr/WARRANT-ADR-0044-lattice-issues.md) п. 7). Проект вызывает его по тегу CLI и копии не держит; `ci.yml` этого репозитория вызывает тот же workflow с `warrant: checkout` — источник один.
+
+| Вход | Default | Что |
+|---|---|---|
+| `warrant` | обязателен | Источник CLI: тег `v<semver>` — `npm i -g github:Homasters-max/SRA#<тег>`; `checkout` — CLI из checkout, только в репозитории WARRANT; иное — шаг проверки входа падает до установки чего-либо и называет допустимые значения |
+| `setup` | `""` | Команды подготовки проекта (bash): зависимости и инструменты checks; после checkout и merge |
+| `node-version` | `22` | Версия Node.js |
+| `openspec-version` | `1.13.1` | Версия OpenSpec |
+| `merge_commit` | `""` | Merge-коммит impl-PR для recovery-прогона (`ci fetch`, [ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 4) |
+
+Вызов проектом (`.github/workflows/ci.yml` проекта):
+
+```yaml
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      merge_commit:
+        required: true
+        type: string
+
+jobs:
+  warrant:
+    name: warrant
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      issues: read
+    uses: Homasters-max/SRA/.github/workflows/warrant.yml@v0.8.2
+    with:
+      warrant: v0.8.2
+      setup: npm ci
+      merge_commit: ${{ inputs.merge_commit || '' }}
+```
+
+- Тег в `uses` и вход `warrant` — один и тот же тег CLI; подъём версии — правка обеих строк.
+- Права — `read` на `contents`, `actions`, `pull-requests`, `issues`: форж `warrant ci` читает PR, runs, artifacts и комментарии через `gh` с `github.token` вызывающего. Секретов workflow не несёт.
+- Имя проверки в GitHub — `warrant / warrant` (job вызывающего / job workflow). Проект с обязательной проверкой в branch protection обновляет её имя сам.
+- `workflow_dispatch` с `merge_commit` нужен recovery-прогону: подсказка `NO_CI_EVIDENCE` `warrant ci fetch` называет файл workflow run'а head PR (`gh workflow run <файл> -f merge_commit=<M>`).
+
+Job `warrant` судит Changes. Проверки PR без Change (kind `none`: документы, контекст разработки, тесты проекта) — отдельный job проекта в его workflow, как job `test` в этом репозитории. Прогона на каждый push в `main` job `warrant` не делает ([ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 4).

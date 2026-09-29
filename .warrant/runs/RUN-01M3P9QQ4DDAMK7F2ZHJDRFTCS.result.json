@@ -1,0 +1,109 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3P9QQ4DDAMK7F2ZHJDRFTCS",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-015 требует Typecheck, установку CLI и оба `warrant validate` «один раз на ОС — в job ubuntu и в shard `1/2`», а THEN SCN-VER-124 утверждает только, что эти шаги «пропускаются в shard `2/2`». Условие `if: matrix.os == 'ubuntu-latest'` или `if: matrix.shard == ''` проходит сценарий, но теряет typecheck и validate на windows — нарушение требования, которое тест не поймает.",
+      "targets": [
+        "SCN-VER-124",
+        "REQ-VER-015"
+      ],
+      "recommendation": "Дописать в THEN SCN-VER-124: эти четыре шага выполняются в `ubuntu-latest` и в shard `1/2` (условие истинно при пустом `shard` и при `1/2`, ложно при `2/2`), или зафиксировать дословное условие `matrix.shard != '2/2'` (design D2)."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Утверждение REQ-VER-015 «вместе покрывающими все файлы» молча опирается на свойство `vitest --shard` (детерминированное деление файлов всех projects без потерь и дублей). SCN-VER-124 проверяет только текст `ci.yml`, поэтому это утверждение не покрыто ни одним сценарием; проверка D6 (сумма `Tests` двух shard = `Tests` ubuntu) разовая, ручная и в tasks, а не регрессионная.",
+      "targets": [
+        "REQ-VER-015",
+        "SCN-VER-124",
+        "openspec/changes/ci-shards/design.md"
+      ],
+      "recommendation": "Либо явно записать в требовании, что полнота объединения shard — свойство `vitest --shard` при индексах `1/2` и `2/2` и проверяется не тестом (и назвать D6 разовой проверкой impl-PR), либо добавить сценарий, в котором объединение списков файлов двух shard равно списку файлов полного `npm test`."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-124 описывает поведение GitHub-выражения и bash-подстановки («имя с `, <shard>` только при непустом `shard`», «передаёт `--shard=<shard>` только при непустом `shard`»), а unit-тест, читающий YAML по строкам, вычислить их не может: остаётся либо сравнить дословный текст из design §2 и D4, либо разбирать выражение. «Пустой `shard`» тоже допускает два прочтения: `shard: \"\"` или отсутствие ключа.",
+      "targets": [
+        "SCN-VER-124"
+      ],
+      "recommendation": "Указать в сценарии, что проверяется: дословное выражение имени (`test (${{ matrix.os }}${{ matrix.shard && format(', {0}', matrix.shard) || '' }})`) и команда шага `Test` из D4, и что элемент ubuntu несёт `shard: \"\"`."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-VER-015 ссылается на REQ-VER-014 как на «настройку репозитория вне WARRANT» и исходит из того, что обязательные проверки `main` существуют, а main spec REQ-VER-014 говорит «в этом репозитории branch protection вне MVP, 06 §8» (06 §8: «branch protection вне MVP»). После включения branch protection maintainer'ом 2026-09-29 эта оговорка в main spec устарела, а Change её не меняет; кроме того, цитата «вне WARRANT» не совпадает с текстом «вне MVP».",
+      "targets": [
+        "REQ-VER-015",
+        "REQ-VER-014"
+      ],
+      "recommendation": "Либо дать MODIFIED REQ-VER-014 с оговоркой «branch protection — настройка репозитория вне WARRANT; обязательные проверки обновляет maintainer», либо в REQ-VER-015 цитировать REQ-VER-014 и 06 §8 их собственными словами."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "missing-error-behavior",
+      "statement": "Порядок D5 описан только в прямую сторону (impl-PR зелёный → maintainer меняет обязательные проверки → merge). Не описан отказ: если после замены проверок impl-PR не слит или откачен revert'ом, `main` требует `test (windows-latest, 1/2)` и `2/2`, которых его `ci.yml` не выдаёт, и все PR ждут без конца. Это касается настройки вне WARRANT, но от этого Change зависит.",
+      "targets": [
+        "openspec/changes/ci-shards/design.md",
+        "REQ-VER-015"
+      ],
+      "recommendation": "Дописать в D5 откат: при отказе от impl-PR или его revert maintainer возвращает `test (windows-latest)` в обязательные проверки."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/ci-shards/specs/verification/spec.md",
+      "change": "THEN SCN-VER-124: «шаги `Typecheck`, `Install warrant from the checkout`, `warrant validate (repository)` и `warrant validate (fixture project)` выполняются в `ubuntu-latest` и в shard `1/2` и пропускаются в shard `2/2` (условие `matrix.shard != '2/2'`)»; элемент ubuntu — `shard: \"\"`; имя и команда `Test` — дословно из design §2 и D4 (F-1, F-3)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/ci-shards/specs/verification/spec.md",
+      "change": "В REQ-VER-015 после «вместе покрывающими все файлы» добавить: «полнота объединения — свойство `vitest --shard`; её подтверждает разовая проверка impl-PR (design D6), а не SCN-VER-124» или сценарий на объединение списков файлов (F-2)."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/ci-shards/specs/verification/spec.md",
+      "change": "Добавить MODIFIED REQ-VER-014: заменить «(в этом репозитории branch protection вне MVP, 06 §8)» на «(branch protection — настройка репозитория вне WARRANT)», или поправить цитату в REQ-VER-015 (F-4)."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Для matrix job с явным `name` GitHub называет check run ровно вычисленным `name`, без добавления значений matrix, поэтому имена `test (windows-latest, 1/2)` и `2/2` достижимы через выражение из design §2."
+    },
+    {
+      "id": "A-2",
+      "statement": "`npm test -- <args>` дописывает аргументы в конец скрипта `npm run build && vitest run --config packages/cli/vitest.config.ts`, то есть они достаются `vitest` (design, Context)."
+    },
+    {
+      "id": "A-3",
+      "statement": "Факт от maintainer'а принят без проверки: 2026-09-29 на `main` включены branch protection с обязательными `test (ubuntu-latest)`, `test (windows-latest)`, `warrant / warrant` и auto-merge."
+    },
+    {
+      "id": "A-4",
+      "statement": "Job `warrant` (warrant.yml, `runs-on: ubuntu-latest`) запускает check `tests-passed` только в виде impl (REQ-VER-011), поэтому windows покрыт лишь job `test`; это не новое и не дефект Change."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:c8843aeb22360e3a479a0589b81f9a187587bd9aa98ac6ad8ec8264070041b81",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-29T12:00:00Z",
+    "finished_at": "2026-09-29T12:20:00Z"
+  }
+}

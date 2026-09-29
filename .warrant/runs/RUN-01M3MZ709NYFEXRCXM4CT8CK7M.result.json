@@ -1,0 +1,165 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3MZ709NYFEXRCXM4CT8CK7M",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-ENF-004 под Run `review` разрешает `cd <путь>` в одной строке с `warrant run finish --state CANCELLED` (и `warrant run submit`). Guard судит строку по `cwd` события (проект и активный Run — по `cwd`), а `warrant run finish` (main REQ-ENF-003) не принимает id Run и завершает активный Run того checkout'а, где выполняется. Строка `cd ../<другой worktree> && warrant run finish --state CANCELLED` получает `allow` и отменяет чужой Run (например, `implement` параллельной сессии) — запись вне Run, который «только читает». Молча предполагается, что команды после `cd` действуют в том же checkout, что и событие; оговорка «вызов, чей `cwd` лежит в другом checkout, судится состоянием того checkout'а» покрывает `cwd` события, а не `cd` внутри строки.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-044",
+        "REQ-ENF-003"
+      ],
+      "recommendation": "Выбрать и записать правило: либо `cd` разрешён только внутрь проекта события (после realpath, как у временного каталога), либо `warrant run finish` / `warrant run submit` в строке после `cd` — `deny`, либо guard отслеживает `cd` в строке и судит каждую следующую простую команду состоянием checkout'а её каталога. Добавить в SCN-ENF-044 строку `cd <другой checkout> && warrant run finish --state CANCELLED` с ожидаемым решением."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-KRN-036 делает атомарной запись каждого файла по отдельности, но команды пишут несколько связанных файлов: `warrant check` — запись evidence и `manifest.json`, `warrant transition` с `human-approval` — запись, manifest и record, `warrant ci fetch` — несколько записей и manifest. Обрыв между файлами оставляет запись, которой нет в `manifest.evidence[]`, и `warrant validate` (REQ-KRN-021 п. 12, «`manifest.evidence[]` перечисляет ровно записи каталога») падает. Повтор и дописывание manifest описаны только для `run submit` (REQ-ENF-007); для остальных команд spec не говорит ни о порядке записи, ни о восстановлении, а guard (REQ-ENF-004) запрещает править evidence руками («правка руками не нужна»). Цель ADR-0044 п. 4 и design («обрыв не оставляет битый JSON») формально выполнена, согласованность состояния — нет.",
+      "targets": [
+        "REQ-KRN-036",
+        "REQ-KRN-021",
+        "REQ-VER-002",
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Задать в REQ-KRN-036 порядок записи групп файлов (запись evidence до manifest, record последним) и наблюдаемое восстановление: например, `warrant validate` при записи вне manifest даёт `hint` с командой, которая дописывает manifest, или `warrant check` / `transition` при следующем вызове дописывает в manifest записи каталога без него. Добавить сценарий «обрыв между записью evidence и manifest у `warrant check`»."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "REQ-VER-002: для элемента `requires_evidence` с `check` checks перехода — «только этот check». Не сказано, что делают `warrant check` без `id`, `verify` и `warrant ci`, если `check` не загружен или его `produces` не содержит `kind` элемента. Проверку ссылки делает только `warrant validate` (REQ-KRN-021 п. 3), а design §5 уточняет «если его `produces` содержит kind», чего в spec нет. Два прочтения дают разное наблюдаемое поведение: молча не запускать ничего (gate затем `BLOCKED` с `NO_EVIDENCE`, код 0 у `check`) или ошибка конфигурации (`CONFIG_INVALID`, код 3); в `warrant ci` impl — нарушение `GATE_NOT_PASSED` (код 1) против кода 3.",
+      "targets": [
+        "REQ-VER-002",
+        "REQ-VER-011",
+        "REQ-VER-006",
+        "REQ-KRN-021"
+      ],
+      "recommendation": "Записать в REQ-VER-002 исход: например, ссылка `check` на незагруженный check или check без этого kind — `CONFIG_INVALID` с `path` `…#/requires_evidence/<i>/check`, код 3, до запуска checks (то же у `verify` и `warrant ci`); добавить вариант в SCN-VER-123."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-011, правило `ci_evidence`, получило новое условие «у элемента с `check` — запись этого check (`produced_by.id`)», но ни один сценарий REQ-VER-011 его не проверяет: SCN-VER-108 — без `check`. Tasks 4.4 ссылается на «SCN-VER-119 на уровне `ci`», а SCN-VER-119 — сценарий REQ-VER-003 о verdict gate, не о `RECORD_MISMATCH` с причиной `ci_evidence`.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-108",
+        "SCN-VER-119"
+      ],
+      "recommendation": "Добавить в SCN-VER-108 (или новый SCN) вариант: gate перехода `MERGED` `PASS` требует `test-report` с `check: dev-check`, `evidence[]` содержит запись `ci` только от `tests-passed` — `RECORD_MISMATCH` с причиной `ci_evidence`, код 1."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "REQ-KRN-036 / SCN-KRN-158: при неудаче переименования «команда завершается ошибкой» / «ошибка без частичного файла» — код ошибки, код выхода и `hint` не названы, хотя прочие ошибки CLI в specs их несут.",
+      "targets": [
+        "REQ-KRN-036",
+        "SCN-KRN-158"
+      ],
+      "recommendation": "Назвать код ошибки записи (существующий код ввода-вывода или новый), код выхода и `hint` (например, файл занят другим процессом — повторить команду) и проверить их в SCN-KRN-158."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-KRN-036: «переименование … SHALL повторяться до 5 попыток» читается как 5 попыток всего или как 5 повторов после первой (6 всего); design §2 — «повторяется … до 5 раз». Тест с фейковым `renameSync`, отказывающим N раз, даёт разный исход при N = 5.",
+      "targets": [
+        "REQ-KRN-036"
+      ],
+      "recommendation": "Записать однозначно: «не больше 5 вызовов rename всего» (или «первая попытка и до 5 повторов»)."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-ENF-004, строгая форма команды без записи: названы соединители `&&`, `||`, `;` и запрещённые конструкции, но не сказано, как судятся перевод строки как разделитель команд, группы `( … )` и `{ …; }`, отрицание `!` и форма опции `--state=CANCELLED` у `warrant run finish`. Для каждой два прочтения (перевод строки как `;` против `deny`; `--state=CANCELLED` как отмена против `deny`) дают разное решение guard.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-044"
+      ],
+      "recommendation": "Дописать: перевод строки — как `;` (или `deny`); группы и `!` — `deny`; у `warrant run finish` допустимы `--state CANCELLED` и/или `--state=CANCELLED`. Добавить по строке в SCN-ENF-044."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "REQ-ENF-004: у `git status | log | diff | show` запрещён любой аргумент, начинающийся с `--o`. Под правило попадают частые команды только для чтения — `git log --oneline`, `git diff --ours`, `git log --oneline-…` — хотя цель правила (design, Risks) — только `--output` и его сокращения. Spec не говорит, намеренно ли это; SCN-ENF-044 проверяет лишь `--outp=`.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-044"
+      ],
+      "recommendation": "Либо сузить правило до `-o` и префиксов `--output` длиной от `--ou` (с `=` и без), либо явно записать, что `--oneline` и прочие `--o…` тоже `deny`, и добавить `git log --oneline` в SCN-ENF-044 с ожидаемым решением."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-014: значение `checkout` входа `warrant` — «только сам репозиторий WARRANT», но не сказано, отклоняет ли workflow `checkout` у вызывающего не-WARRANT репозитория (тогда `npm i -g .` поставит пакет проекта или упадёт непонятно). Остановка job при недопустимом значении — требование без сценария: SCN-VER-122 только читает файлы и проверяет входы и вызов.",
+      "targets": [
+        "REQ-VER-014",
+        "SCN-VER-122"
+      ],
+      "recommendation": "Определить исход `checkout` вне репозитория WARRANT (например, шаг падает до `warrant ci`, если `package.json` checkout не пакет CLI WARRANT) и добавить в SCN-VER-122 проверку, что шаг проверки входа есть и перечисляет допустимые значения."
+    },
+    {
+      "id": "F-10",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "Proposal («Версии»): «pack `core-sdd` не меняется: golden-фикстуры вне его hash (I-59), копии схемы gate в них обновляет `warrant sync`». ADR-0044 п. 1: «Pack `core-sdd` поднимается, только если меняются его golden-копии схем». Копии `packs/core-sdd/golden/*/.warrant/schemas/gate.1.schema.json` Change меняет (proposal, Impact; tasks 4.1), то есть условие ADR выполнено, а proposal версию не поднимает. Решение по существу (I-59, прецедент `lattice-fixes`) обосновано, но текст норм расходится.",
+      "targets": [
+        "openspec/changes/lattice-issues/proposal.md",
+        "docs/adr/WARRANT-ADR-0044-lattice-issues.md"
+      ],
+      "recommendation": "Согласовать: записать в design строку I-N (golden вне hash pack, п. 1 ADR-0044 читается как «если меняется hash pack») или уточнить формулировку в ADR заметкой; proposal сослаться на неё."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "F-1 выведен из текста specs: REQ-ENF-003 (main) — `warrant run finish` без id Run, REQ-ENF-004 — проект и активный Run определяются по `cwd` события. Как реализация guard разбирает `cd` внутри строки, не проверялось."
+    },
+    {
+      "id": "A-2",
+      "statement": "F-2 предполагает, что `warrant check` и `warrant transition` пишут запись evidence и `manifest.json` двумя отдельными записями (design §2 о записи через `writeJsonFile`); порядок записи в коде не проверялся."
+    },
+    {
+      "id": "A-3",
+      "statement": "Round-1 findings F-1…F-20 (RUN-01M3MYKT5S7AHN7H15QY5MG8SF) сверены с текущим текстом: F-1 (verify --dry-run заменён на `warrant gate`), F-2 (выбор checks по `check` в REQ-VER-002, SCN-VER-123), F-3 (`EVIDENCE_CONFLICT` по sha256), F-4 (дописывание manifest), F-5 (`--dry-run` повтора), F-6 (строгая форма), F-7 (глобальные опции git, `--ext-diff`), F-8 (множество путей и порядок), F-9 (`merged_by` ∈ агентов), F-10 (`ci_evidence` по check), F-11 (обязательный вход `warrant`), F-12 (права), F-13 (maintainer обновляет проверки), F-14, F-15, F-16 (порядок файлов), F-17, F-18 (5 попыток, 20 мс), F-19 (только гибель процесса), F-20 (pack не поднимается) — устранены в тексте spec; остаточные дефекты — F-4, F-6, F-10 этого review."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Как guard под Run `review` судит `cd` в одной строке с `warrant run finish --state CANCELLED` / `warrant run submit` (F-1)?",
+      "options": [
+        "`cd` разрешён только внутрь проекта события (realpath)",
+        "`warrant run finish` и `warrant run submit` после `cd` в той же строке — `deny`",
+        "Guard отслеживает `cd` и судит каждую следующую команду состоянием checkout'а её каталога",
+        "Принять риск и записать его как предел (как INV-07)"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:fb321fd5126eba6dda30058d031c913387510f638d78a3cfd8244e2b820ae5ae",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-09-29T12:00:00Z",
+    "finished_at": "2026-09-29T12:40:00Z"
+  }
+}

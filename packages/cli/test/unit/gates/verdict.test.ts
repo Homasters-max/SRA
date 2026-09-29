@@ -475,6 +475,28 @@ describe("verdict algorithm (06 section 3)", () => {
     expect(result.findings[0]).toMatchObject({ code: "NO_INPUT", gate: "spec-valid", check: "openspec-validate", error: "CHECK_TIMEOUT" });
   });
 
+  it("a requirement with check is starved only by a failure of that check (I-211)", () => {
+    const definitions = new Map(CORE_GATES);
+    definitions.set("dev-passed", {
+      id: "dev-passed",
+      level: "L1",
+      waivable: true,
+      requires_evidence: [{ kind: "test-report", status: "PROVEN", check: "dev-check" }]
+    });
+    const dev = record("test-report", "PROVEN", { produced_by: { type: "check", id: "dev-check" } });
+    const otherFailed = evaluate("PROPOSED->SPECIFIED", ["dev-passed"], [dev], {
+      definitions,
+      signals: { checkFailures: [{ check: "tests-passed", code: "CHECK_TIMEOUT", kinds: ["test-report"] }] }
+    });
+    expect(otherFailed.gates["dev-passed"]).toBe("PASS");
+    const ownFailed = evaluate("PROPOSED->SPECIFIED", ["dev-passed"], [dev], {
+      definitions,
+      signals: { checkFailures: [{ check: "dev-check", code: "CHECK_TIMEOUT", kinds: ["test-report"] }] }
+    });
+    expect(ownFailed.gates["dev-passed"]).toBe("BLOCKED");
+    expect(ownFailed.findings[0]).toMatchObject({ code: "NO_INPUT", gate: "dev-passed", check: "dev-check" });
+  });
+
   it("reports STALE only for kinds the evaluated gates read", () => {
     const staleTests = record("test-report", "PROVEN", { subject: { commit: PREVIOUS } });
     const result = evaluate("PROPOSED->SPECIFIED", ["spec-valid"], [record("spec-report", "PROVEN"), staleTests]);

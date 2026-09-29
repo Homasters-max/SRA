@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://change-record/1",
   "change": "identities",
-  "change_state": "MERGED",
+  "change_state": "ARCHIVED",
   "classification": {
     "profiles": [
       "chore",
@@ -105,6 +105,21 @@
         "EVID-01M3QNPSAQNSXB7WX3K0F9N7F3"
       ],
       "ref": "https://github.com/Homasters-max/SRA/pull/114"
+    },
+    {
+      "to": "ARCHIVED",
+      "at": "2026-09-29T22:49:25.126Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+      "gates": {
+        "analyze-clean": "PASS",
+        "ids-valid": "PASS",
+        "required-artifacts-present": "PASS",
+        "spec-valid": "PASS"
+      },
+      "evidence": [
+        "EVID-01M3QNQDMY4D9JT3D333YE9BFB"
+      ]
     }
   ]
 }

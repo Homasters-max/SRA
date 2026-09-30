@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01M3T5DWR349M497CFGHNEA34J",
+  "change": "agent-merge",
+  "operation": "review",
+  "skill": "specification/adversarial-review@0.2.0",
+  "model": "claude-opus-5-5",
+  "write_scope": [],
+  "scope": [],
+  "branch": "spec/agent-merge",
+  "started_at": "2026-09-30T22:02:14.194Z",
+  "finished_at": "2026-09-30T22:05:30.747Z",
+  "run_state": "SUCCEEDED",
+  "context_hash": "sha256:39d20aa369300d1eedfbeef48f26b890389dc1d221e67605c5aaf50f7cdaba31",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "spec_tree": "sha256:9f1a96645b259eab09f6ba728c2d3cd3113dca4f70c172e9ad7a08f0a3a82c23",
+  "evidence": [
+    "EVID-01M3T5KWQQBGNEHKBTRV33GF7F"
+  ],
+  "guard_events": []
+}

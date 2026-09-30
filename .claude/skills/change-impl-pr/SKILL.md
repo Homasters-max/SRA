@@ -34,15 +34,15 @@ argument-hint: "<change> <номер spec-PR>"
    $W transition <change> VERIFYING
    ```
 5. Ревью до PR — навык `review-impl` (п. 6): 🔴 — исправить в этой ветке и снова шаг 4; 🟡 / 💭 — строками R-N в `docs/backlog.md`; отчёт — разделом «Ревью» в тело PR.
-6. PR — шаги 1–3 `git-land`; тело — группы, решения I-N, waivers, отчёт ревью. CI: `test` ubuntu + windows и `warrant / warrant` (`warrant ci` на результате merge с tip `main`: `kind: impl`, artifact `evidence-<change>-<attempt>`, `human-approval` — в `deferred[]`). До коммита `VERIFYING` красный `CHANGE_NOT_VERIFYING` — штатно. После коммита `VERIFYING` — ссылка maintainer'у на auto-merge (`git-land` шаг 4). `main` сдвинулся до merge — Re-run `warrant / warrant` пересчитает merge (иначе evidence `STALE` `tree`).
-7. Merge — auto-merge maintainer'а (только merge commit, I-97); после merge — шаг 5 `git-land`. Затем навык `change-archive-pr <change>` с номером этого PR.
+6. PR — шаги 1–3 `git-land`; тело — группы, решения I-N, waivers, отчёт ревью. CI: `test` ubuntu + windows и `warrant / warrant` (`warrant ci` на результате merge с tip `main`: `kind: impl`, artifact `evidence-<change>-<attempt>`, `human-approval` — в `deferred[]`). До коммита `VERIFYING` красный `CHANGE_NOT_VERIFYING` — штатно. После коммита `VERIFYING`: policy Change без `human-approval` на `VERIFYING->MERGED` (`$W resolve <change>`) — сессия `gh pr merge <N> --merge --auto`; с ним — ссылка maintainer'у на auto-merge (`git-land` шаг 4). `main` сдвинулся до merge — Re-run `warrant / warrant` пересчитает merge (иначе evidence `STALE` `tree`).
+7. Merge — только merge commit (I-97): сессия или maintainer по шагу 6; после merge — шаг 5 `git-land`. Затем навык `change-archive-pr <change>` с номером этого PR.
 
 ## Стоп
 
 - `transition` отказал (`REF_MISMATCH`, gate `FAIL`, не тот порядок) — показать вывод, не обходить правкой record (его пишет только CLI, ADR-0009).
 - Задача вне tasks.md или отклонение от spec/design — вопрос maintainer'у, принятое — навык `decision`.
 - `warrant` красный на последнем коммите (`GATE_NOT_PASSED`, `RECORD_MISMATCH`, `REF_NOT_VERIFIED`, код 3) — разбор [ci.md](../git-land/ci.md), merge не просить.
-- impl-PR агент не сливает и `--auto` не ставит — merge maintainer'а.
+- impl-PR с `human-approval` на `VERIFYING->MERGED` агент не сливает и `--auto` не ставит — merge maintainer'а. Реализация — одним impl-PR: второй PR после слитого `IMPLEMENTING` закрывает merge агентом.
 
 ## Отчёт
 

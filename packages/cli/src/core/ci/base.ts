@@ -50,10 +50,26 @@ export async function withBase<T>(ctx: Pick<Ctx, "git">, commit: string, use: (b
   }
   try {
     const loaded = loadPacks(checkout.value.root);
-    return await use({ root: checkout.value.root, loaded });
+    return await use({ root: checkout.value.root, loaded: acceptChangedLaw({ root: checkout.value.root, loaded }) });
   } finally {
     await checkout.value.dispose();
   }
+}
+
+/**
+ * The version range of the base for a bundled pack the pull request changes (I-179): a new minor of the pack is
+ * outside the range the base configures, yet it is the law changed by the pull request, not a broken base — the
+ * rule of the changed law (factory-change in impl, `SCOPE_VIOLATION` of the lock elsewhere) judges it (I-233).
+ */
+function acceptChangedLaw(base: BaseContext): LoadResult {
+  const changed = new Set(changedBundledPacks(base));
+  if (changed.size === 0) return base.loaded;
+  const manifests = new Set(base.loaded.packs.filter((pack) => changed.has(pack.id)).map((pack) => pack.manifestPath));
+  const errors = base.loaded.errors.filter(
+    (e) =>
+      !(e.code === "CONFIG_INVALID" && typeof e.path === "string" && manifests.has(e.path) && e.message.includes("does not satisfy the configured range"))
+  );
+  return errors.length === base.loaded.errors.length ? base.loaded : { ...base.loaded, errors };
 }
 
 /** The `classification` of a record, or undefined. */

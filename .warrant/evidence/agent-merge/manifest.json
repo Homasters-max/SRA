@@ -20,7 +20,7 @@
   ],
   "gates": {
     "adversarial-review": "PASS",
-    "analyze-clean": "FAIL",
+    "analyze-clean": "PASS",
     "blocking-unknowns-resolved": "PASS",
     "branch-isolated": "PASS",
     "human-approval": "PASS",

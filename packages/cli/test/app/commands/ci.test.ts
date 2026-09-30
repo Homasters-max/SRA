@@ -304,6 +304,30 @@ describe("warrant ci: the structure of the record", () => {
     expect(result.exitCode).toBe(1);
   });
 
+  it("a new minor of a bundled pack outside the range of the base is the law changed, not a broken base; an unchanged pack outside the range is (I-179, I-233)", async () => {
+    const outOfRange = (b: ProjectBuilder): void => {
+      const config = b.json(".warrant/warrant.json");
+      b.write(".warrant/warrant.json", { ...config, packs: { ...config.packs, "core-sdd": { version: "^0.0.1" } } });
+    };
+    const impl = await changeRepo("IMPLEMENTING");
+    stale(impl);
+    outOfRange(impl);
+    impl.commit("base: a lock and a range of another core-sdd");
+    pullRequest(impl, "worktree/add-search", (b) => advance(b, "VERIFYING"));
+    const judged = await ci(impl, CI_ENV);
+    expect(codes(judged)).not.toContain("CONFIG_INVALID");
+    const mismatch = judged.errors.filter((e) => e.code === "RECORD_MISMATCH");
+    expect(mismatch.map((e) => e.message.includes("classification") && e.message.includes("factory-change"))).toEqual([true]);
+
+    const broken = await repo();
+    outOfRange(broken);
+    broken.commit("base: a range of another core-sdd, the lock holds the bundled pack");
+    pullRequest(broken, "docs/readme", (b) => b.write("docs/readme.md", "# Readme\n"));
+    const result = await ci(broken);
+    expect(codes(result)).toContain("CONFIG_INVALID");
+    expect(result.exitCode).toBe(3);
+  });
+
   it("an abandon-PR over a bundled pack not held by the lock of the base: only SCOPE_VIOLATION of the lock, no RECORD_MISMATCH (I-179)", async () => {
     const p = await changeRepo("SPECIFIED");
     stale(p);

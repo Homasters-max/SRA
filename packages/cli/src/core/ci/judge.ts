@@ -17,7 +17,7 @@ import type { ChangeRecord } from "../record/read.js";
 import { evaluate, prepare } from "../transition/evaluate.js";
 import { createWrites } from "../writes.js";
 import { replayArchive, verifyCiEvidence } from "./archive.js";
-import type { BaseContext } from "./base.js";
+import { humanAcceptance, type BaseContext } from "./base.js";
 import { judgeDecisions } from "./decisions.js";
 import { judgeImpl, mergeFacts } from "./impl.js";
 import type { CiSubject } from "./kind.js";
@@ -114,7 +114,7 @@ export async function judgePullRequest(ctx: Ctx, subject: CiSubject, base: BaseC
     transitions = record.transitions;
     evidence = record.evidence;
     errors.push(...record.errors);
-    const refs = await judgeRefs(ctx, subject, base, record.transitions, record.evidence);
+    const refs = await judgeRefs(ctx, subject, base, record.transitions, record.evidence, env);
     errors.push(...refs.errors);
     findings.push(...refs.findings);
     const decisions = await judgeDecisions(ctx, subject, base, subject.record as ChangeRecord, approvedPr(record.transitions));
@@ -155,6 +155,12 @@ export async function judgePullRequest(ctx: Ctx, subject: CiSubject, base: BaseC
       data["deferred"] = impl.deferred;
       findings.push(...impl.findings);
     }
+  }
+  if (!humanAcceptance(base)) {
+    findings.push({
+      code: "NO_HUMAN_ACCEPTANCE",
+      message: `no object of the policy of the base (packs, .warrant/local/**) puts gate human-approval on ${MERGE_TRANSITION}: an agent may merge any impl-PR (ADR-0051 п. 4)`
+    });
   }
   data["findings"] = findings;
   data["skipped"] = skipped;

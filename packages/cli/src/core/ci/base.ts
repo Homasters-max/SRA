@@ -18,13 +18,15 @@ import { collectFloors, collectProfileMatches } from "../classify/packs.js";
 import type { Ctx } from "../ctx.js";
 import { WarrantError, type CliError } from "../errors.js";
 import { readJson } from "../fs.js";
-import { isPlainObject } from "../json.js";
+import { MERGE_TRANSITION } from "../gates/types.js";
+import { isPlainObject, strings } from "../json.js";
 import { LOCK_REL, packContentHash } from "../packs/hash.js";
 import { loadPacks } from "../packs/loader.js";
 import { policyPaths } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import type { ChangeRecord } from "../record/read.js";
 import type { Classification } from "../resolve/index.js";
+import { requiresHuman } from "../roles.js";
 import { resolveRecord, type Resolved } from "../transition/policy.js";
 
 export interface BaseContext {
@@ -63,6 +65,18 @@ export function classificationOf(record: ChangeRecord | undefined): Classificati
 /** The effective policy of `record` by the packs of the base. */
 export function basePolicy(base: BaseContext, change: string, record: ChangeRecord): Resolved {
   return resolveRecord(base.loaded, change, record);
+}
+
+/**
+ * Whether an object of the policy of the base — packs and `.warrant/local/**` —
+ * puts gate `human-approval` on `VERIFYING->MERGED` (design D8 of agent-merge):
+ * without one no path limits a merge of an impl-PR by an agent.
+ */
+export function humanAcceptance(base: BaseContext): boolean {
+  return base.loaded.objects.some((object) => {
+    const gates = isPlainObject(object.json) && isPlainObject(object.json["gates"]) ? object.json["gates"] : {};
+    return requiresHuman({ gates: { [MERGE_TRANSITION]: strings(gates[MERGE_TRANSITION]) } }, MERGE_TRANSITION);
+  });
 }
 
 /** `match.paths` of `factory-change` of the base: the policy paths (D-15). */

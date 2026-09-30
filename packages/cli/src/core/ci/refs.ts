@@ -9,22 +9,28 @@
  * ref without a violation is the finding `SHARED_IDENTITY`, and `merged_by`
  * equal to the author the finding `APPROVER_IS_AUTHOR`; once it is not,
  * `merged_by` equal to the author or an agent is `REF_NOT_VERIFIED` (BL-44).
+ *
+ * The ref of `MERGED` is judged by M^1, the base of the impl-PR (design D3 of
+ * agent-merge, `merge.ts`): its `roles`, agents and policy. Without gate
+ * `human-approval` on `VERIFYING->MERGED` in that policy any member of `roles`
+ * or an agent merges and INV-03 does not apply; the exception is closed —
+ * with the finding `AGENT_MERGE_CLOSED` — when the current CLI does not compute
+ * the policy by M^1 or the record on M^1 is past `SPECIFIED`.
  */
+import type { WarrantConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
 import { cliError, type CliError } from "../errors.js";
 import { HUMAN_APPROVAL } from "../evidence/approval.js";
-import { attestationOf } from "../evidence/attestation.js";
-import { subjectOf } from "../evidence/record.js";
-import type { Finding } from "../gates/types.js";
-import { mergeOfHead } from "../git/facts.js";
-import { isPlainObject, strings } from "../json.js";
-import type { CommentRef } from "../ports/forge.js";
+import { MERGE_TRANSITION, type Finding } from "../gates/types.js";
+import { isPlainObject } from "../json.js";
+import type { CommentRef, PullRequest } from "../ports/forge.js";
 import { confirmationOf, type Confirmation } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
 import { recordPath } from "../record/write.js";
-import { approvalRoles, roleMembers } from "../roles.js";
+import { approvalRoles, FALLBACK_ROLE, requiresHuman, roleMembers } from "../roles.js";
 import { basePolicy, type BaseContext } from "./base.js";
-import { jsonAt, type CiSubject } from "./kind.js";
+import type { CiSubject } from "./kind.js";
+import { ciHeads, locateMerge, mergeLaw, pastSpecified, transitionRecords, type MergeCommit } from "./merge.js";
 import type { NewTransition } from "./record.js";
 
 /** Reasons of `REF_NOT_VERIFIED` (REQ-VER-011); `decision` — the ref of a decision of an UNKNOWN (REQ-VER-013, `decisions.ts`). */
@@ -79,15 +85,71 @@ export function parseCommentUrl(ref: string): CommentRef | null {
   };
 }
 
-/** Targets of the transitions `rev` adds to the record of `change` against its first parent. */
-async function broughtTransitions(ctx: Pick<Ctx, "git">, rev: string, change: string): Promise<string[]> {
-  const parent = (await ctx.git.parents(rev))[0];
-  const after = await jsonAt(ctx, rev, recordPath(change));
-  const before = parent === undefined ? undefined : await jsonAt(ctx, parent, recordPath(change));
-  const list = (r: unknown): unknown[] => (isPlainObject(r) && Array.isArray(r["transitions"]) ? r["transitions"] : []);
-  return list(after)
-    .slice(list(before).length)
-    .flatMap((t) => (isPlainObject(t) && typeof t["to"] === "string" ? [t["to"]] : []));
+/** The merged pull request of this repository the ref of `t` names, or undefined. */
+async function mergedPullOf(ctx: Pick<Ctx, "forge">, t: NewTransition): Promise<PullRequest | undefined> {
+  const parsed = parsePullUrl(typeof t.entry["ref"] === "string" ? t.entry["ref"] : "");
+  if (parsed === null) return undefined;
+  const pr = await ctx.forge.pullRequest(parsed.number);
+  const own = pr === null ? null : parsePullUrl(pr.url);
+  if (pr === null || own?.repository !== parsed.repository || !pr.merged || pr.mergeCommit === null) return undefined;
+  return pr;
+}
+
+/**
+ * M of a new `MERGED` for the rule `verdicts` of the record (design D4): by
+ * its CI records, else by the pull request of its ref; undefined — M is not
+ * found (the rule `merge_commit` of the ref reports it).
+ */
+export async function mergeOfMerged(
+  ctx: Pick<Ctx, "git" | "forge">,
+  subject: CiSubject,
+  t: NewTransition,
+  evidence: ReadonlyMap<string, Record<string, unknown>>
+): Promise<MergeCommit | undefined> {
+  const records = transitionRecords(t, evidence);
+  const pr = ciHeads(records).length > 0 ? undefined : await mergedPullOf(ctx, t);
+  const located = await locateMerge(ctx, subject, t, records, pr);
+  return located.ok ? located.merge : undefined;
+}
+
+/** Who may merge the pull request of a confirmed transition (REQ-VER-011 «Ref», design D3). */
+interface Merger {
+  /** `warrant.json` whose `roles` and `identities.agents` judge the merger: the base, for `MERGED` — M^1. */
+  config: WarrantConfig;
+  /** Roles of approval; not read under the exception. */
+  roles: string[];
+  /** The exception of D3: any login of `roles` or an agent identity merges, INV-03 not applied. */
+  exception: boolean;
+  /** Why the exception is closed other than by gate `human-approval` (finding `AGENT_MERGE_CLOSED`). */
+  closed?: string;
+  /** Where `roles` and agents come from, in messages. */
+  of: string;
+}
+
+/**
+ * The merger of the ref of `MERGED` by the law of M^1 (design D3): without gate
+ * `human-approval` in the policy by M^1 a merge is no act of approval — any
+ * member of `roles` or an agent of M^1 merges; fail-closed — the policy not
+ * computed (the role `maintainer` of M^1) or the record on M^1 past `SPECIFIED`.
+ */
+async function mergedByLaw(ctx: Pick<Ctx, "git" | "root">, change: string, merge: MergeCommit, env: NodeJS.ProcessEnv): Promise<Merger> {
+  const law = await mergeLaw(ctx, change, merge, env);
+  const of = `M^1 ${merge.first}`;
+  if (!law.policy.ok) {
+    return { config: law.config, roles: [FALLBACK_ROLE], exception: false, closed: `the policy by ${of} is not computed by this CLI: ${law.policy.reason}`, of };
+  }
+  const roles = approvalRoles(law.policy.value, MERGE_TRANSITION);
+  if (requiresHuman(law.policy.value, MERGE_TRANSITION)) return { config: law.config, roles, exception: false, of };
+  if (pastSpecified(law.stateAtBase)) {
+    return {
+      config: law.config,
+      roles,
+      exception: false,
+      closed: `the record of ${change} is ${String(law.stateAtBase)} on ${of}: the implementation was not merged by one impl-PR`,
+      of
+    };
+  }
+  return { config: law.config, roles, exception: true, of };
 }
 
 /**
@@ -95,19 +157,18 @@ async function broughtTransitions(ctx: Pick<Ctx, "git">, rev: string, change: st
  * Throws `FORGE_UNAVAILABLE` (exit 3) when the forge cannot be read.
  */
 export async function judgeRefs(
-  ctx: Pick<Ctx, "git" | "forge">,
+  ctx: Pick<Ctx, "git" | "forge" | "root">,
   subject: CiSubject,
   base: BaseContext,
   transitions: readonly NewTransition[],
-  evidence: ReadonlyMap<string, Record<string, unknown>>
+  evidence: ReadonlyMap<string, Record<string, unknown>>,
+  env: NodeJS.ProcessEnv
 ): Promise<RefJudgement> {
   const change = subject.change as string;
   const out: RefJudgement = { errors: [], findings: [] };
   const verified = transitions.filter((t) => confirmationOf(t.to) !== undefined);
   if (verified.length === 0) return out;
-  const line = new Set((await ctx.git.firstParents(subject.base)) ?? []);
   const resolved = basePolicy(base, change, subject.record as ChangeRecord);
-  const agents = base.loaded.config.agents;
 
   for (const t of verified) {
     const ref = typeof t.entry["ref"] === "string" ? t.entry["ref"] : "";
@@ -130,53 +191,51 @@ export async function judgeRefs(
       fail("merged", `pull request ${pr.number} is not merged`);
       continue;
     }
-    const confirmation = confirmationOf(t.to) as Confirmation;
-    const transition = confirmation.transition;
-    const roles = resolved.ok ? approvalRoles(resolved.policy, transition) : approvalRoles({ approvals: [] }, transition);
-    if (!roleMembers(base.loaded.config, roles).has(pr.mergedBy)) {
-      fail("merged_by", `${pr.mergedBy} merged pull request ${pr.number}, not a member of roles ${roles.join(", ")} of the base`);
-      continue;
-    }
-    // With agent identities in the base, a self-merge and a merge by an agent are refused (INV-03, ADR-0044 п. 3).
-    if (agents.includes(pr.mergedBy)) {
-      fail("merged_by", `${pr.mergedBy} merged pull request ${pr.number} and is an agent identity (identities.agents of the base)`);
-      continue;
-    }
-    if (agents.length > 0 && pr.mergedBy === pr.author) {
-      fail("merged_by", `${pr.mergedBy} merged pull request ${pr.number} they authored (INV-03)`);
-      continue;
-    }
+    const transition = (confirmationOf(t.to) as Confirmation).transition;
+    const records = transitionRecords(t, evidence);
 
-    const records = strings(t.entry["evidence"]).flatMap((id) => {
-      const json = evidence.get(id);
-      return json === undefined ? [] : [json];
-    });
-    const ci = records.filter((json) => attestationOf(json).type === "ci");
-    const heads = [...new Set(ci.map((json) => subjectOf(json)?.commit ?? ""))];
-    if (t.to === "MERGED" && heads.length > 0) {
-      if (heads.length > 1) {
-        fail("merge_commit", `the CI records of the transition name ${heads.length} commits: ${heads.join(", ")}`);
+    // The ref of MERGED is judged by M^1, so M comes first (design D3); the ref of APPROVED — by the base.
+    let merger: Merger;
+    if (t.to === "MERGED") {
+      const located = await locateMerge(ctx, subject, t, records, pr);
+      if (!located.ok) {
+        fail(located.reason, located.detail);
         continue;
       }
-      const m = await mergeOfHead(ctx, heads[0] as string, subject.base);
-      const parents = m === null ? [] : await ctx.git.parents(m);
-      if (m === null || pr.mergeCommit !== m || pr.headSha !== parents[1]) {
-        fail(
-          "merge_commit",
-          m === null
-            ? `no merge commit on the first-parent line of the base has ${heads[0] as string}, the commit of the CI records, as its head`
-            : `pull request ${pr.number} was merged by ${pr.mergeCommit} with head ${pr.headSha}, not by M ${m} with head ${String(parents[1])}`
-        );
+      merger = await mergedByLaw(ctx, change, located.merge, env);
+      if (merger.closed !== undefined) {
+        out.findings.push({ code: "AGENT_MERGE_CLOSED", message: `${where}: a merge by an agent is not admitted: ${merger.closed}` });
+      }
+    } else {
+      const roles = resolved.ok ? approvalRoles(resolved.policy, transition) : approvalRoles({ approvals: [] }, transition);
+      merger = { config: base.loaded.config, roles, exception: false, of: "the base" };
+    }
+    const agents = merger.config.agents;
+    if (merger.exception) {
+      // Without human-approval a merge is no act of approval (ADR-0050 п. 2, ADR-0051 п. 4): INV-03 does not apply.
+      if (!roleMembers(merger.config).has(pr.mergedBy) && !agents.includes(pr.mergedBy)) {
+        fail("merged_by", `${pr.mergedBy} merged pull request ${pr.number}, neither a member of roles nor an agent identity of ${merger.of}`);
         continue;
       }
     } else {
-      if (!line.has(pr.mergeCommit)) {
-        fail("merge_commit", `merge commit ${pr.mergeCommit} of pull request ${pr.number} is not on the first-parent line of the base`);
+      if (!roleMembers(merger.config, merger.roles).has(pr.mergedBy)) {
+        fail("merged_by", `${pr.mergedBy} merged pull request ${pr.number}, not a member of roles ${merger.roles.join(", ")} of ${merger.of}`);
         continue;
       }
-      const brought = confirmation.broughtBy;
-      if (!(await broughtTransitions(ctx, pr.mergeCommit, change)).includes(brought)) {
-        fail("change", `merge commit ${pr.mergeCommit} of pull request ${pr.number} does not bring the transition ${brought} into the record of ${change}`);
+      // With agent identities, a self-merge and a merge by an agent are refused (INV-03, ADR-0044 п. 3).
+      if (agents.includes(pr.mergedBy)) {
+        fail("merged_by", `${pr.mergedBy} merged pull request ${pr.number} and is an agent identity (identities.agents of ${merger.of})`);
+        continue;
+      }
+      if (agents.length > 0 && pr.mergedBy === pr.author) {
+        fail("merged_by", `${pr.mergedBy} merged pull request ${pr.number} they authored (INV-03)`);
+        continue;
+      }
+    }
+    if (t.to !== "MERGED") {
+      const located = await locateMerge(ctx, subject, t, records, pr);
+      if (!located.ok) {
+        fail(located.reason, located.detail);
         continue;
       }
     }

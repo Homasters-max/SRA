@@ -648,25 +648,49 @@ PR: в виде impl `classification.profiles` на HEAD SHALL содержат�
 - в видах impl, archive и abandon `classification` на HEAD не слабее базы: `profiles` — надмножество профилей record базы и
   профилей, которые `classify` по packs базы выводит из путей diff PR; `risk_level` effective policy по packs базы — не ниже,
   чем у record базы; иначе PR снял бы с себя gates своего merge (причина `classification`);
+- gate с вердиктом `WAIVED` нового перехода SHALL иметь хотя бы один waiver этого Change на этот gate (версия — по файлу, id WAV) — файл `.warrant/waivers/<WAV>.json`
+  базы, а если в базе такого файла нет, то HEAD (новый waiver лежит на пути класса приёмки человеком, [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 2) —
+  засчитываемый по правилу waiver [REQ-VER-003](#requirement-команда-gate-и-алгоритм-verdict) на дату прогона `warrant ci` (UTC):
+  `ACTIVE`, срок не истёк, `approved_by` в `roles` базы, gate `waivable` по определению базы, без `targets[]` (причина
+  `waiver`; [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 5);
+- gate с вердиктом `NOT_APPLICABLE` нового перехода SHALL иметь основание, как у REQ-VER-003, — одно из двух (иначе причина
+  `not_applicable`):
+  - в определении базы есть `applies_when`; у `MERGED` он SHALL быть не выполнен на diff `merge-base(M^1, M^2)..M^2` (M — из
+    правила ref ниже; M не найден — diff не проверяется, нарушение даёт правило ref `merge_commit`); у остальных переходов diff их
+    вычисления судье недоступен — достаточно наличия `applies_when` (остаточный риск, [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 5);
+  - `requires_evidence` определения базы непуст, и каждый его элемент удовлетворён (kind, а у элемента с `check` —
+    `produced_by.id`) записью из `evidence[]` перехода с `evidence_status: "NOT_APPLICABLE"` и `produced_by.type: "check"`, у
+    `MERGED` — ещё с `attestation.type: "ci"` и `subject.commit` M^2 (как правило `ci_evidence`). Gate без `requires_evidence`
+    основания по evidence не имеет;
 - у нового перехода `MERGED` `effective_policy_hash` равен hash effective policy, вычисленной по базе для `classification` на
   HEAD (причина `policy`); для каждого gate `PASS` этого перехода, чьи `requires_evidence` содержат kind, который производят
   checks перехода `VERIFYING->MERGED`, `evidence[]` содержит запись этого kind с `attestation.type: "ci"`, а у элемента с `check` —
   запись этого check (`produced_by.id`; [ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 6) (причина
   `ci_evidence`, [ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md) п. 2).
 Требования к переходам выводятся из базы, а verdicts ни одного перехода record, в том числе новых, `warrant ci` заново
-SHALL NOT вычислять. Доверие к ним держат другие проверки
+SHALL NOT вычислять; проверка основания записанных `WAIVED` и `NOT_APPLICABLE` (выше) — не вычисление: она читает файлы waiver и записи evidence, но не пересчитывает verdict. Доверие к ним держат другие проверки
 ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md), N44 уточнён review spec):
-- ref подтверждений (ниже): maintainer слил spec-PR до `APPROVED` и impl-PR до `MERGED`;
+- ref подтверждений (ниже): maintainer слил spec-PR до `APPROVED` и impl-PR до `MERGED` (без gate `human-approval` — член `roles` или агент);
 - merge-вердикт impl-PR, пересчитанный из evidence своего run;
 - проверка CI-evidence по ссылке на archive-PR.
-У `ARCHIVED` и `ABANDONED` ref нет: их держат локальный `warrant`, повтор archive для `openspec/specs/**` и merge PR
-maintainer'ом — остаточный риск MVP.
+У `ARCHIVED` и `ABANDONED` ref нет: их держат локальный `warrant`, повтор archive для `openspec/specs/**` и merge PR — остаточный риск MVP; archive-PR сливает агент: состояние Change держат повтор archive и CI-evidence ref `MERGED`, правку путей класса приёмки в нём — только форж (`CODEOWNERS`, класс C).
 
 **Ref.** `ref` нового перехода `APPROVED` или `MERGED` SHALL верифицироваться через API форджа
 ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 5):
 - pull request этого репозитория, слит, `merged_by` входит в `roles[<role>]` для роли из `approvals[]` перехода в effective policy
   Change, а при пустом `approvals[]` — в `roles.maintainer`; `roles` и `approvals[]` — из базы требований: иначе PR вписал бы
-  себе подтверждающего;
+  себе подтверждающего. Для ref `MERGED` `roles`, `approvals[]`, `identities.agents` и policy (packs, `.warrant/local/**`,
+  конфигурация) берутся из M^1 — базы impl-PR, а не archive-PR: impl-PR, слитый агентом, не снимет с себя приёмку и не впишет себе
+  роль. Классификация для этой policy — `classification` record Change на M, дополненная профилями, которые `classify` по packs
+  M^1 выводит из diff `merge-base(M^1, M^2)..M^2`. Если effective policy по M^1 не содержит gate `human-approval` на
+  `VERIFYING->MERGED`, `merged_by` SHALL входить в любую роль `roles` M^1 или в `identities.agents` M^1 ([ADR-0050](../../../../docs/adr/WARRANT-ADR-0050-agent-merge.md) п. 2, [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md)
+  п. 4): merge не акт одобрения, его держат merge-вердикт impl-PR и CI-evidence. Исключения нет (fail-closed), если policy по M^1
+  содержит `human-approval`, если она не вычисляется текущим CLI (packs, lock, `kernel`, профиль `classification`, которого нет в
+  packs M^1) или если record Change на M^1 есть и его `change_state` дальше `SPECIFIED` (реализация влита не одним impl-PR M —
+  diff M не несёт кода прежних PR). Без вычисленной policy роль одобрения — `roles.maintainer` конфигурации M^1. Когда исключение
+  закрыто не gate `human-approval`, а одной из двух других причин, вывод SHALL содержать информационную находку
+  `{ code: "AGENT_MERGE_CLOSED", message }` с причиной — при любом исходе ref. Impl-PR, слитый не членом нужной роли,
+  восстанавливается повтором impl-PR без правок кода (`VERIFYING->IMPLEMENTING->VERIFYING`), который сливает член роли одобрения;
 - для `APPROVED` — merge-коммит PR лежит на first-parent линии HEAD^1 и вносит в record этого Change переход `SPECIFIED`;
 - для `MERGED` — merge-коммит PR равен M, а head PR — второму родителю M. M — merge-коммит на first-parent линии HEAD^1, чей
   второй родитель равен общему `subject.commit` записей `attestation.type: "ci"` из `evidence[]` перехода; у них разные
@@ -676,12 +700,12 @@ maintainer'ом — остаточный риск MVP.
   (gate `human-approval` не требовался) — проверка не выполняется.
 Иначе `REF_NOT_VERIFIED` с причиной (`repository`, `merged`, `merged_by`, `change`, `merge_commit`, `by`); причину `decision` даёт
 проверка решений UNKNOWN ([REQ-VER-013](#requirement-решения-unknown-в-warrant-ci)). Идентичности агентов — логины
-`identities.agents[].login` базы требований ([ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 3). Если список
+`identities.agents[].login` базы требований, для ref `MERGED` — M^1 ([ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 3). Если список
 пуст, каждый ref без нарушения SHALL давать информационную находку `{ code: "SHARED_IDENTITY", message }` в `data.findings[]`
 (акт maintainer'а не отличить от акта агента под тем же аккаунтом; ref с `REF_NOT_VERIFIED` находки не даёт), а `merged_by`,
 равный автору PR, — информационную находку `APPROVER_IS_AUTHOR`, не нарушение. Если список непуст, `merged_by`, равный автору PR
-(INV-03) или входящий в `identities.agents`, SHALL быть `REF_NOT_VERIFIED` с причиной `merged_by`; находки `APPROVER_IS_AUTHOR` и
-`SHARED_IDENTITY` не выдаются.
+(INV-03) или входящий в `identities.agents` (для ref `MERGED` — M^1), SHALL быть `REF_NOT_VERIFIED` с причиной `merged_by`, кроме ref `MERGED`, к которому применено исключение (выше); находки `APPROVER_IS_AUTHOR` и
+`SHARED_IDENTITY` не выдаются. Если ни один объект policy базы (packs и `.warrant/local/**`) не добавляет gate `human-approval` на `VERIFYING->MERGED`, вывод SHALL содержать информационную находку `{ code: "NO_HUMAN_ACCEPTANCE", message }` в `data.findings[]`: merge impl-PR агентом не ограничен ни одним путём ([ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 4).
 
 **Пути.** Собственное состояние Change ([REQ-VER-004](#requirement-вычисляемые-l0-gates-core-sdd)) SHALL быть разрешено во всех
 видах. `openspec/specs/**` в diff SHALL быть допустим только в archive-PR с новым переходом `ARCHIVED` и равенством повтору
@@ -730,8 +754,9 @@ archive (ниже), иначе `SCOPE_VIOLATION` (R-16). Правила путе
     его версия вне диапазона — код 3 с выводом.
 - **abandon**: diff SHALL содержать только собственное состояние Change и удаление `openspec/changes/<change>/**`, иначе
   `SCOPE_VIOLATION`.
-- **none**: diff SHALL NOT трогать `openspec/changes/**`, `.warrant/changes/**`, `.warrant/evidence/**`, `.warrant/runs/**` и
-  policy-пути, иначе `SCOPE_VIOLATION`.
+- **none**: diff SHALL NOT трогать `openspec/changes/**`, `.warrant/changes/**`, `.warrant/evidence/**`, `.warrant/runs/**`,
+  policy-пути, `paths.src` и `paths.tests` (код без Change, [ADR-0049](../../../../docs/adr/WARRANT-ADR-0049-flow.md) п. 7, [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 8), иначе `SCOPE_VIOLATION`; без
+  `paths.src` и `paths.tests` — запись в `skipped[]`.
 
 **Вывод** — `data{ kind, change?, transitions[]{ to, at, ref? }, gates?, deferred[]?, findings[], skipped[], evidence[]?,
 artifact?, dry_run?, would_write[]? }`; `transitions[]` — новые переходы; `evidence[]` — id записей, которые записал вид impl
@@ -749,7 +774,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 
 #### Scenario: spec-PR трогает код
 <!-- id: SCN-VER-073 -->
-- **WHEN** при `paths.src: ["src/**"]` diff PR содержит новый record `add-search` в `PROPOSED`, `openspec/changes/add-search/proposal.md`, запись review `.warrant/evidence/add-search/EVID-….json`, файл Run Change, `docs/adr/0042.md` и `src/app.py`
+- **WHEN** при `paths.src: "src"` diff PR содержит новый record `add-search` в `PROPOSED`, `openspec/changes/add-search/proposal.md`, запись review `.warrant/evidence/add-search/EVID-….json`, файл Run Change, `docs/adr/0042.md` и `src/app.py`
 - **THEN** `data.kind` равен `spec`, `errors[]` содержит `SCOPE_VIOLATION` только с путём `src/app.py`, код 1; без `src/app.py` — код 0
 
 #### Scenario: specs вне archive-PR
@@ -759,7 +784,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 
 #### Scenario: Вердикт impl-PR
 <!-- id: SCN-VER-075 -->
-- **WHEN** `warrant ci` под GitHub Actions на результате merge impl-PR Change `add-search` с `risk_level: HIGH` в `VERIFYING`, checks проходят, gate `human-approval` перехода `VERIFYING->MERGED` без evidence
+- **WHEN** `warrant ci` под GitHub Actions на результате merge impl-PR Change `add-search` в `VERIFYING`, чья effective policy даёт `human-approval` на `VERIFYING->MERGED` (профиль приёмки), checks проходят, gate `human-approval` перехода `VERIFYING->MERGED` без evidence
 - **THEN** `data.kind` равен `impl`, записи evidence лежат в `.warrant/evidence/add-search/` рабочей копии с `attestation.type: "ci"`, `subject.commit` равным HEAD^2 и `subject.tree`, `data.artifact.name` равен `evidence-add-search-1` (без `GITHUB_RUN_ATTEMPT`; при `GITHUB_RUN_ATTEMPT=2` — `evidence-add-search-2`), `data.deferred[]` содержит `human-approval`, код 0; ни один commit не создан
 
 #### Scenario: impl-PR с упавшим gate
@@ -854,7 +879,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 
 #### Scenario: Код в archive-PR
 <!-- id: SCN-VER-100 -->
-- **WHEN** честный archive-PR `add-search` дополнительно меняет `src/app.py` при `paths.src: ["src/**"]`
+- **WHEN** честный archive-PR `add-search` дополнительно меняет `src/app.py` при `paths.src: "src"`
 - **THEN** `errors[]` содержит `SCOPE_VIOLATION` с `src/app.py`, код 1
 
 #### Scenario: Ослабленная классификация в impl-PR
@@ -891,6 +916,51 @@ checks и `data.would_write[]` без запуска checks и без обращ
 <!-- id: SCN-VER-120 -->
 - **WHEN** impl-PR вносит переход `APPROVED` с `ref` spec-PR, который слил `kat` из `roles.maintainer`, он же автор PR; `identities.agents` базы пуст
 - **THEN** `REF_NOT_VERIFIED` нет, `data.findings[]` содержит `SHARED_IDENTITY` и `APPROVER_IS_AUTHOR`; при `identities.agents` базы `[{ "login": "warrant-agent[bot]" }]` — `REF_NOT_VERIFIED` с причиной `merged_by`, код 1, находок `SHARED_IDENTITY` и `APPROVER_IS_AUTHOR` нет; spec-PR открыл `warrant-agent[bot]`, слил `kat` — нет ни `REF_NOT_VERIFIED`, ни этих находок; слил `warrant-agent[bot]` — `REF_NOT_VERIFIED` с причиной `merged_by`
+
+#### Scenario: WAIVED без засчитываемого waiver
+<!-- id: SCN-VER-127 -->
+- **WHEN** archive-PR вносит переход `MERGED` с `tests-passed: WAIVED`, а waiver этого Change на `tests-passed` в базе `REVOKED` и на HEAD `ACTIVE`, либо его нет ни в базе, ни на HEAD, либо его срок раньше даты прогона
+- **THEN** `RECORD_MISMATCH` с причиной `waiver`, код 1; waiver `ACTIVE` в базе, одобренный логином из `roles` базы, со сроком не раньше даты прогона, при `waivable: true` gate — правило не нарушено
+
+#### Scenario: NOT_APPLICABLE без основания
+<!-- id: SCN-VER-128 -->
+- **WHEN** переход `MERGED` записывает `NOT_APPLICABLE` gate с `applies_when.changed_paths: ["packages/cli/src/**"]`, diff `merge-base(M^1, M^2)..M^2` правит `packages/cli/src/a.ts`, а у записи evidence gate `evidence_status: "PROVEN"`
+- **THEN** `RECORD_MISMATCH` с причиной `not_applicable`, код 1; тот же переход, где каждый элемент `requires_evidence` gate удовлетворён CI-записью `NOT_APPLICABLE` от check на M^2, — правило не нарушено; `scope-valid: NOT_APPLICABLE` (без `applies_when` и без `requires_evidence`) — `not_applicable`
+
+#### Scenario: Реализация не одним impl-PR
+<!-- id: SCN-VER-135 -->
+- **WHEN** PR1 с кодом класса и record в `IMPLEMENTING` слит в `main`; impl-PR M несёт только `IMPLEMENTING->VERIFYING`, его слил `homasters`; record Change на M^1 — `IMPLEMENTING`, effective policy по M^1 не содержит `human-approval`
+- **THEN** `REF_NOT_VERIFIED` с причиной `merged_by` и находка `AGENT_MERGE_CLOSED`, код 1; тот же PR, слитый членом `roles.maintainer` M^1 (не автором PR), — ref верифицирован, находка `AGENT_MERGE_CLOSED` есть, код 0; в SCN-VER-131 находки нет
+
+#### Scenario: Impl-PR снял с себя приёмку
+<!-- id: SCN-VER-129 -->
+- **WHEN** impl-PR, слитый `homasters` из `identities.agents`, правит `packages/cli/src/core/ci/refs.ts`, сузил `match.paths` профиля приёмки в `.warrant/local/**` и убрал профиль из record; archive-PR вносит `MERGED` с его `ref`. Либо тот же impl-PR перенёс `homasters` из `identities.agents` в `roles.maintainer`
+- **THEN** `REF_NOT_VERIFIED` с причиной `merged_by`, код 1: `classify` по packs M^1 выводит профиль приёмки из diff impl-PR, а `roles` и agents берутся из M^1
+
+#### Scenario: Impl-PR слил агент без human-approval
+<!-- id: SCN-VER-130 -->
+- **WHEN** archive-PR вносит `MERGED` с `ref` impl-PR, который открыл и слил `homasters` из `identities.agents` M^1, а effective policy по M^1 не содержит `human-approval` на `VERIFYING->MERGED`
+- **THEN** ref верифицирован: нет `REF_NOT_VERIFIED`, нет находок `SHARED_IDENTITY` и `APPROVER_IS_AUTHOR`, код 0; тот же PR, слитый логином вне `roles` и `identities.agents` M^1, — `REF_NOT_VERIFIED` с причиной `merged_by`, код 1
+
+#### Scenario: Impl-PR слил агент при human-approval
+<!-- id: SCN-VER-131 -->
+- **WHEN** тот же archive-PR, но effective policy по M^1 содержит `human-approval` на `VERIFYING->MERGED` (профиль приёмки по путям diff)
+- **THEN** `REF_NOT_VERIFIED` с причиной `merged_by`, код 1
+
+#### Scenario: Spec-PR слил агент
+<!-- id: SCN-VER-132 -->
+- **WHEN** impl-PR вносит `APPROVED` с `ref` spec-PR, который слил `homasters` из `identities.agents` базы; `approvals[]` перехода `SPECIFIED->APPROVED` пуст
+- **THEN** `REF_NOT_VERIFIED` с причиной `merged_by`, код 1: одобрение spec — член `roles.maintainer`
+
+#### Scenario: Код без Change
+<!-- id: SCN-VER-133 -->
+- **WHEN** PR без Change (вид none) правит `src/a.ts` при `paths.src: "src"`
+- **THEN** `SCOPE_VIOLATION` с путём `src/a.ts`, код 1; без `paths.src` и `paths.tests` — запись в `skipped[]`, нарушения нет, код 0
+
+#### Scenario: Проект без приёмки человеком
+<!-- id: SCN-VER-134 -->
+- **WHEN** `warrant ci` в проекте, где ни pack, ни `.warrant/local/**` не дают `human-approval` на `VERIFYING->MERGED`
+- **THEN** `data.findings[]` содержит `NO_HUMAN_ACCEPTANCE`; находка информационная, код выхода она не меняет
 
 ### Requirement: Команда ci fetch
 <!-- id: REQ-VER-012 -->
@@ -1045,7 +1115,7 @@ CLI; design I-208); другое значение или `checkout` в чужо�
 checkout и merge PR в tip базы; `node-version` (default `22`); `openspec-version` (default `1.13.1`); `merge_commit` — merge-коммит
 impl-PR для recovery-прогона ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 4, default пусто).
 Шаги SHALL быть шагами job `warrant`: checkout head PR (или `merge_commit`) с полной историей, merge в tip базы (кроме recovery),
-`setup`, OpenSpec, CLI, `warrant ci` с выводом вне checkout, upload artifact по `data.artifact`. Секретов workflow SHALL NOT
+`setup`, OpenSpec, CLI, `warrant validate` и `warrant sync --check` (красный шаг — красный job: дрейф сгенерированных файлов и lock против `warrant.json`; согласованную правку с перегенерацией держит защита форжа, [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 3, 7), `warrant ci` с выводом вне checkout, upload artifact по `data.artifact`. Секретов workflow SHALL NOT
 требовать: токен — `github.token` вызывающего; вызывающий SHALL дать job права `contents: read`, `actions: read`,
 `pull-requests: read`, `issues: read` (форж `warrant ci`). Тег CLI во входе `warrant` и ref, по которому вызван workflow, выбирает
 вызывающий; пример 06 §8 даёт один тег в обоих местах. Workflow `ci.yml` этого репозитория SHALL вызывать job `warrant` через
@@ -1056,7 +1126,7 @@ impl-PR для recovery-прогона ([ADR-0037](../../../../docs/adr/WARRANT-
 #### Scenario: Job warrant из reusable workflow
 <!-- id: SCN-VER-122 -->
 - **WHEN** читаются `.github/workflows/warrant.yml` и `.github/workflows/ci.yml` репозитория
-- **THEN** `warrant.yml` объявляет `workflow_call` со входами `setup`, `node-version`, `openspec-version`, `warrant` (обязательный), `merge_commit`, шаг проверки входа `warrant` до установки CLI и шаг `warrant ci`; для тега CLI ставится `npm pack "github:Homasters-max/SRA#<тег>" --ignore-scripts=false` в каталоге под `$RUNNER_TEMP` и `npm i -g` файла `.tgz`, установки `npm i -g github:` нет; job `warrant` в `ci.yml` — `uses: ./.github/workflows/warrant.yml` с `warrant: checkout`, без собственных `steps`, с правами `contents`, `actions`, `pull-requests`, `issues` на чтение; `merge_commit` передаётся из входа `workflow_dispatch`
+- **THEN** `warrant.yml` объявляет `workflow_call` со входами `setup`, `node-version`, `openspec-version`, `warrant` (обязательный), `merge_commit`, шаг проверки входа `warrant` до установки CLI, шаги `warrant validate` и `warrant sync --check` после установки CLI и до шага `warrant ci`; для тега CLI ставится `npm pack "github:Homasters-max/SRA#<тег>" --ignore-scripts=false` в каталоге под `$RUNNER_TEMP` и `npm i -g` файла `.tgz`, установки `npm i -g github:` нет; job `warrant` в `ci.yml` — `uses: ./.github/workflows/warrant.yml` с `warrant: checkout`, без собственных `steps`, с правами `contents`, `actions`, `pull-requests`, `issues` на чтение; `merge_commit` передаётся из входа `workflow_dispatch`
 
 ### Requirement: Job test репозитория по shard
 <!-- id: REQ-VER-015 -->

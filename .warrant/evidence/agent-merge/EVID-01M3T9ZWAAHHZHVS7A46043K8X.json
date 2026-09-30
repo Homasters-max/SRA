@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3T9ZWAAHHZHVS7A46043K8X",
+  "claim": {
+    "text": "Homasters-max approved agent-merge for VERIFYING->MERGED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "cd16b9bc5371eeb5fcd00a5c0772e0fbbfb92e11",
+    "base_commit": "3419bfbf61206e2a27acf51bba5521fc27a411ac",
+    "spec_revision": "openspec/changes/agent-merge@cd16b9bc5371eeb5fcd00a5c0772e0fbbfb92e11",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/119"
+  },
+  "context_hash": "sha256:63102ad0a34284869c74d17d0c955c3f8ccf51f78e8152365509bf447ee411d4",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-30T23:21:57.835Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3T9WM29VHHKFNCED2GFBEHY",
+  "claim": {
+    "text": "tests-passed passed for agent-merge",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "cd16b9bc5371eeb5fcd00a5c0772e0fbbfb92e11",
+    "base_commit": "3419bfbf61206e2a27acf51bba5521fc27a411ac",
+    "spec_revision": "openspec/changes/agent-merge@cd16b9bc5371eeb5fcd00a5c0772e0fbbfb92e11",
+    "tree": "24c82d089a5e806857c57c63a5f9b2a485c2904d",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "ci",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/36790328069/attempts/1"
+  },
+  "context_hash": "sha256:a91fa27b717eb811190f85d071123e978439aa6678b2257e967ff57b6b6103b8",
+  "effective_policy_hash": "sha256:3bc2c88b5de4545a6392983339502a4e6d8e3d6265c69337c7c0549bff6143f3",
+  "created_at": "2026-09-30T23:20:11.082Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/agent-merge/raw/tests-passed/junit.xml",
+      "sha256": "sha256:d1fff0806dd06282e6186af006def15f6e8b28400c924e01e5e0c4a26524de26"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 1,
+    "tests": 1628
+  }
+}

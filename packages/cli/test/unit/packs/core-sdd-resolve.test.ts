@@ -92,10 +92,12 @@ describe("pack core-sdd: эффективная policy", () => {
       risk: minimalRisk({ reversibility: "IRREVERSIBLE" })
     });
     expect(policy.risk_level).toBe("HIGH");
-    expect(policy.sources).toContain(`core-sdd@${CORE_SDD_VERSION}:overlay/risk-high@1.0.0`);
+    expect(policy.sources).toContain(`core-sdd@${CORE_SDD_VERSION}:overlay/risk-high@2.0.0`);
     expect(policy.sources).not.toContain(`core-sdd@${CORE_SDD_VERSION}:overlay/risk-medium@1.0.0`);
-    expect(policy.gates["VERIFYING->MERGED"]).toContain("human-approval");
-    expect(policy.approvals).toContainEqual({ role: "maintainer", at: "VERIFYING->MERGED" });
+    // risk-high 2.0.0: приёмку человеком на merge задаёт профиль путей проекта (REQ-SDD-006).
+    expect(policy.gates["SPECIFIED->APPROVED"]).toContain("adversarial-review");
+    expect(policy.gates["VERIFYING->MERGED"] ?? []).not.toContain("human-approval");
+    expect(policy.approvals).not.toContainEqual({ role: "maintainer", at: "VERIFYING->MERGED" });
   });
 
   it("profile feature: gates по переходам как в 04 §5 (REQ-SDD-003)", () => {
@@ -165,8 +167,49 @@ describe("pack core-sdd: эффективная policy", () => {
     expect(policy.explain.filter((e) => e.item === "gate:tests-passed").map((e) => e.from)).toContain(
       "profile/feature"
     );
-    expect(policy.explain.filter((e) => e.item === "gate:human-approval").map((e) => e.from)).toContain(
+    expect(policy.explain.filter((e) => e.item === "gate:adversarial-review").map((e) => e.from)).toContain(
       "overlay/risk-high"
     );
+    expect(policy.gates["VERIFYING->MERGED"]).not.toContain("human-approval");
+  });
+
+  it("приёмку человеком на merge даёт профиль путей проекта, не risk-high (SCN-SDD-028)", () => {
+    const high = { profiles: [] as string[], risk: minimalRisk({ reversibility: "IRREVERSIBLE" }) };
+    expect(policyFor(high).gates["VERIFYING->MERGED"] ?? []).not.toContain("human-approval");
+
+    const local = makeTempDir("warrant-core-sdd-local-");
+    try {
+      const write = (rel: string, json: object): void => {
+        const file = path.join(local, rel);
+        mkdirSync(path.dirname(file), { recursive: true });
+        writeFileSync(file, JSON.stringify(json, null, 2) + "\n", "utf8");
+      };
+      write(".warrant/warrant.json", {
+        $schema: "warrant://config/1",
+        kernel: "0.1",
+        openspec: "1.13.x",
+        packs: { "core-sdd": { version: CORE_SDD_RANGE } }
+      });
+      write(".warrant/local/profiles/human-acceptance.json", {
+        $schema: "warrant://profile/1",
+        id: "human-acceptance",
+        version: "1.0.0",
+        description: "Paths whose change alters the check.",
+        match: { paths: ["packages/cli/src/**"] },
+        gates: { "VERIFYING->MERGED": ["human-approval"] },
+        approvals: [{ role: "maintainer", at: "VERIFYING->MERGED" }]
+      });
+      const loaded = loadPacks(local);
+      expect(loaded.errors).toEqual([]);
+      const { result, errors } = resolveForProject(loaded, { ...high, profiles: ["human-acceptance"] });
+      expect(errors).toEqual([]);
+      if (!result.ok) throw new Error(`POLICY_CONFLICT: ${result.conflict.message}`);
+      expect(result.policy.gates["VERIFYING->MERGED"]).toContain("human-approval");
+      expect(result.policy.explain.filter((e) => e.item === "gate:human-approval").map((e) => e.from)).toEqual([
+        "profile/human-acceptance"
+      ]);
+    } finally {
+      removeDir(local);
+    }
   });
 });

@@ -4,7 +4,9 @@
  * says of its transition. The own state of the Change is allowed everywhere;
  * `openspec/specs/**` only in an archive-PR with a new `ARCHIVED` (equality with
  * a repeated archive — `archive.ts`). The law — `paths.*` and policy paths — is the
- * base's (I-171).
+ * base's (I-171). Code and tests (`paths.src`, `paths.tests`) change only in an
+ * impl-PR: a spec-, archive- or none-PR touching them is `SCOPE_VIOLATION`
+ * (design D10 of agent-merge, ADR-0051 п. 8).
  */
 import type { Ctx } from "../ctx.js";
 import { cliError, type CliError } from "../errors.js";
@@ -89,11 +91,20 @@ export async function judgePaths(
     }
   }
 
+  // Code and tests: paths.src, paths.tests of the base (D10, ADR-0051 п. 8); none set — the rule is skipped.
+  const code = codeScope(base.loaded.config);
+  const isCode = code.length === 0 ? (): boolean => false : pathMatcher(code);
+  const skipCode = (): void => {
+    if (code.length === 0) out.skipped.push({ rule: "code", reason: "paths.src and paths.tests are not set in warrant.json of the base" });
+  };
+
   if (subject.kind === "none") {
+    skipCode();
     const state = pathMatcher(CHANGE_STATE_PATHS);
     for (const p of rest) {
       if (state(p)) out.errors.push(violation(p, "the state and artifacts of a Change change only in a pull request of that Change"));
       else if (policy(p)) out.errors.push(violation(p, "a policy path (factory-change) changes only in a pull request of a Change"));
+      else if (isCode(p)) out.errors.push(violation(p, "code and tests change only in the impl-PR of a Change (paths.src, paths.tests of the base)"));
     }
     return out;
   }
@@ -110,9 +121,7 @@ export async function judgePaths(
   }
 
   // spec and archive: N47, waivers of the Change allowed (N48).
-  const code = codeScope(base.loaded.config);
-  const isCode = code.length === 0 ? (): boolean => false : pathMatcher(code);
-  if (code.length === 0) out.skipped.push({ rule: "code", reason: "paths.src and paths.tests are not set in warrant.json of the base" });
+  skipCode();
   const other = otherState(ctx.root, env);
   const waivers = await ownWaivers(ctx, subject, change, rest);
   const archiveDir = new RegExp(`^openspec/changes/archive/\\d{4}-\\d{2}-\\d{2}-${change.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/`);

@@ -7,7 +7,10 @@
  * evidence and the repeated archive of an archive-PR (group 5) — SCN-VER-079,
  * 080, 091, 096, 102, 106. Decisions of UNKNOWNs through the forge and the
  * UNKNOWNs of the base kept (slice-fixes, group 3) — SCN-VER-111…116. Agent
- * identities of the base (lattice-issues, group 5) — SCN-VER-120, 121.
+ * identities of the base (lattice-issues, group 5) — SCN-VER-120, 121. The ref
+ * of MERGED by the law of M^1, the ground of recorded WAIVED and NOT_APPLICABLE,
+ * code without a Change and NO_HUMAN_ACCEPTANCE (agent-merge, group 4) —
+ * SCN-VER-127…135.
  *
  * Each case builds the synced core-sdd project on `main` of `FakeGit`, opens a
  * pull request on a branch and merges it into `main` with a merge commit: HEAD
@@ -299,6 +302,52 @@ describe("warrant ci: the structure of the record", () => {
     const result = await ci(none);
     expect(scope(result)).toEqual([".warrant/warrant.lock.json"]);
     expect(result.exitCode).toBe(1);
+  });
+
+  it("a profile the impl-PR introduces in .warrant/local/** is not law of the base: no CONFIG_INVALID, factory-change still required (I-234)", async () => {
+    const p = await changeRepo("IMPLEMENTING");
+    pullRequest(p, "worktree/add-search", (b) => {
+      b.write(".warrant/local/profiles/acceptance.json", {
+        $schema: "warrant://profile/1",
+        id: "acceptance",
+        version: "1.0.0",
+        description: "A profile this pull request introduces.",
+        match: { paths: ["src/**"] },
+        gates: { "VERIFYING->MERGED": ["human-approval"] },
+        approvals: [{ role: "maintainer", at: "VERIFYING->MERGED" }]
+      });
+      const record = b.json(".warrant/changes/add-search.json");
+      b.write(".warrant/changes/add-search.json", { ...record, classification: { profiles: ["chore", "acceptance"] } });
+      advance(b, "VERIFYING");
+    });
+    const judged = await ci(p, CI_ENV);
+    expect(codes(judged)).not.toContain("CONFIG_INVALID");
+    const mismatch = judged.errors.filter((e) => e.code === "RECORD_MISMATCH");
+    expect(mismatch.map((e) => e.message.includes("classification") && e.message.includes("factory-change"))).toEqual([true]);
+  });
+
+  it("a new minor of a bundled pack outside the range of the base is the law changed, not a broken base; an unchanged pack outside the range is (I-179, I-233)", async () => {
+    const outOfRange = (b: ProjectBuilder): void => {
+      const config = b.json(".warrant/warrant.json");
+      b.write(".warrant/warrant.json", { ...config, packs: { ...config.packs, "core-sdd": { version: "^0.0.1" } } });
+    };
+    const impl = await changeRepo("IMPLEMENTING");
+    stale(impl);
+    outOfRange(impl);
+    impl.commit("base: a lock and a range of another core-sdd");
+    pullRequest(impl, "worktree/add-search", (b) => advance(b, "VERIFYING"));
+    const judged = await ci(impl, CI_ENV);
+    expect(codes(judged)).not.toContain("CONFIG_INVALID");
+    const mismatch = judged.errors.filter((e) => e.code === "RECORD_MISMATCH");
+    expect(mismatch.map((e) => e.message.includes("classification") && e.message.includes("factory-change"))).toEqual([true]);
+
+    const broken = await repo();
+    outOfRange(broken);
+    broken.commit("base: a range of another core-sdd, the lock holds the bundled pack");
+    pullRequest(broken, "docs/readme", (b) => b.write("docs/readme.md", "# Readme\n"));
+    const result = await ci(broken);
+    expect(codes(result)).toContain("CONFIG_INVALID");
+    expect(result.exitCode).toBe(3);
   });
 
   it("an abandon-PR over a bundled pack not held by the lock of the base: only SCOPE_VIOLATION of the lock, no RECORD_MISMATCH (I-179)", async () => {
@@ -599,7 +648,8 @@ describe("warrant ci: decisions of UNKNOWNs through the forge (REQ-VER-013)", ()
  * fake forge holds (`artifact: false` — expired); the archive branch commits
  * them with `transition MERGED --ref` of the impl-PR (pull 9) and, with
  * `archive`, `warrant archive`; `main` — after one more commit of `base`,
- * when given — merges the archive branch: HEAD.
+ * when given — merges the archive branch: HEAD. `setup` changes the project
+ * before its first commit; `records` — the CI records before the artifact is taken.
  */
 async function archivePr(
   options: {
@@ -610,9 +660,15 @@ async function archivePr(
     work?: (p: ProjectBuilder, evidence: string[]) => void;
     record?: (record: Data) => void;
     base?: (p: ProjectBuilder) => void;
+    setup?: (p: ProjectBuilder) => void;
+    records?: (p: ProjectBuilder, evidence: string[]) => void;
+    extra?: Record<string, unknown>;
   } = {}
 ): Promise<{ p: ProjectBuilder; m: string; head: string; evidence: string[] }> {
-  const p = await changeRepo("IMPLEMENTING", CHORE, (b) => b.write(".warrant/warrant.json", { ...b.json(".warrant/warrant.json"), paths: { src: "src" } }));
+  const p = await changeRepo("IMPLEMENTING", options.extra ?? CHORE, (b) => {
+    b.write(".warrant/warrant.json", { ...b.json(".warrant/warrant.json"), paths: { src: "src" } });
+    options.setup?.(b);
+  });
   const impl = pullRequest(p, "worktree/add-search", (b) => {
     b.write("src/search.ts", "export const search = 1;\n");
     advance(b, "VERIFYING", { gates: { "tests-passed": "PASS" } });
@@ -620,6 +676,7 @@ async function archivePr(
   const run = await ci(p, CI_ENV);
   expect(run.errors).toEqual([]);
   const evidence = run.data["evidence"] as string[];
+  options.records?.(p, evidence);
   p.withForge({
     pulls: [fakePull(9, { mergeCommit: impl.merge, headSha: impl.head, ...options.pull })],
     runs: [fakeRun(42, { headSha: impl.head, ...options.run })],
@@ -830,11 +887,12 @@ async function implPr(extra: Record<string, unknown> = CHORE, setup?: (p: Projec
   return { p, head, merge };
 }
 
-const HIGH = { classification: { profiles: ["chore"], risk_level: "HIGH" } };
+/** `human-approval` on `VERIFYING->MERGED` comes from the profile of acceptance over `src/**`, not from risk (design D6, D9). */
+const ACCEPTED = { classification: { profiles: ["chore", "human-acceptance"] } };
 
 describe("warrant ci: the merge verdict of an impl-PR", () => {
   it("checks on the result of the merge write CI evidence; human-approval deferred; no commit (SCN-VER-075, SCN-VER-068)", async () => {
-    const { p, head, merge } = await implPr(HIGH);
+    const { p, head, merge } = await implPr(ACCEPTED, (b) => b.write(ACCEPTANCE, acceptance()));
     const commits = p.git.commits.size;
     const result = await ci(p, CI_ENV);
     expect(result.errors).toEqual([]);
@@ -927,5 +985,373 @@ describe("warrant ci: the merge verdict of an impl-PR", () => {
     expect(result.data["gates"]["tests-passed"]).toBe("BLOCKED");
     expect(codes(result)).toContain("GATE_NOT_PASSED");
     expect(result.exitCode).toBe(1);
+  });
+});
+
+const ACCEPTANCE = ".warrant/local/profiles/human-acceptance.json";
+const HOMASTERS = "homasters";
+
+/** The profile of human acceptance of the project layer (design D6): an impl-PR touching `paths` is merged by a human. */
+function acceptance(paths: string[] = ["src/**"]): Record<string, unknown> {
+  return {
+    $schema: "warrant://profile/1",
+    id: "human-acceptance",
+    version: "1.0.0",
+    description: "Paths whose impl-PR a human merges.",
+    match: { paths },
+    gates: { "VERIFYING->MERGED": ["human-approval"] },
+    approvals: [{ role: "maintainer", at: "VERIFYING->MERGED" }]
+  };
+}
+
+/** `paths.src`, `roles.maintainer` `[kat]`, `identities.agents` `[homasters]`; with `human` — the profile of acceptance over `src/**`. */
+function agentProject(human: boolean): (p: ProjectBuilder) => void {
+  return (p) => {
+    p.write(".warrant/warrant.json", {
+      ...p.json(".warrant/warrant.json"),
+      paths: { src: "src" },
+      roles: { maintainer: ["kat"] },
+      identities: { agents: [{ login: HOMASTERS, kind: "bot" }] }
+    });
+    if (human) p.write(ACCEPTANCE, acceptance());
+  };
+}
+
+/**
+ * The way of SCN-VER-129…131, 135: `main` with the record in `PROPOSED`; the
+ * spec-PR (pull 5, opened by `homasters`, merged by `kat`) records `SPECIFIED`;
+ * the impl-PR (pull 9, opened by `homasters`, merged by `mergedBy`) records
+ * `APPROVED`, `IMPLEMENTING`, `src/search.ts` and `VERIFYING` — with `split`,
+ * the first three come in an earlier pull request and the impl-PR brings only
+ * `VERIFYING`; `warrant ci` on M writes the CI records; the archive-PR records
+ * `MERGED --ref` of the impl-PR (`--by`, when the policy of HEAD asks a human).
+ * `main` changes `main` in one more commit before the impl-PR; `hand` writes `MERGED`
+ * by hand, for an impl-PR whose record `warrant transition` would not move.
+ */
+async function agentMerge(o: {
+  mergedBy: string;
+  human?: boolean;
+  profiles?: string[];
+  split?: boolean;
+  main?: (p: ProjectBuilder) => void;
+  work?: (p: ProjectBuilder) => void;
+  by?: string;
+  hand?: boolean;
+}): Promise<ProjectBuilder> {
+  const human = o.human === true;
+  const profiles = o.profiles ?? (human ? ["chore", "human-acceptance"] : ["chore"]);
+  const p = await changeRepo("PROPOSED", { classification: { profiles } }, agentProject(human));
+  const spec = pullRequest(p, "spec/add-search", (b) => advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } }));
+  p.withForge({ pulls: [fakePull(5, { mergeCommit: spec.merge, headSha: spec.head, author: HOMASTERS })] });
+  if (o.main !== undefined) {
+    o.main(p);
+    p.commit("base: main moves");
+  }
+  const approve = (b: ProjectBuilder): void => {
+    advance(b, "APPROVED", { gates: { "human-approval": "PASS" }, ref: SPEC_PR });
+    advance(b, "IMPLEMENTING", { gates: { "branch-isolated": "PASS" } });
+    b.write("src/search.ts", "export const search = 1;\n");
+  };
+  if (o.split === true) pullRequest(p, "worktree/add-search", approve);
+  const impl = pullRequest(p, o.split === true ? "worktree/add-search-verify" : "worktree/add-search", (b) => {
+    if (o.split === true) b.write("src/search.ts", "export const search = 2;\n");
+    else approve(b);
+    o.work?.(b);
+    advance(b, "VERIFYING", { gates: { "tests-passed": "PASS" } });
+  });
+  const run = await ci(p, CI_ENV);
+  p.withForge({
+    pulls: [fakePull(9, { mergeCommit: impl.merge, headSha: impl.head, mergedBy: o.mergedBy, author: HOMASTERS })],
+    runs: [fakeRun(42, { headSha: impl.head })],
+    artifacts: [{ runId: 42, name: run.data["artifact"].name, files: artifactOf(p, run.data["artifact"].path) }]
+  });
+  p.branch("archive/add-search", "main");
+  if (o.hand === true) advance(p, "MERGED", { ref: IMPL_PR, evidence: run.data["evidence"] });
+  else {
+    const merged = await invoke(() => runTransition(p.ctx, "add-search", "MERGED", { ref: IMPL_PR, ...(o.by === undefined ? {} : { by: o.by }) }, LOCAL));
+    expect(merged.errors).toEqual([]);
+  }
+  p.commit("archive: MERGED");
+  p.checkout("main", { force: true });
+  p.merge("archive/add-search", { label: "Merge archive" });
+  return p;
+}
+
+/** Messages of `REF_NOT_VERIFIED`. */
+function refMessages(result: Result): string[] {
+  return result.errors.filter((e) => e.code === "REF_NOT_VERIFIED").map((e) => e.message);
+}
+
+/** Findings of `code`. */
+function findingsOf(result: Result, code: string): Data[] {
+  return result.data["findings"].filter((f: Data) => f["code"] === code);
+}
+
+describe("warrant ci: the ref of MERGED by the law of M^1 (agent-merge, design D3)", () => {
+  it("an impl-PR opened and merged by an agent of M^1 without human-approval: verified, no identity findings; merged outside roles and agents — merged_by (SCN-VER-130)", async () => {
+    const p = await agentMerge({ mergedBy: HOMASTERS });
+    const result = await ci(p);
+    expect(result.data["kind"]).toBe("archive");
+    expect(result.errors).toEqual([]);
+    expect(identityFindings(result)).toEqual([]);
+    expect(findingsOf(result, "AGENT_MERGE_CLOSED")).toEqual([]);
+    expect(result.exitCode).toBe(0);
+
+    const outside = await ci(await agentMerge({ mergedBy: "mallory" }));
+    expect(refMessages(outside)).toEqual([expect.stringContaining(`ref ${IMPL_PR}: merged_by: mallory merged pull request 9, neither a member of roles nor an agent identity of M^1`)]);
+    expect(outside.exitCode).toBe(1);
+  });
+
+  it("the policy by M^1 holds human-approval (the profile of acceptance over the diff): an agent's merge is merged_by, no AGENT_MERGE_CLOSED (SCN-VER-131)", async () => {
+    const result = await ci(await agentMerge({ mergedBy: HOMASTERS, human: true, by: "kat" }));
+    expect(refMessages(result)).toEqual([expect.stringContaining(`ref ${IMPL_PR}: merged_by: ${HOMASTERS} merged pull request 9, not a member of roles maintainer of M^1`)]);
+    expect(findingsOf(result, "AGENT_MERGE_CLOSED")).toEqual([]);
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("an impl-PR that narrowed the profile of acceptance and dropped it from the record, or moved the agent into roles: judged by M^1 — merged_by (SCN-VER-129)", async () => {
+    const narrowed = await agentMerge({
+      mergedBy: HOMASTERS,
+      human: true,
+      hand: true,
+      work: (b) => {
+        b.write(ACCEPTANCE, acceptance(["nothing/**"]));
+        const record = b.json(RECORD);
+        // factory-change: the impl-PR touches the project layer, its own warrant ci asks for it.
+        record.classification.profiles = ["chore", "factory-change"];
+        b.write(RECORD, record);
+      }
+    });
+    const lifted = await ci(narrowed);
+    expect(refMessages(lifted)).toEqual([expect.stringContaining(`merged_by: ${HOMASTERS} merged pull request 9, not a member of roles maintainer of M^1`)]);
+    expect(lifted.exitCode).toBe(1);
+
+    const promoted = await agentMerge({
+      mergedBy: HOMASTERS,
+      human: true,
+      profiles: ["chore", "factory-change", "human-acceptance"],
+      hand: true,
+      work: (b) => {
+        const config = b.json(".warrant/warrant.json");
+        delete config.identities;
+        b.write(".warrant/warrant.json", { ...config, roles: { maintainer: ["kat", HOMASTERS] } });
+      }
+    });
+    const role = await ci(promoted);
+    expect(refMessages(role)).toEqual([expect.stringContaining(`merged_by: ${HOMASTERS} merged pull request 9, not a member of roles maintainer of M^1`)]);
+    expect(role.exitCode).toBe(1);
+  });
+
+  it("the implementation reached main before the impl-PR: an agent's merge is merged_by with AGENT_MERGE_CLOSED; a maintainer's is verified with it (SCN-VER-135)", async () => {
+    const agent = await ci(await agentMerge({ mergedBy: HOMASTERS, split: true }));
+    expect(refMessages(agent)).toEqual([expect.stringContaining(`merged_by: ${HOMASTERS} merged pull request 9, not a member of roles maintainer of M^1`)]);
+    expect(findingsOf(agent, "AGENT_MERGE_CLOSED").map((f) => f["message"])).toEqual([
+      expect.stringContaining("the record of add-search is IMPLEMENTING on M^1")
+    ]);
+    expect(agent.exitCode).toBe(1);
+
+    const maintainer = await ci(await agentMerge({ mergedBy: "kat", split: true }));
+    expect(maintainer.errors).toEqual([]);
+    expect(findingsOf(maintainer, "AGENT_MERGE_CLOSED")).toHaveLength(1);
+    expect(maintainer.exitCode).toBe(0);
+  });
+
+  it("the policy by M^1 is not computed — a bundled pack the lock of M^1 does not hold: fail-closed to roles.maintainer of M^1, AGENT_MERGE_CLOSED (REQ-VER-011, design D3)", async () => {
+    const LOCK = ".warrant/warrant.lock.json";
+    let held: Data = {};
+    const p = await agentMerge({
+      mergedBy: HOMASTERS,
+      profiles: ["chore", "factory-change"],
+      hand: true,
+      main: (b) => {
+        held = b.json(LOCK);
+        stale(b);
+      },
+      work: (b) => b.write(LOCK, held)
+    });
+    const result = await ci(p);
+    expect(refMessages(result)).toEqual([expect.stringContaining(`merged_by: ${HOMASTERS} merged pull request 9, not a member of roles maintainer of M^1`)]);
+    expect(findingsOf(result, "AGENT_MERGE_CLOSED").map((f) => f["message"])).toEqual([expect.stringContaining("is not computed by this CLI: bundled pack core-sdd")]);
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("a spec-PR merged by an agent of the base, no approvals[] at SPECIFIED->APPROVED: merged_by — approval of a spec is roles.maintainer (SCN-VER-132)", async () => {
+    const plain = { $schema: "warrant://profile/1", id: "plain", version: "1.0.0", description: "A profile without approvals.", match: { paths: ["notes/**"] } };
+    const p = await firstImplCommit(HOMASTERS, { classification: { profiles: ["plain"] } }, undefined, undefined, {
+      setup: (b) => {
+        agentProject(false)(b);
+        b.write(".warrant/local/profiles/plain.json", plain);
+      }
+    });
+    const result = await ci(p);
+    expect(refMessages(result)).toEqual([expect.stringContaining(`ref ${SPEC_PR}: merged_by: ${HOMASTERS} merged pull request 5, not a member of roles maintainer of the base`)]);
+    expect(result.exitCode).toBe(1);
+  });
+});
+
+/** `tests-passed` of the project layer: `waivable`, and with `appliesWhen` — `applies_when.changed_paths`. */
+function testsPassed(fields: Record<string, unknown>): (p: ProjectBuilder) => void {
+  return (p) =>
+    p.write(".warrant/local/gates/tests-passed.json", {
+      $schema: "warrant://gate/1",
+      id: "tests-passed",
+      version: "1.0.0",
+      overrides: "core-sdd:tests-passed",
+      level: "L1",
+      requires_evidence: [{ kind: "test-report", status: "PROVEN" }],
+      waivable: false,
+      accepts_attestation: ["ci"],
+      ...fields
+    });
+}
+
+/** The Change classified with profile `waivable` of the project layer (`waivableGate`). */
+const WAIVABLE = { classification: { profiles: ["chore", "waivable"] } };
+
+/** Gate `tests-accepted` of the project layer — waivable, backed by the CI test report — on `VERIFYING->MERGED` by profile `waivable`. */
+function waivableGate(p: ProjectBuilder): void {
+  p.write(".warrant/local/gates/tests-accepted.json", {
+    $schema: "warrant://gate/1",
+    id: "tests-accepted",
+    version: "1.0.0",
+    level: "L1",
+    requires_evidence: [{ kind: "test-report", status: "PROVEN" }],
+    waivable: true,
+    accepts_attestation: ["ci"]
+  });
+  p.write(".warrant/local/profiles/waivable.json", {
+    $schema: "warrant://profile/1",
+    id: "waivable",
+    version: "1.0.0",
+    description: "A waivable gate before merge.",
+    match: { paths: ["nothing/**"] },
+    gates: { "VERIFYING->MERGED": ["tests-accepted"] }
+  });
+}
+
+/** A waiver of `add-search` on `tests-accepted`, approved by `kat`, in force; `fields` override. */
+function acceptedWaiver(p: ProjectBuilder, fields: Record<string, unknown> = {}): void {
+  p.withWaiver({
+    id: "WAV-2026-030",
+    change: "add-search",
+    gate: "tests-accepted",
+    reason: "the fixture waives the gate",
+    owner: "kat",
+    approved_by: "human:kat",
+    expires_at: "2099-12-31",
+    waiver_state: "ACTIVE",
+    ...fields
+  });
+}
+
+/** Sets the verdict of `gate` of the last transition (`MERGED`) of the record. */
+function verdictOf(gate: string, verdict: string): (record: Data) => void {
+  return (record) => void (record.transitions.at(-1).gates[gate] = verdict);
+}
+
+/** `RECORD_MISMATCH` messages with `: <reason>: `. */
+function mismatchesOf(result: Result, reason: string): string[] {
+  return result.errors.filter((e) => e.code === "RECORD_MISMATCH" && e.message.includes(`: ${reason}: `)).map((e) => e.message);
+}
+
+/** The archive-PR of {@link archivePr} whose `MERGED` records `tests-accepted: WAIVED`; `base` — the waiver the base holds, `head` — the one HEAD adds. */
+async function waivedPr(base?: Record<string, unknown>, head?: Record<string, unknown>): Promise<ProjectBuilder> {
+  const { p } = await archivePr({
+    extra: WAIVABLE,
+    setup: (b) => {
+      waivableGate(b);
+      if (base !== undefined) acceptedWaiver(b, base);
+    },
+    ...(head === undefined ? {} : { work: (b: ProjectBuilder) => acceptedWaiver(b, head) }),
+    record: verdictOf("tests-accepted", "WAIVED")
+  });
+  return p;
+}
+
+describe("warrant ci: the ground of recorded WAIVED and NOT_APPLICABLE (agent-merge, design D4)", () => {
+  it("WAIVED with a waiver REVOKED in the base and ACTIVE on HEAD, with none, or expired before the run: RECORD_MISMATCH waiver (SCN-VER-127)", async () => {
+    const byBase = await ci(await waivedPr({ waiver_state: "REVOKED" }, {}));
+    expect(mismatchesOf(byBase, "waiver")).toEqual([
+      expect.stringContaining("gate tests-accepted is WAIVED, but no waiver of add-search on it counts on 2026-09-24: WAV-2026-030 (state)")
+    ]);
+    expect(byBase.errors.find((e) => e.code === "RECORD_MISMATCH")?.path).toBe(`${RECORD}#/transitions/2/gates/tests-accepted`);
+    expect(byBase.exitCode).toBe(1);
+
+    expect(mismatchesOf(await ci(await waivedPr()), "waiver")).toEqual([expect.stringContaining("gate tests-accepted is WAIVED")]);
+    expect(mismatchesOf(await ci(await waivedPr({ expires_at: "2026-09-01" })), "waiver")).toEqual([expect.stringContaining("WAV-2026-030 (expired)")]);
+  });
+
+  it("WAIVED with a waiver of the base that counts, or one only HEAD holds: the rule holds (SCN-VER-127)", async () => {
+    const inBase = await ci(await waivedPr({}));
+    expect(inBase.errors).toEqual([]);
+    expect(inBase.exitCode).toBe(0);
+
+    // A new waiver on HEAD counts; the archive-PR that adds it is judged by its paths as well (classification: factory-change).
+    const onHead = await ci(await waivedPr(undefined, {}));
+    expect(mismatchesOf(onHead, "waiver")).toEqual([]);
+  });
+
+  it("NOT_APPLICABLE over a diff applies_when hits and a PROVEN record, or of a gate with neither applies_when nor requires_evidence: RECORD_MISMATCH not_applicable (SCN-VER-128)", async () => {
+    const proven = await archivePr({ setup: testsPassed({ applies_when: { changed_paths: ["src/**"] } }), record: verdictOf("tests-passed", "NOT_APPLICABLE") });
+    const hit = await ci(proven.p);
+    expect(mismatchesOf(hit, "not_applicable")).toEqual([expect.stringContaining("gate tests-passed is NOT_APPLICABLE without a ground")]);
+    expect(hit.exitCode).toBe(1);
+
+    const scope = await archivePr({ record: verdictOf("scope-valid", "NOT_APPLICABLE") });
+    expect(mismatchesOf(await ci(scope.p), "not_applicable")).toEqual([expect.stringContaining("gate scope-valid is NOT_APPLICABLE")]);
+  });
+
+  it("NOT_APPLICABLE backed by CI records NOT_APPLICABLE of a check on M^2, or by applies_when missing the diff of the impl-PR: the rule holds (SCN-VER-128)", async () => {
+    const byEvidence = await archivePr({
+      setup: testsPassed({ applies_when: { changed_paths: ["src/**"] } }),
+      records: (b, ids) => {
+        for (const id of ids) {
+          const rel = `${EVIDENCE}/${id}.json`;
+          const record = b.json(rel);
+          if (record.kind === "test-report") b.write(rel, { ...record, evidence_status: "NOT_APPLICABLE" });
+        }
+      }
+    });
+    const evidence = await ci(byEvidence.p);
+    expect(byEvidence.p.json(RECORD).transitions.at(-1).gates["tests-passed"]).toBe("NOT_APPLICABLE");
+    expect(mismatchesOf(evidence, "not_applicable")).toEqual([]);
+    expect(evidence.exitCode).toBe(0);
+
+    const missed = await archivePr({ setup: testsPassed({ applies_when: { changed_paths: ["lib/**"] } }) });
+    const diff = await ci(missed.p);
+    expect(missed.p.json(RECORD).transitions.at(-1).gates["tests-passed"]).toBe("NOT_APPLICABLE");
+    expect(mismatchesOf(diff, "not_applicable")).toEqual([]);
+    expect(diff.exitCode).toBe(0);
+  });
+});
+
+describe("warrant ci: code without a Change and a project without human acceptance (agent-merge, D8, D10)", () => {
+  it("a pull request without a Change changes code: SCOPE_VIOLATION by paths.src; without paths.src and paths.tests — skipped (SCN-VER-133)", async () => {
+    const p = await repo((b) => b.write(".warrant/warrant.json", { ...b.json(".warrant/warrant.json"), paths: { src: "src" } }));
+    pullRequest(p, "fix/code", (b) => b.write("src/a.ts", "export const a = 1;\n"));
+    const result = await ci(p);
+    expect(result.data["kind"]).toBe("none");
+    expect(scope(result)).toEqual(["src/a.ts"]);
+    expect(result.exitCode).toBe(1);
+
+    const q = await repo();
+    pullRequest(q, "fix/code", (b) => b.write("src/a.ts", "export const a = 1;\n"));
+    const skipped = await ci(q);
+    expect(skipped.errors).toEqual([]);
+    expect(skipped.data["skipped"]).toEqual([{ rule: "code", reason: expect.stringContaining("paths.src and paths.tests") }]);
+    expect(skipped.exitCode).toBe(0);
+  });
+
+  it("no object of the policy of the base puts human-approval on VERIFYING->MERGED: the finding NO_HUMAN_ACCEPTANCE, exit unchanged; the profile of acceptance — none (SCN-VER-134)", async () => {
+    const p = await repo();
+    pullRequest(p, "docs/readme", (b) => b.write("docs/readme.md", "# Readme\n"));
+    const result = await ci(p);
+    expect(findingsOf(result, "NO_HUMAN_ACCEPTANCE")).toEqual([{ code: "NO_HUMAN_ACCEPTANCE", message: expect.stringContaining("human-approval on VERIFYING->MERGED") }]);
+    expect(result.errors).toEqual([]);
+    expect(result.exitCode).toBe(0);
+
+    const q = await repo((b) => b.write(ACCEPTANCE, acceptance()));
+    pullRequest(q, "docs/readme", (b) => b.write("docs/readme.md", "# Readme\n"));
+    expect(findingsOf(await ci(q), "NO_HUMAN_ACCEPTANCE")).toEqual([]);
   });
 });

@@ -169,7 +169,7 @@ Change MAY иметь несколько profiles (например, `feature` +
 |---|---|---|
 | `LOW` | обычная verification | core-sdd |
 | `MEDIUM` | + `adversarial-review` | core-sdd |
-| `HIGH` | + `adversarial-review`, `human-approval` на merge | core-sdd |
+| `HIGH` | + `adversarial-review` (с `core-sdd` 0.4.0 `human-approval` на merge даёт профиль путей проекта, [ADR-0051](adr/WARRANT-ADR-0051-agent-merge-first.md) п. 6) | core-sdd |
 | `MEDIUM` | mutation не выполняется (было: «check `mutation` выполняется, gate не required» — снято D-6, [ADR-0016](adr/WARRANT-ADR-0016-mutation-diff-scope.md) п. 10) | bdd-tdd |
 | `HIGH` | + `mutation-score` | bdd-tdd |
 | `HIGH` | + `rollback-rehearsed` (если применимо) | data |

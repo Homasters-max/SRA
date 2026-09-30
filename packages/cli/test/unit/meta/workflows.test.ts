@@ -86,14 +86,18 @@ describe("job warrant — the reusable workflow warrant.yml, called by ci.yml (R
     expect(value(block(reusable, ["on", "workflow_call", "inputs", "openspec-version"]), "default")).toBe("1.13.1");
   });
 
-  it("SCN-VER-122 warrant.yml checks the input `warrant` before the CLI is installed, then runs `warrant ci`", () => {
+  it("SCN-VER-122 warrant.yml checks the input `warrant` before the CLI is installed, runs `warrant validate` and `warrant sync --check`, then `warrant ci`", () => {
     const steps = stepNames(block(reusable, ["jobs", "warrant", "steps"]));
     const check = steps.indexOf("Check the input warrant");
     const install = steps.indexOf("Install warrant");
+    const validate = steps.indexOf("warrant validate");
+    const sync = steps.indexOf("warrant sync --check");
     const run = steps.indexOf("warrant ci");
     expect(check, steps.join(" | ")).toBeGreaterThanOrEqual(0);
     expect(install).toBeGreaterThan(check);
-    expect(run).toBeGreaterThan(install);
+    expect(validate).toBeGreaterThan(install);
+    expect(sync).toBeGreaterThan(validate);
+    expect(run).toBeGreaterThan(sync);
     expect(steps.indexOf("Upload evidence")).toBeGreaterThan(run);
   });
 

@@ -7,7 +7,8 @@
  * than what `classify` by the base derives from the diff (I-171); a new
  * `MERGED` holds the policy of the base and CI evidence behind its gates (I-172);
  * from `SPECIFIED` of the base on, no UNKNOWN of the base is removed or
- * weakened (I-188).
+ * weakened (I-188); a recorded `WAIVED` or `NOT_APPLICABLE` has its ground
+ * (design D4 of agent-merge).
  * What each rule requires comes from the base; no verdict is computed again.
  */
 import { canonicalHash } from "../canon/hash.js";
@@ -15,21 +16,28 @@ import { checksForTransition } from "../check/execute.js";
 import type { Ctx } from "../ctx.js";
 import { cliError, type CliError } from "../errors.js";
 import { attestationOf } from "../evidence/attestation.js";
+import { subjectOf } from "../evidence/record.js";
 import { evidenceRel } from "../evidence/store.js";
 import { isPlainObject, strings } from "../json.js";
+import { appliesTo, appliesWhenPaths, countingWaiver } from "../gates/predicates.js";
 import { PASSING_VERDICTS, MERGE_TRANSITION, type Verdict } from "../gates/types.js";
 import { requirementsOf, satisfies } from "../gates/verdict.js";
+import type { DiffEntry } from "../ports/git.js";
 import { effectiveCheck, FACTORY_PROFILE, gateDefinitions } from "../packs/objects.js";
 import { isFrozen, isMergeKind, transitionKind, UNKNOWNS_HELD_STATES } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
 import { recordPath } from "../record/write.js";
 import { RISK_LEVELS } from "../resolve/index.js";
+import { roleMembers } from "../roles.js";
 import { ownState } from "../run/state.js";
 import { validateFile } from "../schemas/semantic.js";
 import type { Json } from "../schemas/loader.js";
 import { isClosed, unknownsOf } from "../unknowns/state.js";
+import { readWaivers, type WaiverInput } from "../waivers/read.js";
 import { basePolicy, changedBundledPacks, requiredProfiles, type BaseContext } from "./base.js";
 import { jsonAt, type CiSubject } from "./kind.js";
+import { mergeDiff, type MergeCommit } from "./merge.js";
+import { mergeOfMerged } from "./refs.js";
 
 /** Schema every evidence record of a transition must be valid by. */
 const EVIDENCE_SCHEMA = "warrant://evidence/1";
@@ -63,7 +71,9 @@ export type MismatchReason =
   | "classification"
   | "policy"
   | "ci_evidence"
-  | "unknowns";
+  | "unknowns"
+  | "waiver"
+  | "not_applicable";
 
 function transitionsOf(record: ChangeRecord | undefined): Record<string, unknown>[] {
   const list = record?.["transitions"];
@@ -235,11 +245,112 @@ function unknownsRule(change: string, head: ChangeRecord, base: ChangeRecord | u
 }
 
 /**
+ * The waivers the rule `verdicts` reads (design D4): every file of
+ * `.warrant/waivers/` of the base, and of HEAD those the base does not hold —
+ * a new waiver lies on a path of the class of human acceptance (ADR-0051 п. 2).
+ */
+function recordedWaivers(ctx: Pick<Ctx, "root">, base: BaseContext): WaiverInput[] {
+  const inBase = readWaivers(base.root);
+  const held = new Set(inBase.map((w) => w.path));
+  return [...inBase, ...readWaivers(ctx.root).filter((w) => !held.has(w.path))];
+}
+
+/** Whether `json` was produced by a check (`produced_by.type: "check"`). */
+function byCheck(json: Record<string, unknown>): boolean {
+  const producedBy = json["produced_by"];
+  return isPlainObject(producedBy) && producedBy["type"] === "check";
+}
+
+/**
+ * Rule `verdicts` (REQ-VER-011 «Record», design D4, ADR-0051 п. 5): a recorded
+ * `WAIVED` or `NOT_APPLICABLE` of a new transition has its ground; the verdict
+ * itself is not computed again (N44). `WAIVED` — a waiver of this Change on the
+ * gate that counts on the date of the run (`countingWaiver`: approvers — `roles`
+ * of the base, the gate — as the base defines it). `NOT_APPLICABLE` —
+ * `applies_when` of the gate, which at `MERGED` misses the diff of the impl-PR
+ * `merge-base(M^1, M^2)..M^2` (elsewhere that diff is out of reach, only its
+ * presence is read); or every element of a non-empty `requires_evidence`
+ * satisfied by a `NOT_APPLICABLE` record of a check of the transition — at
+ * `MERGED` a CI record of M^2.
+ */
+async function verdictsRule(
+  ctx: Pick<Ctx, "root" | "git" | "forge" | "clock">,
+  subject: CiSubject,
+  change: string,
+  transitions: readonly NewTransition[],
+  base: BaseContext,
+  evidence: ReadonlyMap<string, Record<string, unknown>>
+): Promise<CliError[]> {
+  const errors: CliError[] = [];
+  const definitions = gateDefinitions(base.loaded);
+  let waivers: WaiverInput[] | undefined;
+  const today = ctx.clock.today();
+  for (const t of transitions.filter((x) => x.to !== "PROPOSED")) {
+    const gates = isPlainObject(t.entry["gates"]) ? t.entry["gates"] : {};
+    const records = strings(t.entry["evidence"]).flatMap((id) => {
+      const json = evidence.get(id);
+      return json === undefined ? [] : [{ id, json }];
+    });
+    // M of a MERGED, asked only when a NOT_APPLICABLE needs it; undefined — not found.
+    let merge: { found: MergeCommit | undefined; diff: DiffEntry[] | undefined } | undefined;
+    for (const [gate, verdict] of Object.entries(gates).sort(([a], [b]) => (a < b ? -1 : 1))) {
+      const at = `#/transitions/${t.index}/gates/${gate}`;
+      if (verdict === "WAIVED") {
+        waivers ??= recordedWaivers(ctx, base);
+        const judged = countingWaiver(gate, change, waivers, definitions, { today, approvers: roleMembers(base.loaded.config) });
+        if (judged.counting === undefined) {
+          const ignored = judged.ignored.map((i) => `${String(i.waiver.json["id"])} (${i.reason})`);
+          errors.push(
+            mismatch(change, label(t), "waiver", `gate ${gate} is WAIVED, but no waiver of ${change} on it counts on ${today}${ignored.length > 0 ? `: ${ignored.join(", ")}` : ""}`, at)
+          );
+        }
+        continue;
+      }
+      if (verdict !== "NOT_APPLICABLE") continue;
+      const definition = definitions.get(gate);
+      if (t.to === "MERGED" && merge === undefined) {
+        const found = await mergeOfMerged(ctx, subject, t, evidence);
+        merge = { found, diff: found === undefined ? undefined : await mergeDiff(ctx, found) };
+      }
+      // M not found: the diff is not checked (the rule merge_commit of the ref reports it).
+      const outsideDiff =
+        appliesWhenPaths(definition).length > 0 &&
+        (t.to !== "MERGED" || merge?.found === undefined || (merge.diff !== undefined && !appliesTo(definition, merge.diff)));
+      const requirements = requirementsOf(definition);
+      const byEvidence =
+        requirements.length > 0 &&
+        requirements.every((requirement) =>
+          records.some(
+            (record) =>
+              satisfies(requirement, record) &&
+              record.json["evidence_status"] === "NOT_APPLICABLE" &&
+              byCheck(record.json) &&
+              (t.to !== "MERGED" ||
+                (attestationOf(record.json).type === "ci" && (merge?.found === undefined || subjectOf(record.json)?.commit === merge.found.second)))
+          )
+        );
+      if (!outsideDiff && !byEvidence) {
+        errors.push(
+          mismatch(
+            change,
+            label(t),
+            "not_applicable",
+            `gate ${gate} is NOT_APPLICABLE without a ground: neither applies_when missing the diff${t.to === "MERGED" ? " of the impl-PR" : ""} nor NOT_APPLICABLE records of a check for each of its requires_evidence`,
+            at
+          )
+        );
+      }
+    }
+  }
+  return errors;
+}
+
+/**
  * Judges the record of the Change of `subject` (REQ-VER-011 «Record»).
  * `RECORD_MISMATCH` errors name the transition and the reason.
  */
 export async function judgeRecord(
-  ctx: Pick<Ctx, "root" | "git">,
+  ctx: Pick<Ctx, "root" | "git" | "forge" | "clock">,
   subject: CiSubject,
   base: BaseContext,
   env: NodeJS.ProcessEnv
@@ -293,6 +404,7 @@ export async function judgeRecord(
     }
   }
 
+  errors.push(...(await verdictsRule(ctx, subject, change, transitions, base, evidence)));
   errors.push(...unknownsRule(change, head, subject.baseRecord));
   if (isMergeKind(subject.kind)) {
     errors.push(...classificationRule(ctx, subject, change, head, base, env));

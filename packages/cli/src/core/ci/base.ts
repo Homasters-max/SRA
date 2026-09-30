@@ -18,13 +18,15 @@ import { collectFloors, collectProfileMatches } from "../classify/packs.js";
 import type { Ctx } from "../ctx.js";
 import { WarrantError, type CliError } from "../errors.js";
 import { readJson } from "../fs.js";
-import { isPlainObject } from "../json.js";
+import { MERGE_TRANSITION } from "../gates/types.js";
+import { isPlainObject, strings } from "../json.js";
 import { LOCK_REL, packContentHash } from "../packs/hash.js";
 import { loadPacks } from "../packs/loader.js";
 import { policyPaths } from "../packs/objects.js";
 import type { LoadResult } from "../packs/types.js";
 import type { ChangeRecord } from "../record/read.js";
 import type { Classification } from "../resolve/index.js";
+import { requiresHuman } from "../roles.js";
 import { resolveRecord, type Resolved } from "../transition/policy.js";
 
 export interface BaseContext {
@@ -48,10 +50,26 @@ export async function withBase<T>(ctx: Pick<Ctx, "git">, commit: string, use: (b
   }
   try {
     const loaded = loadPacks(checkout.value.root);
-    return await use({ root: checkout.value.root, loaded });
+    return await use({ root: checkout.value.root, loaded: acceptChangedLaw({ root: checkout.value.root, loaded }) });
   } finally {
     await checkout.value.dispose();
   }
+}
+
+/**
+ * The version range of the base for a bundled pack the pull request changes (I-179): a new minor of the pack is
+ * outside the range the base configures, yet it is the law changed by the pull request, not a broken base — the
+ * rule of the changed law (factory-change in impl, `SCOPE_VIOLATION` of the lock elsewhere) judges it (I-233).
+ */
+function acceptChangedLaw(base: BaseContext): LoadResult {
+  const changed = new Set(changedBundledPacks(base));
+  if (changed.size === 0) return base.loaded;
+  const manifests = new Set(base.loaded.packs.filter((pack) => changed.has(pack.id)).map((pack) => pack.manifestPath));
+  const errors = base.loaded.errors.filter(
+    (e) =>
+      !(e.code === "CONFIG_INVALID" && typeof e.path === "string" && manifests.has(e.path) && e.message.includes("does not satisfy the configured range"))
+  );
+  return errors.length === base.loaded.errors.length ? base.loaded : { ...base.loaded, errors };
 }
 
 /** The `classification` of a record, or undefined. */
@@ -62,7 +80,33 @@ export function classificationOf(record: ChangeRecord | undefined): Classificati
 
 /** The effective policy of `record` by the packs of the base. */
 export function basePolicy(base: BaseContext, change: string, record: ChangeRecord): Resolved {
-  return resolveRecord(base.loaded, change, record);
+  return resolveRecord(base.loaded, change, underBase(base, record));
+}
+
+/**
+ * `record` as the base judges it: a profile of its `classification` that no object of the base provides is law the
+ * pull request introduces (a new profile in `.warrant/local/**`), not law of the base — requirements come from the
+ * base (ADR-0038). The PR carries `factory-change` for it: `.warrant/local/**` is a policy path (I-234).
+ */
+export function underBase(base: BaseContext, record: ChangeRecord): ChangeRecord {
+  const classification = classificationOf(record);
+  const profiles = Array.isArray(classification?.profiles) ? classification.profiles : undefined;
+  if (classification === undefined || profiles === undefined) return record;
+  const known = new Set(base.loaded.objects.filter((object) => object.kind === "profile").map((object) => object.id));
+  const kept = profiles.filter((id) => known.has(id));
+  return kept.length === profiles.length ? record : { ...record, classification: { ...classification, profiles: kept } };
+}
+
+/**
+ * Whether an object of the policy of the base — packs and `.warrant/local/**` —
+ * puts gate `human-approval` on `VERIFYING->MERGED` (design D8 of agent-merge):
+ * without one no path limits a merge of an impl-PR by an agent.
+ */
+export function humanAcceptance(base: BaseContext): boolean {
+  return base.loaded.objects.some((object) => {
+    const gates = isPlainObject(object.json) && isPlainObject(object.json["gates"]) ? object.json["gates"] : {};
+    return requiresHuman({ gates: { [MERGE_TRANSITION]: strings(gates[MERGE_TRANSITION]) } }, MERGE_TRANSITION);
+  });
 }
 
 /** `match.paths` of `factory-change` of the base: the policy paths (D-15). */

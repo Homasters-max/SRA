@@ -107,8 +107,8 @@ describe("pack core-sdd: каталог", () => {
   });
 
   it("каждый объект проходит свою схему и id равен имени файла (Decision 1)", () => {
-    // factory-change — 1.1.0 (REQ-SDD-005: CI workflows и CLI в match.paths), остальные — 1.0.0.
-    const versions: Readonly<Record<string, string>> = { "profiles/factory-change.json": "1.1.0" };
+    // factory-change — 1.1.0 (REQ-SDD-005: CI workflows и CLI в match.paths), risk-high — 2.0.0 (REQ-SDD-006: без human-approval), остальные — 1.0.0.
+    const versions: Readonly<Record<string, string>> = { "profiles/factory-change.json": "1.1.0", "overlays/risk-high.json": "2.0.0" };
     for (const key of ["overlays", "profiles", "gates", "checks"]) {
       for (const rel of provides[key] as string[]) {
         const json = readJsonFile(PACK_DIR, rel);
@@ -205,10 +205,10 @@ describe("pack core-sdd: каталог", () => {
     }
   });
 
-  it("версия 0.3.x, kernel >=0.1 <0.9, rules пуст, pack.json валиден (REQ-SDD-001, SCN-KRN-012)", () => {
-    // REQ-SDD-001 называет 0.3.x, kernel <0.9 — delta slice-fixes; patch растёт по дисциплине версий (R-14).
-    expect(manifest.version).toMatch(/^0\.3\.\d+$/);
-    expect(manifest.kernel).toBe(">=0.1 <0.9");
+  it("версия 0.4.x, kernel >=0.1 <0.10, rules пуст, pack.json валиден (REQ-SDD-001, SCN-KRN-012)", () => {
+    // REQ-SDD-001 называет 0.4.x, kernel <0.10 — delta agent-merge; patch растёт по дисциплине версий (R-14).
+    expect(manifest.version).toMatch(/^0\.4\.\d+$/);
+    expect(manifest.kernel).toBe(">=0.1 <0.10");
     expect(provides["rules"]).toEqual([]);
     const result = validateFile(manifest, "pack.json");
     expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true);

@@ -17,9 +17,9 @@
 #       name: warrant
 #       if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
 #       permissions: { contents: read, actions: read, pull-requests: read, issues: read }
-#       uses: Homasters-max/SRA/.github/workflows/warrant.yml@v0.8.3
+#       uses: Homasters-max/SRA/.github/workflows/warrant.yml@v0.9.0
 #       with:
-#         warrant: v0.8.3
+#         warrant: v0.9.0
 #         setup: npm ci
 #         merge_commit: ${{ inputs.merge_commit || '' }}
 #
@@ -155,6 +155,16 @@ jobs:
             npm i -g "$pack"/*.tgz
           fi
           warrant --version
+
+      # Drift of the generated files and the lock against warrant.json fails the
+      # job before the judge (WS-13, ADR-0051 p. 7): an agent does not drop its
+      # hooks or the lock with an ordinary PR. A matching edit with regenerated
+      # files is held by the forge (CODEOWNERS, ADR-0051 p. 3).
+      - name: warrant validate
+        run: warrant validate
+
+      - name: warrant sync --check
+        run: warrant sync --check
 
       # The output goes outside the checkout: the checks of VERIFYING->MERGED
       # run on the working tree (structure.test.ts lists the root). The step

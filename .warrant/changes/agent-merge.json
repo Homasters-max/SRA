@@ -1,11 +1,12 @@
 {
   "$schema": "warrant://change-record/1",
   "change": "agent-merge",
-  "change_state": "SPECIFIED",
+  "change_state": "VERIFYING",
   "classification": {
     "profiles": [
       "chore",
-      "factory-change"
+      "factory-change",
+      "human-acceptance"
     ],
     "risk": {
       "blast_radius": {
@@ -33,6 +34,44 @@
       "evidence": [
         "EVID-01M3T5X7F44ZG9YPG35TGD2FVC"
       ]
+    },
+    {
+      "to": "APPROVED",
+      "at": "2026-09-30T22:16:53.857Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+      "gates": {
+        "adversarial-review": "PASS",
+        "blocking-unknowns-resolved": "PASS",
+        "human-approval": "PASS",
+        "ids-valid": "PASS",
+        "required-artifacts-present": "PASS",
+        "spec-valid": "PASS"
+      },
+      "evidence": [
+        "EVID-01M3T5WBEKTRPEPTWXPMMAFE30",
+        "EVID-01M3T68DTGTZ2K0724YQW1EJKB",
+        "EVID-01M3T68NQ0C2GW0775DBP75JMY"
+      ],
+      "ref": "https://github.com/Homasters-max/SRA/pull/118"
+    },
+    {
+      "to": "IMPLEMENTING",
+      "at": "2026-09-30T22:17:04.536Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+      "gates": {
+        "branch-isolated": "PASS"
+      },
+      "evidence": []
+    },
+    {
+      "to": "VERIFYING",
+      "at": "2026-09-30T22:57:57.886Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:3bc2c88b5de4545a6392983339502a4e6d8e3d6265c69337c7c0549bff6143f3",
+      "gates": {},
+      "evidence": []
     }
   ]
 }

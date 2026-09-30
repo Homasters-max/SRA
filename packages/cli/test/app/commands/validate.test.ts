@@ -338,17 +338,17 @@ describe("warrant validate: overrides may only strengthen (B1)", () => {
     expect(finding?.message).toContain("extends: feature");
   });
 
-  it("reports OVERRIDE_WEAKENS when an override drops human-approval (SCN-SDD-010)", async () => {
+  it("reports OVERRIDE_WEAKENS when an override drops adversarial-review (SCN-SDD-010)", async () => {
     const p = project().write(".warrant/local/risk-high.json", {
       ...riskHigh,
       overrides: "core-sdd:risk-high",
-      gates: { ...riskHigh.gates, "VERIFYING->MERGED": [] }
+      gates: { ...riskHigh.gates, "SPECIFIED->APPROVED": [] }
     });
 
     const run = await validate(p);
     expect(run.exitCode).toBe(3);
     const finding = find(run, "OVERRIDE_WEAKENS");
-    expect(finding?.message).toContain("gates.VERIFYING->MERGED: human-approval");
+    expect(finding?.message).toContain("gates.SPECIFIED->APPROVED: adversarial-review");
     expect(finding?.path).toBe(".warrant/local/risk-high.json");
   });
 });

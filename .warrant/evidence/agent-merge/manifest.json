@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "agent-merge",
-  "commit": "7a76313ded0d485876012bd6bad13cc88b976b48",
+  "commit": "36b8d3ca5daf43212f0aa36d3e08d161c354b461",
   "versions": {
     "warrant": "0.8.3",
     "openspec": "1.13.1",
@@ -10,6 +10,7 @@
   },
   "evidence": [
     "EVID-01M3T3Q3CPPJNBDZPJKKSKFRW0",
-    "EVID-01M3T4N6QA2P4CEHASQ15EBWDQ"
+    "EVID-01M3T4N6QA2P4CEHASQ15EBWDQ",
+    "EVID-01M3T59ZPD02WNV6CYXSR3SRBS"
   ]
 }

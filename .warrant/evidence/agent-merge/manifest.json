@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "agent-merge",
-  "commit": "90f3514cfa3959953d09d5ead221705e9f1b8eac",
+  "commit": "c9cfcea272390ae848696a04578064097e4efa02",
   "versions": {
     "warrant": "0.8.3",
     "openspec": "1.13.1",
@@ -12,6 +12,7 @@
     "EVID-01M3T3Q3CPPJNBDZPJKKSKFRW0",
     "EVID-01M3T4N6QA2P4CEHASQ15EBWDQ",
     "EVID-01M3T59ZPD02WNV6CYXSR3SRBS",
-    "EVID-01M3T5KWQQBGNEHKBTRV33GF7F"
+    "EVID-01M3T5KWQQBGNEHKBTRV33GF7F",
+    "EVID-01M3T5WBEKTRPEPTWXPMMAFE30"
   ]
 }

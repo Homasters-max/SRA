@@ -24,7 +24,7 @@ import { effectiveCheck, gateDefinitions } from "../packs/objects.js";
 import type { ChangeRecord } from "../record/read.js";
 import { judgeGates, prepare, type Prepared } from "../transition/evaluate.js";
 import { evaluationFindings, hooksFindings } from "../transition/gates.js";
-import type { BaseContext } from "./base.js";
+import { underBase, type BaseContext } from "./base.js";
 import type { CiSubject } from "./kind.js";
 
 export interface ImplJudgement {
@@ -84,7 +84,7 @@ export async function mergeFacts(ctx: Pick<Ctx, "git">, subject: CiSubject): Pro
  */
 export async function judgeImpl(ctx: Ctx, subject: CiSubject, base: BaseContext, env: NodeJS.ProcessEnv): Promise<ImplJudgement | { errors: CliError[]; exitCode: ExitCode }> {
   const change = subject.change as string;
-  const record = subject.record as ChangeRecord;
+  const record = underBase(base, subject.record as ChangeRecord);
   const prepared = prepare(ctx, change, { transition: MERGE_TRANSITION, env, record, loaded: base.loaded });
   if (!prepared.ok) return { errors: prepared.conflict ? [prepared.error] : prepared.errors, exitCode: EXIT.CONFIG };
 

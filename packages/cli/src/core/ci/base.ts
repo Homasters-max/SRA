@@ -80,7 +80,21 @@ export function classificationOf(record: ChangeRecord | undefined): Classificati
 
 /** The effective policy of `record` by the packs of the base. */
 export function basePolicy(base: BaseContext, change: string, record: ChangeRecord): Resolved {
-  return resolveRecord(base.loaded, change, record);
+  return resolveRecord(base.loaded, change, underBase(base, record));
+}
+
+/**
+ * `record` as the base judges it: a profile of its `classification` that no object of the base provides is law the
+ * pull request introduces (a new profile in `.warrant/local/**`), not law of the base — requirements come from the
+ * base (ADR-0038). The PR carries `factory-change` for it: `.warrant/local/**` is a policy path (I-234).
+ */
+export function underBase(base: BaseContext, record: ChangeRecord): ChangeRecord {
+  const classification = classificationOf(record);
+  const profiles = Array.isArray(classification?.profiles) ? classification.profiles : undefined;
+  if (classification === undefined || profiles === undefined) return record;
+  const known = new Set(base.loaded.objects.filter((object) => object.kind === "profile").map((object) => object.id));
+  const kept = profiles.filter((id) => known.has(id));
+  return kept.length === profiles.length ? record : { ...record, classification: { ...classification, profiles: kept } };
 }
 
 /**

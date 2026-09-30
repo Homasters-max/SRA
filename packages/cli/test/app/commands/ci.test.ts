@@ -304,6 +304,28 @@ describe("warrant ci: the structure of the record", () => {
     expect(result.exitCode).toBe(1);
   });
 
+  it("a profile the impl-PR introduces in .warrant/local/** is not law of the base: no CONFIG_INVALID, factory-change still required (I-234)", async () => {
+    const p = await changeRepo("IMPLEMENTING");
+    pullRequest(p, "worktree/add-search", (b) => {
+      b.write(".warrant/local/profiles/acceptance.json", {
+        $schema: "warrant://profile/1",
+        id: "acceptance",
+        version: "1.0.0",
+        description: "A profile this pull request introduces.",
+        match: { paths: ["src/**"] },
+        gates: { "VERIFYING->MERGED": ["human-approval"] },
+        approvals: [{ role: "maintainer", at: "VERIFYING->MERGED" }]
+      });
+      const record = b.json(".warrant/changes/add-search.json");
+      b.write(".warrant/changes/add-search.json", { ...record, classification: { profiles: ["chore", "acceptance"] } });
+      advance(b, "VERIFYING");
+    });
+    const judged = await ci(p, CI_ENV);
+    expect(codes(judged)).not.toContain("CONFIG_INVALID");
+    const mismatch = judged.errors.filter((e) => e.code === "RECORD_MISMATCH");
+    expect(mismatch.map((e) => e.message.includes("classification") && e.message.includes("factory-change"))).toEqual([true]);
+  });
+
   it("a new minor of a bundled pack outside the range of the base is the law changed, not a broken base; an unchanged pack outside the range is (I-179, I-233)", async () => {
     const outOfRange = (b: ProjectBuilder): void => {
       const config = b.json(".warrant/warrant.json");

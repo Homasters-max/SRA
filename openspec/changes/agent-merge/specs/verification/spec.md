@@ -51,12 +51,15 @@ PR: в виде impl `classification.profiles` на HEAD SHALL содержат�
   засчитываемый по правилу waiver [REQ-VER-003](#requirement-команда-gate-и-алгоритм-verdict) на дату прогона `warrant ci` (UTC):
   `ACTIVE`, срок не истёк, `approved_by` в `roles` базы, gate `waivable` по определению базы, без `targets[]` (причина
   `waiver`; [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 5);
-- gate с вердиктом `NOT_APPLICABLE` нового перехода SHALL иметь основание, как у REQ-VER-003: либо в определении базы есть
-  `applies_when`, не выполненный на diff перехода `merge-base(B, H)..H` (у `MERGED` B — M^1, H — M^2, M — из правила ref ниже;
-  у остальных B — HEAD^1, H — HEAD^2 судимого PR), либо каждый элемент `requires_evidence` определения базы удовлетворён (kind, а у
-  элемента с `check` — `produced_by.id`) записью из `evidence[]` перехода с `evidence_status: "NOT_APPLICABLE"` и
-  `produced_by.type: "check"`, у `MERGED` — ещё с `attestation.type: "ci"` и `subject.commit` M^2 (как правило `ci_evidence`);
-  иначе причина `not_applicable`. M не найден — основание по diff не проверяется: нарушение даёт правило ref (`merge_commit`);
+- gate с вердиктом `NOT_APPLICABLE` нового перехода SHALL иметь основание, как у REQ-VER-003, — одно из двух (иначе причина
+  `not_applicable`):
+  - в определении базы есть `applies_when`; у `MERGED` он SHALL быть не выполнен на diff `merge-base(M^1, M^2)..M^2` (M — из
+    правила ref ниже; M не найден — diff не проверяется, нарушение даёт правило ref `merge_commit`); у остальных переходов diff их
+    вычисления судье недоступен — достаточно наличия `applies_when` (остаточный риск, [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 5);
+  - `requires_evidence` определения базы непуст, и каждый его элемент удовлетворён (kind, а у элемента с `check` —
+    `produced_by.id`) записью из `evidence[]` перехода с `evidence_status: "NOT_APPLICABLE"` и `produced_by.type: "check"`, у
+    `MERGED` — ещё с `attestation.type: "ci"` и `subject.commit` M^2 (как правило `ci_evidence`). Gate без `requires_evidence`
+    основания по evidence не имеет;
 - у нового перехода `MERGED` `effective_policy_hash` равен hash effective policy, вычисленной по базе для `classification` на
   HEAD (причина `policy`); для каждого gate `PASS` этого перехода, чьи `requires_evidence` содержат kind, который производят
   checks перехода `VERIFYING->MERGED`, `evidence[]` содержит запись этого kind с `attestation.type: "ci"`, а у элемента с `check` —
@@ -68,7 +71,7 @@ SHALL NOT вычислять; проверка основания записан
 - ref подтверждений (ниже): maintainer слил spec-PR до `APPROVED` и impl-PR до `MERGED` (без gate `human-approval` — член `roles` или агент);
 - merge-вердикт impl-PR, пересчитанный из evidence своего run;
 - проверка CI-evidence по ссылке на archive-PR.
-У `ARCHIVED` и `ABANDONED` ref нет: их держат локальный `warrant`, повтор archive для `openspec/specs/**` и merge PR (archive-PR сливает агент; его держат повтор archive и CI-evidence ref `MERGED`) — остаточный риск MVP; у `IMPLEMENTING` gates нет.
+У `ARCHIVED` и `ABANDONED` ref нет: их держат локальный `warrant`, повтор archive для `openspec/specs/**` и merge PR — остаточный риск MVP; archive-PR сливает агент, его держат повтор archive и CI-evidence ref `MERGED`.
 
 **Ref.** `ref` нового перехода `APPROVED` или `MERGED` SHALL верифицироваться через API форджа
 ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 5):
@@ -79,9 +82,12 @@ SHALL NOT вычислять; проверка основания записан
   роль. Классификация для этой policy — `classification` record Change на M, дополненная профилями, которые `classify` по packs
   M^1 выводит из diff `merge-base(M^1, M^2)..M^2`. Если effective policy по M^1 не содержит gate `human-approval` на
   `VERIFYING->MERGED`, `merged_by` SHALL входить в любую роль `roles` M^1 или в `identities.agents` M^1 ([ADR-0050](../../../../docs/adr/WARRANT-ADR-0050-agent-merge.md) п. 2, [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md)
-  п. 4): merge не акт одобрения, его держат merge-вердикт impl-PR и CI-evidence. Если содержит или policy по M^1 не вычисляется
-  текущим CLI (packs, lock, `kernel`) — исключения нет (fail-closed). Impl-PR, слитый не членом нужной роли, восстанавливается
-  повтором impl-PR без правок кода (`VERIFYING->IMPLEMENTING->VERIFYING`), который сливает член роли одобрения;
+  п. 4): merge не акт одобрения, его держат merge-вердикт impl-PR и CI-evidence. Исключения нет (fail-closed), если policy по M^1
+  содержит `human-approval`, если она не вычисляется текущим CLI (packs, lock, `kernel`, профиль `classification`, которого нет в
+  packs M^1) или если record Change на M содержит переход `VERIFYING->IMPLEMENTING` (повтор impl-PR: его diff не несёт кода
+  прежнего impl-PR). При fail-closed без вычисленной policy роль одобрения — `roles.maintainer` конфигурации M^1, а вывод SHALL
+  содержать информационную находку `{ code: "AGENT_MERGE_CLOSED", message }` с причиной. Impl-PR, слитый не членом нужной роли,
+  восстанавливается повтором impl-PR без правок кода (`VERIFYING->IMPLEMENTING->VERIFYING`), который сливает член роли одобрения;
 - для `APPROVED` — merge-коммит PR лежит на first-parent линии HEAD^1 и вносит в record этого Change переход `SPECIFIED`;
 - для `MERGED` — merge-коммит PR равен M, а head PR — второму родителю M. M — merge-коммит на first-parent линии HEAD^1, чей
   второй родитель равен общему `subject.commit` записей `attestation.type: "ci"` из `evidence[]` перехода; у них разные
@@ -95,7 +101,7 @@ SHALL NOT вычислять; проверка основания записан
 пуст, каждый ref без нарушения SHALL давать информационную находку `{ code: "SHARED_IDENTITY", message }` в `data.findings[]`
 (акт maintainer'а не отличить от акта агента под тем же аккаунтом; ref с `REF_NOT_VERIFIED` находки не даёт), а `merged_by`,
 равный автору PR, — информационную находку `APPROVER_IS_AUTHOR`, не нарушение. Если список непуст, `merged_by`, равный автору PR
-(INV-03) или входящий в `identities.agents`, SHALL быть `REF_NOT_VERIFIED` с причиной `merged_by`, кроме ref `MERGED` без gate `human-approval` (выше); находки `APPROVER_IS_AUTHOR` и
+(INV-03) или входящий в `identities.agents` (для ref `MERGED` — M^1), SHALL быть `REF_NOT_VERIFIED` с причиной `merged_by`, кроме ref `MERGED` без gate `human-approval` (выше); находки `APPROVER_IS_AUTHOR` и
 `SHARED_IDENTITY` не выдаются. Если ни один объект policy базы (packs и `.warrant/local/**`) не добавляет gate `human-approval` на `VERIFYING->MERGED`, вывод SHALL содержать информационную находку `{ code: "NO_HUMAN_ACCEPTANCE", message }` в `data.findings[]`: merge impl-PR агентом не ограничен ни одним путём ([ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 4).
 
 **Пути.** Собственное состояние Change ([REQ-VER-004](#requirement-вычисляемые-l0-gates-core-sdd)) SHALL быть разрешено во всех
@@ -316,7 +322,12 @@ checks и `data.would_write[]` без запуска checks и без обращ
 #### Scenario: NOT_APPLICABLE без основания
 <!-- id: SCN-VER-128 -->
 - **WHEN** переход `MERGED` записывает `NOT_APPLICABLE` gate с `applies_when.changed_paths: ["packages/cli/src/**"]`, diff `merge-base(M^1, M^2)..M^2` правит `packages/cli/src/a.ts`, а у записи evidence gate `evidence_status: "PROVEN"`
-- **THEN** `RECORD_MISMATCH` с причиной `not_applicable`, код 1; тот же переход, где каждая запись `requires_evidence` gate — `NOT_APPLICABLE` с `produced_by.type: "check"`, — правило не нарушено
+- **THEN** `RECORD_MISMATCH` с причиной `not_applicable`, код 1; тот же переход, где каждый элемент `requires_evidence` gate удовлетворён CI-записью `NOT_APPLICABLE` от check на M^2, — правило не нарушено; `scope-valid: NOT_APPLICABLE` (без `applies_when` и без `requires_evidence`) — `not_applicable`
+
+#### Scenario: Повтор impl-PR закрывает исключение
+<!-- id: SCN-VER-135 -->
+- **WHEN** record Change на M содержит `VERIFYING->IMPLEMENTING`, а повторный impl-PR, слитый `homasters`, несёт только record; effective policy по M^1 не содержит `human-approval`
+- **THEN** `REF_NOT_VERIFIED` с причиной `merged_by` и находка `AGENT_MERGE_CLOSED`, код 1; тот же PR, слитый членом `roles.maintainer` M^1, — ref верифицирован
 
 #### Scenario: Impl-PR снял с себя приёмку
 <!-- id: SCN-VER-129 -->

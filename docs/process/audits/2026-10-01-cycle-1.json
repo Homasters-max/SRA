@@ -1,0 +1,2529 @@
+{
+  "format": "arch-snapshot/1",
+  "commit": "39a38e1",
+  "dir": "packages/cli/src",
+  "level": 2,
+  "totals": {
+    "modules": 33,
+    "module_edges": 176,
+    "imports": 783,
+    "cycles": 1,
+    "runtime_cycles": 1,
+    "dups": 7
+  },
+  "modules": [
+    {
+      "id": "adapters",
+      "files": 6,
+      "ca": 1,
+      "ce": 2,
+      "instability": 0.67,
+      "internal": 4,
+      "outgoing": 8,
+      "cohesion": 0.33
+    },
+    {
+      "id": "adapters/frontend",
+      "files": 1,
+      "ca": 1,
+      "ce": 2,
+      "instability": 0.67,
+      "internal": 0,
+      "outgoing": 3,
+      "cohesion": 0
+    },
+    {
+      "id": "bin",
+      "files": 1,
+      "ca": 0,
+      "ce": 7,
+      "instability": 1,
+      "internal": 0,
+      "outgoing": 35,
+      "cohesion": 0
+    },
+    {
+      "id": "commands",
+      "files": 22,
+      "ca": 1,
+      "ce": 28,
+      "instability": 0.97,
+      "internal": 17,
+      "outgoing": 200,
+      "cohesion": 0.08
+    },
+    {
+      "id": "core",
+      "files": 12,
+      "ca": 29,
+      "ce": 2,
+      "instability": 0.06,
+      "internal": 8,
+      "outgoing": 9,
+      "cohesion": 0.47
+    },
+    {
+      "id": "core/analyze",
+      "files": 3,
+      "ca": 3,
+      "ce": 3,
+      "instability": 0.5,
+      "internal": 3,
+      "outgoing": 8,
+      "cohesion": 0.27
+    },
+    {
+      "id": "core/canon",
+      "files": 4,
+      "ca": 11,
+      "ce": 2,
+      "instability": 0.15,
+      "internal": 2,
+      "outgoing": 8,
+      "cohesion": 0.2
+    },
+    {
+      "id": "core/check",
+      "files": 3,
+      "ca": 3,
+      "ce": 7,
+      "instability": 0.7,
+      "internal": 2,
+      "outgoing": 18,
+      "cohesion": 0.1
+    },
+    {
+      "id": "core/ci",
+      "files": 10,
+      "ca": 1,
+      "ce": 16,
+      "instability": 0.94,
+      "internal": 28,
+      "outgoing": 111,
+      "cohesion": 0.2
+    },
+    {
+      "id": "core/classify",
+      "files": 3,
+      "ca": 2,
+      "ce": 4,
+      "instability": 0.67,
+      "internal": 2,
+      "outgoing": 7,
+      "cohesion": 0.22
+    },
+    {
+      "id": "core/controller",
+      "files": 2,
+      "ca": 2,
+      "ce": 7,
+      "instability": 0.78,
+      "internal": 1,
+      "outgoing": 11,
+      "cohesion": 0.08
+    },
+    {
+      "id": "core/evidence",
+      "files": 10,
+      "ca": 8,
+      "ce": 5,
+      "instability": 0.38,
+      "internal": 14,
+      "outgoing": 29,
+      "cohesion": 0.33
+    },
+    {
+      "id": "core/gates",
+      "files": 13,
+      "ca": 4,
+      "ce": 9,
+      "instability": 0.69,
+      "internal": 26,
+      "outgoing": 27,
+      "cohesion": 0.49
+    },
+    {
+      "id": "core/git",
+      "files": 3,
+      "ca": 8,
+      "ce": 4,
+      "instability": 0.33,
+      "internal": 3,
+      "outgoing": 8,
+      "cohesion": 0.27
+    },
+    {
+      "id": "core/guard",
+      "files": 4,
+      "ca": 1,
+      "ce": 5,
+      "instability": 0.83,
+      "internal": 3,
+      "outgoing": 22,
+      "cohesion": 0.12
+    },
+    {
+      "id": "core/ids",
+      "files": 5,
+      "ca": 6,
+      "ce": 4,
+      "instability": 0.4,
+      "internal": 3,
+      "outgoing": 15,
+      "cohesion": 0.17
+    },
+    {
+      "id": "core/init",
+      "files": 1,
+      "ca": 1,
+      "ce": 3,
+      "instability": 0.75,
+      "internal": 0,
+      "outgoing": 3,
+      "cohesion": 0
+    },
+    {
+      "id": "core/liveness",
+      "files": 1,
+      "ca": 1,
+      "ce": 3,
+      "instability": 0.75,
+      "internal": 0,
+      "outgoing": 5,
+      "cohesion": 0
+    },
+    {
+      "id": "core/openspec",
+      "files": 3,
+      "ca": 8,
+      "ce": 2,
+      "instability": 0.2,
+      "internal": 0,
+      "outgoing": 6,
+      "cohesion": 0
+    },
+    {
+      "id": "core/packs",
+      "files": 5,
+      "ca": 15,
+      "ce": 4,
+      "instability": 0.21,
+      "internal": 6,
+      "outgoing": 21,
+      "cohesion": 0.22
+    },
+    {
+      "id": "core/ports",
+      "files": 7,
+      "ca": 15,
+      "ce": 0,
+      "instability": 0,
+      "internal": 0,
+      "outgoing": 0,
+      "cohesion": null
+    },
+    {
+      "id": "core/record",
+      "files": 3,
+      "ca": 7,
+      "ce": 3,
+      "instability": 0.3,
+      "internal": 2,
+      "outgoing": 8,
+      "cohesion": 0.2
+    },
+    {
+      "id": "core/resolve",
+      "files": 5,
+      "ca": 7,
+      "ce": 4,
+      "instability": 0.36,
+      "internal": 7,
+      "outgoing": 9,
+      "cohesion": 0.44
+    },
+    {
+      "id": "core/run",
+      "files": 8,
+      "ca": 6,
+      "ce": 8,
+      "instability": 0.57,
+      "internal": 9,
+      "outgoing": 45,
+      "cohesion": 0.17
+    },
+    {
+      "id": "core/schemas",
+      "files": 4,
+      "ca": 12,
+      "ce": 1,
+      "instability": 0.08,
+      "internal": 2,
+      "outgoing": 4,
+      "cohesion": 0.33
+    },
+    {
+      "id": "core/status",
+      "files": 1,
+      "ca": 1,
+      "ce": 1,
+      "instability": 0.5,
+      "internal": 0,
+      "outgoing": 1,
+      "cohesion": 0
+    },
+    {
+      "id": "core/sync",
+      "files": 6,
+      "ca": 2,
+      "ce": 7,
+      "instability": 0.78,
+      "internal": 8,
+      "outgoing": 30,
+      "cohesion": 0.21
+    },
+    {
+      "id": "core/transition",
+      "files": 7,
+      "ca": 2,
+      "ce": 17,
+      "instability": 0.89,
+      "internal": 8,
+      "outgoing": 83,
+      "cohesion": 0.09
+    },
+    {
+      "id": "core/unknowns",
+      "files": 2,
+      "ca": 4,
+      "ce": 2,
+      "instability": 0.33,
+      "internal": 1,
+      "outgoing": 4,
+      "cohesion": 0.2
+    },
+    {
+      "id": "core/validate",
+      "files": 6,
+      "ca": 2,
+      "ce": 9,
+      "instability": 0.82,
+      "internal": 5,
+      "outgoing": 33,
+      "cohesion": 0.13
+    },
+    {
+      "id": "core/waivers",
+      "files": 3,
+      "ca": 4,
+      "ce": 4,
+      "instability": 0.5,
+      "internal": 3,
+      "outgoing": 11,
+      "cohesion": 0.21
+    },
+    {
+      "id": "io",
+      "files": 2,
+      "ca": 2,
+      "ce": 1,
+      "instability": 0.33,
+      "internal": 0,
+      "outgoing": 1,
+      "cohesion": 0
+    },
+    {
+      "id": "version.ts",
+      "files": 1,
+      "ca": 6,
+      "ce": 0,
+      "instability": 0,
+      "internal": 0,
+      "outgoing": 0,
+      "cohesion": null
+    }
+  ],
+  "edges": [
+    {
+      "from": "commands",
+      "to": "core",
+      "imports": 52,
+      "runtime": 31,
+      "type": 21
+    },
+    {
+      "from": "core/ci",
+      "to": "core",
+      "imports": 38,
+      "runtime": 28,
+      "type": 10
+    },
+    {
+      "from": "commands",
+      "to": "core/record",
+      "imports": 23,
+      "runtime": 23,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "io",
+      "imports": 23,
+      "runtime": 23,
+      "type": 0
+    },
+    {
+      "from": "bin",
+      "to": "commands",
+      "imports": 21,
+      "runtime": 21,
+      "type": 0
+    },
+    {
+      "from": "core/run",
+      "to": "core",
+      "imports": 21,
+      "runtime": 15,
+      "type": 6
+    },
+    {
+      "from": "core/ci",
+      "to": "core/evidence",
+      "imports": 17,
+      "runtime": 17,
+      "type": 0
+    },
+    {
+      "from": "core/evidence",
+      "to": "core",
+      "imports": 17,
+      "runtime": 13,
+      "type": 4
+    },
+    {
+      "from": "core/transition",
+      "to": "core",
+      "imports": 17,
+      "runtime": 9,
+      "type": 8
+    },
+    {
+      "from": "commands",
+      "to": "core/packs",
+      "imports": 15,
+      "runtime": 11,
+      "type": 4
+    },
+    {
+      "from": "commands",
+      "to": "core/transition",
+      "imports": 15,
+      "runtime": 15,
+      "type": 0
+    },
+    {
+      "from": "core/ci",
+      "to": "core/record",
+      "imports": 15,
+      "runtime": 8,
+      "type": 7
+    },
+    {
+      "from": "core/packs",
+      "to": "core",
+      "imports": 15,
+      "runtime": 12,
+      "type": 3
+    },
+    {
+      "from": "core/validate",
+      "to": "core",
+      "imports": 14,
+      "runtime": 7,
+      "type": 7
+    },
+    {
+      "from": "core/sync",
+      "to": "core",
+      "imports": 11,
+      "runtime": 9,
+      "type": 2
+    },
+    {
+      "from": "core/transition",
+      "to": "core/gates",
+      "imports": 11,
+      "runtime": 7,
+      "type": 4
+    },
+    {
+      "from": "core/ids",
+      "to": "core",
+      "imports": 9,
+      "runtime": 6,
+      "type": 3
+    },
+    {
+      "from": "core/guard",
+      "to": "core",
+      "imports": 8,
+      "runtime": 7,
+      "type": 1
+    },
+    {
+      "from": "core/transition",
+      "to": "core/evidence",
+      "imports": 8,
+      "runtime": 7,
+      "type": 1
+    },
+    {
+      "from": "commands",
+      "to": "core/resolve",
+      "imports": 7,
+      "runtime": 6,
+      "type": 1
+    },
+    {
+      "from": "commands",
+      "to": "core/run",
+      "imports": 7,
+      "runtime": 7,
+      "type": 0
+    },
+    {
+      "from": "core",
+      "to": "core/ports",
+      "imports": 7,
+      "runtime": 0,
+      "type": 7
+    },
+    {
+      "from": "core/ci",
+      "to": "core/packs",
+      "imports": 7,
+      "runtime": 6,
+      "type": 1
+    },
+    {
+      "from": "core/transition",
+      "to": "core/git",
+      "imports": 7,
+      "runtime": 5,
+      "type": 2
+    },
+    {
+      "from": "core/transition",
+      "to": "core/packs",
+      "imports": 7,
+      "runtime": 4,
+      "type": 3
+    },
+    {
+      "from": "commands",
+      "to": "core/check",
+      "imports": 6,
+      "runtime": 6,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/git",
+      "imports": 6,
+      "runtime": 6,
+      "type": 0
+    },
+    {
+      "from": "core/check",
+      "to": "core",
+      "imports": 6,
+      "runtime": 5,
+      "type": 1
+    },
+    {
+      "from": "core/check",
+      "to": "core/evidence",
+      "imports": 6,
+      "runtime": 5,
+      "type": 1
+    },
+    {
+      "from": "core/gates",
+      "to": "core",
+      "imports": 6,
+      "runtime": 5,
+      "type": 1
+    },
+    {
+      "from": "core/guard",
+      "to": "core/run",
+      "imports": 6,
+      "runtime": 4,
+      "type": 2
+    },
+    {
+      "from": "core/transition",
+      "to": "core/controller",
+      "imports": 6,
+      "runtime": 5,
+      "type": 1
+    },
+    {
+      "from": "core/transition",
+      "to": "core/record",
+      "imports": 6,
+      "runtime": 2,
+      "type": 4
+    },
+    {
+      "from": "core/validate",
+      "to": "core/packs",
+      "imports": 6,
+      "runtime": 2,
+      "type": 4
+    },
+    {
+      "from": "core/waivers",
+      "to": "core",
+      "imports": 6,
+      "runtime": 5,
+      "type": 1
+    },
+    {
+      "from": "adapters",
+      "to": "core/ports",
+      "imports": 5,
+      "runtime": 1,
+      "type": 4
+    },
+    {
+      "from": "bin",
+      "to": "adapters",
+      "imports": 5,
+      "runtime": 5,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/ids",
+      "imports": 5,
+      "runtime": 5,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/openspec",
+      "imports": 5,
+      "runtime": 5,
+      "type": 0
+    },
+    {
+      "from": "core/ci",
+      "to": "core/gates",
+      "imports": 5,
+      "runtime": 4,
+      "type": 1
+    },
+    {
+      "from": "core/evidence",
+      "to": "core/canon",
+      "imports": 5,
+      "runtime": 5,
+      "type": 0
+    },
+    {
+      "from": "core/gates",
+      "to": "core/evidence",
+      "imports": 5,
+      "runtime": 5,
+      "type": 0
+    },
+    {
+      "from": "core/gates",
+      "to": "core/waivers",
+      "imports": 5,
+      "runtime": 2,
+      "type": 3
+    },
+    {
+      "from": "core/git",
+      "to": "core",
+      "imports": 5,
+      "runtime": 3,
+      "type": 2
+    },
+    {
+      "from": "core/openspec",
+      "to": "core",
+      "imports": 5,
+      "runtime": 4,
+      "type": 1
+    },
+    {
+      "from": "core/run",
+      "to": "core/canon",
+      "imports": 5,
+      "runtime": 5,
+      "type": 0
+    },
+    {
+      "from": "core/run",
+      "to": "core/git",
+      "imports": 5,
+      "runtime": 4,
+      "type": 1
+    },
+    {
+      "from": "core/sync",
+      "to": "core/canon",
+      "imports": 5,
+      "runtime": 5,
+      "type": 0
+    },
+    {
+      "from": "core/sync",
+      "to": "core/packs",
+      "imports": 5,
+      "runtime": 3,
+      "type": 2
+    },
+    {
+      "from": "commands",
+      "to": "core/ci",
+      "imports": 4,
+      "runtime": 4,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/validate",
+      "imports": 4,
+      "runtime": 4,
+      "type": 0
+    },
+    {
+      "from": "core/analyze",
+      "to": "core/ids",
+      "imports": 4,
+      "runtime": 4,
+      "type": 0
+    },
+    {
+      "from": "core/canon",
+      "to": "core",
+      "imports": 4,
+      "runtime": 4,
+      "type": 0
+    },
+    {
+      "from": "core/canon",
+      "to": "core/schemas",
+      "imports": 4,
+      "runtime": 4,
+      "type": 0
+    },
+    {
+      "from": "core/ci",
+      "to": "core/check",
+      "imports": 4,
+      "runtime": 4,
+      "type": 0
+    },
+    {
+      "from": "core/ci",
+      "to": "core/git",
+      "imports": 4,
+      "runtime": 3,
+      "type": 1
+    },
+    {
+      "from": "core/ci",
+      "to": "core/transition",
+      "imports": 4,
+      "runtime": 4,
+      "type": 0
+    },
+    {
+      "from": "core/controller",
+      "to": "core/gates",
+      "imports": 4,
+      "runtime": 4,
+      "type": 0
+    },
+    {
+      "from": "core/guard",
+      "to": "core/packs",
+      "imports": 4,
+      "runtime": 2,
+      "type": 2
+    },
+    {
+      "from": "core/record",
+      "to": "core",
+      "imports": 4,
+      "runtime": 3,
+      "type": 1
+    },
+    {
+      "from": "core/resolve",
+      "to": "core",
+      "imports": 4,
+      "runtime": 3,
+      "type": 1
+    },
+    {
+      "from": "core/run",
+      "to": "core/packs",
+      "imports": 4,
+      "runtime": 3,
+      "type": 1
+    },
+    {
+      "from": "core/run",
+      "to": "core/schemas",
+      "imports": 4,
+      "runtime": 2,
+      "type": 2
+    },
+    {
+      "from": "core/schemas",
+      "to": "core",
+      "imports": 4,
+      "runtime": 2,
+      "type": 2
+    },
+    {
+      "from": "core/transition",
+      "to": "core/resolve",
+      "imports": 4,
+      "runtime": 1,
+      "type": 3
+    },
+    {
+      "from": "core/validate",
+      "to": "core/ids",
+      "imports": 4,
+      "runtime": 3,
+      "type": 1
+    },
+    {
+      "from": "adapters",
+      "to": "core",
+      "imports": 3,
+      "runtime": 3,
+      "type": 0
+    },
+    {
+      "from": "bin",
+      "to": "core",
+      "imports": 3,
+      "runtime": 2,
+      "type": 1
+    },
+    {
+      "from": "commands",
+      "to": "core/canon",
+      "imports": 3,
+      "runtime": 3,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/gates",
+      "imports": 3,
+      "runtime": 2,
+      "type": 1
+    },
+    {
+      "from": "commands",
+      "to": "core/schemas",
+      "imports": 3,
+      "runtime": 2,
+      "type": 1
+    },
+    {
+      "from": "core/analyze",
+      "to": "core/git",
+      "imports": 3,
+      "runtime": 0,
+      "type": 3
+    },
+    {
+      "from": "core/ci",
+      "to": "core/ports",
+      "imports": 3,
+      "runtime": 0,
+      "type": 3
+    },
+    {
+      "from": "core/ci",
+      "to": "core/run",
+      "imports": 3,
+      "runtime": 3,
+      "type": 0
+    },
+    {
+      "from": "core/classify",
+      "to": "core/resolve",
+      "imports": 3,
+      "runtime": 2,
+      "type": 1
+    },
+    {
+      "from": "core/evidence",
+      "to": "core/packs",
+      "imports": 3,
+      "runtime": 2,
+      "type": 1
+    },
+    {
+      "from": "core/evidence",
+      "to": "core/schemas",
+      "imports": 3,
+      "runtime": 2,
+      "type": 1
+    },
+    {
+      "from": "core/gates",
+      "to": "core/git",
+      "imports": 3,
+      "runtime": 1,
+      "type": 2
+    },
+    {
+      "from": "core/guard",
+      "to": "core/ports",
+      "imports": 3,
+      "runtime": 2,
+      "type": 1
+    },
+    {
+      "from": "core/ids",
+      "to": "core/record",
+      "imports": 3,
+      "runtime": 3,
+      "type": 0
+    },
+    {
+      "from": "core/packs",
+      "to": "core/schemas",
+      "imports": 3,
+      "runtime": 3,
+      "type": 0
+    },
+    {
+      "from": "core/record",
+      "to": "core/schemas",
+      "imports": 3,
+      "runtime": 2,
+      "type": 1
+    },
+    {
+      "from": "core/run",
+      "to": "core/evidence",
+      "imports": 3,
+      "runtime": 3,
+      "type": 0
+    },
+    {
+      "from": "core/sync",
+      "to": "core/run",
+      "imports": 3,
+      "runtime": 3,
+      "type": 0
+    },
+    {
+      "from": "core/sync",
+      "to": "core/schemas",
+      "imports": 3,
+      "runtime": 2,
+      "type": 1
+    },
+    {
+      "from": "core/transition",
+      "to": "core/waivers",
+      "imports": 3,
+      "runtime": 3,
+      "type": 0
+    },
+    {
+      "from": "core/unknowns",
+      "to": "core",
+      "imports": 3,
+      "runtime": 3,
+      "type": 0
+    },
+    {
+      "from": "core/validate",
+      "to": "core/record",
+      "imports": 3,
+      "runtime": 3,
+      "type": 0
+    },
+    {
+      "from": "adapters/frontend",
+      "to": "core",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "bin",
+      "to": "core/ports",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "bin",
+      "to": "io",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/analyze",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/classify",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/controller",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/ports",
+      "imports": 2,
+      "runtime": 0,
+      "type": 2
+    },
+    {
+      "from": "commands",
+      "to": "core/sync",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/unknowns",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/waivers",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core",
+      "to": "core/schemas",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/check",
+      "to": "core/packs",
+      "imports": 2,
+      "runtime": 1,
+      "type": 1
+    },
+    {
+      "from": "core/ci",
+      "to": "core/canon",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/ci",
+      "to": "core/classify",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/ci",
+      "to": "core/resolve",
+      "imports": 2,
+      "runtime": 1,
+      "type": 1
+    },
+    {
+      "from": "core/ci",
+      "to": "core/schemas",
+      "imports": 2,
+      "runtime": 1,
+      "type": 1
+    },
+    {
+      "from": "core/ci",
+      "to": "core/unknowns",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/classify",
+      "to": "core",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/controller",
+      "to": "core",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/gates",
+      "to": "core/analyze",
+      "imports": 2,
+      "runtime": 0,
+      "type": 2
+    },
+    {
+      "from": "core/gates",
+      "to": "core/ports",
+      "imports": 2,
+      "runtime": 0,
+      "type": 2
+    },
+    {
+      "from": "core/gates",
+      "to": "core/resolve",
+      "imports": 2,
+      "runtime": 0,
+      "type": 2
+    },
+    {
+      "from": "core/ids",
+      "to": "core/openspec",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/liveness",
+      "to": "core",
+      "imports": 2,
+      "runtime": 1,
+      "type": 1
+    },
+    {
+      "from": "core/liveness",
+      "to": "core/run",
+      "imports": 2,
+      "runtime": 1,
+      "type": 1
+    },
+    {
+      "from": "core/packs",
+      "to": "version.ts",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/resolve",
+      "to": "core/canon",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/resolve",
+      "to": "core/packs",
+      "imports": 2,
+      "runtime": 0,
+      "type": 2
+    },
+    {
+      "from": "core/run",
+      "to": "core/ports",
+      "imports": 2,
+      "runtime": 0,
+      "type": 2
+    },
+    {
+      "from": "core/sync",
+      "to": "core/openspec",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/transition",
+      "to": "core/analyze",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/transition",
+      "to": "core/check",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/transition",
+      "to": "core/ids",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/transition",
+      "to": "core/openspec",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/transition",
+      "to": "core/ports",
+      "imports": 2,
+      "runtime": 0,
+      "type": 2
+    },
+    {
+      "from": "core/transition",
+      "to": "core/run",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/validate",
+      "to": "core/schemas",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "core/waivers",
+      "to": "core/packs",
+      "imports": 2,
+      "runtime": 1,
+      "type": 1
+    },
+    {
+      "from": "core/waivers",
+      "to": "core/schemas",
+      "imports": 2,
+      "runtime": 2,
+      "type": 0
+    },
+    {
+      "from": "adapters/frontend",
+      "to": "core/ports",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "bin",
+      "to": "adapters/frontend",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "bin",
+      "to": "version.ts",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/evidence",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/guard",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/init",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "core/status",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "commands",
+      "to": "version.ts",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/analyze",
+      "to": "core",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "core/check",
+      "to": "core/git",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "core/check",
+      "to": "core/ids",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/check",
+      "to": "core/ports",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "core/check",
+      "to": "core/resolve",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "core/ci",
+      "to": "core/openspec",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/classify",
+      "to": "core/packs",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "core/classify",
+      "to": "core/schemas",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/controller",
+      "to": "core/evidence",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/controller",
+      "to": "core/packs",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "core/controller",
+      "to": "core/ports",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "core/controller",
+      "to": "core/resolve",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "core/controller",
+      "to": "core/unknowns",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/evidence",
+      "to": "version.ts",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/gates",
+      "to": "core/packs",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/gates",
+      "to": "core/unknowns",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/git",
+      "to": "core/canon",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/git",
+      "to": "core/evidence",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/git",
+      "to": "core/ports",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "core/guard",
+      "to": "core/validate",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/ids",
+      "to": "core/git",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/init",
+      "to": "core",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/init",
+      "to": "core/openspec",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/init",
+      "to": "core/packs",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/liveness",
+      "to": "core/ports",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "core/openspec",
+      "to": "core/ports",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "core/packs",
+      "to": "core/canon",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/record",
+      "to": "core/canon",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/resolve",
+      "to": "version.ts",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/run",
+      "to": "core/ids",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/status",
+      "to": "core/openspec",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "core/sync",
+      "to": "version.ts",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/transition",
+      "to": "core/canon",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/transition",
+      "to": "core/liveness",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/unknowns",
+      "to": "core/record",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/validate",
+      "to": "core/canon",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/validate",
+      "to": "core/openspec",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/validate",
+      "to": "core/sync",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/validate",
+      "to": "core/waivers",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    },
+    {
+      "from": "core/waivers",
+      "to": "core/record",
+      "imports": 1,
+      "runtime": 0,
+      "type": 1
+    },
+    {
+      "from": "io",
+      "to": "core",
+      "imports": 1,
+      "runtime": 1,
+      "type": 0
+    }
+  ],
+  "cycles": [
+    {
+      "members": [
+        "core",
+        "core/schemas"
+      ],
+      "runtime": true
+    }
+  ],
+  "dups": [
+    {
+      "name": "fail",
+      "files": 5,
+      "hazard": true
+    },
+    {
+      "name": "visit",
+      "files": 5,
+      "hazard": true
+    },
+    {
+      "name": "add",
+      "files": 4,
+      "hazard": true
+    },
+    {
+      "name": "constructor",
+      "files": 4,
+      "hazard": true
+    },
+    {
+      "name": "finish",
+      "files": 3,
+      "hazard": true
+    },
+    {
+      "name": "run",
+      "files": 3,
+      "hazard": true
+    },
+    {
+      "name": "text",
+      "files": 3,
+      "hazard": true
+    }
+  ],
+  "slices": [
+    {
+      "entry": "runAnalyze",
+      "path": "packages/cli/src/commands/analyze.ts",
+      "found": true,
+      "symbols": 53,
+      "module_count": 8,
+      "entry_module": "commands",
+      "entry_share": 0.04,
+      "modules": {
+        "core/schemas": 18,
+        "core": 10,
+        "core/git": 7,
+        "core/analyze": 6,
+        "core/ids": 6,
+        "commands": 2,
+        "core/openspec": 2,
+        "io": 2
+      },
+      "ports": {
+        "git.commonDir": 1,
+        "git.diffNameStatus": 1,
+        "git.head": 1,
+        "git.mergeBase": 1,
+        "git.prefix": 1,
+        "git.resolveCommit": 1
+      },
+      "recovered": [
+        "analyze",
+        "isPlainObject",
+        "readJson"
+      ]
+    },
+    {
+      "entry": "runArchive",
+      "path": "packages/cli/src/commands/archive.ts",
+      "found": true,
+      "symbols": 262,
+      "module_count": 20,
+      "entry_module": "commands",
+      "entry_share": 0.02,
+      "modules": {
+        "core": 25,
+        "core/transition": 24,
+        "core/evidence": 23,
+        "core/packs": 21,
+        "core/gates": 20,
+        "core/schemas": 20,
+        "core/canon": 18,
+        "core/git": 18,
+        "core/ids": 16,
+        "core/resolve": 14,
+        "core/run": 11,
+        "core/controller": 10,
+        "core/record": 10,
+        "core/check": 8,
+        "core/analyze": 6,
+        "commands": 4,
+        "core/openspec": 4,
+        "core/waivers": 4,
+        "io": 4,
+        "core/unknowns": 2
+      },
+      "ports": {
+        "checks.run": 1,
+        "clock.localToday": 1,
+        "clock.today": 1,
+        "git.branch": 1,
+        "git.commonDir": 1,
+        "git.contents": 1,
+        "git.diffNameStatus": 1,
+        "git.files": 2,
+        "git.firstParents": 1,
+        "git.head": 1,
+        "git.isAncestor": 1,
+        "git.mergeBase": 1,
+        "git.parents": 1,
+        "git.prefix": 3,
+        "git.resolveCommit": 2,
+        "git.tree": 1,
+        "git.treeId": 1,
+        "openspec.archive": 1,
+        "openspec.status": 1,
+        "openspec.version": 1
+      },
+      "recovered": [
+        "analyze",
+        "evaluate",
+        "isPlainObject",
+        "posix",
+        "readJson",
+        "readRecords"
+      ]
+    },
+    {
+      "entry": "runCheck",
+      "path": "packages/cli/src/commands/check.ts",
+      "found": true,
+      "symbols": 132,
+      "module_count": 12,
+      "entry_module": "commands",
+      "entry_share": 0.02,
+      "modules": {
+        "core": 22,
+        "core/packs": 21,
+        "core/schemas": 20,
+        "core/evidence": 19,
+        "core/canon": 18,
+        "core/resolve": 14,
+        "core/check": 9,
+        "core/record": 3,
+        "commands": 2,
+        "io": 2,
+        "core/git": 1,
+        "core/ids": 1
+      },
+      "ports": {
+        "checks.run": 1,
+        "git.commonDir": 1,
+        "git.head": 1,
+        "git.mergeBase": 1,
+        "git.resolveCommit": 1,
+        "openspec.version": 1
+      },
+      "recovered": [
+        "readJson"
+      ]
+    },
+    {
+      "entry": "runCi",
+      "path": "packages/cli/src/commands/ci.ts",
+      "found": true,
+      "symbols": 333,
+      "module_count": 23,
+      "entry_module": "commands",
+      "entry_share": 0.01,
+      "modules": {
+        "core/ci": 55,
+        "core/evidence": 28,
+        "core": 26,
+        "core/packs": 23,
+        "core/gates": 20,
+        "core/schemas": 20,
+        "core/transition": 20,
+        "core/canon": 18,
+        "core/git": 18,
+        "core/ids": 16,
+        "core/resolve": 14,
+        "core/classify": 13,
+        "core/run": 13,
+        "core/check": 9,
+        "core/controller": 9,
+        "core/record": 9,
+        "core/analyze": 6,
+        "core/openspec": 4,
+        "core/waivers": 4,
+        "core/unknowns": 3,
+        "commands": 2,
+        "io": 2,
+        "core/liveness": 1
+      },
+      "ports": {
+        "checks.run": 1,
+        "clock.today": 1,
+        "forge.comment": 1,
+        "forge.downloadArtifact": 1,
+        "forge.pullRequest": 3,
+        "forge.workflowRun": 1,
+        "git.branch": 1,
+        "git.commonDir": 3,
+        "git.contents": 4,
+        "git.diffNameStatus": 1,
+        "git.files": 2,
+        "git.firstParents": 2,
+        "git.head": 2,
+        "git.isAncestor": 1,
+        "git.mergeBase": 2,
+        "git.parents": 4,
+        "git.prefix": 3,
+        "git.resolveCommit": 2,
+        "git.tree": 3,
+        "git.treeId": 3,
+        "git.worktreeAt": 2,
+        "openspec.archive": 1,
+        "openspec.status": 1,
+        "openspec.version": 1
+      },
+      "recovered": [
+        "analyze",
+        "classify",
+        "evaluate",
+        "readJson",
+        "readRecords"
+      ]
+    },
+    {
+      "entry": "runCiFetch",
+      "path": "packages/cli/src/commands/ci.ts",
+      "found": true,
+      "symbols": 91,
+      "module_count": 10,
+      "entry_module": "commands",
+      "entry_share": 0.03,
+      "modules": {
+        "core/schemas": 20,
+        "core/canon": 17,
+        "core/evidence": 15,
+        "core/ci": 12,
+        "core": 11,
+        "core/git": 5,
+        "io": 4,
+        "commands": 3,
+        "core/check": 2,
+        "core/record": 2
+      },
+      "ports": {
+        "forge.downloadArtifact": 1,
+        "forge.listRuns": 2,
+        "forge.pullRequest": 1,
+        "forge.workflowRun": 1,
+        "git.commonDir": 2,
+        "git.contents": 1,
+        "git.diffNameStatus": 1,
+        "git.head": 1,
+        "git.parents": 1,
+        "git.prefix": 1,
+        "git.resolveCommit": 1,
+        "git.treeId": 1,
+        "openspec.version": 1
+      },
+      "recovered": [
+        "isPlainObject"
+      ]
+    },
+    {
+      "entry": "runClassify",
+      "path": "packages/cli/src/commands/classify.ts",
+      "found": true,
+      "symbols": 132,
+      "module_count": 11,
+      "entry_module": "commands",
+      "entry_share": 0.07,
+      "modules": {
+        "core": 23,
+        "core/schemas": 20,
+        "core/packs": 18,
+        "core/canon": 15,
+        "core/classify": 14,
+        "core/resolve": 14,
+        "commands": 9,
+        "core/run": 8,
+        "core/record": 7,
+        "core/git": 2,
+        "io": 2
+      },
+      "ports": {
+        "git.diffNames": 1,
+        "git.prefix": 1,
+        "git.upstreamAhead": 1
+      },
+      "recovered": [
+        "classify",
+        "readJson"
+      ]
+    },
+    {
+      "entry": "runFinish",
+      "path": "packages/cli/src/commands/run.ts",
+      "found": true,
+      "symbols": 76,
+      "module_count": 8,
+      "entry_module": "commands",
+      "entry_share": 0.07,
+      "modules": {
+        "core/schemas": 20,
+        "core/canon": 15,
+        "core/run": 14,
+        "core": 13,
+        "commands": 5,
+        "core/evidence": 5,
+        "io": 3,
+        "core/ci": 1
+      },
+      "ports": {},
+      "recovered": [
+        "isPlainObject"
+      ]
+    },
+    {
+      "entry": "runFmt",
+      "path": "packages/cli/src/commands/fmt.ts",
+      "found": true,
+      "symbols": 36,
+      "module_count": 5,
+      "entry_module": "commands",
+      "entry_share": 0.03,
+      "modules": {
+        "core/canon": 17,
+        "core": 8,
+        "core/schemas": 8,
+        "io": 2,
+        "commands": 1
+      },
+      "ports": {},
+      "recovered": [
+        "isPlainObject"
+      ]
+    },
+    {
+      "entry": "runGate",
+      "path": "packages/cli/src/commands/gate.ts",
+      "found": true,
+      "symbols": 250,
+      "module_count": 21,
+      "entry_module": "commands",
+      "entry_share": 0.01,
+      "modules": {
+        "core": 24,
+        "core/evidence": 23,
+        "core/transition": 22,
+        "core/packs": 21,
+        "core/gates": 20,
+        "core/schemas": 20,
+        "core/canon": 18,
+        "core/git": 18,
+        "core/ids": 16,
+        "core/resolve": 14,
+        "core/run": 13,
+        "core/controller": 10,
+        "core/check": 8,
+        "core/analyze": 6,
+        "core/waivers": 4,
+        "core/openspec": 3,
+        "core/record": 3,
+        "commands": 2,
+        "core/unknowns": 2,
+        "io": 2,
+        "core/liveness": 1
+      },
+      "ports": {
+        "checks.run": 1,
+        "clock.today": 1,
+        "git.branch": 1,
+        "git.commonDir": 1,
+        "git.contents": 1,
+        "git.diffNameStatus": 1,
+        "git.files": 2,
+        "git.firstParents": 1,
+        "git.head": 1,
+        "git.isAncestor": 1,
+        "git.mergeBase": 1,
+        "git.parents": 1,
+        "git.prefix": 3,
+        "git.resolveCommit": 2,
+        "git.tree": 1,
+        "git.treeId": 1,
+        "openspec.status": 1,
+        "openspec.version": 1
+      },
+      "recovered": [
+        "analyze",
+        "evaluate",
+        "isPlainObject",
+        "readJson",
+        "readRecords"
+      ]
+    },
+    {
+      "entry": "runGuard",
+      "path": "packages/cli/src/commands/guard.ts",
+      "found": true,
+      "symbols": 173,
+      "module_count": 13,
+      "entry_module": "commands",
+      "entry_share": 0,
+      "modules": {
+        "core/guard": 49,
+        "core": 32,
+        "core/packs": 20,
+        "core/schemas": 20,
+        "core/canon": 16,
+        "core/run": 15,
+        "core/ids": 8,
+        "core/evidence": 5,
+        "core/validate": 3,
+        "core/record": 2,
+        "core/ci": 1,
+        "core/resolve": 1,
+        "io": 1
+      },
+      "ports": {},
+      "recovered": [
+        "guard",
+        "readJson",
+        "simpleCommands"
+      ]
+    },
+    {
+      "entry": "runGuardFrontend",
+      "path": "packages/cli/src/commands/guard.ts",
+      "found": true,
+      "symbols": 0,
+      "module_count": 0,
+      "entry_module": "commands",
+      "entry_share": 0,
+      "modules": {},
+      "ports": {},
+      "recovered": []
+    },
+    {
+      "entry": "runId",
+      "path": "packages/cli/src/commands/id.ts",
+      "found": true,
+      "symbols": 54,
+      "module_count": 5,
+      "entry_module": "commands",
+      "entry_share": 0.04,
+      "modules": {
+        "core/ids": 20,
+        "core/schemas": 18,
+        "core": 13,
+        "commands": 2,
+        "io": 1
+      },
+      "ports": {},
+      "recovered": [
+        "isPlainObject",
+        "posix",
+        "readJson"
+      ]
+    },
+    {
+      "entry": "runInit",
+      "path": "packages/cli/src/commands/init.ts",
+      "found": true,
+      "symbols": 136,
+      "module_count": 9,
+      "entry_module": "commands",
+      "entry_share": 0.03,
+      "modules": {
+        "core/sync": 38,
+        "core/schemas": 20,
+        "core/canon": 19,
+        "core/packs": 19,
+        "core": 18,
+        "core/openspec": 12,
+        "commands": 4,
+        "core/init": 4,
+        "io": 2
+      },
+      "ports": {
+        "openspec.version": 1
+      },
+      "recovered": [
+        "readJson"
+      ]
+    },
+    {
+      "entry": "runInitChange",
+      "path": "packages/cli/src/commands/init.ts",
+      "found": true,
+      "symbols": 34,
+      "module_count": 7,
+      "entry_module": "commands",
+      "entry_share": 0.06,
+      "modules": {
+        "core/canon": 15,
+        "core/schemas": 8,
+        "core/init": 4,
+        "commands": 2,
+        "core": 2,
+        "core/openspec": 2,
+        "io": 1
+      },
+      "ports": {
+        "openspec.newChange": 1
+      },
+      "recovered": [
+        "changeRecord",
+        "isPlainObject"
+      ]
+    },
+    {
+      "entry": "runInitCommand",
+      "path": "packages/cli/src/commands/init.ts",
+      "found": true,
+      "symbols": 144,
+      "module_count": 9,
+      "entry_module": "commands",
+      "entry_share": 0.04,
+      "modules": {
+        "core/sync": 38,
+        "core/schemas": 20,
+        "core/canon": 19,
+        "core/packs": 19,
+        "core": 18,
+        "core/openspec": 14,
+        "core/init": 8,
+        "commands": 6,
+        "io": 2
+      },
+      "ports": {
+        "openspec.newChange": 1,
+        "openspec.version": 1
+      },
+      "recovered": [
+        "changeRecord",
+        "readJson"
+      ]
+    },
+    {
+      "entry": "runLink",
+      "path": "packages/cli/src/commands/link.ts",
+      "found": true,
+      "symbols": 53,
+      "module_count": 7,
+      "entry_module": "commands",
+      "entry_share": 0.06,
+      "modules": {
+        "core/schemas": 20,
+        "core/canon": 15,
+        "core/record": 10,
+        "commands": 3,
+        "core": 3,
+        "core/validate": 1,
+        "io": 1
+      },
+      "ports": {},
+      "recovered": [
+        "isPlainObject",
+        "posix"
+      ]
+    },
+    {
+      "entry": "runResolve",
+      "path": "packages/cli/src/commands/resolve.ts",
+      "found": true,
+      "symbols": 73,
+      "module_count": 7,
+      "entry_module": "commands",
+      "entry_share": 0.04,
+      "modules": {
+        "core/schemas": 18,
+        "core": 17,
+        "core/packs": 17,
+        "core/resolve": 14,
+        "commands": 3,
+        "core/record": 2,
+        "io": 2
+      },
+      "ports": {},
+      "recovered": [
+        "readJson"
+      ]
+    },
+    {
+      "entry": "runStart",
+      "path": "packages/cli/src/commands/run.ts",
+      "found": true,
+      "symbols": 149,
+      "module_count": 14,
+      "entry_module": "commands",
+      "entry_share": 0.04,
+      "modules": {
+        "core/run": 27,
+        "core": 26,
+        "core/schemas": 20,
+        "core/canon": 19,
+        "core/packs": 17,
+        "core/resolve": 14,
+        "commands": 6,
+        "core/evidence": 5,
+        "core/git": 4,
+        "core/record": 4,
+        "io": 4,
+        "core/check": 1,
+        "core/ci": 1,
+        "core/ids": 1
+      },
+      "ports": {
+        "git.branch": 1,
+        "git.dirty": 2,
+        "git.prefix": 2,
+        "git.resolveCommit": 1,
+        "git.tree": 1
+      },
+      "recovered": [
+        "readJson"
+      ]
+    },
+    {
+      "entry": "runStatus",
+      "path": "packages/cli/src/commands/status.ts",
+      "found": true,
+      "symbols": 182,
+      "module_count": 22,
+      "entry_module": "commands",
+      "entry_share": 0.02,
+      "modules": {
+        "core": 21,
+        "core/gates": 20,
+        "core/packs": 20,
+        "core/schemas": 18,
+        "core/resolve": 14,
+        "core/run": 13,
+        "core/git": 12,
+        "core/transition": 11,
+        "core/controller": 9,
+        "core/analyze": 6,
+        "core/evidence": 6,
+        "core/ids": 6,
+        "core/record": 5,
+        "core/validate": 4,
+        "commands": 3,
+        "core/openspec": 3,
+        "core/waivers": 3,
+        "core/canon": 2,
+        "core/unknowns": 2,
+        "io": 2,
+        "core/liveness": 1,
+        "core/status": 1
+      },
+      "ports": {
+        "git.contents": 1,
+        "git.files": 2,
+        "git.firstParents": 1,
+        "git.isAncestor": 1,
+        "git.parents": 1,
+        "git.prefix": 2,
+        "git.resolveCommit": 1,
+        "git.tree": 1,
+        "git.treeId": 1,
+        "openspec.status": 1
+      },
+      "recovered": [
+        "analyze",
+        "readJson",
+        "readRecords"
+      ]
+    },
+    {
+      "entry": "runSubmit",
+      "path": "packages/cli/src/commands/run.ts",
+      "found": true,
+      "symbols": 130,
+      "module_count": 10,
+      "entry_module": "commands",
+      "entry_share": 0.04,
+      "modules": {
+        "core": 25,
+        "core/run": 24,
+        "core/schemas": 20,
+        "core/canon": 19,
+        "core/packs": 18,
+        "core/evidence": 13,
+        "commands": 5,
+        "io": 4,
+        "core/ci": 1,
+        "core/ids": 1
+      },
+      "ports": {
+        "git.head": 1,
+        "openspec.version": 1
+      },
+      "recovered": [
+        "readJson",
+        "readRecords"
+      ]
+    },
+    {
+      "entry": "runSync",
+      "path": "packages/cli/src/commands/sync.ts",
+      "found": true,
+      "symbols": 129,
+      "module_count": 8,
+      "entry_module": "commands",
+      "entry_share": 0.02,
+      "modules": {
+        "core/sync": 38,
+        "core/schemas": 20,
+        "core/canon": 19,
+        "core/packs": 19,
+        "core": 17,
+        "core/openspec": 12,
+        "commands": 2,
+        "io": 2
+      },
+      "ports": {},
+      "recovered": [
+        "readJson"
+      ]
+    },
+    {
+      "entry": "runTransition",
+      "path": "packages/cli/src/commands/transition.ts",
+      "found": true,
+      "symbols": 266,
+      "module_count": 20,
+      "entry_module": "commands",
+      "entry_share": 0.03,
+      "modules": {
+        "core/transition": 30,
+        "core": 25,
+        "core/evidence": 21,
+        "core/git": 21,
+        "core/gates": 20,
+        "core/packs": 20,
+        "core/schemas": 20,
+        "core/canon": 17,
+        "core/ids": 16,
+        "core/resolve": 14,
+        "core/record": 13,
+        "core/run": 11,
+        "core/controller": 10,
+        "commands": 8,
+        "core/analyze": 6,
+        "core/waivers": 4,
+        "io": 4,
+        "core/openspec": 3,
+        "core/unknowns": 2,
+        "core/check": 1
+      },
+      "ports": {
+        "clock.today": 2,
+        "git.branch": 1,
+        "git.commonDir": 2,
+        "git.contents": 1,
+        "git.diffNameStatus": 1,
+        "git.files": 2,
+        "git.firstParents": 1,
+        "git.head": 1,
+        "git.isAncestor": 1,
+        "git.mergeBase": 3,
+        "git.parents": 1,
+        "git.prefix": 3,
+        "git.resolveCommit": 3,
+        "git.tree": 1,
+        "git.treeId": 1,
+        "openspec.status": 1,
+        "openspec.version": 1
+      },
+      "recovered": [
+        "analyze",
+        "readJson",
+        "readRecords"
+      ]
+    },
+    {
+      "entry": "runUnknownAdd",
+      "path": "packages/cli/src/commands/unknown.ts",
+      "found": true,
+      "symbols": 74,
+      "module_count": 8,
+      "entry_module": "commands",
+      "entry_share": 0.11,
+      "modules": {
+        "core/schemas": 20,
+        "core/canon": 15,
+        "core/ids": 12,
+        "commands": 8,
+        "core/record": 7,
+        "core": 5,
+        "core/unknowns": 4,
+        "io": 3
+      },
+      "ports": {},
+      "recovered": [
+        "isPlainObject",
+        "posix"
+      ]
+    },
+    {
+      "entry": "runUnknownResolve",
+      "path": "packages/cli/src/commands/unknown.ts",
+      "found": true,
+      "symbols": 66,
+      "module_count": 7,
+      "entry_module": "commands",
+      "entry_share": 0.14,
+      "modules": {
+        "core/schemas": 20,
+        "core/canon": 15,
+        "commands": 9,
+        "core/record": 7,
+        "core/unknowns": 7,
+        "core": 5,
+        "io": 3
+      },
+      "ports": {},
+      "recovered": [
+        "isPlainObject",
+        "posix"
+      ]
+    },
+    {
+      "entry": "runValidate",
+      "path": "packages/cli/src/commands/validate.ts",
+      "found": true,
+      "symbols": 72,
+      "module_count": 9,
+      "entry_module": "commands",
+      "entry_share": 0.03,
+      "modules": {
+        "core": 18,
+        "core/schemas": 18,
+        "core/packs": 17,
+        "core/ids": 8,
+        "core/validate": 4,
+        "commands": 2,
+        "core/record": 2,
+        "io": 2,
+        "core/check": 1
+      },
+      "ports": {},
+      "recovered": [
+        "readJson"
+      ]
+    },
+    {
+      "entry": "runVerify",
+      "path": "packages/cli/src/commands/verify.ts",
+      "found": true,
+      "symbols": 252,
+      "module_count": 21,
+      "entry_module": "commands",
+      "entry_share": 0.01,
+      "modules": {
+        "core": 24,
+        "core/evidence": 23,
+        "core/packs": 22,
+        "core/transition": 22,
+        "core/gates": 20,
+        "core/schemas": 20,
+        "core/canon": 18,
+        "core/git": 18,
+        "core/ids": 16,
+        "core/resolve": 14,
+        "core/run": 13,
+        "core/controller": 10,
+        "core/check": 9,
+        "core/analyze": 6,
+        "core/waivers": 4,
+        "core/openspec": 3,
+        "core/record": 3,
+        "commands": 2,
+        "core/unknowns": 2,
+        "io": 2,
+        "core/liveness": 1
+      },
+      "ports": {
+        "checks.run": 1,
+        "clock.today": 1,
+        "git.branch": 1,
+        "git.commonDir": 1,
+        "git.contents": 1,
+        "git.diffNameStatus": 1,
+        "git.files": 2,
+        "git.firstParents": 1,
+        "git.head": 1,
+        "git.isAncestor": 1,
+        "git.mergeBase": 1,
+        "git.parents": 1,
+        "git.prefix": 3,
+        "git.resolveCommit": 2,
+        "git.tree": 1,
+        "git.treeId": 1,
+        "openspec.status": 1,
+        "openspec.version": 1
+      },
+      "recovered": [
+        "analyze",
+        "evaluate",
+        "isPlainObject",
+        "readJson",
+        "readRecords"
+      ]
+    },
+    {
+      "entry": "runWaive",
+      "path": "packages/cli/src/commands/waive.ts",
+      "found": true,
+      "symbols": 92,
+      "module_count": 8,
+      "entry_module": "commands",
+      "entry_share": 0.1,
+      "modules": {
+        "core/schemas": 20,
+        "core": 19,
+        "core/packs": 18,
+        "core/canon": 15,
+        "commands": 9,
+        "core/record": 6,
+        "io": 4,
+        "core/ids": 1
+      },
+      "ports": {
+        "clock.today": 1
+      },
+      "recovered": [
+        "readJson"
+      ]
+    }
+  ]
+}

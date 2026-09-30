@@ -1,0 +1,14 @@
+{
+  "$schema": "warrant://evidence-manifest/1",
+  "change": "agent-merge",
+  "commit": "5075254cc225b6f1b68b4f9c5232b5bebce446ef",
+  "versions": {
+    "warrant": "0.8.3",
+    "openspec": "1.13.1",
+    "lock_hash": "sha256:ec0690b463d6ac76e9b4b29c4ae71b02d9329d574173fa7a43a107d194de0fae",
+    "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829"
+  },
+  "evidence": [
+    "EVID-01M3T3Q3CPPJNBDZPJKKSKFRW0"
+  ]
+}

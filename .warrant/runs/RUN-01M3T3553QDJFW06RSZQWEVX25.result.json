@@ -1,0 +1,417 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3T3553QDJFW06RSZQWEVX25",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "BLOCKER",
+      "category": "hidden-assumption",
+      "statement": "Исключение для ref `MERGED` (нет gate `human-approval` в effective policy, `merged_by` в `roles` или `identities.agents`) считается по базе требований — HEAD^1 archive-PR, где записан `MERGED`. Эта база уже содержит M, то есть результат того самого impl-PR, который слил агент без человека. Путь обхода такой. Impl-PR в классе D5 честно несёт в `classification.profiles` профили `factory-change` и `human-acceptance`. Он правит `.warrant/local/profiles/human-acceptance.json`: снимает `human-approval` или сужает `match.paths`. Можно вместо этого вписать логин в `roles` / `identities.agents` в `.warrant/warrant.json`. В виде impl `human-approval` уходит в `deferred[]`, поэтому CI зелёный, и агент сливает PR. Archive-PR затем считает policy по базе после M: gate `human-approval` там уже нет, исключение срабатывает, ref засчитан, а `effective_policy_hash` `MERGED` сходится с ослабленной policy. Второй вектор с той же причиной: в SRA `ci.yml` вызывает job с `warrant: checkout` (REQ-VER-014), поэтому archive-PR судит код судьи из M, то есть код, который слил сам агент. Правка «меняет собственную проверку» (ADR-0050 п. 3, ANT-032) проходит без второго взгляда. Это противоречит обоснованию самого REQ-VER-011: «roles и approvals[] — из базы требований: иначе PR вписал бы себе подтверждающего».",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-130",
+        "SCN-VER-131",
+        "REQ-VER-014"
+      ],
+      "recommendation": "Для ref `MERGED` требования исключения (есть ли `human-approval` на `VERIFYING->MERGED`, `roles`, `identities.agents`, `approvals[]`) брать из дерева M^1 — базы, в которую влит impl-PR, для `classification` record на M. Либо брать строже из M^1 и HEAD^1. Добавить сценарий: impl-PR снимает `human-approval` в профиле приёмки и слит агентом, тогда archive-PR даёт `REF_NOT_VERIFIED` с причиной `merged_by`. Для кода судьи в `checkout`-режиме назвать остаточный риск или требовать, чтобы archive-PR с `MERGED`, чей impl-PR менял класс D5, сливал maintainer."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "Proposal объявляет WS-13 закрытым: `.claude/**` и `AGENTS.md` не в policy-путях. Delta этого не закрывает. Правило вида none запрещает только `openspec/changes/**`, состояние, policy-пути (`match.paths` профиля `factory-change`: `.warrant/**`, `packs/**`, `.github/workflows/**`, `packages/cli/src/**` и т. д.), `paths.src` и `paths.tests`. Пути `.claude/**`, `**/AGENTS.md`, `CLAUDE.md`, `scripts/dev/*-hook.js` в `factory-change.json` не входят. Вид archive разрешает «как у spec-PR» все прочие пути. Профиль `human-acceptance` действует только на policy Change, у PR без Change его нет. Docs-, process- и archive-PR, которые по ADR-0049 п. 2 сливает `--auto` агент, правят защиту агента с кодом 0. ADR-0049 п. 2 при этом снимает исключение «PR с защитой агента сливает maintainer», как только WS-13 закрыт у судьи. После этого Change защита агента остаётся без человека.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/agent-merge/proposal.md",
+        "packs/core-sdd/profiles/factory-change.json"
+      ],
+      "recommendation": "Ввести в спецификации множество «пути приёмки человеком» (класс ADR-0050 п. 3), которое судья читает из базы. В видах none, spec и archive правка этих путей даёт `SCOPE_VIOLATION`, а в виде impl требует профиль приёмки. Либо явно оставить WS-13 открытым в proposal и не снимать исключение ADR-0049 п. 2. Добавить сценарий: PR без Change правит `.claude/settings.json` или `scripts/dev/git-hook.js`, результат — `SCOPE_VIOLATION`."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "REQ-VER-003 даёт два законных пути к `NOT_APPLICABLE`. Первый — `applies_when.changed_paths` не пересекает diff. Второй — «все requires_evidence имеют NOT_APPLICABLE от check». Delta REQ-VER-011 принимает записанный `NOT_APPLICABLE` только по первому пути. SCN-VER-128 прямо называет нарушением gate без `applies_when`: «тот же gate без applies_when в определении базы — тоже not_applicable». Вердикт, который `warrant transition` честно вычислил по evidence от check, `warrant ci` отклоняет как `RECORD_MISMATCH`. Для не-waivable gate у Change нет выхода. Принять второй путь без чтения evidence нельзя, а текст говорит «evidence она не читает». Два требования ведут к разному наблюдаемому исходу на одном record.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-128",
+        "REQ-VER-003"
+      ],
+      "recommendation": "Решить явно (см. D-2). Вариант (а): принимать второй путь — каждая запись `evidence[]` перехода нужного kind имеет `evidence_status: NOT_APPLICABLE` и `produced_by.type: check`. Это чтение записанного, не пересчёт; оговорку «evidence она не читает» сузить. Вариант (б): запретить второй путь на переходах, которые судит `ci`, и изменить REQ-VER-003 / `transition` так, чтобы он такой вердикт не записывал. Добавить сценарий на второй путь."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "Новый REQ-SDD-006 требует: `risk-high` SHALL NOT добавлять `human-approval`. При этом main spec REQ-SDD-005, сценарий SCN-SDD-007 (golden `factory-change`), требует: «explain[] относит ... human-approval на VERIFYING->MERGED к overlay/risk-high». Delta REQ-SDD-005 не меняет, и после Change сценарий SCN-SDD-007 невыполним.",
+      "targets": [
+        "REQ-SDD-006",
+        "SCN-SDD-007",
+        "openspec/specs/core-sdd/spec.md"
+      ],
+      "recommendation": "Добавить в delta core-sdd `MODIFIED` REQ-SDD-005 и заменить в SCN-SDD-007 утверждение о `human-approval` от `overlay/risk-high` на `adversarial-review` на `SPECIFIED->APPROVED` от `overlay/risk-high`. Проверить остальные scenarios main specs на опору на `human-approval` у HIGH (см. F-18)."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Класс D5 / ADR-0050 п. 3 называет кодом судьи только `packages/cli/src/core/ci/**` и `core/gates/**`. Но судья и producer CI-evidence зависят от другого кода, который в класс не входит: `core/roles.ts` (`approvalRoles`, `roleMembers`), `core/waivers/**` (`waiverStatus` — основа D3 (б)), `core/classify/**`, `core/packs/loader.ts`, `core/glob.ts` (матч путей), `core/git/**`, `core/evidence/**`, `commands/ci.ts`, адаптеры форжа и git, `packages/cli/schemas/**`, `packages/cli/package.json`. В SRA CLI в job `warrant` ставится из checkout PR (REQ-VER-014), поэтому правка любого из этих файлов подменяет судью и producer evidence. REQ-SDD-005 прямо называет это причиной того, что `packages/cli/src/**` — policy-путь. Раньше такую правку держал `human-approval` у `risk-high` (factory-change даёт HIGH), и Change его снимает. Impl-PR, который делает `roleMembers` всеядным или заставляет check писать `PROVEN`, сливает агент без человека, а archive-PR сверяет лишь байты artifact того же подменённого run.",
+      "targets": [
+        "openspec/changes/agent-merge/proposal.md",
+        "REQ-SDD-006",
+        "REQ-SDD-005",
+        "REQ-VER-014"
+      ],
+      "recommendation": "Расширить класс SRA хотя бы до `match.paths` профиля `factory-change`: `packages/cli/src/**`, `packages/cli/schemas/**`, `packages/cli/package.json`, `openspec/schemas/**`, `sra/skills/**`, плюс `package.json` корня (скрипт `npm test`, который запускает check `tests-passed`). Либо записать в ADR, почему остальной код CLI не меняет проверку. Решение — D-3."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Правило `policy` требует, чтобы у каждого нового перехода `effective_policy_hash` был равен hash policy базы (HEAD^1 на момент CI) для `classification` на HEAD. Молча предполагается, что policy и классификация не менялись между записью перехода и CI. В impl-PR `APPROVED` и `IMPLEMENTING` записываются в начале ветки, а `VERIFYING` — в конце. Классификация за это время растёт: правило `classification` само требует добавить профили по путям diff, например `factory-change` или `human-acceptance`, а hash считается по всей policy. База тоже сдвигается, если в `main` влит другой PR с правкой packs, `.warrant/local/**` или `warrant.json`, в том числе выпуск pack. Тогда честный record получает `RECORD_MISMATCH` с причиной `policy`. Способ восстановления (переписать новые переходы) spec не называет.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-129"
+      ],
+      "recommendation": "Указать поведение явно. Либо сверять hash только у последнего нового перехода вперёд и у `MERGED` / `APPROVED`, а у остальных — только набор gates. Либо описать `hint` `RECORD_MISMATCH` `policy` с восстановлением: сбросить record к базе и повторить переходы по текущей policy. Добавить сценарий: база сдвинулась после записи `APPROVED`."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "Новое правило `policy` применяется к «каждому новому переходу, кроме PROPOSED». Соседнее правило говорит «у каждого нового перехода вперёд». ADR-0051 п. 2 называет `APPROVED`, `SPECIFIED`, `ARCHIVED` и `MERGED`. Переходы назад (`VERIFYING->IMPLEMENTING`, `IMPLEMENTING->SPECIFIED`) REQ-VER-012 записывает без gates, и есть ли у них `effective_policy_hash`, не сказано. `ABANDONED` тоже не назван. Два прочтения дают разный исход: честный переход назад либо проходит, либо получает `RECORD_MISMATCH` `policy`.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Написать «у каждого нового перехода вперёд, кроме PROPOSED» или перечислить переходы. Для переходов назад и `ABANDONED` сказать, что правило `policy` к ним не применяется."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "Для правила `not_applicable` diff перехода определён иначе, чем тот, на котором `transition` вычислил вердикт. У переходов, кроме `MERGED`, берётся diff всего судимого PR, а `transition` видел diff ветки на момент записи. В impl-PR `IMPLEMENTING` записан до коммитов с кодом, и gate с `applies_when` по коду, законно `NOT_APPLICABLE` тогда, по diff всего PR «выполнен». У `MERGED` берётся `M^1..M`, а `transition` берёт `merge-base(M^1, commit)..commit` (REQ-VER-012). При разрешении конфликтов в M или при правках, уже влитых в `main`, множества путей расходятся. Честный record получает `RECORD_MISMATCH` с причиной `not_applicable`.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-128",
+        "REQ-VER-012"
+      ],
+      "recommendation": "Для каждого вида назвать diff так, чтобы он совпадал с diff вычисления `transition`. Для переходов внутри PR — `merge-base..commit`, на котором записан переход. Commit перехода по record не известен, поэтому как вариант применять правило `not_applicable` только к `MERGED` и `ARCHIVED`. Для `MERGED` — `merge-base(M^1, M^2)..M^2`, как в REQ-VER-012."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Правило `waiver` засчитывает waiver из `.warrant/waivers/` «базы или HEAD». Файл на HEAD предъявляет сам PR, а `approved_by` — строка без подтверждения. Archive-PR (вид archive, пути «как у spec-PR», включая waivers этого Change) сливает агент, и он может добавить waiver с `approved_by: human:<maintainer>` или перевести `REVOKED` базы в `ACTIVE` на HEAD. Не сказано, какая версия файла побеждает, если waiver есть и в базе, и на HEAD с разным `state` или `expires_at`. Не требуется, чтобы waiver существовал или был одобрен не позже `at` перехода.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-127"
+      ],
+      "recommendation": "Засчитывать waiver базы. Waiver, который вносит сам PR, засчитывать только в PR, который сливает человек (вид spec), либо требовать для него ref подтверждения. Для файла, который есть в базе, брать версию базы. Добавить сценарий: archive-PR сам добавляет waiver и записывает `WAIVED`, результат — `RECORD_MISMATCH` `waiver`."
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Срок waiver проверяется «на дату `at` перехода», а `at` пишет сам PR в record, и ни одно правило REQ-VER-011 его не ограничивает: монотонность, не раньше `at` последнего перехода базы, не раньше `merged_at` ref у `MERGED`. Если записать `at` задним числом, истёкший waiver становится засчитываемым.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-127"
+      ],
+      "recommendation": "Ограничить `at` новых переходов: не убывает по `transitions[]`, не раньше `at` последнего перехода базы, а у `MERGED` — не раньше `merged_at` PR из ref. Либо проверять срок на max(`at`, дата merge M или дата CI-run). Добавить сценарий с `at` задним числом."
+    },
+    {
+      "id": "F-11",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "При merge агентом не предотвращено ничего. В виде impl `human-approval` уходит в `deferred[]` и не влияет на код выхода, поэтому impl-PR класса D5 зелёный, и `--auto` его сольёт. Нарушение видно только в archive-PR как `REF_NOT_VERIFIED` `merged_by`, причём archive-PR пишет и сливает тот же агент. Spec не говорит, что происходит дальше. Код уже в `main`, `merged_by` неизменяем, `human-approval` не waivable, и `MERGED` не будет верифицирован никогда. Пути восстановления (revert, переход назад, abandon) нет, и нет сигнала, если archive-PR не создан вовсе.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-131",
+        "SCN-VER-075"
+      ],
+      "recommendation": "Описать исход и восстановление: что делает maintainer с Change, чей impl-PR слит в нарушение. Дать агенту машинный сигнал до merge — например, отдельный `data.merge_requires_human: true` или находку в виде impl, когда в `deferred[]` есть `human-approval`. Названные навыки должны не ставить `--auto` по этому сигналу, а не по своей оценке класса путей. Назвать предпосылку: обязательная проверка `warrant / warrant` в branch protection."
+    },
+    {
+      "id": "F-12",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-actor",
+      "statement": "Потребитель (LATTICE) после перехода на pack `core-sdd` 0.4.0 молча теряет приёмку человеком у всех HIGH Changes: `risk-high` 2.0.0 без `human-approval`, профиля путей у него нет. При непустом `identities.agents` его агент по новому исключению ref сливает любой impl-PR. Защита держится только на тексте CHANGELOG, машинного сигнала нет. Для Changes в работе вместе с F-6 смена pack меняет hash policy базы, и новые переходы получают `RECORD_MISMATCH` `policy`. Этот исход не описан.",
+      "targets": [
+        "REQ-SDD-006",
+        "REQ-VER-011",
+        "openspec/changes/agent-merge/proposal.md"
+      ],
+      "recommendation": "Сделать поведение fail-closed. Например, `warrant validate` даёт находку или ошибку, если `identities.agents` непуст, а ни один profile или overlay проекта не добавляет `human-approval` на `VERIFYING->MERGED`. Либо описать в REQ-SDD-006 или в миграции способ сохранить прежнее поведение: локальный overlay, усиливающий `core-sdd:risk-high`. Назвать поведение Changes в работе при смене pack."
+    },
+    {
+      "id": "F-13",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Исключение для ref `MERGED` срабатывает по отсутствию gate с id `human-approval`. Молча предполагается, что приёмку человеком выражает только этот gate. Policy с `approvals[{role, at: VERIFYING->MERGED}]` без gate `human-approval` или со своим gate, требующим evidence kind `human-approval`, после Change пропускает merge агентом или любым членом `roles`, хотя сейчас требует роль одобрения. Для потребителя это ослабление, которое не описано. Кроме того, «любая роль `roles`» включает роли, не предназначенные для merge.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-130"
+      ],
+      "recommendation": "Условие исключения: на `VERIFYING->MERGED` нет ни gate, требующего evidence kind `human-approval`, ни `approvals[]`. Добавить сценарий с `approvals[]` на `VERIFYING->MERGED` без gate: результат — `REF_NOT_VERIFIED` для агента."
+    },
+    {
+      "id": "F-14",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Список держателей N44 после Change неполон. `PASS` переходов `IMPLEMENTING` (`branch-isolated`) и `ARCHIVED` (`spec-valid`, `required-artifacts-present`, `analyze-clean`) не пересчитывается и не держится ни ref, ни merge-вердиктом impl-PR, ни CI-evidence. Раньше их держал maintainer, который сливал impl-PR. Теперь impl-PR и archive-PR сливает агент (ADR-0049 п. 2, ADR-0050 п. 8), а текст по-прежнему говорит: «У ARCHIVED ... их держат ... merge PR maintainer'ом».",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Обновить абзац о доверии: назвать, что держит `PASS` `IMPLEMENTING` и `ARCHIVED` при merge агентом, или прямо записать остаточный риск класса B. Фразу «merge PR maintainer'ом» заменить."
+    },
+    {
+      "id": "F-15",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "ADR-0050 п. 2, третий пункт: «approvalRoles при отсутствии approvals отдаёт „нет роли“ вместо fallback-роли maintainer». Delta REQ-VER-011 сохраняет fallback: «при пустом approvals[] — в roles.maintainer». Design D1 признаёт отступление от ADR и выносит его вопросом в тело PR. Норма ADR меняется только новым ADR, а ADR-0051 этот пункт не меняет.",
+      "targets": [
+        "REQ-VER-011",
+        "docs/adr/WARRANT-ADR-0050-agent-merge.md"
+      ],
+      "recommendation": "До утверждения spec — решение maintainer'а (D-1). Либо ADR, уточняющий ADR-0050 п. 2 (fallback остаётся, исключение идёт по отсутствию `human-approval`), либо spec по букве ADR."
+    },
+    {
+      "id": "F-16",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "WS-14 (D7) в самом SRA бездействует: в `.warrant/warrant.json` нет `paths.src` и `paths.tests`, и по новому правилу вида none PR без Change с кодом получает только `skipped`. `packages/cli/src/**` держат policy-пути, но `packages/cli/test/**` (evidence для SCN), `scripts/**` и `package.json` корня PR без Change правит свободно. Proposal заявляет WS-14 закрытым как условие merge агентом в SRA.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-133",
+        "openspec/changes/agent-merge/proposal.md"
+      ],
+      "recommendation": "Добавить в proposal и Impact `paths.src` / `paths.tests` в `.warrant/warrant.json` SRA. Одного каталога на ключ может не хватить (`packages/cli/src`, `packages/cli/test`, `scripts`). Либо записать, что для SRA WS-14 закрыт только policy-путями и тесты вне Change остаются открытыми."
+    },
+    {
+      "id": "F-17",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-VER-014 обосновывает шаги `warrant validate` и `warrant sync --check` так: «агент не снимет обычным PR свои hooks и lock». Оба шага проверяют согласованность дерева результата merge, то есть содержимого самого PR, а в SRA ещё и CLI из checkout PR. PR, который согласованно меняет конфигурацию и производные файлы (lock, hooks), оба шага проходит. Снятие hooks эти шаги не обнаруживают: для этого нужно сравнение с базой (F-2).",
+      "targets": [
+        "REQ-VER-014",
+        "SCN-VER-122"
+      ],
+      "recommendation": "Переформулировать обоснование: шаги ловят дрейф, но не согласованное снятие. Защиту от снятия отнести к правилу путей класса приёмки (F-2)."
+    },
+    {
+      "id": "F-18",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "SCN-VER-075 внутри MODIFIED REQ-VER-011 исходит из «Change с risk_level: HIGH ..., gate human-approval перехода VERIFYING->MERGED без evidence». По новому REQ-SDD-006 уровень HIGH больше не даёт `human-approval`, поэтому посылка сценария не следует из условий.",
+      "targets": [
+        "SCN-VER-075",
+        "REQ-SDD-006"
+      ],
+      "recommendation": "Заменить посылку: «Change, чья effective policy содержит human-approval на VERIFYING->MERGED (профиль путей проекта)»."
+    },
+    {
+      "id": "F-19",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Сценарии исключения неполны. SCN-VER-130 не называет код выхода. Нет сценария на `merged_by` вне `roles` и `identities.agents` при исключении. Не сказано, выдаются ли `APPROVER_IS_AUTHOR` и `SHARED_IDENTITY` при исключении и пустом `identities.agents`: общий текст их требует, хотя merge по определению «не акт одобрения».",
+      "targets": [
+        "SCN-VER-130",
+        "REQ-VER-011"
+      ],
+      "recommendation": "Дописать код 0 в SCN-VER-130, добавить сценарий на посторонний логин (`REF_NOT_VERIFIED` `merged_by`) и указать, какие находки выдаются при исключении и пустом списке агентов."
+    },
+    {
+      "id": "F-20",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "Правило `not_applicable` для `MERGED` берёт diff `M^1..M` с M «из правила ref». Не сказано, что делает правило, если M не найден (причина `merge_commit`) или git недоступен: пропускается, даёт `RECORD_MISMATCH` или ошибку кода 3.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Указать: без M правило `not_applicable` для `MERGED` не выполняется, нарушение даёт правило ref; отказ git — код 3."
+    },
+    {
+      "id": "F-21",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "В таблице `docs/05-policy.md` §4 «Risk overlays» у HIGH стоит «+ adversarial-review, human-approval на merge». REQ-SDD-006 ссылается на 05 §4, а Impact proposal не называет ни 05 §4, ни 06 §8 (ADR-0050 Consequences).",
+      "targets": [
+        "REQ-SDD-006",
+        "openspec/changes/agent-merge/proposal.md",
+        "docs/05-policy.md"
+      ],
+      "recommendation": "Добавить в Impact правку 05 §4 (HIGH: только `adversarial-review`, приёмка — профиль путей проекта) и 06 §8."
+    },
+    {
+      "id": "F-22",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Proposal «Версии» поднимает pack `core-sdd` до 0.4.0, а для `.warrant/warrant.json` называет только `kernel` (D9). `packs.core-sdd.version` SRA равен `^0.3.0`, и по semver-caret для 0.x версия 0.4.0 в этот диапазон не входит.",
+      "targets": [
+        "openspec/changes/agent-merge/proposal.md"
+      ],
+      "recommendation": "Назвать в proposal смену диапазона на `^0.4.0` и сказать о ней в миграции потребителя."
+    },
+    {
+      "id": "F-23",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "В одном требовании `paths.src` задан по-разному: в SCN-VER-073 и SCN-VER-100 это массив glob `[\"src/**\"]`, в новом SCN-VER-133 — строка `\"src\"`. Схема `config/1` определяет `paths.src` как `relative_path` (каталог).",
+      "targets": [
+        "SCN-VER-073",
+        "SCN-VER-100",
+        "SCN-VER-133"
+      ],
+      "recommendation": "Привести сценарии к форме схемы: `paths.src: \"src\"`."
+    },
+    {
+      "id": "F-24",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "У нового `risk-high SHALL NOT добавлять human-approval и approvals` нет сценария. Единственная оставшаяся в SRA линия приёмки человеком — профиль `human-acceptance`; его пути и gate не закреплены ни одним требованием или сценарием, есть только задача 2.2.",
+      "targets": [
+        "REQ-SDD-006"
+      ],
+      "recommendation": "Добавить сценарий: `resolve` для HIGH без путей класса не содержит `human-approval`. Закрепить состав класса путей SRA проверяемым требованием или тестом, на который ссылается spec."
+    },
+    {
+      "id": "F-25",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Design D1 утверждает: «Ни один pack не объявляет approval на SPECIFIED->APPROVED — одобрение spec держит fallback». `packs/core-sdd/profiles/feature.json` объявляет `approvals: [{role: maintainer, at: SPECIFIED->APPROVED}]` и gate `human-approval` на `SPECIFIED->APPROVED`, поэтому довод D1 о необходимости fallback слабее заявленного.",
+      "targets": [
+        "openspec/changes/agent-merge/design.md",
+        "REQ-VER-011"
+      ],
+      "recommendation": "Уточнить D1: fallback нужен для профилей без approvals, например `chore`. Это учесть в решении D-1."
+    },
+    {
+      "id": "F-26",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "contradiction",
+      "statement": "Исключение INV-03 для merge («merge не акт одобрения») расходится с формулировкой `docs/01-principles.md` INV-03 «Агент MUST NOT одобрять собственное изменение». Раньше merge impl-PR был актом приёмки.",
+      "targets": [
+        "REQ-VER-011",
+        "docs/01-principles.md"
+      ],
+      "recommendation": "Уточнить INV-03 в 01: merge без gate `human-approval` не является одобрением."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/agent-merge/specs/verification/spec.md",
+      "change": "В правиле Ref, в исключении для `MERGED`: «наличие gate `human-approval` на `VERIFYING->MERGED`, `roles` и `identities.agents` для исключения SHALL браться из дерева M^1 (база влитого impl-PR) для `classification` record на M; если по M^1 или по HEAD^1 gate есть — исключение не применяется». Сценарий: impl-PR снимает `human-approval` в профиле приёмки и слит агентом, результат — `REF_NOT_VERIFIED` `merged_by`."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/agent-merge/specs/verification/spec.md",
+      "change": "В «База требований» ввести пути приёмки человеком: `match.paths` профилей базы, которые добавляют `human-approval` на `VERIFYING->MERGED`. В правилах видов none, spec и archive их правка даёт `SCOPE_VIOLATION`. Сценарий: PR без Change правит `.claude/settings.json`."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/agent-merge/specs/core-sdd/spec.md",
+      "change": "Добавить `MODIFIED` REQ-SDD-005 с исправленным SCN-SDD-007 (`human-approval` не от `overlay/risk-high`) и сценарий к REQ-SDD-006: HIGH без путей класса не содержит `human-approval` на `VERIFYING->MERGED`."
+    },
+    {
+      "id": "P-4",
+      "target": "openspec/changes/agent-merge/specs/verification/spec.md",
+      "change": "Правило `policy`: «у каждого нового перехода вперёд, кроме PROPOSED»; переходы назад и `ABANDONED` явно исключить. Для `RECORD_MISMATCH` `policy` дать `hint` восстановления."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Настроена ли в SRA (и у LATTICE) обязательная проверка `warrant / warrant` в branch protection `main`? Без неё агент с `write` сливает и красный impl-PR, и безопасность merge агентом держится только на archive-PR.",
+      "blocking": false,
+      "impact": [
+        "REQ-VER-011",
+        "REQ-VER-014"
+      ]
+    },
+    {
+      "id": "U-2",
+      "question": "Производит ли какой-либо check (pack core-sdd, локальные checks SRA, packs потребителя) evidence `NOT_APPLICABLE`, то есть реально ли второй путь к `NOT_APPLICABLE` из REQ-VER-003?",
+      "blocking": false,
+      "impact": [
+        "REQ-VER-011",
+        "REQ-VER-003"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Archive-PR, который вносит `MERGED`, судится с базой HEAD^1 после M, а job `warrant` SRA ставит CLI из checkout (REQ-VER-014 `warrant: checkout`) — по текущему main spec."
+    },
+    {
+      "id": "A-2",
+      "statement": "`effective_policy_hash` — hash всей effective policy Change (всех переходов), а не одного перехода."
+    },
+    {
+      "id": "A-3",
+      "statement": "`^0.3.0` в `packs.core-sdd.version` трактуется по semver-caret для 0.x: `>=0.3.0 <0.4.0`."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Fallback `maintainer` при пустом `approvals[]` против ADR-0050 п. 2 («нет роли»): как закрепить отступление D1?",
+      "options": [
+        "Новый ADR, уточняющий ADR-0050 п. 2: fallback остаётся, исключение агента — по отсутствию `human-approval`",
+        "Spec по букве ADR-0050: `approvalRoles` без approvals — «нет роли»"
+      ]
+    },
+    {
+      "id": "D-2",
+      "question": "Второй путь к `NOT_APPLICABLE` (все `requires_evidence` `NOT_APPLICABLE` от check) в записанном вердикте:",
+      "options": [
+        "Принимать, читая `evidence_status` и `produced_by` записей `evidence[]` перехода (чтение без пересчёта)",
+        "Отклонять и изменить REQ-VER-003 / `transition`, чтобы такой вердикт не записывался на переходах, которые судит `ci`"
+      ]
+    },
+    {
+      "id": "D-3",
+      "question": "Состав класса путей с приёмкой человеком в SRA (код судьи):",
+      "options": [
+        "Как в ADR-0050 п. 3: `core/ci/**`, `core/gates/**`",
+        "Все `match.paths` профиля `factory-change` плюс защита агента и `package.json` корня",
+        "`core/**`, `commands/ci.ts`, `adapters/**`, `packages/cli/schemas/**`, `packages/cli/package.json`"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:329d68c836e2d0fdbee28e040110ac253d85a705b2b2d942202eccab2db53c1c",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T10:00:00Z",
+    "finished_at": "2026-10-01T10:40:00Z"
+  }
+}

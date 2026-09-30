@@ -28,9 +28,9 @@
  * without a producer passes (SCN-VER-015, P-16).
  */
 import { attestationOf } from "../evidence/attestation.js";
-import { pathMatcher } from "../glob.js";
 import { isPlainObject, strings } from "../json.js";
 import { CALCULATORS, type L0Result } from "./l0/index.js";
+import { appliesTo, appliesWhenPaths, countingWaiver } from "./predicates.js";
 import { prefilter } from "./prefilter.js";
 import {
   MERGE_TRANSITION,
@@ -41,7 +41,7 @@ import {
   type GateEngineResult,
   type Verdict
 } from "./types.js";
-import { countingWaiverIds, waiverStatus, type WaiverContext, type WaiverIgnoredReason } from "../waivers/status.js";
+import { countingWaiverIds, type WaiverContext, type WaiverIgnoredReason } from "../waivers/status.js";
 
 /** The worse of two verdicts in the order `FAIL` > `BLOCKED` > `WAIVED` > `NOT_APPLICABLE` > `PASS`. */
 export function worse(a: Verdict, b: Verdict): Verdict {
@@ -281,7 +281,7 @@ function evaluateOne(id: string, input: GateEngineInput, admissible: readonly Ev
 
   const base = baseOutcome(id, definition, input, admissible);
   if (base.verdict !== "BLOCKED" && base.verdict !== "FAIL") return base;
-  return applyWaivers(id, definition, base, input);
+  return applyWaivers(id, base, input);
 }
 
 /** Steps 1–3 and 5: the verdict before waivers. */
@@ -294,9 +294,7 @@ function baseOutcome(
   const { transition, signals } = input;
 
   // Step 1: applies_when over the diff.
-  const appliesWhen = isPlainObject(definition["applies_when"]) ? definition["applies_when"] : undefined;
-  const patterns = strings(appliesWhen?.["changed_paths"]);
-  if (appliesWhen !== undefined && patterns.length > 0) {
+  if (appliesWhenPaths(definition).length > 0) {
     if (!signals.diff.ok) {
       return {
         verdict: "BLOCKED",
@@ -304,9 +302,7 @@ function baseOutcome(
         evidence: []
       };
     }
-    const matches = pathMatcher(patterns);
-    const hit = signals.diff.value.some((entry) => [entry.path, entry.from].some((p) => p !== undefined && matches(p)));
-    if (!hit) return { verdict: "NOT_APPLICABLE", findings: [], evidence: [] };
+    if (!appliesTo(definition, signals.diff.value)) return { verdict: "NOT_APPLICABLE", findings: [], evidence: [] };
   }
 
   const requirements = requirementsOf(definition);
@@ -382,27 +378,21 @@ const IGNORED_MESSAGE: Record<WaiverIgnoredReason, (waiver: Record<string, unkno
 };
 
 /** Step 4: a waiver of this gate and Change that counts (design §1). */
-function applyWaivers(id: string, definition: Record<string, unknown>, base: GateOutcome, input: GateEngineInput): GateOutcome {
-  const ctx = waiverContext(input);
-  const matching = input.waivers
-    .filter((w) => w.json["gate"] === id && w.json["change"] === input.signals.change)
-    .sort((a, b) => (String(a.json["id"]) < String(b.json["id"]) ? -1 : 1));
+function applyWaivers(id: string, base: GateOutcome, input: GateEngineInput): GateOutcome {
+  const { counting, ignored } = countingWaiver(id, input.signals.change, input.waivers, input.definitions, waiverContext(input));
   const findings = [...base.findings];
-  for (const waiver of matching) {
+  for (const { waiver, reason } of ignored) {
     const waiverId = String(waiver.json["id"]);
-    const status = waiverStatus(waiver.json, definition, ctx);
-    if (!status.counts) {
-      findings.push({
-        code: "WAIVER_IGNORED",
-        gate: id,
-        waiver: waiverId,
-        reason: status.reason,
-        message: `${waiverId} is ignored: ${IGNORED_MESSAGE[status.reason](waiver.json, id)}`
-      });
-      continue;
-    }
-    findings.push({ code: "WAIVED_BY", gate: id, waiver: waiverId, message: `WAIVED_BY: ${waiverId}` });
-    return { verdict: "WAIVED", findings, evidence: base.evidence };
+    findings.push({
+      code: "WAIVER_IGNORED",
+      gate: id,
+      waiver: waiverId,
+      reason,
+      message: `${waiverId} is ignored: ${IGNORED_MESSAGE[reason](waiver.json, id)}`
+    });
   }
-  return { verdict: base.verdict, findings, evidence: base.evidence };
+  if (counting === undefined) return { verdict: base.verdict, findings, evidence: base.evidence };
+  const waiverId = String(counting.json["id"]);
+  findings.push({ code: "WAIVED_BY", gate: id, waiver: waiverId, message: `WAIVED_BY: ${waiverId}` });
+  return { verdict: "WAIVED", findings, evidence: base.evidence };
 }

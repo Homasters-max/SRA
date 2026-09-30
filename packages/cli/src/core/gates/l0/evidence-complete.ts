@@ -10,7 +10,7 @@
  * verdict). A kind accounted for by neither is a `FAIL` naming it.
  */
 import { COUNTING_STATUSES } from "../../evidence/record.js";
-import { waiverStatus } from "../../waivers/status.js";
+import { countingWaiver } from "../predicates.js";
 import { pass, type Calculator, type L0Context } from "./types.js";
 
 /** Whether `requires_evidence` of a gate document names `kind`. */
@@ -19,14 +19,14 @@ function requiresKind(gate: Record<string, unknown> | undefined, kind: string): 
   return Array.isArray(list) && list.some((r) => typeof r === "object" && r !== null && (r as Record<string, unknown>)["kind"] === kind);
 }
 
-/** Whether a gate requiring `kind` has a waiver of this Change that counts. */
+/** Whether a gate requiring `kind` has a waiver of this Change that counts (`countingWaiver`, D5). */
 function waived(ctx: L0Context, kind: string): boolean {
-  return ctx.waivers.some((waiver) => {
-    const gate = waiver.json["gate"];
-    if (typeof gate !== "string" || waiver.json["change"] !== ctx.signals.change) return false;
-    const definition = ctx.definitions.get(gate);
-    return requiresKind(definition, kind) && waiverStatus(waiver.json, definition, ctx.waiverContext).counts;
-  });
+  const gates = new Set(ctx.waivers.flatMap((w) => (typeof w.json["gate"] === "string" ? [w.json["gate"]] : [])));
+  return [...gates].some(
+    (gate) =>
+      requiresKind(ctx.definitions.get(gate), kind) &&
+      countingWaiver(gate, ctx.signals.change, ctx.waivers, ctx.definitions, ctx.waiverContext).counting !== undefined
+  );
 }
 
 export const evidenceComplete: Calculator = (ctx) => {

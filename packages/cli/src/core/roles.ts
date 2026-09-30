@@ -6,6 +6,7 @@
  */
 import type { WarrantConfig } from "./config.js";
 import { WarrantError } from "./errors.js";
+import { HUMAN_APPROVAL } from "./evidence/approval.js";
 
 /** Role asked for when the policy names none at the transition (design §10). */
 export const FALLBACK_ROLE = "maintainer";
@@ -42,6 +43,20 @@ export interface ApprovalsOf {
 export function approvalRoles(policy: ApprovalsOf, transition: string): string[] {
   const roles = [...new Set(policy.approvals.filter((a) => a.at === transition).map((a) => a.role))].sort();
   return roles.length > 0 ? roles : [FALLBACK_ROLE];
+}
+
+/** What {@link requiresHuman} reads of an effective policy: the gates by transition alone (as {@link ApprovalsOf}). */
+export interface GatesOf {
+  readonly gates: Readonly<Record<string, readonly string[]>>;
+}
+
+/**
+ * Whether the transition needs a human (design D2 of agent-merge, A-40): the
+ * policy puts gate `human-approval` on it. Without it a merge is no act of
+ * approval (ADR-0050 п. 2, ADR-0051 п. 4).
+ */
+export function requiresHuman(policy: GatesOf, transition: string): boolean {
+  return (policy.gates[transition] ?? []).includes(HUMAN_APPROVAL);
 }
 
 /** `USAGE` unless `ref` is an http(s) URL (the forge act); also `classify --ref`. */

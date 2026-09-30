@@ -18,8 +18,8 @@
 
 ## 3. Предикаты gate engine (D2, D5)
 
-- [ ] 3.1 `core/gates`: `appliesTo`, `countingWaiver` — чистые функции; `baseOutcome`, `applyWaivers`, `waived` (`evidence-complete`) зовут их; поведение `gate` и `transition` не меняется.
-- [ ] 3.2 `requiresHuman(policy, transition)` рядом с `approvalRoles` (`core/roles.ts`).
+- [x] 3.1 `core/gates`: `appliesTo`, `countingWaiver` — чистые функции; `baseOutcome`, `applyWaivers`, `waived` (`evidence-complete`) зовут их; поведение `gate` и `transition` не меняется.
+- [x] 3.2 `requiresHuman(policy, transition)` рядом с `approvalRoles` (`core/roles.ts`).
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts gates verdict evidence-complete`.
 

@@ -50,3 +50,13 @@
 - **Потребитель.** После pack 0.4.0 у LATTICE HIGH не зовёт человека, пока нет профиля — `NO_HUMAN_ACCEPTANCE` в каждом прогоне CI, миграция в CHANGELOG.
 - **Fix-PR тестов.** С `paths.tests` правка тестов SRA без Change — `SCOPE_VIOLATION` (ADR-0051 п. 8).
 - **Waiver на дату прогона.** Waiver, истёкший между переходом и archive-PR, красит archive-PR: срок waiver — не раньше ожидаемого archive-PR (навык `change-spec-pr`).
+
+## Решения по ходу реализации
+
+| # | Решение | Где |
+|---|---|---|
+| I-226 | Review 5, MINOR F-1: при gate `human-approval` в policy M^1 находки `AGENT_MERGE_CLOSED` нет, даже если record на M^1 дальше `SPECIFIED`; MINOR F-2: «профиль, которого нет в policy M^1» — нет ни в packs, ни в `.warrant/local/**` M^1 | `core/ci/merge.ts`, `core/ci/refs.ts`, задача 4.1 |
+| I-227 | `AGENT_MERGE_CLOSED` выдаётся, только когда M найден: ref, упавший раньше (`repository`, `merged`, `merge_commit`), M^1 не знает — его нарушение уже `REF_NOT_VERIFIED`. «При любом исходе ref» в REQ-VER-011 — о верифицированном и отклонённом `merged_by` | `core/ci/refs.ts`, задача 4.1 |
+| I-228 | M найден, а diff `merge-base(M^1, M^2)..M^2` git не дал — основание `NOT_APPLICABLE` по `applies_when` у `MERGED` не засчитывается (fail-closed, причина `not_applicable`) | `core/ci/record.ts`, задача 4.2 |
+| I-229 | Новый waiver только на HEAD archive-PR требует `factory-change` в классификации (`.warrant/waivers/**` — policy-путь `factory-change`): правило `waiver` его засчитывает, но без профиля — `RECORD_MISMATCH` `classification`, как и раньше | `core/ci/record.ts`, задача 4.2 |
+| I-230 | SCN-VER-129, SCN-VER-132 и тест невычисляемой policy строят `MERGED` в record фикстуры напрямую: честный `transition MERGED` фикстуры упирается в `scope-valid` / `evidence-complete`, а тест судит только ref | `test/app/commands/ci.test.ts`, задача 4.1 |

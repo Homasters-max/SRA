@@ -1,0 +1,31 @@
+# Class of paths with human acceptance (ADR-0050 p. 3, ADR-0051 p. 2-3): the maintainer owns
+# every path whose change alters the check itself. With "Require review from Code Owners"
+# on main, the agent bot cannot merge a PR touching them; the maintainer merges it himself.
+# Keep in sync with .warrant/local/profiles/human-acceptance.json.
+
+# The CLI — it is the judge
+/packages/cli/src/                @Homasters-max
+/packages/cli/schemas/            @Homasters-max
+/packages/cli/package.json        @Homasters-max
+/packages/cli/vitest.config.ts    @Homasters-max
+/package.json                     @Homasters-max
+/package-lock.json                @Homasters-max
+tsconfig*.json                    @Homasters-max
+/scripts/build.js                 @Homasters-max
+
+# Policy
+/packs/                           @Homasters-max
+/.warrant/warrant.json            @Homasters-max
+/.warrant/warrant.lock.json       @Homasters-max
+/.warrant/local/                  @Homasters-max
+/.warrant/waivers/                @Homasters-max
+
+# Agent protection
+/.claude/                         @Homasters-max
+AGENTS.md                         @Homasters-max
+/CLAUDE.md                        @Homasters-max
+/scripts/dev/*-hook.js            @Homasters-max
+
+# Forge
+/.github/workflows/               @Homasters-max
+/.github/CODEOWNERS               @Homasters-max

@@ -34,9 +34,9 @@
 
 ## 5. Workflow, форж, доки (D7, D11)
 
-- [ ] 5.1 `.github/workflows/warrant.yml` — шаги D11; тест SCN-VER-122 по новому тексту REQ-VER-014.
-- [ ] 5.2 `.github/CODEOWNERS` по D7.
-- [ ] 5.3 Доки: `docs/05-policy.md` §4 (`risk-high`), `docs/06-*.md` §8 (форж — предотвращение, судья — обнаружение), `docs/01-*.md` INV-03 (merge без `human-approval` — не одобрение).
+- [x] 5.1 `.github/workflows/warrant.yml` — шаги D11; тест SCN-VER-122 по новому тексту REQ-VER-014.
+- [x] 5.2 `.github/CODEOWNERS` по D7.
+- [x] 5.3 Доки: `docs/05-policy.md` §4 (`risk-high`), `docs/06-*.md` §8 (форж — предотвращение, судья — обнаружение), `docs/01-*.md` INV-03 (merge без `human-approval` — не одобрение).
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts workflow`; `node scripts/dev/check.js`.
 

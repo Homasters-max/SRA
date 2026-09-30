@@ -7,6 +7,9 @@
       "version": "^0.4.0"
     }
   },
+  "paths": {
+    "src": "packages/cli/src"
+  },
   "roles": {
     "maintainer": [
       "Homasters-max"

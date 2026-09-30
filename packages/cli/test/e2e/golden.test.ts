@@ -95,9 +95,9 @@ describe("golden-фикстуры core-sdd", () => {
     expect(run.resolve["capabilities"]).toEqual({ forbidden: ["PRODUCTION_WRITE"] });
     // `tests-passed` приходит из profile/feature через `extends`…
     expect(sourcesOf(run, "gate:tests-passed")).toEqual(["profile/feature"]);
-    // …а `human-approval` на VERIFYING->MERGED — из overlay/risk-high.
-    expect(sourcesOf(run, "gate:human-approval")).toContain("overlay/risk-high");
-    expect(gates["VERIFYING->MERGED"]).toContain("human-approval");
+    // …`adversarial-review` на SPECIFIED->APPROVED — из overlay/risk-high, а `human-approval` на merge risk-high 2.0.0 не даёт.
+    expect(sourcesOf(run, "gate:adversarial-review")).toContain("overlay/risk-high");
+    expect(gates["VERIFYING->MERGED"]).not.toContain("human-approval");
   });
 
   // Проверка (4) `validate` вызывает `openspec schema validate`, поэтому здесь

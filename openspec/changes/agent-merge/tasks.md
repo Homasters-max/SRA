@@ -11,8 +11,8 @@
 
 ## 2. Policy: `risk-high`, профиль приёмки, пути кода (D6, D9, D10)
 
-- [ ] 2.1 `packs/core-sdd/overlays/risk-high.json` 2.0.0 — без `human-approval` и `approvals`; тесты SCN-SDD-007, SCN-SDD-009, SCN-SDD-010, SCN-SDD-028; golden — перегенерация.
-- [ ] 2.2 `.warrant/local/profiles/human-acceptance.json` по D6; `.warrant/warrant.json` — `paths.src`, `paths.tests` по D10; `warrant validate`.
+- [x] 2.1 `packs/core-sdd/overlays/risk-high.json` 2.0.0 — без `human-approval` и `approvals`; тесты SCN-SDD-007, SCN-SDD-009, SCN-SDD-010, SCN-SDD-028; golden — перегенерация.
+- [x] 2.2 `.warrant/local/profiles/human-acceptance.json` по D6; `.warrant/warrant.json` — `paths.src`, `paths.tests` по D10; `warrant validate`.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts core-sdd golden`.
 

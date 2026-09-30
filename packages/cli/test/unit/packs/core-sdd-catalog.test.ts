@@ -107,8 +107,8 @@ describe("pack core-sdd: каталог", () => {
   });
 
   it("каждый объект проходит свою схему и id равен имени файла (Decision 1)", () => {
-    // factory-change — 1.1.0 (REQ-SDD-005: CI workflows и CLI в match.paths), остальные — 1.0.0.
-    const versions: Readonly<Record<string, string>> = { "profiles/factory-change.json": "1.1.0" };
+    // factory-change — 1.1.0 (REQ-SDD-005: CI workflows и CLI в match.paths), risk-high — 2.0.0 (REQ-SDD-006: без human-approval), остальные — 1.0.0.
+    const versions: Readonly<Record<string, string>> = { "profiles/factory-change.json": "1.1.0", "overlays/risk-high.json": "2.0.0" };
     for (const key of ["overlays", "profiles", "gates", "checks"]) {
       for (const rel of provides[key] as string[]) {
         const json = readJsonFile(PACK_DIR, rel);

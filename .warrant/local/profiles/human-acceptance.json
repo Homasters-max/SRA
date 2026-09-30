@@ -1,0 +1,40 @@
+{
+  "$schema": "warrant://profile/1",
+  "id": "human-acceptance",
+  "version": "1.0.0",
+  "description": "Paths whose change alters the check itself: the CLI (it is the judge), policy, agent protection and the forge. A human merges such an impl-PR (ADR-0050 p. 3, ADR-0051 p. 2).",
+  "match": {
+    "paths": [
+      "packages/cli/src/**",
+      "packages/cli/schemas/**",
+      "packages/cli/package.json",
+      "package.json",
+      "package-lock.json",
+      "packages/cli/vitest.config.ts",
+      "**/tsconfig*.json",
+      "scripts/build.js",
+      "packs/**",
+      ".warrant/warrant.json",
+      ".warrant/warrant.lock.json",
+      ".warrant/local/**",
+      ".warrant/waivers/**",
+      ".claude/**",
+      "**/AGENTS.md",
+      "CLAUDE.md",
+      "scripts/dev/*-hook.js",
+      ".github/workflows/**",
+      ".github/CODEOWNERS"
+    ]
+  },
+  "gates": {
+    "VERIFYING->MERGED": [
+      "human-approval"
+    ]
+  },
+  "approvals": [
+    {
+      "role": "maintainer",
+      "at": "VERIFYING->MERGED"
+    }
+  ]
+}

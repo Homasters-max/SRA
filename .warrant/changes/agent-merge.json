@@ -5,7 +5,8 @@
   "classification": {
     "profiles": [
       "chore",
-      "factory-change"
+      "factory-change",
+      "human-acceptance"
     ],
     "risk": {
       "blast_radius": {

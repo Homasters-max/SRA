@@ -1,0 +1,24 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "agent-merge",
+  "change_state": "PROPOSED",
+  "classification": {
+    "profiles": [
+      "chore",
+      "factory-change"
+    ],
+    "risk": {
+      "blast_radius": {
+        "value": "SYSTEM",
+        "from": "floor:core-sdd:2"
+      }
+    }
+  },
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-09-30T21:18:20.046Z",
+      "by": "cli:local"
+    }
+  ]
+}

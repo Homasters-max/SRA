@@ -4,8 +4,8 @@
 
 ## 1. Версии 0.9.0 (D12)
 
-- [ ] 1.1 `package.json` — `0.9.0`; `CHANGELOG.md` — `## 0.9.0` с разделами «Вердикт» и «Миграция для потребителя» по D12; `.warrant/warrant.json` — `kernel: "0.9"`, диапазон `core-sdd` — `^0.4.0`.
-- [ ] 1.2 Pack `core-sdd` 0.4.0, `kernel: ">=0.1 <0.10"`; `warrant sync` (lock), `scripts/golden-update.js` (golden `chore`, `factory-change`, `feature`).
+- [x] 1.1 `package.json` — `0.9.0`; `CHANGELOG.md` — `## 0.9.0` с разделами «Вердикт» и «Миграция для потребителя» по D12; `.warrant/warrant.json` — `kernel: "0.9"`, диапазон `core-sdd` — `^0.4.0`.
+- [x] 1.2 Pack `core-sdd` 0.4.0, `kernel: ">=0.1 <0.10"`; `warrant sync` (lock), `scripts/golden-update.js` (golden `chore`, `factory-change`, `feature`).
 
   Проверка: `node scripts/dev/check.js`.
 

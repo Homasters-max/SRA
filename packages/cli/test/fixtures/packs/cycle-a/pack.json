@@ -2,7 +2,7 @@
   "$schema": "warrant://pack/1",
   "id": "cycle-a",
   "version": "1.0.0",
-  "kernel": ">=0.1 <0.9",
+  "kernel": ">=0.1 <0.10",
   "description": "Fixture pack depending on cycle-b.",
   "depends_on": { "cycle-b": ">=1.0" },
   "provides": {}

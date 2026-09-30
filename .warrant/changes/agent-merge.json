@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://change-record/1",
   "change": "agent-merge",
-  "change_state": "IMPLEMENTING",
+  "change_state": "VERIFYING",
   "classification": {
     "profiles": [
       "chore",
@@ -62,6 +62,14 @@
       "gates": {
         "branch-isolated": "PASS"
       },
+      "evidence": []
+    },
+    {
+      "to": "VERIFYING",
+      "at": "2026-09-30T22:57:57.886Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:3bc2c88b5de4545a6392983339502a4e6d8e3d6265c69337c7c0549bff6143f3",
+      "gates": {},
       "evidence": []
     }
   ]

@@ -9,7 +9,7 @@ Pack `core-sdd@0.1` — baseline policy spec-driven workflow: какие profile
 ### Requirement: Состав pack core-sdd 0.1
 <!-- id: REQ-SDD-001 -->
 
-Pack `core-sdd` версии `0.3.x` (`kernel: ">=0.1 <0.9"`; patch поднимается первым изменением поставляемого после релиза и
+Pack `core-sdd` версии `0.4.x` (`kernel: ">=0.1 <0.10"`; patch поднимается первым изменением поставляемого после релиза и
 проверяется `npm run versions:check`, R-14) SHALL объявлять в `provides`: overlays `core-default`, `risk-low`, `risk-medium`, `risk-high`;
 profiles `feature`, `chore`, `factory-change`; gates `spec-valid`, `required-artifacts-present`, `blocking-unknowns-resolved`, `ids-valid`,
 `branch-isolated`, `tests-passed`, `scope-valid`, `analyze-clean`, `evidence-complete`, `human-approval`, `adversarial-review`,
@@ -22,7 +22,7 @@ profiles `feature`, `chore`, `factory-change`; gates `spec-valid`, `required-art
 (первое правило pack — по failure mode, D-23).
 Один объект — один файл ([08 §7](../../../../docs/08-packs.md)); каждый файл SHALL проходить `warrant validate` своей схемой; `level` и
 `waivable` gates SHALL совпадать с [06 §4](../../../../docs/06-verification.md), где `worktree-ready` заменён на `branch-isolated` (ADR-0011).
-Profiles `bugfix`, `refactor`, `experiment` SHALL NOT входить в 0.3 (ADR-0013).
+Profiles `bugfix`, `refactor`, `experiment` SHALL NOT входить в 0.4 (ADR-0013).
 
 #### Scenario: Validate на pack
 <!-- id: SCN-SDD-001 -->
@@ -36,7 +36,7 @@ Profiles `bugfix`, `refactor`, `experiment` SHALL NOT входить в 0.3 (ADR
 
 #### Scenario: Формы metrics
 <!-- id: SCN-SDD-017 -->
-- **WHEN** прочитан `pack.json` версии `0.3.x`
+- **WHEN** прочитан `pack.json` версии `0.4.x`
 - **THEN** `provides.evidence_kinds` содержит объекты `test-report` и `spec-report` с существующими `metrics_schema`, а `warrant validate` применяет их к записям evidence этих kinds
 
 #### Scenario: Версия после релиза
@@ -114,7 +114,7 @@ CI и судья `warrant ci` — часть фабрики: run `pull_request` 
 <!-- id: SCN-SDD-007 -->
 - **WHEN** `warrant resolve --explain` на golden `factory-change` (profiles `["factory-change"]`, `blast_radius` `SYSTEM`)
 - **THEN** `risk_level` равен `HIGH`; `gates["VERIFYING->MERGED"]` содержит `factory-golden-passed`; `capabilities.forbidden` равен `["PRODUCTION_WRITE"]`;
-  `explain[]` относит `tests-passed` к `profile/feature` (через `extends`) и `human-approval` на `VERIFYING->MERGED` к `overlay/risk-high`
+  `explain[]` относит `tests-passed` к `profile/feature` (через `extends`) и `adversarial-review` на `SPECIFIED->APPROVED` к `overlay/risk-high`; `gates["VERIFYING->MERGED"]` не содержит `human-approval`
 
 #### Scenario: Репозиторий WARRANT — сам себе golden
 <!-- id: SCN-SDD-008 -->
@@ -134,9 +134,10 @@ CI и судья `warrant ci` — часть фабрики: run `pull_request` 
 ### Requirement: Risk overlays
 <!-- id: REQ-SDD-006 -->
 
-Overlays `risk-low`, `risk-medium`, `risk-high` (`1.0.0`) SHALL иметь `match: {risk_level: [<LEVEL>]}`. `risk-low` SHALL быть пустым по policy.
+Overlays `risk-low`, `risk-medium` (`1.0.0`), `risk-high` (`2.0.0`) SHALL иметь `match: {risk_level: [<LEVEL>]}`. `risk-low` SHALL быть пустым по policy.
 `risk-medium` SHALL добавлять gate `adversarial-review` на `SPECIFIED->APPROVED`. `risk-high` SHALL добавлять `adversarial-review` на
-`SPECIFIED->APPROVED` и `human-approval` на `VERIFYING->MERGED` с approval `{role: "maintainer", at: "VERIFYING->MERGED"}`.
+`SPECIFIED->APPROVED` и SHALL NOT добавлять `human-approval` и approvals: приёмку человеком задаёт профиль путей проекта в
+`.warrant/local/**` ([ADR-0050](../../../../docs/adr/WARRANT-ADR-0050-agent-merge.md) п. 3; [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 2, 6).
 Gates других packs SHALL NOT упоминаться; [05 §4](../../../../docs/05-policy.md) SHALL быть уточнён: `mutation-score` и `rollback-rehearsed`
 добавляют overlays packs `bdd-tdd` и `data` по `match.risk_level`.
 
@@ -147,8 +148,13 @@ Gates других packs SHALL NOT упоминаться; [05 §4](../../../../
 
 #### Scenario: Strengthen-only на risk-high
 <!-- id: SCN-SDD-010 -->
-- **WHEN** `.warrant/local/risk-high.json` с `overrides: "core-sdd:risk-high"` убирает `human-approval` с `VERIFYING->MERGED`
+- **WHEN** `.warrant/local/risk-high.json` с `overrides: "core-sdd:risk-high"` убирает `adversarial-review` с `SPECIFIED->APPROVED`
 - **THEN** `warrant validate` даёт `OVERRIDE_WEAKENS`, код выхода 3
+
+#### Scenario: Приёмка человеком — профиль путей
+<!-- id: SCN-SDD-028 -->
+- **WHEN** `warrant resolve` для Change с `risk_level: HIGH` без локальных объектов; затем тот же Change, когда `.warrant/local/profiles/human-acceptance.json` (`match.paths: ["packages/cli/src/**"]`, `gates: {"VERIFYING->MERGED": ["human-approval"]}`, approval `maintainer`) в `profiles` его `classification`
+- **THEN** в первом случае `gates["VERIFYING->MERGED"]` не содержит `human-approval`; во втором — содержит, а `explain[]` относит его к локальному профилю
 
 ### Requirement: Gates, checks и controller rules как данные
 <!-- id: REQ-SDD-007 -->

@@ -15,4 +15,5 @@
 | Ветка отстала от `main` | в worktree `git fetch && git merge origin/main` (merge-коммит допустим в ветке; rebase опубликованной — нет) |
 | `worktree remove` отказал | `git -C ../SRA-<имя> status --short` — изменения закоммитить или показать maintainer'у; `--force` не использовать |
 | `branch -d` — «not fully merged» | ветка не слита: `git log main..<ветка>` — показать; `-D` только по решению maintainer'а |
+| Impl-PR с `human-approval` слит ботом (кнопка PR-панели Claude Desktop, `--auto` сессии): судья отказывает ref `MERGED` — `merged_by` не из `roles.maintainer` | revert merge-коммита не помогает: судья отказывает укороченной записи Change. Путь по lifecycle (I-225 Change `identities`): новый impl-PR без правок кода — `transition VERIFYING->IMPLEMENTING`, затем `IMPLEMENTING->VERIFYING`; его сливает maintainer на GitHub, `MERGED --ref` — этот PR; evidence `ci fetch` первого PR не записывается. Spec-PR, слитый ботом, — путь не проверен: стоп и отчёт maintainer'у |
 | Текст коммита испорчен оболочкой (последний, не опубликован) | `git commit --amend -F <файл>`; опубликован — оставить, исправление — в теле PR |

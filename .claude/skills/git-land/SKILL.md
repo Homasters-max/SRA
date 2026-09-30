@@ -1,6 +1,6 @@
 ---
 name: git-land
-description: "Довести ветку до main — проверки, push, PR через файл, ожидание и разбор CI, merge (archive-, docs-PR и impl-PR вне класса приёмки — сессия; spec-PR и PR с путями класса — maintainer), чистка после merge (worktree, ветки локально и на origin). Использовать, когда работа в ветке закоммичена и её нужно отправить, открыть PR, дождаться CI, слить, или когда maintainer пишет «merge #N», или просят «/git-land»."
+description: "Довести ветку до main — проверки, push, PR через файл, ожидание и разбор CI, merge (archive-, docs-PR и impl-PR вне класса приёмки — сессия; spec-PR и PR с путями класса — maintainer), чистка после merge (worktree, ветки локально и на origin). Использовать, когда работа в ветке закоммичена и её нужно отправить, открыть PR, дождаться CI, слить, почистить после merge (в том числе PR, слитого maintainer'ом на GitHub), или просят «/git-land»."
 argument-hint: "[pr | merge <N> | after <N>]"
 ---
 

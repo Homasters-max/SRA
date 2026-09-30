@@ -8,9 +8,8 @@
 
 ```text
 Поток stabilization. Нормы merge — ADR-0050, ADR-0051, не гриллить. Работай автономно до результата; режим и список шагов — навык progress. Maintainer — только merge spec-PR и PR с путями класса приёмки (.warrant/local/profiles/human-acceptance.json, .github/CODEOWNERS): полная ссылка, «в браузере на GitHub, не в панели Claude Desktop».
-1) process-PR (защита агента — сливает maintainer): навыки change-impl-pr, git-land, fast-mode — impl-PR вне класса приёмки сливает сессия `--auto` (ADR-0051 Consequences); R-44 (остатки «merge #N»); R-46 (тест CODEOWNERS ↔ профиль).
-2) Проверить защиту main (группа 6 agent-merge): «Require review from Code Owners», обязательная warrant / warrant — спросить maintainer'а, если не подтверждено.
-3) Цикл 1, 0.10.0: architecture-audit (от 2026-10-01-cycle-1), затем spec-PR — WS-06 (код 4, retryable, A-42), WS-15, A-34, A-40 (requiresHuman в трёх местах), A-41 (paths.* и paths.tests SRA, I-231), остаток WS-03, R-45.
+1) process-PR (защита агента — сливает maintainer): R-44 (остатки «merge #N»); R-46 (тест CODEOWNERS ↔ профиль). Навыки merge под 0.9.0 — #121; защита main — ruleset `main` (code owners, `warrant / warrant` от GitHub Actions).
+2) Цикл 1, 0.10.0: architecture-audit (от 2026-10-01-cycle-1), затем spec-PR — WS-06 (код 4, retryable, A-42), WS-15, A-34, A-40 (requiresHuman в трёх местах), A-41 (paths.* и paths.tests SRA, I-231), остаток WS-03, R-45.
 ```
 
 ## Открытые вопросы

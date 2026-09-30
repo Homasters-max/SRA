@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3T5X7F44ZG9YPG35TGD2FVC",
+  "claim": {
+    "text": "openspec-validate passed for agent-merge",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "7e8b8c88b11ffc73f32be02870d92248972dec1c",
+    "base_commit": "39a38e16edff0bf44e443fae81daddb4e5dc1b1b",
+    "spec_revision": "openspec/changes/agent-merge@7e8b8c88b11ffc73f32be02870d92248972dec1c",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:28b4bfd163c7699a4ea15ac10fcf8cf5a7af02bea2367e3f31ad83e345403bbd",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-30T22:10:36.645Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/agent-merge/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:979335f513deaeb8a54380c5a00062fdbba757cb150ab5ff02a6bc2b0298acc0"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

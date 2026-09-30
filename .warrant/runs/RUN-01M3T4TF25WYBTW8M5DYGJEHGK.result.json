@@ -1,0 +1,192 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3T4TF25WYBTW8M5DYGJEHGK",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "missing-boundary",
+      "statement": "Round-2 F-2 is only partly closed. The rule for recorded `NOT_APPLICABLE` accepts a basis where \"every element of `requires_evidence` of the base definition is satisfied by a NOT_APPLICABLE record from a check\". SCN-VER-128 and design D4 use the same wording. In pack `core-sdd`, 8 of the 13 gates have neither `requires_evidence` nor `applies_when`: `scope-valid`, `ids-valid`, `spec-approved`, `evidence-complete`, `blocking-unknowns-resolved`, `required-artifacts-present`, `branch-isolated`, `analyze-clean` (see `packs/core-sdd/gates/*.json`). For these gates the condition over an empty set is true, so the literal reading accepts `scope-valid: NOT_APPLICABLE` or `spec-approved: NOT_APPLICABLE` on `MERGED`, and `blocking-unknowns-resolved: NOT_APPLICABLE` on `APPROVED` written in an impl-PR (SCN-VER-090), with no basis at all. That is exactly the WS-03 hole the Change is meant to close. The spec says the unknowns gate verdict is not recomputed. The gate engine gives NA from evidence only when requirements are non-empty (`core/gates/verdict.ts:349-351`), and 06 §3 says L0 gates without `requires_evidence` are computed by the CLI itself. So the two readings behave differently: a naive `every` over the empty set passes, while \"as in REQ-VER-003\" gives `RECORD_MISMATCH` `not_applicable`. No scenario decides which is right.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-128",
+        "openspec/changes/agent-merge/design.md"
+      ],
+      "recommendation": "State that the evidence basis applies only when `requires_evidence` is non-empty. A gate without `requires_evidence` and without an unmet `applies_when` has no basis for `NOT_APPLICABLE`, which gives `RECORD_MISMATCH` `not_applicable`. If some L0 calculator can legitimately return NA, name it and its basis. Add a scenario: `MERGED` with `scope-valid: NOT_APPLICABLE` (and/or `APPROVED` with `blocking-unknowns-resolved: NOT_APPLICABLE`) gives `RECORD_MISMATCH` `not_applicable`, exit code 1."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Detecting a bot-merged impl-PR with class paths looks only at the diff of the impl-PR that the `MERGED` ref names: `merge-base(M^1, M^2)..M^2` plus the `classification` of the record on M. The spec assumes that impl-PR contains every class-path change of the Change. The recovery path the spec itself describes, VERIFYING->IMPLEMENTING->VERIFYING, breaks that. Case from SCN-VER-129: impl-PR1 touches `packages/cli/src/**` and has no `human-acceptance` in its record. It was red with `RECORD_MISMATCH` `classification`, the forge is not configured, and the bot merged it anyway. Next, the bot opens repeat impl-PR2, which only has the record. Its CI is green: the base record has no profile and the diff classifies to nothing. The bot merges PR2 at M'. The archive-PR carries `MERGED` with ref M', and the exception applies: no human-approval under M'^1, so the ref is accepted. The class code from PR1 lands in `main` without a human, and the judge does not see it. This contradicts the spec's own reasoning (\"an impl-PR merged by an agent will not remove acceptance from itself\") and the recovery text (\"which a member of the approval role merges\"). The judge enforces that only when M'^1 policy requires a human.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-129",
+        "openspec/changes/agent-merge/design.md"
+      ],
+      "recommendation": "Decision needed (D-1). Options: (a) make the exception's classification the union of profiles over the diffs of every impl-PR of this Change, i.e. every merge on the first-parent line that adds a `VERIFYING` transition to the record; (b) if the record has `VERIFYING->IMPLEMENTING` after a merged `VERIFYING`, deny the exception (fail-closed); (c) state it in the spec as a residual risk of an unconfigured forge. Add a scenario: bot-merged PR1 with class paths plus a bot-merged repeat impl-PR, ref `MERGED` to the repeat, gives `REF_NOT_VERIFIED` `merged_by`."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "Round-2 F-6 is closed by the decision \"policy M^1 is not computable, so no exception\". But the spec does not say how `merged_by` is then judged. The general rule takes the role from `approvals[]` of the effective policy, and for `MERGED` that is M^1 policy, which by assumption cannot be computed. `roles` and `identities.agents` M^1 come from `warrant.json` M^1, and it is not said whether they are read. Possible outcomes: fall back to `roles.maintainer`, use the base of the archive-PR (the old rule), exit code 3, or `REF_NOT_VERIFIED` for any `merged_by`. The archive-PR of `agent-merge` itself takes this path: M^1 is 0.8.3 with pack 0.3.x in its lock, and the CLI from checkout is 0.9.0 with pack 0.4.0 bundled. Also, the output does not report that fail-closed fired. An honest agent merge becomes `REF_NOT_VERIFIED` `merged_by` and the reason cannot be seen. No scenario covers this.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/agent-merge/design.md"
+      ],
+      "recommendation": "Write: if M^1 policy is not computable, `merged_by` must be in `roles.maintainer` of `warrant.json` M^1 (as with empty `approvals[]`), must not be an agent from M^1, and must not be the author. If `warrant.json` M^1 cannot be read either, give `REF_NOT_VERIFIED` with a named reason, or exit code 3. Add a finding or `hint` saying the fail-closed path fired. Add a scenario: archive-PR after an impl-PR that bumped pack/`kernel`, merged by the maintainer (verified) and by the agent (`REF_NOT_VERIFIED` `merged_by`)."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "For transitions other than `MERGED`, the diff used for the `applies_when` basis is `merge-base(HEAD^1, HEAD^2)..HEAD^2` of the PR under judgment. The spec assumes a transition's gates were computed on that same diff. For `APPROVED` written in an impl-PR (SCN-VER-090), the gates `SPECIFIED->APPROVED` were computed when the spec was approved, over the spec diff, while the impl-PR diff also contains the code. A consumer pack gate with `applies_when.changed_paths` on code, on any transition other than `MERGED`, that was honestly `NOT_APPLICABLE` at approval gets `RECORD_MISMATCH` `not_applicable` in the impl-PR. The record transition cannot be fixed, so there is no way out. The opposite case is a missed detection. In `core-sdd`, `applies_when` exists only on `factory-golden-passed` (`VERIFYING->MERGED`), so SRA does not hit this.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Define the diff of a transition independently of the PR that carries it, e.g. the diff of the PR that the transition's ref names for `APPROVED`. Otherwise, check the diff basis only for `MERGED` and for transitions written in their own PR, and state this limit explicitly."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "The rest of round-2 F-2. The requirement says \"every element of `requires_evidence` is satisfied by a record\", which is an existence test. SCN-VER-128 (\"every `requires_evidence` record of the gate is NOT_APPLICABLE\") and design D4 (\"every record ... is NOT_APPLICABLE\") test all records. REQ-VER-003, which the text cites (\"as in REQ-VER-003\"), takes the most recent admissible record. The case where `evidence[]` of a transition holds both a NA record and a `NOT_PROVEN` record of the same kind/check comes out differently under these three readings.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-128",
+        "openspec/changes/agent-merge/design.md"
+      ],
+      "recommendation": "Pick one wording, e.g. \"every record of this kind (and check) in `evidence[]` of the transition is NOT_APPLICABLE from a check\", and align the REQ, SCN-VER-128 and D4 with it."
+    },
+    {
+      "id": "F-6",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "The trust paragraph (round-2 F-11, partly closed) says \"`IMPLEMENTING` has no gates\". Main spec REQ-SDD-003 and REQ-SDD-004 put `branch-isolated` on `APPROVED->IMPLEMENTING`. The paragraph also names only the archive-PR as the one who merges and does not name who holds the merge of the abandon-PR.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/specs/core-sdd/spec.md"
+      ],
+      "recommendation": "Replace with: \"`PASS` of `branch-isolated` on `IMPLEMENTING` is held by the local `warrant`\" (residual risk). Name who merges the abandon-PR and what holds it."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "Round-2 F-9 is partly closed. SCN-VER-129 now narrows `match.paths` instead of deleting the profile, so the scenario no longer depends on the unclear path. The general case is still undefined: the impl-PR deleted `.warrant/local/profiles/human-acceptance.json` while the record `classification` keeps `human-acceptance`. The `policy` rule for `MERGED` then computes the effective policy \"from the base for `classification` on HEAD\", and the base has no such profile. The spec does not say whether this is a skip, `RECORD_MISMATCH` `policy`, or exit code 3, or whether the `warrant validate` step (REQ-VER-014) turns red before `warrant ci`.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-014"
+      ],
+      "recommendation": "Name the outcome for a profile in `classification` that is missing from the policy of the base, both in the judge and in `validate`."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "The class paths of ADR-0051 p. 2 outside `match.paths` of `factory-change` are not forbidden in the agent-merged kinds archive and none: root `package.json` (the `test` script is the `tests-passed` producer), `package-lock.json`, `scripts/build.js`, `packages/cli/vitest.config.ts`, `**/tsconfig*.json`, `.claude/**`, `**/AGENTS.md`, `CLAUDE.md`, `.github/CODEOWNERS`. The archive-PR also allows waivers of its own Change, and the `WAIVED` rule counts them from HEAD. The judge never catches these PRs, because they have no `MERGED` ref. The design's Goals claim \"if it merged, the judge catches it\". The spec's trust paragraph says the archive-PR is held by the archive replay and CI-evidence, which do not cover these paths. ADR-0051 p. 3 leaves this to the forge.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/agent-merge/design.md"
+      ],
+      "recommendation": "Either state in the spec that the forge alone holds class paths in archive and none PRs (a class C residual risk), and fix the design's Goals; or give `SCOPE_VIOLATION` in these kinds for paths that `classify` by the base maps to a profile with `human-approval` on `VERIFYING->MERGED`."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Round-2 F-1 is closed: line 77 takes `roles`, `approvals[]`, `identities.agents` and the policy for ref `MERGED` from M^1, and SCN-VER-129 covers moving the bot into `roles.maintainer`. But the general sentence \"Agent identities are the logins `identities.agents[].login` of the requirements base\" and the list for `SHARED_IDENTITY` (\"if the list is empty\") are not qualified for `MERGED`. For `MERGED`, it is unclear which list's emptiness produces the `SHARED_IDENTITY` finding.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Add \"(for ref `MERGED` — M^1)\" to the sentence about agent identities."
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Fail-closed also blocks honest cases. If a change to the bundled pack or to `kernel` lands between M and the archive-PR (a pack edit by another Change in SRA, or a consumer bumping the CLI tag), policy M^1 is no longer computable. Every agent-merged impl-PR outside the class that is not yet archived then gets `REF_NOT_VERIFIED` `merged_by`, and each needs a repeat impl-PR merged by the maintainer. The design's risks do not name this.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/agent-merge/design.md"
+      ],
+      "recommendation": "Name this in the design's risks and in the CHANGELOG under \"Migration for consumers\": archive the Change right after merging the impl-PR, and upgrade the CLI/pack only when no Changes are in `MERGED` without `ARCHIVED`."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/agent-merge/specs/verification/spec.md",
+      "change": "In the `NOT_APPLICABLE` rule: the evidence basis applies only when `requires_evidence` of the base definition is non-empty; a gate without `requires_evidence` and without an unmet `applies_when` gives `RECORD_MISMATCH` `not_applicable`. \"Every record of this kind (and check) in `evidence[]` of the transition is NOT_APPLICABLE from a check\". New scenario: `MERGED` with `scope-valid: NOT_APPLICABLE`."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/agent-merge/specs/verification/spec.md",
+      "change": "Ref `MERGED`, fail-closed: \"If M^1 policy is not computable, `merged_by` must be in `roles.maintainer` of `warrant.json` M^1, must not be an agent from M^1, and must not be the author; the output carries a finding/`hint` that fail-closed fired\". New scenario for an archive-PR after a pack/`kernel` bump."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/agent-merge/specs/verification/spec.md",
+      "change": "Exception classification: union over the diffs of every impl-PR of the Change (merges on the first-parent line that add `VERIFYING`), or deny the exception after `VERIFYING->IMPLEMENTING` (per the answer to D-1). Scenario with a bot-merged repeat impl-PR."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Can any L0 calculator of the gate engine (gates without `requires_evidence`) legitimately return `NOT_APPLICABLE`? If yes, which one and on what basis should the judge accept it?",
+      "blocking": false,
+      "impact": [
+        "REQ-VER-011",
+        "SCN-VER-128"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "The `packs/core-sdd/gates/*.json` files of `scope-valid`, `ids-valid`, `spec-approved`, `evidence-complete`, `blocking-unknowns-resolved`, `required-artifacts-present`, `branch-isolated` and `analyze-clean` have no `requires_evidence` and no `applies_when` (checked with Grep on level/requires_evidence/applies_when)."
+    },
+    {
+      "id": "A-2",
+      "statement": "The gate engine gives NA from evidence only when requirements are non-empty (`core/gates/verdict.ts:349-351`); gates without requirements go to the calculator."
+    },
+    {
+      "id": "A-3",
+      "statement": "In SRA, `core-sdd` is loaded as a bundled pack (`warrant.json` has no `source: local`), so the hash of the bundled pack changes with any edit to `packs/core-sdd/**`, and the lock of M^1 stops matching the CLI from checkout."
+    },
+    {
+      "id": "A-4",
+      "statement": "Backward `VERIFYING -> IMPLEMENTING` is allowed (04 §2, line 40), so the repeat impl-PR is a normal flow, and the judge checks only new transitions."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Which classification should the judge use for the ref `MERGED` exception when the Change had more than one impl-PR (a repeat after a bot merge)?",
+      "options": [
+        "Union of profiles from the diffs of every impl-PR of the Change (merges on the first-parent line that add `VERIFYING`)",
+        "If the record has `VERIFYING->IMPLEMENTING` after a merged `VERIFYING`, no exception (fail-closed)",
+        "Leave it as is and name it in the spec as a residual risk of an unconfigured forge (class C)"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:24465128a0eb4a7b91a1acfff29471e5c502ce0a5a8aab19f08c623e7923a1db",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T14:00:00Z",
+    "finished_at": "2026-10-01T14:45:00Z"
+  }
+}

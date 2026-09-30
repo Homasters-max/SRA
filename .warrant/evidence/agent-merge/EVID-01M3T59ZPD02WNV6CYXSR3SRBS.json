@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3T59ZPD02WNV6CYXSR3SRBS",
+  "claim": {
+    "text": "specification/adversarial-review@0.2.0 reviewed the spec of agent-merge: 1 BLOCKER, 3 MAJOR, 5 MINOR, 1 INFO",
+    "targets": []
+  },
+  "kind": "review",
+  "level": "L2",
+  "evidence_status": "NOT_PROVEN",
+  "subject": {
+    "commit": "36b8d3ca5daf43212f0aa36d3e08d161c354b461",
+    "spec_revision": "openspec/changes/agent-merge@36b8d3ca5daf43212f0aa36d3e08d161c354b461",
+    "spec_tree": "sha256:b7ef8cb1c112acd4e758bb039390e2a2af7f223faeb565ea2bc681143948a822",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "skill",
+    "id": "specification/adversarial-review",
+    "version": "0.2.0",
+    "run": "RUN-01M3T4TF25WYBTW8M5DYGJEHGK"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:24465128a0eb4a7b91a1acfff29471e5c502ce0a5a8aab19f08c623e7923a1db",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-09-30T22:00:06.094Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/runs/RUN-01M3T4TF25WYBTW8M5DYGJEHGK.result.json",
+      "sha256": "sha256:78094b01c66c9564817f42c5ef9fe24b62d5beaf5be41430aaef328b6a9f2f72"
+    }
+  ],
+  "limitations": [
+    "produced locally, unattested",
+    "same model family as author"
+  ],
+  "metrics": {
+    "BLOCKER": 1,
+    "INFO": 1,
+    "MAJOR": 3,
+    "MINOR": 5
+  }
+}

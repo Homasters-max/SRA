@@ -1,0 +1,62 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3T5PD44FMTBJA6ZGSTRT84P",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Round-4 F-2 is closed for the cases the spec names: SCN-VER-131 has no finding, and both parts of SCN-VER-135 have it. One overlap is still open. The spec says: \"Когда исключение закрыто не gate `human-approval`, а одной из двух других причин, вывод SHALL содержать ... `AGENT_MERGE_CLOSED`\". It does not say what happens when the M^1 policy contains `human-approval` and the record of the Change at M^1 is also past `SPECIFIED`. This is the main recovery path in the design's risk \"Слит не тем\": a repeat impl-PR of a class Change whose record already carries the acceptance profile. The exit code and the ref outcome are the same under both readings. Only whether `data.findings[]` contains the finding differs.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-135",
+        "openspec/changes/agent-merge/design.md"
+      ],
+      "recommendation": "State that the finding is emitted only when the policy is not computable, or when it is computed without `human-approval` and the record condition holds (no finding if the gate is present). Add this case to SCN-VER-135 or SCN-VER-131."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "The fail-closed condition names \"профиль `classification`, которого нет в packs M^1\". Two other places list policy sources separately: \"policy (packs, `.warrant/local/**`, конфигурация)\" and \"ни один объект policy базы (packs и `.warrant/local/**`)\". Read literally, a local profile in `classification`, such as `human-acceptance` or a consumer's own local profile without `human-approval`, is \"not in packs M^1\", so the exception closes with `AGENT_MERGE_CLOSED`. SCN-VER-129 uses \"packs M^1\" to include local profiles (\"`classify` по packs M^1 выводит профиль приёмки\"), so the intended reading is probably \"policy objects of M^1\". For a consumer local profile without `human-approval`, the two readings lead to different ref outcomes.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-129"
+      ],
+      "recommendation": "Write \"профиль `classification`, которого нет в policy M^1 (packs и `.warrant/local/**`)\", and use the same wording for \"`classify` по packs M^1\"."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/agent-merge/specs/verification/spec.md",
+      "change": "`AGENT_MERGE_CLOSED`: state the overlap case (gate `human-approval` present and record at M^1 past `SPECIFIED`: no finding). \"packs M^1\" becomes \"policy M^1 (packs и `.warrant/local/**`)\" in the fail-closed list and in the classification sentence."
+    }
+  ],
+  "unknowns": [],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Round-4 F-1, F-2 and F-3 and round-3 F-8 and F-9 are treated as closed. F-1: the exception holds only when the record at M^1 is absent or not past `SPECIFIED` (SCN-VER-135 is rewritten). F-2: the finding applies when the exception is closed by something other than the `human-approval` gate, whatever the ref outcome (SCN-VER-131: no finding). F-3: the INV-03 carve-out is \"к которому применено исключение\". F-8: the trust paragraph and design Goals give class paths in archive and none PRs to the forge only. F-9: agent identities for `MERGED` are those of M^1."
+    },
+    {
+      "id": "A-2",
+      "statement": "In honest SRA flow the record at M^1 is `SPECIFIED`: the spec-PR brings `SPECIFIED` into `main`, and the impl-PR brings `APPROVED`…`VERIFYING` (SCN-VER-090; record `identities`: the repeat #114 had base record `VERIFYING`). So the new record condition does not close the exception on an honest single impl-PR."
+    },
+    {
+      "id": "A-3",
+      "statement": "`approved_by` of a `WAIVED` on `MERGED` is checked against `roles` of the archive-PR base, not M^1. An impl-PR that edits `roles` or adds a waiver touches `.warrant/**`. That path is in the acceptance class and in `match.paths` of M^1, so the ref rule by M^1 already requires a human. For this reason no finding is made."
+    }
+  ],
+  "decisions_required": [],
+  "provenance": {
+    "context_hash": "sha256:ba6e1adb4d0f75d8ec4fbdad29069e45c4302dcc1094daed759847e5a0552b34",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T16:00:00Z",
+    "finished_at": "2026-10-01T16:30:00Z"
+  }
+}

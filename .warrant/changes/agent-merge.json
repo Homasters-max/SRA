@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "agent-merge",
+  "change_state": "SPECIFIED",
+  "classification": {
+    "profiles": [
+      "chore",
+      "factory-change"
+    ],
+    "risk": {
+      "blast_radius": {
+        "value": "SYSTEM",
+        "from": "floor:core-sdd:2"
+      }
+    }
+  },
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-09-30T21:18:20.046Z",
+      "by": "cli:local"
+    },
+    {
+      "to": "SPECIFIED",
+      "at": "2026-09-30T22:10:48.428Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+      "gates": {
+        "ids-valid": "PASS",
+        "required-artifacts-present": "PASS",
+        "spec-valid": "PASS"
+      },
+      "evidence": [
+        "EVID-01M3T5X7F44ZG9YPG35TGD2FVC"
+      ]
+    }
+  ]
+}

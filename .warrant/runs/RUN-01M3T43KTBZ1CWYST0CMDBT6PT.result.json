@@ -1,0 +1,246 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3T43KTBZ1CWYST0CMDBT6PT",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "Для ref `MERGED` из M^1 берутся только требования исключения (строки 76-79). Если policy M^1 требует `human-approval`, действует общее правило. По нему `roles`, `approvals[]` (строки 74-76) и `identities.agents` (строка 90) читаются из «базы требований», то есть из HEAD^1 archive-PR, а эта база уже содержит M. Design D3 говорит иначе: «true — как сейчас, но по M^1». Значит, impl-PR, который не трогает профиль приёмки, а в `.warrant/warrant.json` убирает бота из `identities.agents` и добавляет его в `roles.maintainer`, после merge ботом проходит archive-PR. Требуется человек (по M^1), `merged_by` входит в `roles.maintainer` базы, но не в `agents` базы, и ref засчитан. Это противоречит собственному утверждению spec: «impl-PR, слитый агентом, не снимет с себя приёмку». Обратный случай: impl-PR убрал из `roles` maintainer'а, который сам его и слил. По spec это `REF_NOT_VERIFIED`, по design D3 ref засчитан. Два прочтения дают разный наблюдаемый исход.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-129",
+        "SCN-VER-131",
+        "openspec/changes/agent-merge/design.md"
+      ],
+      "recommendation": "Для ref `MERGED` в обеих ветках брать `roles`, `approvals[]` effective policy и `identities.agents` из M^1, а не из базы требований. Написать это в правиле Ref явно. Добавить сценарий: impl-PR, слитый ботом, переносит бота из `identities.agents` в `roles.maintainer`, policy M^1 даёт `human-approval`, результат — `REF_NOT_VERIFIED` `merged_by`."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "Основание `NOT_APPLICABLE` по записям evidence названо «как у REQ-VER-003», но сформулировано слабее. Во-первых, в правиле «у каждого элемента `requires_evidence` есть запись этого kind» с NA. В SCN-VER-128 и ADR-0051 п. 5 написано: «каждая запись evidence этого gate — NOT_APPLICABLE». REQ-VER-003 берёт самую свежую допустимую запись. Во-вторых, правило не проверяет `produced_by.id` = `check` у элемента с `check` (ADR-0044 п. 6). В-третьих, нет attestation: на `VERIFYING->MERGED` REQ-VER-003 не засчитывает запись `attestation.type: none` у gate без `none` в `accepts_attestation`. В-четвёртых, нет допустимости по `subject`. Следствие: archive-PR, который сливает агент, записывает `MERGED` с `tests-passed: NOT_APPLICABLE` и кладёт в `evidence[]` запись `test-report` NA от check с `attestation: none`, возможно рядом с `NOT_PROVEN`. Правило `ci_evidence` касается только `PASS` и молчит, `not_applicable` проходит. `transition` такой вердикт вычислить не мог бы. WS-03 не закрыт для самого важного gate. Реализация по отсылке «как у REQ-VER-003» и реализация по явному списку расходятся.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-128",
+        "REQ-VER-003"
+      ],
+      "recommendation": "Сформулировать основание так: для каждого элемента `requires_evidence` gate среди записей `evidence[]` перехода этого kind (и `produced_by.id` = `check`, если он задан) каждая запись — `NOT_APPLICABLE` с `produced_by.type: check`. На переходе `MERGED` у gate без `none` в `accepts_attestation` запись несёт `attestation.type: ci` с `subject.commit` = M^2 (как `ci_evidence`). Иначе — `not_applicable`. Добавить сценарий: `MERGED` с `tests-passed: NOT_APPLICABLE` по записи NA с `attestation: none` даёт `RECORD_MISMATCH` `not_applicable`."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "Main spec REQ-SDD-001 требует: «Pack `core-sdd` версии `0.3.x` (`kernel: \">=0.1 <0.9\"`)». Change выпускает pack 0.4.0 с `kernel: \">=0.1 <0.10\"` и CLI 0.9.0 с `kernel: \"0.9\"` (proposal «Версии», design D9, D12, задача 1.2), но delta core-sdd REQ-SDD-001 не меняет. Реализация по задачам нарушает main spec. Pack с диапазоном `<0.9` из REQ-SDD-001 CLI 0.9 не загрузит, поэтому выполнить оба требования нельзя. После archive main spec будет ложным.",
+      "targets": [
+        "openspec/specs/core-sdd/spec.md",
+        "openspec/changes/agent-merge/proposal.md",
+        "openspec/changes/agent-merge/specs/core-sdd/spec.md"
+      ],
+      "recommendation": "Добавить в delta core-sdd `MODIFIED` REQ-SDD-001: версия `0.4.x`, `kernel: \">=0.1 <0.10\"`, `risk-high` 2.0.0 в составе. Сверить остальной текст REQ-SDD-001: `Profiles ... SHALL NOT входить в 0.3`."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Исключение считает policy M^1 «для `classification` HEAD», то есть по классификации record archive-PR. Её написал сам impl-PR, а archive-PR сверяет её только с record базы (после M) и путями diff archive-PR, но не с путями diff impl-PR. Молча предполагается, что impl-PR слит с зелёным обязательным CI, который потребовал профиль приёмки. Это так только при настроенном форже, и то по базе прогона CI, а не по M^1. Design (риски) утверждает обратное: «если форж не настроен — merge ботом ловит D3 по M^1». Impl-PR с `packages/cli/src/**` без `human-acceptance` в `classification`, слитый ботом мимо красного CI, даёт в archive-PR исключение, и ref засчитан. Обратный случай: archive-PR, который сам правит путь класса (например, `.warrant/waivers/**`), по правилу надмножества обязан добавить `human-acceptance`. Тогда честный impl-PR, слитый агентом задним числом, получает `REF_NOT_VERIFIED`.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-129",
+        "SCN-VER-130",
+        "openspec/changes/agent-merge/design.md"
+      ],
+      "recommendation": "Решение нужно для ref `MERGED` (D-2). Классификацию брать как объединение `classification` record на M и профилей, которые `classify` по packs M^1 выводит из путей `merge-base(M^1, M^2)..M^2`. Путь diff archive-PR в неё не входит. Добавить сценарий: impl-PR с путём класса без профиля в `classification` слит ботом, результат — `REF_NOT_VERIFIED` `merged_by`."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Proposal и REQ-VER-011 (строка 70), REQ-VER-014 опираются на то, что `CODEOWNERS` с «Require review from Code Owners» не даст боту слить PR с путями класса. На деле это правило требует одобрения ревью владельцем, а нажать merge после одобрения может любой с правом `write`. Если бот включил auto-merge (`--auto`, навык `fast-mode`), то после одобрения maintainer'а `merged_by` — бот. Судья в этом случае требует человека (policy M^1), `merged_by` — агент, и выдаёт `REF_NOT_VERIFIED`. Путь восстановления spec не называет: `merged_by` неизменяем, `human-approval` не waivable. Честный поток «агент открыл, maintainer одобрил ревью» ведёт в тупик. Остаток F-11 раунда 1.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-014",
+        "openspec/changes/agent-merge/proposal.md"
+      ],
+      "recommendation": "Назвать в spec и proposal, что предотвращение требует merge PR класса самим maintainer'ом. Сделать это ограничением форжа (bypass/merge только владельцем, ruleset) или правилом: агент не включает auto-merge, если в `data.deferred[]` impl-PR есть `human-approval`. Описать восстановление Change, чей impl-PR слит с нарушением ref: например, повторный impl-PR или решение maintainer'а."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "Для исключения effective policy нужно вычислить «по packs, `.warrant/local/**` и конфигурации M^1». Правило «База требований» определяет встроенный pack только для HEAD^1: это pack из CLI, чей `hash` записан в lock базы. Для M^1 не сказано, что делать, если lock M^1 называет встроенный pack с другим `hash` или `warrant.json` M^1 несёт другой `kernel`, чем у исполняемого CLI. Так будет после любого impl-PR, который поднимает CLI или pack, и в том числе у archive-PR самого `agent-merge`: M^1 — это 0.8.3, pack 0.3.x, `kernel: \"0.8\"`, а CLI из checkout — 0.9.0. Возможны разные исходы: код 3, `SCOPE_VIOLATION` с lock (если повторить `ci/base.ts`, как в D3), packs из дерева M^1 (только SRA) или packs исполняемого CLI. Последний вариант позволяет impl-PR ослабить pack и не попасть под исключение.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/agent-merge/design.md"
+      ],
+      "recommendation": "Определить поведение (D-1). Например, fail-closed: если policy M^1 нельзя вычислить исполняемым CLI (lock или `kernel` M^1 не совпадают), исключение не применяется, и `merged_by` судится как при `human-approval`. Альтернатива — вывод и код. Добавить сценарий: archive-PR после impl-PR, поднявшего pack."
+    },
+    {
+      "id": "F-7",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Proposal называет класс «весь CLI», ADR-0051 п. 2 — `packages/cli/src/**`, `packages/cli/schemas/**`, `packages/cli/package.json`, `scripts/build.js`. Но пакет CLI описан корневым `package.json` (`name: warrant`, `bin`, `files`, `dependencies`, `prepare`), и его же скрипт `test` запускает check `tests-passed` (`.warrant/local/checks/tests-passed.json`: `npm test`). В класс не входят ни он, ни `package-lock.json`, ни конфигурация тестов и сборки (`packages/cli/vitest.config.ts`, tsconfig). Impl-PR, слитый агентом, может сузить `npm test` или vitest config, и тогда producer `test-report` подменён. Может заменить или поднять зависимость судьи (например, `picomatch` для glob путей). Правка «меняет проверку» без человека, а archive-PR сверит лишь байты artifact того же run. Остаток F-5 раунда 1.",
+      "targets": [
+        "openspec/changes/agent-merge/proposal.md",
+        "SCN-SDD-028",
+        "openspec/changes/agent-merge/design.md"
+      ],
+      "recommendation": "Добавить в класс SRA (D6, CODEOWNERS) корневые `package.json` и `package-lock.json`, `packages/cli/vitest.config.ts` и tsconfig CLI. Либо записать в ADR, почему producer тестов и зависимости не меняют проверку."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Правило `waiver` засчитывает waiver с HEAD, если его нет в базе. Обоснование в самом требовании: «новый waiver лежит на пути класса приёмки человеком, ADR-0051 п. 2». Это свойство локальной конфигурации SRA и форжа (класс C), а не продукта. У потребителя без профиля приёмки, покрывающего `.warrant/waivers/**`, или без `CODEOWNERS` агент сам кладёт waiver с `approved_by: human:<maintainer>` (строка без подтверждения) в impl- или archive-PR и сам его сливает. Судья засчитывает такой waiver, а `NO_HUMAN_ACCEPTANCE` об этом не говорит. Остаток F-9 раунда 1.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-127"
+      ],
+      "recommendation": "Убрать скобку как норму продукта или сделать её условием. Waiver с HEAD засчитывать только в PR, чей merge требует человека: вид spec, либо policy требует `human-approval`. В остальных случаях — `RECORD_MISMATCH` `waiver`. Либо назвать это остаточным риском потребителя в CHANGELOG и в находке `NO_HUMAN_ACCEPTANCE`."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "В SCN-VER-129 impl-PR удалил профиль приёмки из `.warrant/local/**`, и `classification` record на HEAD archive-PR по-прежнему называет `human-acceptance`, ведь правило надмножества не даёт его убрать. Правило `policy` для `MERGED` вычисляет effective policy «по базе для classification на HEAD», а в базе archive-PR (после M) этого профиля нет. Не сказано, что даёт профиль, отсутствующий в packs и `.warrant/local/**` базы: пропуск, `RECORD_MISMATCH` или код 3. Шаг `warrant validate` (REQ-VER-014) может покраснеть до `warrant ci`. Ожидаемый исход сценария («`REF_NOT_VERIFIED` `merged_by`, код 1») зависит от этого непроверенного пути.",
+      "targets": [
+        "SCN-VER-129",
+        "REQ-VER-011",
+        "REQ-VER-014"
+      ],
+      "recommendation": "Указать поведение судьи и `validate`, если профиль из `classification` отсутствует в policy базы. Уточнить SCN-VER-129: какие ошибки и какой код ожидаются, в том числе причина `policy` у `MERGED`."
+    },
+    {
+      "id": "F-10",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "F-23 раунда 1 не исправлен: в SCN-VER-073 и SCN-VER-100 `paths.src: [\"src/**\"]` (массив glob), в SCN-VER-133 `paths.src: \"src\"`, а схема `config/1` и D10 задают каталог-строку.",
+      "targets": [
+        "SCN-VER-073",
+        "SCN-VER-100",
+        "SCN-VER-133"
+      ],
+      "recommendation": "Привести SCN-VER-073 и SCN-VER-100 к `paths.src: \"src\"`."
+    },
+    {
+      "id": "F-11",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "В абзаце о доверии сказано: `ARCHIVED` и `ABANDONED` держит «защита форжа путей класса приёмки человеком (CODEOWNERS)». Но archive-PR и abandon-PR обычно не трогают пути класса, и `CODEOWNERS` их не касается. `PASS` перехода `IMPLEMENTING` (`branch-isolated`) не назван ни в одном держателе. Остаток F-14 раунда 1.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Написать прямо: `PASS` у `IMPLEMENTING`, `ARCHIVED`, `ABANDONED` держат локальный `warrant` и повтор archive. Форж их держит только при правке путей класса, в остальном это остаточный риск класса B."
+    },
+    {
+      "id": "F-12",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "«waiver этого Change на этот gate — файл базы, а если в базе такого файла нет, то HEAD» не определяет случай нескольких waivers на один gate. Пример: WAV-1 `REVOKED` в базе и новый WAV-2 `ACTIVE` на HEAD. Прочтение «по файлу» засчитывает WAV-2, прочтение «по паре Change+gate» его отвергает. SCN-VER-127 («в базе REVOKED и на HEAD ACTIVE») не говорит, один ли это файл.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-127"
+      ],
+      "recommendation": "Написать: для каждого файла waiver этого Change на gate берётся версия базы, при её отсутствии — HEAD. Основание есть, если засчитывается хотя бы один. В SCN-VER-127 указать, что это один файл."
+    },
+    {
+      "id": "F-13",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "«Нужен ли человек» в delta определён тремя способами. `deferred[]` смотрит, есть ли в `requires_evidence` только kind `human-approval`. Исключение ref и `NO_HUMAN_ACCEPTANCE` смотрят на gate с id `human-approval`. Для `NO_HUMAN_ACCEPTANCE` достаточно, чтобы объект «добавлял» gate, даже если его `match` не срабатывает никогда. Gate потребителя с другим id, требующий kind `human-approval`, в виде impl уходит в `deferred`, но исключение его не видит. A-40 это признаёт и откладывает до 0.10.0.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-134"
+      ],
+      "recommendation": "Назвать в CHANGELOG, что приёмку человеком в 0.9.0 выражает только gate с id `human-approval`."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/agent-merge/specs/verification/spec.md",
+      "change": "В правило Ref добавить: «Для ref `MERGED` `roles`, `approvals[]` effective policy и `identities.agents` SHALL браться из M^1 — и в исключении, и при gate `human-approval`». Добавить сценарий: impl-PR переносит бота из `identities.agents` в `roles.maintainer` и слит ботом, результат — `REF_NOT_VERIFIED` `merged_by`."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/agent-merge/specs/verification/spec.md",
+      "change": "Основание `NOT_APPLICABLE` по evidence сформулировать так: для каждого элемента `requires_evidence` каждая запись `evidence[]` перехода этого kind (и `produced_by.id` = `check`, если он задан) — `NOT_APPLICABLE` от check. На `MERGED` у gate без `none` в `accepts_attestation` — с `attestation.type: ci` и `subject.commit` = M^2. Добавить сценарий на запись NA с `attestation: none`."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/agent-merge/specs/core-sdd/spec.md",
+      "change": "Добавить `MODIFIED` REQ-SDD-001: pack `core-sdd` версии `0.4.x`, `kernel: \">=0.1 <0.10\"`."
+    },
+    {
+      "id": "P-4",
+      "target": "openspec/changes/agent-merge/specs/verification/spec.md",
+      "change": "Классификация для исключения ref `MERGED`: `classification` record на M ∪ `classify` по packs M^1 путей `merge-base(M^1, M^2)..M^2`; если policy M^1 не вычисляется исполняемым CLI — исключение не применяется."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Будет ли maintainer сам сливать PR с путями класса, а не только одобрять ревью? Запрещает ли форж SRA боту merge после одобрения владельцем, в том числе auto-merge, включённый ботом?",
+      "blocking": false,
+      "impact": [
+        "REQ-VER-011",
+        "REQ-VER-014"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "У PR, слитого через auto-merge, GitHub пишет в `merged_by` того, кто включил auto-merge. «Require review from Code Owners» не ограничивает, кто нажимает merge после одобрения."
+    },
+    {
+      "id": "A-2",
+      "statement": "В pack `core-sdd` `applies_when` есть только у `factory-golden-passed` (`VERIFYING->MERGED`), поэтому основание по diff у переходов, кроме `MERGED`, на практике не срабатывает (F-8 раунда 1 закрыт)."
+    },
+    {
+      "id": "A-3",
+      "statement": "Встроенный pack загружается из каталога исполняемого CLI, а не из дерева проверяемого commit. Так он загружается и в SRA при `warrant: checkout`."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Как поступать, если policy M^1 нельзя вычислить исполняемым CLI (другой hash встроенного pack в lock M^1 или другой `kernel`)?",
+      "options": [
+        "Fail-closed: исключение не применяется, `merged_by` судится как при `human-approval`",
+        "Код 3 с выводом",
+        "Packs M^1 — из дерева M^1 (возможно только в репозитории WARRANT)"
+      ]
+    },
+    {
+      "id": "D-2",
+      "question": "По какой классификации исключение ref `MERGED` вычисляет policy M^1?",
+      "options": [
+        "`classification` на HEAD archive-PR (текущий текст)",
+        "`classification` record на M ∪ `classify` по packs M^1 путей diff impl-PR",
+        "Только `classify` по packs M^1 путей diff impl-PR"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:bbf9c034b369c5f4d0462bce40d6d51132eabb7ecbbe47b23945ce85d603f28f",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T12:00:00Z",
+    "finished_at": "2026-10-01T12:55:00Z"
+  }
+}

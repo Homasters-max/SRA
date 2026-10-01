@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01M3VCBZE93S8WX2KR834TTZFS",
+  "change": "judge-law",
+  "operation": "review",
+  "skill": "specification/adversarial-review@0.2.0",
+  "model": "claude-opus-5-5",
+  "write_scope": [],
+  "scope": [],
+  "branch": "spec/judge-law",
+  "started_at": "2026-10-01T09:22:45.884Z",
+  "finished_at": "2026-10-01T09:31:29.140Z",
+  "run_state": "SUCCEEDED",
+  "context_hash": "sha256:1b6efc97a7c3f3a560347f356b44030c5bb314ef3e61bef1192aad74d3bb68d0",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "spec_tree": "sha256:6c6e5c994c1819eddcf9f4fcdc210d199577358cb62f26f226a75a5fc17554fc",
+  "evidence": [
+    "EVID-01M3VCVYFFNDNRQEYATF5K36F0"
+  ],
+  "guard_events": []
+}

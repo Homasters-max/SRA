@@ -37,7 +37,7 @@
 | Одна ветка — один worktree; ветку проверять перед коммитом | архив NEXT-SESSION («Организационное»), ADR-0033 п. 3 | шаг «где я» навыка `git-start` (его зовёт `group-done`); машина не знает, какой ветке принадлежит работа |
 | Префикс ветки `spec/ worktree/ archive/ process/ docs/ fix/`, заголовок коммита `<change>: …` / `<префикс>: …` | ADR-0033 п. 10 | шаг CI `PR form` — `scripts/dev/pr-form.js` (`test/unit/dev/pr-form.test.ts`) |
 | Текст коммита и PR — файлом (`-F`, `--body-file`) | ADR-0033 п. 3 | правило держится навыками `git-start`, `git-land`, `group-done`: искажённый оболочкой текст механически не отличить |
-| Merge — только `--merge` по слову «merge #N» maintainer'а; после merge — worktree и ветки удаляются | ADR-0033 п. 5, 13 | шаги 4–5 навыка `git-land`; слово в чате хук не видит; `brief.js` — счётчики слитых веток (локальных и на origin) |
+| Merge — только `--merge`; spec-PR и PR с путями класса приёмки сливает maintainer на GitHub, остальные — сессия `--auto`; после merge — worktree и ветки удаляются | ADR-0033 п. 5, 13, ADR-0050 п. 8, ADR-0051 п. 2–3 | шаги 4–5 навыка `git-land`; форж — ruleset `main` (ревью владельца `.github/CODEOWNERS`, проверка `warrant / warrant`); судья — ref `MERGED` по профилю `human-acceptance`; согласие `CODEOWNERS` и профиля — `codeowners.test.ts`; `brief.js` — счётчики слитых веток (локальных и на origin) |
 | Порядок потоков — строка `После:` в файле передачи; черновики — `docs/drafts/<дата>-<тема>/NN-*.md` | ADR-0033 п. 12 | `dev-context.test.ts` (поток из «После» есть, циклов нет; форма черновиков); `brief.js` — «Потоки по порядку» |
 | Force push — только maintainer вручную | ADR-0033 п. 9 | `git-hook.js` — `deny` (`--force`, `-f`, `--force-with-lease`, `+refspec`) |
 | Длинный текст (коммит, PR, envelope, JSON) — файлом и флагом пути (`-F`, `--body-file`, `--file`), не в команде Bash | ADR-0043 | `git-hook.js` — `deny` на `win32` для команды Bash дороже 7 000 (длина + 4 на `'`; Git Bash обрезает `-c` на ~8 192), с выходом через файл (`test/unit/dev/git-hook.test.ts`) |
@@ -63,4 +63,15 @@ openspec config set workflows '["propose","explore","apply","update"]'
 ["Bash(gh pr merge * --merge)", "Bash(git push origin --delete *)"]
 ```
 
-Merge — только по слову «merge #N» в чате (шаг навыка `git-land`); удаление веток на origin — только слитых (`repo-hygiene`, `git-land`). Хук `git-hook.js` действует поверх разрешений.
+Какой PR сливает сессия, а какой maintainer — шаг 4 навыка `git-land` (ADR-0050 п. 8); удаление веток на origin — только слитых (`repo-hygiene`, `git-land`). Хук `git-hook.js` действует поверх разрешений.
+
+Git-автор коммитов агента — бот `homasters` (design Change `identities` D3): рядом с `GH_TOKEN` в `env` пользовательских настроек Claude Code (`~/.claude/settings.json`, не в git) — переменные ниже. Не `git config`: конфигурация worktree общая с основным checkout, и коммиты maintainer'а стали бы коммитами бота. Судья авторство коммитов не проверяет.
+
+```json
+{
+  "GIT_AUTHOR_NAME": "homasters",
+  "GIT_AUTHOR_EMAIL": "52467145+homasters@users.noreply.github.com",
+  "GIT_COMMITTER_NAME": "homasters",
+  "GIT_COMMITTER_EMAIL": "52467145+homasters@users.noreply.github.com"
+}
+```

@@ -33,7 +33,7 @@ WARRANT — governance-слой фабрики SEF поверх OpenSpec (specif
 | Найти код, кто вызывает, что обновить при изменении символа | `code-search` (`node scripts/dev/cs.js`) — [ADR-0028](docs/adr/WARRANT-ADR-0028-graft-adoption.md) |
 | Архитектурный аудит (обязательно перед spec-PR фазы) | `architecture-audit` |
 | Начать поток в worktree, «где я», коммит через файл | `git-start` |
-| PR, CI, merge по «merge #N», чистка после merge | `git-land` (+ `recovery.md`, `ci.md`) |
+| PR, CI, merge (ADR-0050 п. 8), чистка после merge | `git-land` (+ `recovery.md`, `ci.md`) |
 | Лишнее в репозитории (`brief.js`: «Гигиена: N»), перед spec-PR фазы | `repo-hygiene` (`node scripts/dev/hygiene.js`) |
 | Решение по ходу реализации → строка `I-N` в design.md | `decision` |
 | Три PR Change: утверждение, реализация, закрытие | `change-spec-pr` → `change-impl-pr` → `change-archive-pr` |
@@ -60,7 +60,7 @@ WARRANT — governance-слой фабрики SEF поверх OpenSpec (specif
 - Код ищется через `cs`, читается диапазонами. Держится у субагентов: хук `PreToolUse` — `deny` (ADR-0031).
 - Хуки разработки — только из белого списка. Держится: `dev-hooks.test.ts` (ADR-0032 п. 11).
 - Навыки, `AGENTS.md`, файлы передачи, `backlog.md` — по форме ADR-0032. Держится: `dev-context.test.ts`.
-- Git и `gh` выполняет сессия сама, maintainer'у не передаёт: worktree, ветки, коммиты, push, PR, merge по ADR-0049 п. 2, чистка после merge (ADR-0033 п. 1, навыки `git-start`, `git-land`). Отказ классификатора auto-режима — команда maintainer'у одной строкой в блоке `bash`, без повторов и обходов.
+- Git и `gh` выполняет сессия сама, maintainer'у не передаёт: worktree, ветки, коммиты, push, PR, merge по ADR-0050 п. 8 (spec-PR и PR с путями класса приёмки — maintainer), чистка после merge (ADR-0033 п. 1, навыки `git-start`, `git-land`). Отказ классификатора auto-режима — команда maintainer'у одной строкой в блоке `bash`, без повторов и обходов.
 - Основной checkout — только `main`, работа — в worktree; force push и `openspec archive` запрещены. Держится: хук `git-hook.js` (ADR-0033 п. 9). Одна ветка — один worktree, ветку проверять перед коммитом — шаг 1 `group-done`.
 - Длинный текст (коммит, PR, envelope, JSON) — файлом (`Write`) и флагом пути, не в команде Bash: Git Bash на Windows обрезает команду длиннее ~7,7 тыс. символов. Держится: `git-hook.js` `long-command` (ADR-0043).
 - Отклонение от spec или design — вопросом maintainer'у, принятое — строкой `I-N` (навык `decision`); норма во время реализации меняется только новым ADR.

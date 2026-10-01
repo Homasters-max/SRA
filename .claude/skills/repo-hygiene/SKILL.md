@@ -26,7 +26,7 @@ description: "Убрать лишнее в репозитории и worktree �
    - `ignored-leftover` — удалить каталог (`rm -rf <путь>`), он в `.gitignore`.
 3. **Через hygiene-PR** (`pr`) — навык `git-start start process/hygiene-<YYYY-MM-DD>`:
    - `broken-link` — исправить ссылку на существующий путь (файл переехал — новый путь; удалён — текст без ссылки); в ADR меняется только путь, не решение;
-   - `audit-stale` — навык `architecture-audit` (снимок и отчёт в `docs/process/audits/`): снимок старше тега, после его коммита изменено больше 20 файлов `src` (`AUDIT_STALE_FILES`) или появился модуль. Проверки и доставка — навык `git-land`; «merge #N» — maintainer.
+   - `audit-stale` — навык `architecture-audit` (снимок и отчёт в `docs/process/audits/`): снимок старше тега, после его коммита изменено больше 20 файлов `src` (`AUDIT_STALE_FILES`) или появился модуль. Проверки, доставка и merge — навык `git-land` (шаг 4: hygiene-PR без путей класса приёмки сливает сессия `--auto`, с ними — maintainer).
 4. **С подтверждением** (`confirm`) — один список, один ответ maintainer'а на весь список:
    - `merged-worktree-dirty` — показать `git -C <путь> status --short`; закоммитить или удалить — по ответу;
    - `waiver-expiring` — продлить (новый waiver, активация maintainer'ом) или закрыть producer'ом gate;

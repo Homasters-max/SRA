@@ -154,7 +154,7 @@ async function mergedByLaw(ctx: Pick<Ctx, "git" | "root">, change: string, merge
 
 /**
  * Verifies the `ref` of every new `APPROVED` and `MERGED` of `transitions`.
- * Throws `FORGE_UNAVAILABLE` (exit 3) when the forge cannot be read.
+ * Throws `FORGE_UNAVAILABLE` (exit 4) or `FORGE_ACCESS` (exit 3) when the forge cannot be read, `USAGE` when its repository is unknown.
  */
 export async function judgeRefs(
   ctx: Pick<Ctx, "git" | "forge" | "root">,

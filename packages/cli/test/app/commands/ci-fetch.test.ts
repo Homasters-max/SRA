@@ -25,7 +25,7 @@ import { canonicalText } from "../../../src/core/canon/format-json.js";
 import { acquireLock, lockPath } from "../../../src/core/check/lock.js";
 import type { Ctx } from "../../../src/core/ctx.js";
 import type { Json } from "../../../src/core/schemas/loader.js";
-import type { CommandResult } from "../../../src/io/output.js";
+import { toEnvelope, type CommandResult } from "../../../src/io/output.js";
 import { advance, artifactOf, AT, pullRequest, RECORD } from "../helpers/ci.js";
 import { FAKE_REPOSITORY, fakePull, fakeRun, type FakeArtifact } from "../helpers/fakes/forge.js";
 import { invoke } from "../helpers/invoke.js";
@@ -268,6 +268,24 @@ describe("warrant ci fetch: input errors, nothing written", () => {
     expect(p.forge.calls).toEqual([]);
     expect(p.tree()).toEqual(before);
   });
+
+  it("the forge: access refused — FORGE_ACCESS, 3; unavailable — FORGE_UNAVAILABLE retryable, 4; GITHUB_REPOSITORY not <owner>/<repo> — USAGE, 3, no call (REQ-VER-012)", async () => {
+    const { p } = await merged();
+    const before = p.tree();
+    const seen: [string | undefined, boolean, number][] = [];
+    for (const failure of ["access", "unavailable", "repository"] as const) {
+      p.forge.failure = failure;
+      const result = await fetch(p);
+      seen.push([result.errors[0]?.code, toEnvelope("ci fetch", result).errors[0]?.retryable === true, result.exitCode]);
+    }
+    expect(seen).toEqual([
+      ["FORGE_ACCESS", false, 3],
+      ["FORGE_UNAVAILABLE", true, 4],
+      ["USAGE", false, 3]
+    ]);
+    expect(p.forge.calls).toEqual(["pullRequest 9", "pullRequest 9"]);
+    expect(p.tree()).toEqual(before);
+  });
 });
 
 describe("warrant ci fetch: the import", () => {
@@ -332,7 +350,7 @@ describe("warrant ci fetch: the import", () => {
     expect(p.tree()).toEqual(before);
   });
 
-  it("the lock of check held: BUSY, exit 4, nothing written", async () => {
+  it("the lock of check held: BUSY retryable, exit 4, nothing written (SCN-KRN-160)", async () => {
     const { p } = await ready();
     const held = acquireLock(lockPath(p.root, await p.git.commonDir()).file, { pid: 1, check: "tests-passed", started_at: AT, cwd: p.root }, p.ctx.signals);
     expect(held.ok).toBe(true);
@@ -340,6 +358,7 @@ describe("warrant ci fetch: the import", () => {
       const before = p.tree();
       const result = await fetch(p);
       expect([result.errors[0]?.code, result.exitCode]).toEqual(["BUSY", 4]);
+      expect(toEnvelope("ci fetch", result).errors[0]).toMatchObject({ code: "BUSY", retryable: true });
       expect(p.tree()).toEqual(before);
     } finally {
       if (held.ok) held.release();

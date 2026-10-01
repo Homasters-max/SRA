@@ -14,6 +14,10 @@ const spawn = spawnCjs as unknown as typeof import("cross-spawn");
 export interface ExecResult {
   /** Started, and exited with code 0. */
   ok: boolean;
+  /** False when the command could not start (not on PATH): `gh` missing is an access failure, not an outage (design exit-contract D7). */
+  started: boolean;
+  /** The exit code; null when the command did not start or ended by a signal. */
+  status: number | null;
   stdout: Buffer;
   stderr: Buffer;
 }
@@ -24,10 +28,10 @@ export function exec(command: string, args: readonly string[], cwd: string, inpu
     const err: Buffer[] = [];
     let failed = false;
     let settled = false;
-    const finish = (ok: boolean): void => {
+    const finish = (ok: boolean, started: boolean, status: number | null): void => {
       if (settled) return;
       settled = true;
-      resolve({ ok, stdout: Buffer.concat(out), stderr: Buffer.concat(err) });
+      resolve({ ok, started, status, stdout: Buffer.concat(out), stderr: Buffer.concat(err) });
     };
     let child;
     try {
@@ -37,17 +41,20 @@ export function exec(command: string, args: readonly string[], cwd: string, inpu
         windowsHide: true
       });
     } catch {
-      finish(false);
+      finish(false, false, null);
       return;
     }
     child.stdout?.on("data", (chunk: Buffer) => out.push(chunk));
     child.stderr?.on("data", (chunk: Buffer) => err.push(chunk));
-    child.on("error", () => {
+    // `cross-spawn` on Windows starts the shim and reports a missing command as `ENOENT` on its exit.
+    let started = true;
+    child.on("error", (error: NodeJS.ErrnoException) => {
       failed = true;
+      if (error.code === "ENOENT" || child.pid === undefined) started = false;
       // A process that never started emits no `close` reliably.
-      if (child.pid === undefined) finish(false);
+      if (child.pid === undefined) finish(false, false, null);
     });
-    child.on("close", (code) => finish(!failed && code === 0));
+    child.on("close", (code) => finish(!failed && code === 0, started, started ? code : null));
     if (input !== undefined && child.stdin !== null) {
       // A child that exits before reading all of its input must not crash the CLI.
       child.stdin.on("error", () => undefined);

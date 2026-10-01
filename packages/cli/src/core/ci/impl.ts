@@ -6,18 +6,21 @@
  * HEAD^2 against `merge-base(HEAD^1, HEAD^2)` by the policy of the base. The
  * kinds the checks produce count only from this run (ADR-0010 п. 3). A gate
  * `FAIL` or `BLOCKED` is a violation, except a gate that only `warrant
- * transition` can feed (`human-approval`): it is deferred.
+ * transition` can feed (`human-approval`): it is deferred; and a gate
+ * `BLOCKED` because a check that would feed it failed (design D6): its cause
+ * is the error of that check in `errors[]`, whose class chooses the exit code.
  */
 import { checksForTransition, executeChecks, type ChecksRun } from "../check/execute.js";
 import { canonicalHash } from "../canon/hash.js";
 import { loadConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
-import { cliError, EXIT, exitCodeFor, type CliError, type ExitCode } from "../errors.js";
+import { cliError, type CliError } from "../errors.js";
 import { HUMAN_APPROVAL } from "../evidence/approval.js";
 import { artifactName } from "../evidence/attestation.js";
 import { evidenceDir } from "../evidence/store.js";
 import { reportPath } from "../fs.js";
 import { MERGE_TRANSITION, PASSING_VERDICTS, type Finding, type Verdict } from "../gates/types.js";
+import { requirementsOf, starvedBy } from "../gates/verdict.js";
 import type { GitFacts } from "../git/facts.js";
 import { isPlainObject, strings } from "../json.js";
 import { effectiveCheck, gateDefinitions } from "../packs/objects.js";
@@ -34,9 +37,8 @@ export interface ImplJudgement {
   /** Ids of the records this run wrote. */
   evidence: string[];
   artifact: { name: string; path: string };
-  /** Violations (exit 1) and failures of checks or configuration (exit 3). */
+  /** Violations and failures of checks; the exit code is their class (`exitCodeFor`). */
   errors: CliError[];
-  exitCode: ExitCode;
 }
 
 /** The attempt of the run the workflow uploads the artifact of (`GITHUB_RUN_ATTEMPT`, else 1). */
@@ -80,13 +82,13 @@ export async function mergeFacts(ctx: Pick<Ctx, "git">, subject: CiSubject): Pro
 /**
  * Checks and gates of `VERIFYING->MERGED` of the Change of `subject` by the
  * packs of `base`. Throws what `prepare` throws; a broken configuration of the
- * base or a policy conflict comes back as errors with exit 3.
+ * base or a policy conflict comes back as errors alone.
  */
-export async function judgeImpl(ctx: Ctx, subject: CiSubject, base: BaseContext, env: NodeJS.ProcessEnv): Promise<ImplJudgement | { errors: CliError[]; exitCode: ExitCode }> {
+export async function judgeImpl(ctx: Ctx, subject: CiSubject, base: BaseContext, env: NodeJS.ProcessEnv): Promise<ImplJudgement | { errors: CliError[] }> {
   const change = subject.change as string;
   const record = underBase(base, subject.record as ChangeRecord);
   const prepared = prepare(ctx, change, { transition: MERGE_TRANSITION, env, record, loaded: base.loaded });
-  if (!prepared.ok) return { errors: prepared.conflict ? [prepared.error] : prepared.errors, exitCode: EXIT.CONFIG };
+  if (!prepared.ok) return { errors: prepared.conflict ? [prepared.error] : prepared.errors };
 
   const git = await mergeFacts(ctx, subject);
   const selected = checksForTransition(base.loaded, prepared.policy, MERGE_TRANSITION);
@@ -97,6 +99,7 @@ export async function judgeImpl(ctx: Ctx, subject: CiSubject, base: BaseContext,
   const evaluation = await judgeGates(ctx, change, { ...prepared, admit }, git, run);
 
   const gates = evaluation.engine.gates;
+  const definitions = gateDefinitions(base.loaded);
   const deferred: string[] = [];
   const errors: CliError[] = [...run.errors];
   for (const [gate, verdict] of Object.entries(gates)) {
@@ -105,6 +108,8 @@ export async function judgeImpl(ctx: Ctx, subject: CiSubject, base: BaseContext,
       deferred.push(gate);
       continue;
     }
+    // D6: the cause of this BLOCKED is the failed check, already in errors[] with its class.
+    if (verdict === "BLOCKED" && starvedBy(requirementsOf(definitions.get(gate)), run.failures).length > 0) continue;
     errors.push(
       cliError("GATE_NOT_PASSED", `gate ${gate} of ${MERGE_TRANSITION} is ${verdict}`, {
         hint: `see data.findings[] for ${gate}; fix the pull request and re-run the job`
@@ -124,14 +129,12 @@ export async function judgeImpl(ctx: Ctx, subject: CiSubject, base: BaseContext,
     ...hooksFindings(ctx, change, evaluation, base.loaded.config, env),
     ...rolesFinding(ctx, base)
   ];
-  const exitCode = exitCodeFor(errors);
   return {
     gates,
     deferred: deferred.sort(),
     findings,
     evidence: [...written].sort(),
     artifact: { name: artifactName(change, runAttempt(env)), path: reportPath(evidenceDir(ctx.root, change, env), ctx.root) },
-    errors,
-    exitCode
+    errors
   };
 }

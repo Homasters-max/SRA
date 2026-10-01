@@ -25,9 +25,9 @@
 
 ## 4. Судья, форж, диапазон pack (D6, D7, D8)
 
-- [ ] 4.1 `core/ci/judge.ts`, `core/ci/impl.ts`: код — `exitCodeFor` над всеми ошибками без `GATE_NOT_PASSED` `BLOCKED` при ошибке check (D6); `core/ci/fetch.ts` — `BUSY` класса `retry` (REQ-VER-011, REQ-VER-012). Тесты SCN-VER-095, SCN-VER-137, SCN-KRN-160 (часть `ci fetch`).
-- [ ] 4.2 `adapters/forge-gh.ts` по D7: `FORGE_ACCESS`, `FORGE_UNAVAILABLE`, `USAGE` для `GITHUB_REPOSITORY` и `origin`; `ci/decisions.ts` — находка `DECISION_NOT_VERIFIED` и для `FORGE_ACCESS` (REQ-VER-013). Тесты SCN-VER-084, SCN-VER-138, contract `forge`, unit `forge-gh`.
-- [ ] 4.3 `core/packs/loader.ts` — `PACK_VERSION_RANGE`; `core/ci/base.ts` `acceptChangedLaw` сверяет код и путь (D8). Тесты SCN-KRN-164, SCN-VER-139, unit `loader`.
+- [x] 4.1 `core/ci/judge.ts`, `core/ci/impl.ts`: код — `exitCodeFor` над всеми ошибками без `GATE_NOT_PASSED` `BLOCKED` при ошибке check (D6); `core/ci/fetch.ts` — `BUSY` класса `retry` (REQ-VER-011, REQ-VER-012). Тесты SCN-VER-095, SCN-VER-137, SCN-KRN-160 (часть `ci fetch`).
+- [x] 4.2 `adapters/forge-gh.ts` по D7: `FORGE_ACCESS`, `FORGE_UNAVAILABLE`, `USAGE` для `GITHUB_REPOSITORY` и `origin`; `ci/decisions.ts` — находка `DECISION_NOT_VERIFIED` и для `FORGE_ACCESS` (REQ-VER-013). Тесты SCN-VER-084, SCN-VER-138, contract `forge`, unit `forge-gh`.
+- [x] 4.3 `core/packs/loader.ts` — `PACK_VERSION_RANGE`; `core/ci/base.ts` `acceptChangedLaw` сверяет код и путь (D8). Тесты SCN-KRN-164, SCN-VER-139, unit `loader`.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts ci forge loader base`.
 

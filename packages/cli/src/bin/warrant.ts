@@ -345,7 +345,7 @@ const ciCommand = register(
           "warrant ci --dry-run"
         ]) +
           "\nHEAD must be the result of a merge: the first parent the tip of the base, the second the head of the PR.\n" +
-          "Exit codes: 0 no violation; 1 a violation of the PR (errors[]); 3 configuration, USAGE, a failed check, FORGE_UNAVAILABLE.\n"
+          "Exit codes: 0 no violation; 1 a violation of the PR (errors[]); 2 POLICY_CONFLICT; 3 configuration, USAGE, CHECK_NOT_CONFIGURED, FORGE_ACCESS; 4 retryable — CHECK_TIMEOUT, BUSY, FORGE_UNAVAILABLE.\n"
       )
 );
 register(
@@ -360,7 +360,7 @@ register(
         "after",
         examples(["warrant ci fetch 57", "warrant ci fetch https://github.com/<owner>/<repo>/pull/57 --dry-run"]) +
           "\nNo run on the tree of the merge commit M (main moved before the merge): gh workflow run <workflow file of the job warrant> -f merge_commit=<M> (the hint of NO_CI_EVIDENCE names it), then fetch again.\n" +
-          "Exit codes: 0 imported or already present; 3 USAGE, PR_NOT_FOUND, PR_NOT_MERGED, PR_NOT_IMPL, NO_CI_EVIDENCE, EVIDENCE_CONFLICT, BUSY, FORGE_UNAVAILABLE — nothing written.\n"
+          "Exit codes: 0 imported or already present; 1 TOPOLOGY_VIOLATION; 3 USAGE, PR_NOT_FOUND, PR_NOT_MERGED, PR_NOT_IMPL, NO_CI_EVIDENCE, EVIDENCE_CONFLICT, FORGE_ACCESS; 4 retryable — BUSY, FORGE_UNAVAILABLE. Nothing is written unless 0.\n"
       ),
   ciCommand
 );

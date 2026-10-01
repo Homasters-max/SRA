@@ -2,13 +2,14 @@
  * Parsing of `ForgeGh` (design phase-4c §6, task 3.2; design slice-fixes §4,
  * task 3.1): the repository from the URL of `origin` (https, ssh) and the
  * answers of `gh api` on bodies recorded from GitHub (trimmed to the keys
- * around the ones read). The calls themselves
+ * around the ones read); the class of a failure of `gh` by what it printed
+ * (`ghFailure`, design exit-contract D7). The calls themselves
  * are the contract's (`test/contract/forge.contract.test.ts`).
  */
 import { describe, expect, it } from "vitest";
 
-import { parseComment, parseLiveArtifacts, parsePullRequest, parseRemoteUrl, parseRunPages, parseWorkflowRun } from "../../../src/adapters/forge-gh.js";
-import { FORGE_HINT, WarrantError } from "../../../src/core/errors.js";
+import { ForgeGh, ghFailure, parseComment, parseLiveArtifacts, parsePullRequest, parseRemoteUrl, parseRunPages, parseWorkflowRun } from "../../../src/adapters/forge-gh.js";
+import { FORGE_HINT, FORGE_RETRY_HINT, WarrantError } from "../../../src/core/errors.js";
 
 const USER = { id: 94626159, login: "Homasters-max", type: "User" };
 
@@ -152,7 +153,7 @@ describe("parsePullRequest: the body of pulls/{n}", () => {
     const error = forgeError(() => parsePullRequest({ ...PR_53, head: {} }));
     expect(error.code).toBe("FORGE_UNAVAILABLE");
     expect(error.message).toContain("head.sha");
-    expect(error.hint).toBe(FORGE_HINT);
+    expect(error.hint).toBe(FORGE_RETRY_HINT);
     expect(forgeError(() => parsePullRequest([])).code).toBe("FORGE_UNAVAILABLE");
   });
 });
@@ -231,5 +232,64 @@ describe("parseComment: issues/comments/{id} and pulls/{n}/reviews/{id}", () => 
     expect(forgeError(() => parseComment(REVIEW, "issue")).message).toContain("issue_url");
     expect(forgeError(() => parseComment({ ...ISSUE_COMMENT, issue_url: "https://api.github.com/repos/o/r" }, "issue")).message).toContain("issue_url");
     expect(forgeError(() => parseComment({ ...ISSUE_COMMENT, user: null }, "issue")).code).toBe("FORGE_UNAVAILABLE");
+  });
+});
+
+/** A failed `gh` call as `exec` gives it: started, the exit code, what `gh` printed. */
+function failed(stderr: string, status: number | null = 1, started = true): Parameters<typeof ghFailure>[0] {
+  return { started, status, stderr: Buffer.from(stderr), stdout: Buffer.alloc(0) };
+}
+
+/** Code and `hint` kind of a failure; null — HTTP 404. */
+function classOf(run: Parameters<typeof ghFailure>[0]): [string, string] | null {
+  const error = ghFailure(run, "gh could not read pull request #53");
+  if (error === null) return null;
+  return [error.code, error.hint === FORGE_HINT ? "auth" : error.hint === FORGE_RETRY_HINT ? "retry" : String(error.hint)];
+}
+
+describe("ghFailure: what gh printed → null, FORGE_ACCESS or FORGE_UNAVAILABLE (exit-contract D7)", () => {
+  // Lines of gh 2.101.0, the same the contract test pins against the real `gh`.
+  it("HTTP 404 — null: not found, or invisible to the token", () => {
+    expect(classOf(failed("gh: Not Found (HTTP 404)\n"))).toBeNull();
+  });
+
+  it("a refusal of access: gh not on PATH, no token (exit 4), HTTP 401, HTTP 403 not of a rate limit — FORGE_ACCESS with the hint of gh auth login", () => {
+    expect(classOf(failed("", null, false))).toEqual(["FORGE_ACCESS", "auth"]);
+    expect(ghFailure(failed("", null, false), "x")?.message).toContain("not on PATH");
+    const noToken = "To get started with GitHub CLI, please run:  gh auth login\nAlternatively, populate the GH_TOKEN environment variable with a GitHub API authentication token.\n";
+    expect(classOf(failed(noToken, 4))).toEqual(["FORGE_ACCESS", "auth"]);
+    expect(classOf(failed("gh: Bad credentials (HTTP 401)\n"))).toEqual(["FORGE_ACCESS", "auth"]);
+    expect(classOf(failed("gh: Resource not accessible by integration (HTTP 403)\n"))).toEqual(["FORGE_ACCESS", "auth"]);
+  });
+
+  it("anything else — FORGE_UNAVAILABLE with the hint to retry: rate limits, 5xx, the network, an unknown failure", () => {
+    for (const stderr of [
+      "gh: API rate limit exceeded for user ID 1. (HTTP 403)\n",
+      "gh: You have exceeded a secondary rate limit. Please wait a few minutes before you try again. (HTTP 403)\n",
+      "gh: Too Many Requests (HTTP 429)\n",
+      "gh: HTTP 502\n",
+      "gh: Service Unavailable (HTTP 503)\n",
+      'Get "https://api.github.com/repos/o/r/pulls/53": dial tcp 127.0.0.1:9: connect: connection refused\n',
+      "error connecting to api.github.com\ncheck your internet connection or https://githubstatus.com\n",
+      "something gh never printed before\n",
+      ""
+    ]) {
+      expect(classOf(failed(stderr)), stderr).toEqual(["FORGE_UNAVAILABLE", "retry"]);
+    }
+    expect(ghFailure(failed("gh: HTTP 502\n"), "gh could not read pull request #53")?.message).toBe("gh could not read pull request #53: gh: HTTP 502");
+  });
+});
+
+describe("ForgeGh: GITHUB_REPOSITORY not <owner>/<repo> (SCN-VER-138)", () => {
+  it("USAGE with the hint of the form, before any call of gh (no process at the unit level)", async () => {
+    let error: unknown;
+    try {
+      await new ForgeGh(".", { GITHUB_REPOSITORY: "not-a-repo" }).pullRequest(53);
+    } catch (thrown) {
+      error = thrown;
+    }
+    expect(error).toBeInstanceOf(WarrantError);
+    expect([(error as WarrantError).code, (error as WarrantError).hint]).toEqual(["USAGE", expect.stringContaining("GITHUB_REPOSITORY=<owner>/<repo>")]);
+    expect((error as WarrantError).message).toContain('"not-a-repo" is not <owner>/<repo>');
   });
 });

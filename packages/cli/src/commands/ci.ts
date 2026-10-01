@@ -6,8 +6,10 @@
  * from the base, HEAD^1 (`core/ci/base.ts`, I-171); the rules — `core/ci/judge.ts`.
  *
  * Exit code — the class of `errors[]` (REQ-KRN-003): 0 — no violation; 1 — a
- * violation of the pull request; 3 — a broken configuration, `USAGE`; 4 — a
- * failure a retry may get past (`BUSY`, `CHECK_TIMEOUT`, `FORGE_UNAVAILABLE`).
+ * violation of the pull request; 2 — `POLICY_CONFLICT`; 3 — a broken
+ * configuration, `USAGE`, `FORGE_ACCESS`; 4 — a failure a retry may get past
+ * (`BUSY`, `CHECK_TIMEOUT`, `FORGE_UNAVAILABLE`). A gate `BLOCKED` by a failed
+ * check gives no `GATE_NOT_PASSED` (design D6): the failure chooses the code.
  * The controller's action does not enter it: CI has no "wait", only "do not merge".
  *
  * `--dry-run` is a plan only: the kind, the Change, the checks and

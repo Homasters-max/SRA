@@ -18,7 +18,7 @@ import { runSync } from "../../../src/commands/sync.js";
 import { runValidate } from "../../../src/commands/validate.js";
 import type { CliError } from "../../../src/core/errors.js";
 import { packContentHash } from "../../../src/core/packs/hash.js";
-import type { CommandResult } from "../../../src/io/output.js";
+import { toEnvelope, type CommandResult } from "../../../src/io/output.js";
 import { CLI_VERSION } from "../../../src/version.js";
 import { CLI_ROOT, CORE_SDD_RANGE, REPO_ROOT } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
@@ -490,6 +490,20 @@ describe("warrant validate: identities.agents outside roles (ADR-0044 п. 3)", (
     const valid = await validate(p);
     expect(valid.errors).toEqual([]);
     expect(valid.exitCode).toBe(0);
+  });
+});
+
+describe("warrant validate: a pack version outside the range (exit-contract D8)", () => {
+  it("core-sdd outside packs.core-sdd.version: PACK_VERSION_RANGE at its pack.json, no retryable, exit 3; no CONFIG_INVALID (SCN-KRN-164)", async () => {
+    const p = await project().synced();
+    const config = p.json(".warrant/warrant.json");
+    p.write(".warrant/warrant.json", { ...config, packs: { ...config.packs, "core-sdd": { version: "^0.0.1" } } });
+    const result = await validate(p);
+    const range = result.errors.filter((e) => e.code === "PACK_VERSION_RANGE");
+    expect(range.map((e) => e.path)).toEqual([expect.stringMatching(/core-sdd\/pack\.json$/)]);
+    expect(toEnvelope("validate", result).errors.find((e) => e.code === "PACK_VERSION_RANGE")).not.toHaveProperty("retryable");
+    expect(errorCodes(result)).not.toContain("CONFIG_INVALID");
+    expect(result.exitCode).toBe(3);
   });
 });
 

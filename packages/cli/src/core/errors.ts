@@ -108,8 +108,11 @@ export const SYNC_HINT = "run `warrant sync`";
 /** `hint` of errors fixed by rewriting files in canonical form. */
 export const FMT_HINT = "run `warrant fmt`";
 
-/** `hint` of `FORGE_UNAVAILABLE`: how to give `gh` a token (ADR-0037 п. 6). */
+/** `hint` of `FORGE_ACCESS`: how to give `gh` a token (ADR-0037 п. 6, design exit-contract D7). */
 export const FORGE_HINT = "run `gh auth login`, or set `GH_TOKEN` to a GitHub token with read access to the repository";
+
+/** `hint` of `FORGE_UNAVAILABLE`: the failure may pass on a retry (design exit-contract D7). */
+export const FORGE_RETRY_HINT = "retry the command: the network or the forge failed; if it keeps failing, see https://www.githubstatus.com";
 
 /** Options of an `errors[]` entry: where it is and how to fix it. */
 export interface ErrorOptions {
@@ -224,11 +227,22 @@ export class WarrantError extends Error {
 }
 
 /**
- * The one form of `FORGE_UNAVAILABLE` of `ForgePort` (REQ-VER-011, REQ-VER-012):
- * class `retry` (exit 4), `hint` about `gh auth login` or `GH_TOKEN` unless another fixes it.
+ * The one form of `FORGE_UNAVAILABLE` of `ForgePort` (REQ-VER-011, REQ-VER-012,
+ * design D7): the network, a timeout, 5xx, a rate limit, an answer that cannot
+ * be read, any failure of `gh` not known as a refusal — class `retry` (exit 4),
+ * `hint` to retry.
  */
-export function forgeUnavailable(message: string, hint: string = FORGE_HINT): WarrantError {
+export function forgeUnavailable(message: string, hint: string = FORGE_RETRY_HINT): WarrantError {
   return new WarrantError("FORGE_UNAVAILABLE", message, { hint });
+}
+
+/**
+ * The one form of `FORGE_ACCESS` of `ForgePort` (design D7): `gh` missing or not
+ * logged in, HTTP 401, HTTP 403 not of a rate limit — class `config` (exit 3),
+ * `hint` about `gh auth login` or `GH_TOKEN`.
+ */
+export function forgeAccess(message: string): WarrantError {
+  return new WarrantError("FORGE_ACCESS", message, { hint: FORGE_HINT });
 }
 
 export function isErrorCode(value: string): value is ErrorCode {

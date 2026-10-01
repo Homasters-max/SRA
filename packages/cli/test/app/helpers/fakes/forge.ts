@@ -5,7 +5,7 @@
  * it; `fakePull` and `fakeRun` build the objects with defaults of that
  * repository, `addComment` adds a comment.
  */
-import { forgeUnavailable } from "../../../../src/core/errors.js";
+import { forgeAccess, forgeUnavailable, WarrantError } from "../../../../src/core/errors.js";
 import type { Comment, CommentRef, ForgePort, PullRequest, RunFilter, WorkflowRun } from "../../../../src/core/ports/forge.js";
 
 /** Repository of the fake forge unless the model names another. */
@@ -76,8 +76,13 @@ export class FakeForge implements ForgePort {
   readonly artifacts = new Map<string, FakeArtifact>();
   /** Comments by `<repository lower case> <kind> <id>`. */
   readonly comments = new Map<string, Comment>();
-  /** When set, every call fails as `ForgeGh` without a token: `FORGE_UNAVAILABLE` with the `hint`. */
-  unavailable = false;
+  /**
+   * When set, every call fails as `ForgeGh` does for that cause (design
+   * exit-contract D7): `unavailable` — `FORGE_UNAVAILABLE` (the network, 5xx);
+   * `access` — `FORGE_ACCESS` (no token, HTTP 401); `repository` — `USAGE` of a
+   * `GITHUB_REPOSITORY` not `<owner>/<repo>`, before any request: no call is recorded.
+   */
+  failure: "unavailable" | "access" | "repository" | undefined = undefined;
 
   add(model: ForgeModel): this {
     for (const pull of model.pulls ?? []) this.pulls.set(pull.number, pull);
@@ -147,8 +152,16 @@ export class FakeForge implements ForgePort {
   }
 
   private answer<T>(call: string, compute: () => T): Promise<T> {
+    if (this.failure === "repository") {
+      return Promise.reject(
+        new WarrantError("USAGE", 'GITHUB_REPOSITORY "not-a-repo" is not <owner>/<repo>', {
+          hint: "set `GITHUB_REPOSITORY=<owner>/<repo>`, or add the GitHub repository as the remote `origin`"
+        })
+      );
+    }
     this.calls.push(call);
-    if (this.unavailable) return Promise.reject(forgeUnavailable("gh could not read the forge: HTTP 401: Bad credentials"));
+    if (this.failure === "unavailable") return Promise.reject(forgeUnavailable("gh could not read the forge: gh: HTTP 502"));
+    if (this.failure === "access") return Promise.reject(forgeAccess("gh could not read the forge: gh: Bad credentials (HTTP 401)"));
     return Promise.resolve(compute());
   }
 }

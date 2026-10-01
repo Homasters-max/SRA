@@ -35,6 +35,7 @@ import { prefilter } from "./prefilter.js";
 import {
   MERGE_TRANSITION,
   VERDICT_ORDER,
+  type CheckFailure,
   type EvidenceInput,
   type Finding,
   type GateEngineInput,
@@ -74,6 +75,15 @@ export function requirementsOf(gate: Record<string, unknown> | undefined): Requi
       if (typeof r["check"] === "string") requirement.check = r["check"];
       return requirement;
     });
+}
+
+/**
+ * The failed checks that starve a gate of `requirements` (REQ-VER-006,
+ * REQ-VER-011 «impl»): a failure of a check producing a required kind; a
+ * requirement with `check` is starved only by a failure of that check.
+ */
+export function starvedBy(requirements: readonly Requirement[], failures: readonly CheckFailure[]): CheckFailure[] {
+  return failures.filter((f) => requirements.some((r) => f.kinds.includes(r.kind) && (r.check === undefined || r.check === f.check)));
 }
 
 /**
@@ -323,9 +333,7 @@ function baseOutcome(
 
   // Step 2: a failed check of this `verify` leaves its gates without input.
   // A requirement with `check` is starved only by a failure of that check.
-  const failed = (signals.checkFailures ?? []).filter((f) =>
-    requirements.some((r) => f.kinds.includes(r.kind) && (r.check === undefined || r.check === f.check))
-  );
+  const failed = starvedBy(requirements, signals.checkFailures ?? []);
   if (failed.length > 0) {
     return {
       verdict: "BLOCKED",

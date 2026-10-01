@@ -12,14 +12,23 @@
  * holds them, not the latest pull_request attempt, BL-72).
  *
  * No `skipIf`: without a token `gh` has (`gh auth login` locally, `GH_TOKEN`
- * in CI) the real side fails with the `hint` of `FORGE_UNAVAILABLE`.
+ * in CI) the real side fails with `FORGE_ACCESS` and its `hint`.
+ *
+ * The failures of `gh` (design exit-contract D7): the lines the installed `gh`
+ * prints for HTTP 401, 403, 404, 429, 5xx, a refused connection and no token
+ * are pinned against a local HTTP server, with the class `ghFailure` gives
+ * them — a new `gh` that words them otherwise fails here, not in a CI run of a
+ * consumer.
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { ForgeGh } from "../../src/adapters/forge-gh.js";
-import { exitCodeFor, FORGE_HINT, WarrantError } from "../../src/core/errors.js";
+import { exec } from "../../src/adapters/exec.js";
+import { ForgeGh, ghFailure } from "../../src/adapters/forge-gh.js";
+import { exitCodeFor, FORGE_HINT, FORGE_RETRY_HINT, WarrantError } from "../../src/core/errors.js";
 import { parseCiRef } from "../../src/core/evidence/attestation.js";
 import type { Comment, CommentRef, ForgePort, PullRequest, WorkflowRun } from "../../src/core/ports/forge.js";
 import { FakeForge } from "../app/helpers/fakes/forge.js";
@@ -172,7 +181,24 @@ async function unavailable(call: Promise<unknown>): Promise<WarrantError> {
     if (error instanceof WarrantError) return error;
     throw error;
   }
-  throw new Error("expected FORGE_UNAVAILABLE");
+  throw new Error("expected a failure of the forge");
+}
+
+/** Runs `fn` with `vars` set (undefined — unset) in `process.env`, which `gh` inherits; restores them after. */
+async function withEnv<T>(vars: Record<string, string | undefined>, fn: () => Promise<T>): Promise<T> {
+  const saved = Object.fromEntries(Object.keys(vars).map((key) => [key, process.env[key]]));
+  const set = (values: Record<string, string | undefined>): void => {
+    for (const [key, value] of Object.entries(values)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  };
+  set(vars);
+  try {
+    return await fn();
+  } finally {
+    set(saved);
+  }
 }
 
 const SIDES = [
@@ -245,23 +271,98 @@ describe.each(SIDES)("ForgePort contract: $side", ({ port: portOf }) => {
   });
 });
 
-describe("ForgePort contract: without a token — FORGE_UNAVAILABLE with the hint", () => {
-  it("ForgeGh with a bad GH_TOKEN, FakeForge unavailable", async () => {
-    const saved = process.env.GH_TOKEN;
-    process.env.GH_TOKEN = "bad-token-of-the-forge-contract";
-    try {
-      const real = await unavailable(new ForgeGh(REPO_ROOT, { GITHUB_REPOSITORY: REPOSITORY }).pullRequest(53));
-      expect([real.code, real.hint, exitCodeFor([real])]).toEqual(["FORGE_UNAVAILABLE", FORGE_HINT, 4]);
-      expect(real.message).toMatch(/401|credentials/i);
-    } finally {
-      if (saved === undefined) delete process.env.GH_TOKEN;
-      else process.env.GH_TOKEN = saved;
-    }
+describe("ForgePort contract: a bad token — FORGE_ACCESS with the hint (exit-contract D7)", () => {
+  it("ForgeGh with a bad GH_TOKEN, FakeForge refusing access: FORGE_ACCESS, exit 3; FakeForge unavailable: FORGE_UNAVAILABLE, exit 4", async () => {
+    const real = await withEnv({ GH_TOKEN: "bad-token-of-the-forge-contract" }, () =>
+      unavailable(new ForgeGh(REPO_ROOT, { GITHUB_REPOSITORY: REPOSITORY }).pullRequest(53))
+    );
+    expect([real.code, real.hint, exitCodeFor([real])]).toEqual(["FORGE_ACCESS", FORGE_HINT, 3]);
+    expect(real.message).toContain("gh: Bad credentials (HTTP 401)");
     const fake = fakeForge();
-    fake.unavailable = true;
+    fake.failure = "access";
     const faked = await unavailable(fake.pullRequest(53));
-    expect([faked.code, faked.hint, exitCodeFor([faked])]).toEqual(["FORGE_UNAVAILABLE", FORGE_HINT, 4]);
-    expect(fake.calls).toEqual(["pullRequest 53"]);
+    expect([faked.code, faked.hint, exitCodeFor([faked])]).toEqual(["FORGE_ACCESS", FORGE_HINT, 3]);
+    fake.failure = "unavailable";
+    const down = await unavailable(fake.pullRequest(53));
+    expect([down.code, down.hint, exitCodeFor([down])]).toEqual(["FORGE_UNAVAILABLE", FORGE_RETRY_HINT, 4]);
+    expect(fake.calls).toEqual(["pullRequest 53", "pullRequest 53"]);
+  });
+});
+
+/** Answers of the local server, as GitHub gives them: status, content type, body. */
+const ANSWERS: Record<string, [number, string, string]> = {
+  "/401": [401, "application/json", '{"message":"Bad credentials","documentation_url":"https://docs.github.com/rest"}'],
+  "/403": [403, "application/json", '{"message":"Resource not accessible by integration","documentation_url":"https://docs.github.com/rest"}'],
+  "/403-rate": [403, "application/json", '{"message":"API rate limit exceeded for user ID 1."}'],
+  "/403-secondary": [403, "application/json", '{"message":"You have exceeded a secondary rate limit. Please wait a few minutes before you try again."}'],
+  "/404": [404, "application/json", '{"message":"Not Found","documentation_url":"https://docs.github.com/rest"}'],
+  "/429": [429, "application/json", '{"message":"Too Many Requests"}'],
+  "/502": [502, "text/html", "<html><body>502 Bad Gateway</body></html>"],
+  "/503": [503, "application/json", '{"message":"Service Unavailable"}']
+};
+
+describe("ForgeGh: the failures of the real gh, pinned (exit-contract D7)", () => {
+  let server: Server;
+  let base = "";
+  let refused = "";
+  let config = "";
+  /** `gh` with a placeholder token and an empty config: the calls go to the local server only. */
+  const gh = (args: string[], vars: Record<string, string | undefined> = { GH_TOKEN: "placeholder-of-the-forge-contract" }): ReturnType<typeof exec> =>
+    withEnv({ GH_CONFIG_DIR: config, GITHUB_TOKEN: undefined, GH_TOKEN: undefined, ...vars }, () => exec("gh", args, REPO_ROOT));
+  const firstLineOf = (run: { stderr: Buffer }): string => run.stderr.toString("utf8").split("\n")[0]?.trim() ?? "";
+  const listen = (s: Server): Promise<number> => new Promise((resolve) => s.listen(0, "127.0.0.1", () => resolve((s.address() as AddressInfo).port)));
+
+  beforeAll(async () => {
+    config = makeTempDir("warrant-gh-config-");
+    server = createServer((req, res) => {
+      const [status, type, body] = ANSWERS[req.url ?? ""] ?? [500, "text/plain", "no such answer"];
+      res.writeHead(status, { "content-type": type });
+      res.end(body);
+    });
+    base = `http://127.0.0.1:${String(await listen(server))}`;
+    const closed = createServer();
+    refused = `http://127.0.0.1:${String(await listen(closed))}/x`;
+    await new Promise((resolve) => closed.close(resolve));
+  });
+
+  afterAll(async () => {
+    await new Promise((resolve) => server.close(resolve));
+    removeDir(config);
+  });
+
+  it.each([
+    ["/401", "gh: Bad credentials (HTTP 401)", "FORGE_ACCESS"],
+    ["/403", "gh: Resource not accessible by integration (HTTP 403)", "FORGE_ACCESS"],
+    ["/403-rate", "gh: API rate limit exceeded for user ID 1. (HTTP 403)", "FORGE_UNAVAILABLE"],
+    ["/403-secondary", "gh: You have exceeded a secondary rate limit. Please wait a few minutes before you try again. (HTTP 403)", "FORGE_UNAVAILABLE"],
+    ["/404", "gh: Not Found (HTTP 404)", null],
+    ["/429", "gh: Too Many Requests (HTTP 429)", "FORGE_UNAVAILABLE"],
+    ["/502", "gh: HTTP 502", "FORGE_UNAVAILABLE"],
+    ["/503", "gh: Service Unavailable (HTTP 503)", "FORGE_UNAVAILABLE"]
+  ] as const)("HTTP %s: gh prints %j — %s", async (endpoint, line, code) => {
+    const run = await gh(["api", `${base}${endpoint}`]);
+    expect([run.ok, run.started, firstLineOf(run)]).toEqual([false, true, line]);
+    expect(ghFailure(run, "x")?.code ?? null).toBe(code);
+  });
+
+  it("a refused connection: gh names the request — FORGE_UNAVAILABLE, retryable", async () => {
+    const run = await gh(["api", refused]);
+    expect(firstLineOf(run).startsWith(`Get "${refused}": dial tcp`)).toBe(true);
+    const failure = ghFailure(run, "x");
+    expect([failure?.code, failure?.hint]).toEqual(["FORGE_UNAVAILABLE", FORGE_RETRY_HINT]);
+  });
+
+  it("no token: gh exits 4 asking for gh auth login — FORGE_ACCESS with the hint", async () => {
+    const run = await gh(["api", `${base}/404`], {});
+    expect([run.ok, run.status, firstLineOf(run)]).toEqual([false, 4, "To get started with GitHub CLI, please run:  gh auth login"]);
+    const failure = ghFailure(run, "x");
+    expect([failure?.code, failure?.hint, exitCodeFor(failure === null ? [] : [failure])]).toEqual(["FORGE_ACCESS", FORGE_HINT, 3]);
+  });
+
+  it("gh not on PATH: the command does not start — FORGE_ACCESS", async () => {
+    const run = await exec("gh-not-installed-of-the-forge-contract", ["api", "x"], REPO_ROOT);
+    expect([run.ok, run.started]).toEqual([false, false]);
+    expect(ghFailure(run, "x")?.code).toBe("FORGE_ACCESS");
   });
 });
 
@@ -270,15 +371,16 @@ describe("ForgeGh: the repository from GITHUB_REPOSITORY or origin (N45)", () =>
     expect((await new ForgeGh(REPO_ROOT, {}).pullRequest(53))?.url).toBe(PR_53.url);
   });
 
-  it("without GITHUB_REPOSITORY and origin — FORGE_UNAVAILABLE naming both", async () => {
+  it("without GITHUB_REPOSITORY and origin — USAGE naming both (exit-contract D7)", async () => {
     const dir = makeTempDir("warrant-forge-");
     try {
       expect(existsSync(path.join(dir, ".git"))).toBe(false);
       const error = await unavailable(new ForgeGh(dir, {}).pullRequest(53));
-      expect(error.code).toBe("FORGE_UNAVAILABLE");
+      expect([error.code, exitCodeFor([error])]).toEqual(["USAGE", 3]);
       expect(error.message).toMatch(/GITHUB_REPOSITORY.*origin/);
       expect(error.hint).toMatch(/GITHUB_REPOSITORY=<owner>\/<repo>/);
       const malformed = await unavailable(new ForgeGh(dir, { GITHUB_REPOSITORY: "not a repository" }).pullRequest(53));
+      expect(malformed.code).toBe("USAGE");
       expect(malformed.message).toContain("not <owner>/<repo>");
     } finally {
       removeDir(dir);

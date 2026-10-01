@@ -60,15 +60,13 @@ export async function withBase<T>(ctx: Pick<Ctx, "git">, commit: string, use: (b
  * The version range of the base for a bundled pack the pull request changes (I-179): a new minor of the pack is
  * outside the range the base configures, yet it is the law changed by the pull request, not a broken base — the
  * rule of the changed law (factory-change in impl, `SCOPE_VIOLATION` of the lock elsewhere) judges it (I-233).
+ * Told by the code `PACK_VERSION_RANGE` and the path of the pack's manifest, never by the text (design exit-contract D8).
  */
 function acceptChangedLaw(base: BaseContext): LoadResult {
   const changed = new Set(changedBundledPacks(base));
   if (changed.size === 0) return base.loaded;
   const manifests = new Set(base.loaded.packs.filter((pack) => changed.has(pack.id)).map((pack) => pack.manifestPath));
-  const errors = base.loaded.errors.filter(
-    (e) =>
-      !(e.code === "CONFIG_INVALID" && typeof e.path === "string" && manifests.has(e.path) && e.message.includes("does not satisfy the configured range"))
-  );
+  const errors = base.loaded.errors.filter((e) => !(e.code === "PACK_VERSION_RANGE" && typeof e.path === "string" && manifests.has(e.path)));
   return errors.length === base.loaded.errors.length ? base.loaded : { ...base.loaded, errors };
 }
 

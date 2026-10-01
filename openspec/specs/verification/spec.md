@@ -85,9 +85,9 @@ SHALL делать запись `NOT_PROVEN` с limitation `junit: skipped <SCN>
 падений нет; правило «ни один тест не выполнен — `INCONCLUSIVE`» SHALL применяться только к отчёту без таких testcase
 ([ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 2).
 Команда SHALL завершаться кодом 0, если каждая запись записана (в том числе `NOT_PROVEN`); check SHALL прерываться по `execution.timeout_s`
-(default `defaults.check_timeout_s` из `warrant.json`, иначе `1800`, D-17) с `CHECK_TIMEOUT`, код 3, без записи evidence.
+(default `defaults.check_timeout_s` из `warrant.json`, иначе `1800`, D-17) с `CHECK_TIMEOUT`, код 4, `retryable: true`, без записи evidence.
 Check с `execution.exclusive: true` SHALL брать file lock `<git-common-dir>/warrant/check.lock` на время выполнения; занятый замок →
-код 2, `errors[0].code: "BUSY"`, `data.holder{pid, check, started_at}`; замок SHALL освобождаться при любом завершении процесса,
+код 4, `errors[0].code: "BUSY"` с `retryable: true`, `data.holder{pid, check, started_at}`; замок SHALL освобождаться при любом завершении процесса,
 включая timeout и сигналы `SIGINT`, `SIGTERM`, `SIGHUP` (на Windows также `SIGBREAK`; R-3). `--base` SHALL задавать `subject.base_commit`
 (default `merge-base(HEAD, main)`).
 
@@ -109,12 +109,12 @@ Check с `execution.exclusive: true` SHALL брать file lock `<git-common-dir
 #### Scenario: Замок занят
 <!-- id: SCN-VER-008 -->
 - **WHEN** `<git-common-dir>/warrant/check.lock` удерживается другим процессом, а check имеет `exclusive: true`
-- **THEN** код выхода 2, `errors[0].code` равен `BUSY`, `data.holder.pid` — pid держателя, команда check не запускалась
+- **THEN** код выхода 4, `errors[0].code` равен `BUSY` с `retryable: true`, `data.holder.pid` — pid держателя, команда check не запускалась
 
 #### Scenario: Timeout
 <!-- id: SCN-VER-009 -->
 - **WHEN** `execution.timeout_s: 1` и команда check не завершается за секунду
-- **THEN** процесс check прерван, `errors[0].code` равен `CHECK_TIMEOUT`, код 3, замок свободен, evidence не записано
+- **THEN** процесс check прерван, `errors[0].code` равен `CHECK_TIMEOUT` с `retryable: true`, код 4, замок свободен, evidence не записано
 
 #### Scenario: Суженный прогон
 <!-- id: SCN-VER-010 -->
@@ -368,7 +368,8 @@ maintainer'а, автора проверяет `warrant ci`, [REQ-VER-013](#requ
 (`controller_action`, `next`?, `rule`); правило, дающее `CONTINUE` при `gate_verdict` `FAIL` или `BLOCKED`, SHALL пропускаться с finding
 `CONTROLLER_RULE_IGNORED` (id правила), а сопоставление — продолжаться (R-13); ни одно не совпало и худший verdict — `BLOCKED` → правило
 kernel `verify-incomplete` (`WAIT`, `next: "verify"`; P-7, I-91); ни одно не совпало иначе → `CONTINUE` без `next`, `rule: null`.
-Controller SHALL быть чистой функцией входов. Код выхода `gate` и `verify`: `CONTINUE` → 0, `STOP` → 1, `WAIT` и `ESCALATE` → 2.
+Controller SHALL быть чистой функцией входов. Код выхода `gate` и `verify`: `CONTINUE` → 0, `STOP` → 1, `WAIT` и `ESCALATE` → 2;
+при непустом `errors[]` — старший из кода действия и кодов ошибок по приоритету [REQ-KRN-003](../kernel/spec.md).
 
 #### Scenario: Gate FAIL → WAIT
 <!-- id: SCN-VER-024 -->
@@ -402,7 +403,14 @@ Controller SHALL быть чистой функцией входов. Код в�
 для checks перехода, затем [REQ-VER-003](#requirement-команда-gate-и-алгоритм-verdict) и [REQ-VER-005](#requirement-controller),
 и напечатать `data{ transition, checks[], gates, findings[], controller_action, next?, rule, effective_policy{hash, risk_level} }`.
 Падение check (`CHECK_TIMEOUT`, `BUSY`, `CHECK_NOT_CONFIGURED`, `CHECK_LOCAL_FORBIDDEN`) SHALL NOT прерывать вычисление gates:
-соответствующие gates получают `BLOCKED`, ошибка попадает в `errors[]`, код выхода — максимум из кода ошибки и кода controller.
+соответствующие gates получают `BLOCKED`, ошибка попадает в `errors[]`, код выхода — старший из кода ошибки и кода controller по
+приоритету [REQ-KRN-003](../kernel/spec.md): `CHECK_TIMEOUT` или `BUSY` при `WAIT` — 4, `CHECK_NOT_CONFIGURED` или
+`CHECK_LOCAL_FORBIDDEN` — 3.
+
+#### Scenario: Повторяемый сбой check
+<!-- id: SCN-VER-136 -->
+- **WHEN** `warrant verify add-search --transition VERIFYING->MERGED`, где check `tests-passed` прерван по `execution.timeout_s`, а controller дал `WAIT`
+- **THEN** `errors[]` содержит `CHECK_TIMEOUT` с `retryable: true`, `gates["tests-passed"]` равен `BLOCKED`, `controller_action` равен `WAIT`, код выхода 4
 
 #### Scenario: Полный цикл локально
 <!-- id: SCN-VER-027 -->
@@ -419,7 +427,8 @@ Controller SHALL быть чистой функцией входов. Код в�
 
 `warrant transition <change> <STATE> [--ref <url>] [--by <login>] [--commit <sha>]` SHALL записать переход в record только если он
 допустим ([04 §2](../../../../docs/04-lifecycle.md)) и, для перехода вперёд, каждый gate перехода дал `PASS`, `WAIVED` или `NOT_APPLICABLE`
-(иначе `ok: false`, `errors[0].code: "GATES_NOT_PASSED"`, `data.gates`, код выхода по controller, record не изменён). `APPROVED` и `MERGED`
+(иначе `ok: false`, `errors[0].code: "GATES_NOT_PASSED"`, `data.gates`, код выхода 2 — класс ожидания `GATES_NOT_PASSED`, а при `controller_action` `STOP` — 1
+([REQ-KRN-003](../kernel/spec.md)); `CONTINUE` при не пройденном gate кода 0 не даёт; record не изменён). `APPROVED` и `MERGED`
 без `--ref` SHALL давать `USAGE`; `--ref` этих переходов SHALL быть URL pull request форджа (путь `/<owner>/<repo>/pull/<N>`, фрагмент
 допускается): spec-PR для `APPROVED`, impl-PR для `MERGED` ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 5), иначе
 `USAGE` с `hint`. Если effective policy требует gate `human-approval` на переходе, `--by <login>` SHALL быть обязателен,
@@ -610,7 +619,10 @@ ID «определён», если он объявлен в main specs или �
 ровно с двумя родителями: первый — tip базы, второй — head PR ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 3);
 иначе `USAGE` с `hint`, код 3. `warrant ci` SHALL работать с состоянием в `.warrant`: заданный `WARRANT_STATE_DIR` — `USAGE`,
 код 3. Diff — `HEAD^1..HEAD`. Репозиторий форжа — `GITHUB_REPOSITORY`, иначе из URL remote `origin`
-([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 6).
+([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 6). Репозиторий SHALL определяться при первом обращении к форжу; вызов,
+который к форжу не обращается (`--dry-run`, вид без проверки ref и run), его не проверяет. `GITHUB_REPOSITORY` не вида
+`<owner>/<repo>`, а без него — `origin` нет или он не указывает на репозиторий форжа, — `USAGE` с `hint`, код 3: это ошибка
+окружения, а не недоступный форж.
 
 **База требований.** Всё, из чего `warrant ci` выводит требования к PR, SHALL читаться из packs и `warrant.json` дерева HEAD^1
 (базы), а не из PR ([ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md) п. 1): policy-пути (`match.paths`
@@ -618,7 +630,10 @@ profile `factory-change`), `paths.src`, `paths.tests`, `roles`, `approvals[]`, e
 PR предъявляет только предмет суждения. Встроенный pack (`source: bundled`) приходит с CLI: pack базы — тот, чей `hash`
 записан в `warrant.lock.json` HEAD^1. Встроенный pack, которого lock базы не содержит с этим `hash`, — закон, изменённый самим
 PR: в виде impl `classification.profiles` на HEAD SHALL содержать `factory-change` (`RECORD_MISMATCH`, причина `classification`),
-в остальных видах — `SCOPE_VIOLATION` с путём `.warrant/warrant.lock.json`.
+в остальных видах — `SCOPE_VIOLATION` с путём `.warrant/warrant.lock.json`. Ошибка загрузки базы `PACK_VERSION_RANGE` у такого pack
+(его версия вне диапазона `warrant.json` базы) — следствие изменённого закона, а не сломанная база: `warrant ci` её не сообщает и
+судит PR дальше; `PACK_VERSION_RANGE` у pack, совпадающего с lock базы, — код 3. Различие SHALL держаться на коде ошибки, а не на
+тексте её `message` ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2).
 
 **Change и вид PR.** Change SHALL выводиться из records `.warrant/changes/*.json`, изменённых или удалённых в diff, а не из имени
 ветки ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 13):
@@ -735,8 +750,13 @@ archive (ниже), иначе `SCOPE_VIOLATION` (R-16). Правила путе
   - approver'ы waivers (`approved_by` ∈ `roles`, REQ-VER-003) — по `roles` базы требований; правка `roles` в diff —
     информационная находка `ROLES_CHANGED`;
   - `change_state` не `VERIFYING` — нарушение `CHANGE_NOT_VERIFYING`;
-  - ошибки checks (`CHECK_TIMEOUT`, `BUSY`, `CHECK_NOT_CONFIGURED`, `CHECK_LOCAL_FORBIDDEN`) — в `errors[]`, код выхода 3, как
-    в [REQ-VER-006](#requirement-команда-verify);
+  - ошибки checks (`CHECK_TIMEOUT`, `BUSY`, `CHECK_NOT_CONFIGURED`, `CHECK_LOCAL_FORBIDDEN`) — в `errors[]` с кодом выхода их класса
+    ([REQ-KRN-003](../kernel/spec.md): `CHECK_TIMEOUT` и `BUSY` — 4, остальные — 3), как в [REQ-VER-006](#requirement-команда-verify);
+    gate с verdict `BLOCKED`, хотя бы один элемент `requires_evidence` которого удовлетворил бы check перехода, завершившийся
+    такой ошибкой (элемент с `check` — только этот check, без `check` — любой check, чьи `produces` содержат kind элемента),
+    SHALL NOT давать `GATE_NOT_PASSED`: его verdict — в `data.gates`, причина — ошибка check в
+    `errors[]`; остальные gates `FAIL` и `BLOCKED` (например, `BLOCKED` с `ATTESTATION_REQUIRED` по kind другого check) дают
+    `GATE_NOT_PASSED` по общему правилу;
   - `FRONTEND_HOOKS_INACTIVE` ([REQ-VER-009](#requirement-живость-hooks)) — в `data.findings[]` без влияния на код выхода.
 - **archive**:
   - пути — как у spec-PR, плюс `openspec/specs/**` по общему правилу и каталог архива `openspec/changes/archive/<date>-<change>/**`;
@@ -765,9 +785,18 @@ artifact?, dry_run?, would_write[]? }`; `transitions[]` — новые пере�
 **Код выхода:**
 - 0 — нарушений нет;
 - 1 — хотя бы одно нарушение PR: коды выше, включая `TOPOLOGY_VIOLATION`, в `errors[]` с `hint`;
-- 3 — ошибка конфигурации, `USAGE`, ошибка check или `openspec`, форж недоступен или не авторизован (`FORGE_UNAVAILABLE` с
-  `hint` про `gh auth login` или `GH_TOKEN`); исключение — проверка решений UNKNOWN в PR без
-  нового перехода `APPROVED`: недоступный форж там — находка `DECISION_NOT_VERIFIED` (REQ-VER-013).
+- 2 — `POLICY_CONFLICT` effective policy (класс ожидания, [REQ-KRN-003](../kernel/spec.md));
+- 3 — ошибка конфигурации, `USAGE`, ошибка check `CHECK_NOT_CONFIGURED` или `CHECK_LOCAL_FORBIDDEN`, ошибка `openspec`, отказ
+  доступа к форжу — `gh` не найден, не авторизован (HTTP 401) или получил HTTP 403 не из-за лимита запросов (`FORGE_ACCESS` с
+  `hint` про `gh auth login` или `GH_TOKEN`). Репозиторий, невидимый токену, форж GitHub отдаёт как HTTP 404 — его не отличить от
+  отсутствующего объекта, и он даёт ту же ошибку, что отсутствующий PR, run или комментарий;
+- 4 — сбой инфраструктуры, повтор может пройти (`retryable: true`): форж недоступен (`FORGE_UNAVAILABLE`) — сеть, таймаут, ответ
+  5xx, HTTP 429 или 403 лимита запросов, ответ, который не удалось разобрать (обрезанный или чужой — прокси), сбой загрузки
+  неистёкшего artifact, а также любой другой сбой `gh`, не названный в коде 3; `CHECK_TIMEOUT`, `BUSY`. Artifact, который форж
+  называет истёкшим, — не сбой форжа: `EVIDENCE_NOT_VERIFIED` (archive-PR) или запись в `data.skipped[]` (`ci fetch`);
+- старший из кодов — по приоритету [REQ-KRN-003](../kernel/spec.md): нарушение PR (1) старше сбоя (4), и повтор его не снимет.
+Исключение — проверка решений UNKNOWN в PR без нового перехода `APPROVED`: недоступный форж и отказ доступа там — находка
+`DECISION_NOT_VERIFIED` (REQ-VER-013).
 
 `--dry-run` — только план (в отличие от [REQ-KRN-034](../kernel/spec.md)): SHALL вывести `data.dry_run: true`, вид PR, Change,
 checks и `data.would_write[]` без запуска checks и без обращения к форжу.
@@ -829,8 +858,8 @@ checks и `data.would_write[]` без запуска checks и без обращ
 
 #### Scenario: Форж недоступен
 <!-- id: SCN-VER-084 -->
-- **WHEN** archive-PR требует проверки run, а `gh` не авторизован
-- **THEN** `errors[0].code` равен `FORGE_UNAVAILABLE` с `hint` про `gh auth login` или `GH_TOKEN`, код 3
+- **WHEN** archive-PR требует проверки run, а `gh` не авторизован; или `gh api` не получил ответа (сеть) либо получил ответ 502
+- **THEN** в первом случае `errors[0].code` равен `FORGE_ACCESS` с `hint` про `gh auth login` или `GH_TOKEN`, без `retryable`, код 3; во втором — `FORGE_UNAVAILABLE` с `retryable: true`, код 4
 
 #### Scenario: Пробный ci
 <!-- id: SCN-VER-085 -->
@@ -865,7 +894,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 #### Scenario: Check не уложился в timeout
 <!-- id: SCN-VER-095 -->
 - **WHEN** на impl-PR check `tests-passed` прерван по `execution.timeout_s`
-- **THEN** `errors[]` содержит `CHECK_TIMEOUT`, `gates["tests-passed"]` равен `BLOCKED`, код 3
+- **THEN** `errors[]` содержит `CHECK_TIMEOUT` с `retryable: true` и не содержит `GATE_NOT_PASSED` с `tests-passed`, `gates["tests-passed"]` равен `BLOCKED`, код 4; тот же PR с ещё и `SCOPE_VIOLATION` — код 1
 
 #### Scenario: Чужой run в impl-PR не засчитывается
 <!-- id: SCN-VER-098 -->
@@ -962,6 +991,21 @@ checks и `data.would_write[]` без запуска checks и без обращ
 - **WHEN** `warrant ci` в проекте, где ни pack, ни `.warrant/local/**` не дают `human-approval` на `VERIFYING->MERGED`
 - **THEN** `data.findings[]` содержит `NO_HUMAN_ACCEPTANCE`; находка информационная, код выхода она не меняет
 
+#### Scenario: Замок check занят в ci
+<!-- id: SCN-VER-137 -->
+- **WHEN** на impl-PR check перехода `VERIFYING->MERGED` с `exclusive: true` не запущен: `<git-common-dir>/warrant/check.lock` держит другой процесс
+- **THEN** `errors[]` содержит `BUSY` с `retryable: true` и не содержит `GATE_NOT_PASSED`, gate этого check — `BLOCKED` в `data.gates`, код 4
+
+#### Scenario: Неверный GITHUB_REPOSITORY
+<!-- id: SCN-VER-138 -->
+- **WHEN** archive-PR требует проверки run, а `GITHUB_REPOSITORY` равен `not-a-repo`
+- **THEN** `errors[0].code` равен `USAGE` с `hint` про форму `<owner>/<repo>`, без `retryable`, код 3; к форжу не было обращений; тот же `GITHUB_REPOSITORY` у spec-PR без нового перехода `APPROVED` и без решений UNKNOWN — код 0, а у spec-PR с решением UNKNOWN — `USAGE`, код 3, без находки `DECISION_NOT_VERIFIED`
+
+#### Scenario: Изменённый PR pack вне диапазона базы
+<!-- id: SCN-VER-139 -->
+- **WHEN** impl-PR поднимает встроенный pack `core-sdd` с `0.3.4` до `0.4.0` и диапазон в `warrant.json` до `^0.4.0`, а `warrant.json` базы задаёт `^0.3.0`
+- **THEN** `PACK_VERSION_RANGE` базы в `errors[]` нет, PR судится по остальным правилам; тот же `PACK_VERSION_RANGE` у pack, чей `hash` есть в lock базы, — код 3
+
 ### Requirement: Команда ci fetch
 <!-- id: REQ-VER-012 -->
 
@@ -969,14 +1013,14 @@ checks и `data.would_write[]` без запуска checks и без обращ
 ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 14, [ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 4).
 `<pr>` — номер или URL pull request этого репозитория.
 
-**Ошибки входа** (код 3, ничего не записано):
+**Ошибки** (ничего не записано; код — по классу кода, [REQ-KRN-003](../kernel/spec.md): 3, если не назван другой):
 - URL другого репозитория — `USAGE`;
 - заданный `WARRANT_STATE_DIR` — `USAGE`: записи едут в archive-PR, состояние — в `.warrant`, как у `warrant ci`;
-- PR не найден — `PR_NOT_FOUND`;
-- форж недоступен — `FORGE_UNAVAILABLE` с `hint`;
+- PR не найден (в том числе репозиторий, невидимый токену: HTTP 404) — `PR_NOT_FOUND`;
+- отказ доступа к форжу — `FORGE_ACCESS` с `hint`; форж недоступен — `FORGE_UNAVAILABLE` с `retryable: true`, код 4;
 - PR не слит или слит не merge-коммитом (squash, rebase) — `PR_NOT_MERGED`;
 - merge-коммита M нет в локальном репозитории — `COMMIT_NOT_FOUND` с `hint` `git fetch`;
-- Change — тот, чей record меняет diff `M^1..M`; не ровно один — `TOPOLOGY_VIOLATION` (ошибка входа команды);
+- Change — тот, чей record меняет diff `M^1..M`; не ровно один — `TOPOLOGY_VIOLATION`, код 1: класс кода один во всех командах ([REQ-KRN-003](../kernel/spec.md)), как у `warrant ci`;
 - record Change на M не в `VERIFYING` (PR — не impl-PR) — `PR_NOT_IMPL` с `hint` про номер impl-PR.
 
 **Кандидаты** — попытки runs этого репозитория с `conclusion: success`, новые первыми; каждая попытка run, а не только
@@ -993,7 +1037,7 @@ workflow вручную со входом `merge_commit` = M; ничего не 
 **Запись.** SHALL записываться побайтно ровно записи выбранной попытки с её `attestation.ref`; их id добавляются в локальный manifest
 по правилам [REQ-VER-001](#requirement-хранение-evidence-и-attestation-по-окружению), `manifest.commit` — HEAD, как у любой
 локальной записи. `manifest.json` и `raw/` artifact'а SHALL NOT импортироваться. Импорт SHALL идти под lock Change, как `check`:
-занятый lock — `BUSY`, код 3. Файлы записей пишутся до manifest: прерванный импорт доводит повторный `ci fetch`. Запись с тем же id и тем же содержимым пропускается — повторный `ci fetch` ничего не меняет. Запись с тем же id и
+занятый lock — `BUSY` с `retryable: true`, код 4. Файлы записей пишутся до manifest: прерванный импорт доводит повторный `ci fetch`. Запись с тем же id и тем же содержимым пропускается — повторный `ci fetch` ничего не меняет. Запись с тем же id и
 другим содержимым → `EVIDENCE_CONFLICT`; запись, не проходящая схему `evidence/1`, или файл, чьё имя не равно `id`, →
 `SCHEMA_VIOLATION` с путём; в обоих случаях код 3, ничего не записано.
 
@@ -1061,10 +1105,11 @@ workflow вручную со входом `merge_commit` = M; ничего не 
   либо PR вносит новый переход `APPROVED`, а `<N>` не номер PR из `ref` этого перехода (spec-PR Change).
 В PR с новым переходом `APPROVED` нарушение SHALL быть ошибкой `REF_NOT_VERIFIED`: `message` начинается с
 `unknowns/<i> (<UNK>) ref <URL>: decision: <деталь>`, `path` — `.warrant/changes/<change>.json#/unknowns/<i>/ref`, код 1;
-недоступный форж — `FORGE_UNAVAILABLE`, как у ref переходов. В остальных видах PR решение ещё не судит переход: нарушение и
-недоступный форж (деталь `forge`) SHALL быть находкой `{ code: "DECISION_NOT_VERIFIED", message }` в `data.findings[]` с тем же
-началом `message`, код выхода от неё не меняется. Причина `decision` и находка вместо `FORGE_UNAVAILABLE` — исключения из списка причин
-`REF_NOT_VERIFIED` и кода 3 недоступного форжа [REQ-VER-011](#requirement-команда-ci), названные и там.
+недоступный форж — `FORGE_UNAVAILABLE` (код 4), отказ доступа — `FORGE_ACCESS` (код 3), как у ref переходов. В остальных видах PR
+решение ещё не судит переход: нарушение, недоступный форж и отказ доступа (деталь `forge`; неверный репозиторий форжа — ошибка
+окружения `USAGE`, код 3, а не находка) SHALL быть находкой `{ code: "DECISION_NOT_VERIFIED", message }` в `data.findings[]` с тем же
+началом `message`, код выхода от неё не меняется. Причина `decision` и находка вместо `FORGE_UNAVAILABLE` и `FORGE_ACCESS` — исключения из списка причин
+`REF_NOT_VERIFIED` и кодов форжа [REQ-VER-011](#requirement-команда-ci), названные и там.
 При пустом `identities.agents` базы каждое проверенное решение без нарушения SHALL давать информационную находку
 `{ code: "SHARED_IDENTITY", message }` с тем же началом `message`: комментарий maintainer'а не отличить от комментария агента под тем
 же аккаунтом ([ADR-0010](../../../../docs/adr/WARRANT-ADR-0010-trust-by-reference.md), Alternatives); код выхода от неё не меняется.

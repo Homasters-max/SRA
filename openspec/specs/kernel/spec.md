@@ -42,8 +42,10 @@ SHALL совпадать с этим URI. Каждое свойство SHALL и
 
 Каждая команда SHALL уметь печатать в stdout ровно один JSON-объект `{ "command", "ok", "change"?, "data", "errors" }`.
 JSON SHALL быть форматом по умолчанию, когда stdout не TTY, и SHALL включаться флагом `--json` всегда.
-`errors[]` SHALL состоять из объектов `{ "code", "message", "path"?, "hint"? }`, где `code` — UPPER_SNAKE, `message` — что не
-так, `hint` — команда или действие, которое исправляет ошибку ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 8).
+`errors[]` SHALL состоять из объектов `{ "code", "message", "path"?, "hint"?, "retryable"? }`, где `code` — UPPER_SNAKE, `message` — что не
+так, `hint` — команда или действие, которое исправляет ошибку ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 8),
+`retryable` — `true` у кода класса сбоя инфраструктуры ([REQ-KRN-003](#requirement-коды-выхода)); у остальных кодов ключа
+`retryable` SHALL NOT быть ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2).
 Текст исправления SHALL NOT повторяться в `message`, если он есть в `hint`. Ошибки команд `run`, `guard` и новые коды фазы 4
 SHALL нести `hint`.
 Диагностика, не входящая в контракт, SHALL идти в stderr.
@@ -66,8 +68,28 @@ SHALL нести `hint`.
 ### Requirement: Коды выхода
 <!-- id: REQ-KRN-003 -->
 
-CLI SHALL завершаться кодом `0` при `ok: true`; `1` при verdict `FAIL` / `STOP` и при `fmt --check` с расхождениями;
-`2` при `WAIT` / `ESCALATE`; `3` при ошибке конфигурации, невалидном файле, неизвестной команде или неверных аргументах.
+Каждый код ошибки (`errors[].code`) SHALL иметь один класс во всех командах, и класс задаёт его код выхода:
+- `1` — предмет суждения нарушает правило: нарушения PR `warrant ci` (`TOPOLOGY_VIOLATION`, `RECORD_MISMATCH`,
+  `REF_NOT_VERIFIED`, `SCOPE_VIOLATION`, `GATE_NOT_PASSED`, `CHANGE_NOT_VERIFYING`, `EVIDENCE_NOT_VERIFIED`, `SPECS_NOT_ARCHIVED`);
+- `2` — переход ждёт действия: `GATES_NOT_PASSED`, `POLICY_CONFLICT`;
+- `4` — сбой инфраструктуры, повтор которого может пройти: `BUSY`, `CHECK_TIMEOUT`, `FORGE_UNAVAILABLE`; элемент `errors[]` с
+  таким кодом SHALL нести `retryable: true` ([REQ-KRN-002](#requirement-контракт-json-вывода-cli));
+- `3` — все остальные коды: конфигурация, невалидный файл и файл, расходящийся с каноном или генерацией, неизвестная команда,
+  неверные аргументы, отказ доступа к форжу, сбой `git` или `openspec`, внутренняя ошибка `INTERNAL`.
+Действие controller и вердикт команды дают: `CONTINUE` — `0`, `STOP` и находки `analyze` — `1`, `WAIT` и `ESCALATE` — `2`. Действие
+controller входит в код выхода `gate`, `verify`, `transition` и `archive` (отказ перехода); остальные команды (`status`, `resolve`,
+`classify`, `check`, `run`) выводят его в `data` без влияния на код — их код задают только `errors[]`.
+Код выхода SHALL быть старшим из кодов элементов `errors[]` и кода действия по приоритету `3` > `1` > `4` > `2` > `0`: ошибка,
+которую повтор не исправит, старше повторяемой, а повторяемая — старше ожидания, вычисленного на неполных из-за сбоя данных;
+`ok: true` — код `0` (исключение — сбой после вывода, ниже). Код `4` и `retryable: true` SHALL NOT появляться у ошибок классов кодов
+1, 2 и 3.
+Исключение, не перехваченное командой, SHALL давать JSON-объект с `errors[0].code` `INTERNAL` и код `3` (стек — в stderr), а не
+аварийный выход среды исполнения; `command` объекта — имя вызванной команды, без него — `warrant`. Если JSON-объект команды уже
+выведен, второй SHALL NOT печататься: стек — в stderr, код `3`. Ошибка загрузки модулей CLI до начала работы его входной точки
+(повреждённая установка) этим требованием не покрывается. `warrant guard` — вне этой таблицы: решение, в том числе `deny` при
+внутреннем сбое (`BUSY`, битый Run, непредвиденное исключение), — код `0` ([REQ-ENF-004](../enforcement/spec.md)); у
+`--frontend` — коды протокола frontend, исключение — код `2` ([REQ-ENF-005](../enforcement/spec.md)); ошибки разбора аргументов
+(`USAGE`) — по таблице.
 Код выхода SHALL выставляться после полной записи JSON-объекта в stdout: при перенаправлении stdout в pipe вывод любого размера
 SHALL доходить целиком (B4).
 
@@ -85,6 +107,26 @@ SHALL доходить целиком (B4).
 <!-- id: SCN-KRN-085 -->
 - **WHEN** `warrant status` (все Changes) с выводом больше 64 KiB вызван с stdout, перенаправленным в pipe, на Windows и Linux
 - **THEN** читатель pipe получает полный JSON-объект, разбираемый без ошибки, и код выхода команды
+
+#### Scenario: Повторяемый сбой
+<!-- id: SCN-KRN-160 -->
+- **WHEN** `warrant check add-search` с check `exclusive: true` при занятом `<git-common-dir>/warrant/check.lock`; или `warrant ci fetch 9` при занятом lock Change
+- **THEN** в обоих случаях код выхода 4, `errors[0].code` равен `BUSY` с `retryable: true`; у `CONFIG_MISSING` из SCN-KRN-007 ключа `retryable` нет
+
+#### Scenario: Приоритет кодов
+<!-- id: SCN-KRN-161 -->
+- **WHEN** `warrant verify add-search`, где check `tests-passed` прерван по `CHECK_TIMEOUT`, а controller дал `WAIT`; затем то же при ещё одном check перехода без `run.command`
+- **THEN** в первом случае код выхода 4, во втором — 3 (`CHECK_NOT_CONFIGURED` старше `CHECK_TIMEOUT`)
+
+#### Scenario: Один код ошибки во всех командах
+<!-- id: SCN-KRN-162 -->
+- **WHEN** единственная ошибка вызова — `NOT_CANONICAL` в `warrant fmt --check`, `warrant validate` и `warrant validate --files`; или `GENERATED_DRIFT` в `warrant sync --check` и `warrant validate`
+- **THEN** код выхода во всех пяти вызовах 3
+
+#### Scenario: Непредвиденное исключение
+<!-- id: SCN-KRN-163 -->
+- **WHEN** команда завершается исключением, которое она не перехватила
+- **THEN** stdout — один JSON-объект с `ok: false` и `errors[0].code` `INTERNAL`, стек — в stderr, код выхода 3; исключение после того, как объект команды выведен, — второго объекта нет, стек в stderr, код 3
 
 ### Requirement: Схема config
 <!-- id: REQ-KRN-004 -->
@@ -473,7 +515,10 @@ pack для kind, [REQ-KRN-001](#requirement-адресация-и-форма-js
 
 `warrant validate` SHALL проверять и сообщать все находки за один вызов: (1) каждый `*.json` под `.warrant/**`
 (кроме сырого вывода checks `.warrant/evidence/**/raw/**` — он не часть записи, [REQ-VER-001](../verification/spec.md), I-76)
-и в подключённых packs имеет `$schema` и валиден; (2) `warrant.json` и lock согласованы — версии packs в диапазонах,
+и в подключённых packs имеет `$schema` и валиден; (2) `warrant.json` и lock согласованы — версии packs в диапазонах (версия подключённого pack вне диапазона `warrant.json` —
+`PACK_VERSION_RANGE` с путём его `pack.json`; свой код, а не `CONFIG_INVALID`, отличает эту ошибку от прочих ошибок загрузки, и
+тот же код SHALL давать любая команда, загружающая packs; pack, чей `kernel` не включает версию kernel CLI, — по-прежнему
+`CONFIG_INVALID`),
 hash каждого pack, skill и сгенерированного файла совпадает с содержимым, а pack, присутствующий в lock, но отсутствующий в
 `warrant.json`, даёт `LOCK_MISMATCH` (B3); (3) объекты с одним `id` не объявлены
 в двух packs, а override в `.warrant/local/` несёт `"overrides": "<pack>:<id>"` ([08 §4](../../../../docs/08-packs.md)) и не ослабляет
@@ -508,7 +553,7 @@ archive (иначе `ID_DANGLING` с путём, строкой и ID; [ADR-0019
 (14) ни один логин `identities.agents[].login` `warrant.json` не входит ни в одну роль `roles` (иначе `CONFIG_INVALID` с `path`
 `.warrant/warrant.json#/identities/agents/<i>/login`; [ADR-0010](../../../../docs/adr/WARRANT-ADR-0010-trust-by-reference.md) п. 4,
 [ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 3).
-Любая находка SHALL давать `ok: false` и код выхода 3. Флага `--no-generated` SHALL NOT быть: `config.yaml` генерируется целиком
+Любая находка SHALL давать `ok: false` и код выхода 3 ([REQ-KRN-003](#requirement-коды-выхода)). Флага `--no-generated` SHALL NOT быть: `config.yaml` генерируется целиком
 ([REQ-KRN-025](#requirement-команда-sync)).
 
 #### Scenario: Проект после init
@@ -627,12 +672,18 @@ archive (иначе `ID_DANGLING` с путём, строкой и ID; [ADR-0019
 - **WHEN** `warrant.json` содержит `roles.maintainer: ["kat", "warrant-agent[bot]"]` и `identities.agents: [{ "login": "warrant-agent[bot]", "kind": "bot" }]`
 - **THEN** `errors[]` содержит `CONFIG_INVALID` с `path` `.warrant/warrant.json#/identities/agents/0/login`, код 3; без агента в `roles` — ошибки нет
 
+#### Scenario: Версия pack вне диапазона
+<!-- id: SCN-KRN-164 -->
+- **WHEN** `warrant.json` задаёт `packs.core-sdd.version: "^0.3.0"`, а подключённый pack `core-sdd` имеет версию `0.4.0`
+- **THEN** `errors[]` содержит `PACK_VERSION_RANGE` с путём `pack.json` pack'а `core-sdd`, без `retryable`, код 3; `CONFIG_INVALID` об этом pack нет
+
 ### Requirement: Команда fmt
 <!-- id: REQ-KRN-022 -->
 
 `warrant fmt [paths...]` SHALL приводить JSON-файлы `.warrant/**` (по умолчанию) или указанные пути к каноническому
 виду: `$schema` первым, затем ключи в порядке `properties` схемы, остальные — по алфавиту; отступ 2 пробела;
-LF; завершающий перевод строки; UTF-8 без BOM. `--check` SHALL не менять файлы и возвращать код 1 при расхождении.
+LF; завершающий перевод строки; UTF-8 без BOM. `--check` SHALL не менять файлы и при расхождении давать `NOT_CANONICAL` с путём
+каждого неканонического файла, код 3 ([REQ-KRN-003](#requirement-коды-выхода)).
 Файл без `$schema` или с неизвестной схемой SHALL форматироваться только по алфавиту с предупреждением в stderr.
 
 #### Scenario: Канонический файл
@@ -648,7 +699,7 @@ LF; завершающий перевод строки; UTF-8 без BOM. `--che
 #### Scenario: Режим проверки
 <!-- id: SCN-KRN-051 -->
 - **WHEN** `warrant fmt --check` находит неканонический файл
-- **THEN** файл не изменён, `data.changed` содержит его путь, код выхода 1
+- **THEN** файл не изменён, `data.changed` содержит его путь, `errors[]` — `NOT_CANONICAL` с этим путём, код выхода 3
 
 ### Requirement: Команда init
 <!-- id: REQ-KRN-023 -->
@@ -734,7 +785,7 @@ SHALL отказывать кодом 3, если имя уже есть в `.wa
 Строки YAML, которые парсер YAML прочитал бы не как строку (`null`, `true`, `false`, `yes`, `no`, числа), SHALL записываться в кавычках
 и как ключи, и как значения (B5). Pack SHALL NOT задавать язык или другие свойства конкретного проекта в своём `context`: это место
 `.warrant/local/openspec/rules.json`. Повторный `sync` без изменений входов SHALL NOT менять ни одного байта. `--check` SHALL только
-сообщать расхождения (код 1).
+сообщать расхождения: `GENERATED_DRIFT` или `LOCK_MISMATCH` с путём файла, код 3 ([REQ-KRN-003](#requirement-коды-выхода)).
 
 #### Scenario: Идемпотентность
 <!-- id: SCN-KRN-061 -->
@@ -1041,12 +1092,13 @@ SHALL выполнить только проверки одного файла, 
 `APPROVED` и дальше; (d) висячие ссылки REQ / SCN в `tasks.md` и в файлах `paths.tests`; (e) строки, похожие на токены.
 Проверки уровня проекта (lock, hash, drift сгенерированных файлов, сверка с `openspec`) SHALL NOT выполняться. Команда SHALL
 NOT запускать дочерних процессов, кроме одного чтения `HEAD:<path>` через git для (c). `data{ checked[], skipped[] }`: путь без применимой
-проверки, отсутствующий файл и путь вне проекта — в `skipped[]` с `reason` (`no-check`, `missing`, `outside`).
+проверки, отсутствующий файл и путь вне проекта — в `skipped[]` с `reason` (`no-check`, `missing`, `outside`). Код выхода — как у
+полного `validate`: любая находка — 3 ([REQ-KRN-003](#requirement-коды-выхода)).
 
 #### Scenario: Неканонический JSON
 <!-- id: SCN-KRN-127 -->
 - **WHEN** `warrant validate --files .warrant/local/areas.json` для файла с ключами не по порядку
-- **THEN** `errors[]` содержит `NOT_CANONICAL` с `path` файла и `hint`, содержащим `warrant fmt`, код 1
+- **THEN** `errors[]` содержит `NOT_CANONICAL` с `path` файла и `hint`, содержащим `warrant fmt`, код 3
 
 #### Scenario: Изменённый stable ID
 <!-- id: SCN-KRN-128 -->
@@ -1240,7 +1292,7 @@ CLI SHALL записывать каждый файл своего состоян
 ([ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 4). Запись, прерванная завершением процесса (исключение,
 сигнал, `kill`), SHALL оставлять прежнее содержимое файла (или его отсутствие) целым; сбой ОС или питания без `fsync` этим
 требованием не покрывается. Временный файл при ошибке записи или переименования SHALL удаляться. На Windows переименование,
-отклонённое `EPERM`, `EBUSY` или `EACCES`, SHALL выполняться не больше 5 раз всего с паузой 20 мс, затем — `BUSY`, код 2, с `hint`
+отклонённое `EPERM`, `EBUSY` или `EACCES`, SHALL выполняться не больше 5 раз всего с паузой 20 мс, затем — `BUSY`, код 4, `retryable: true`, с `hint`
 «файл держит другой процесс: повторите», без частичного файла (design I-206). Запись из нескольких файлов SHALL идти в порядке
 «записи evidence → `manifest.json` → record или Run»; `manifest.json` пересобирается из каталога при каждой записи evidence, поэтому
 запись вне `manifest.evidence[]` после обрыва восстанавливает следующая запись evidence Change (например, `warrant verify`), и
@@ -1250,4 +1302,4 @@ CLI SHALL записывать каждый файл своего состоян
 #### Scenario: Сбой переименования
 <!-- id: SCN-KRN-158 -->
 - **WHEN** record `.warrant/changes/add-search.json` существует, и запись нового содержимого завершается сбоем переименования
-- **THEN** файл record — прежнее содержимое байт в байт, временного файла в каталоге нет; сбой `EBUSY` на всех 5 попытках — `BUSY`, код 2, иной сбой — ошибка записи; без сбоя — файл — новое содержимое, временного файла нет
+- **THEN** файл record — прежнее содержимое байт в байт, временного файла в каталоге нет; сбой `EBUSY` на всех 5 попытках — `BUSY`, код 4, `retryable: true`, иной сбой — ошибка записи; без сбоя — файл — новое содержимое, временного файла нет

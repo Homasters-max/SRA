@@ -2,16 +2,16 @@
 
 ## Цель
 
-Фаза стабилизации ([ADR-0048](../adr/WARRANT-ADR-0048-stabilization.md)): честный судья, поставка, идентичность агента. Закрыты: цикл 0 (0.8.3), `identities`, `agent-merge` (0.9.0). Остаток цикла 1 — 0.10.0 тремя Change по [ADR-0052](../adr/WARRANT-ADR-0052-cycle-1-close.md): `exit-contract` → `judge-law` → `code-floor`. Долг — строки `WS-N`, `A-N`, `R-N` [backlog](../backlog.md).
+Фаза стабилизации ([ADR-0048](../adr/WARRANT-ADR-0048-stabilization.md)): честный судья, поставка, идентичность агента. Остаток цикла 1 — 0.10.0 тремя Change по [ADR-0052](../adr/WARRANT-ADR-0052-cycle-1-close.md): `exit-contract` закрыт, дальше `judge-law` → `code-floor`. Долг — строки `WS-N`, `A-N`, `R-N`, `BL-N` [backlog](../backlog.md).
 
 ## Готовый запрос
 
 ```text
-Поток stabilization, 0.10.0. Решения — ADR-0052 (все развилки сняты двумя раундами 2026-10-01), не гриллить. Работай автономно до результата; режим и список шагов — навык progress. Maintainer — только merge spec-PR и impl-PR (пути CLI — класс приёмки): полная ссылка, «в браузере на GitHub, не в панели Claude Desktop», Approve + auto-merge.
-Change 1 — exit-contract (ADR-0052 п. 2): WS-06, A-42, A-48. Аудит свежий — docs/process/audits/2026-10-01-cycle-1b.md (снимок d777762), повторять не нужно, если в packages/cli/src не было правок после 0993a74.
-Шаги: openspec-propose → change-spec-pr (review warrant-reviewer, verify, SPECIFIED) → maintainer сливает → change-impl-pr → review-impl → maintainer сливает → change-archive-pr. Версия 0.10.0 — первым коммитом impl-PR (CHANGELOG «Вердикт», «Миграция»); тег v0.10.0 — только после archive-PR code-floor.
-Факты для design (места кода, спеки, тесты) собраны 2026-10-01 — пересобрать сбором Explore по пунктам ADR-0052 п. 2: EXIT в core/errors.ts, 56 строк в 25 файлах, Math.max ×5, BUSY 2/3, ci → 2 при занятом замке, FORGE_UNAVAILABLE для неверного GITHUB_REPOSITORY, acceptChangedLaw по тексту (core/ci/base.ts:64-73).
-Потом — judge-law, затем code-floor тем же путём.
+Поток stabilization, 0.10.0, Change 2 — judge-law. Решения — ADR-0052 п. 3–4 (развилки сняты 2026-10-01), не гриллить. Работай автономно до результата; режим и список шагов — навык progress. Maintainer — только Approve в браузере spec-PR и impl-PR (пути CLI — класс приёмки): полная ссылка, «в браузере на GitHub, не в панели Claude Desktop», в жёлтой полосе «Add your review» → Approve → Submit review, затем auto-merge.
+Объём (ADR-0052 п. 1): остаток WS-03 (п. 4 — hash перехода по окну законов main, MERGED на то же правило), A-45 (п. 3 — общие предикаты gate engine, N44 держится), A-47, R-45 (ошибка загрузки M^1 — классом ошибок exit-contract), A-34, A-40; заодно BL-105 (REQ-ENF-007 «каждая ошибка — код 3» против BUSY 4) и R-46 (guard: исключение runner'а — deny с кодом 0). Delta specs — REQ-VER-011 («Record», «Ref») и REQ-ENF-007.
+Шаги: openspec-propose → change-spec-pr (review warrant-reviewer, verify, SPECIFIED) → maintainer Approve → change-impl-pr → review-impl → maintainer Approve → change-archive-pr. Тег v0.10.0 — только после archive-PR code-floor; CHANGELOG `## 0.10.0 — не выпущена` дополнять, не заводить новый раздел.
+Факты для design — пересобрать сбором Explore по ADR-0052 п. 3–4 на текущем main (src изменён exit-contract: классы кодов, exitCodeFor, starvedBy в gates/verdict.ts). Архитектурный аудит не обязателен (не фаза roadmap).
+Потом — code-floor тем же путём.
 ```
 
 ## Открытые вопросы
@@ -20,8 +20,8 @@ Change 1 — exit-contract (ADR-0052 п. 2): WS-06, A-42, A-48. Аудит св�
 
 ## Не забыть
 
-- `retryable` — ключ только при `true`: около 264 строгих сравнений `errors` в тестах; `guard --frontend` код 2 — протокол Claude Code, не трогать.
-- Git-автор бота (`GIT_AUTHOR_*` в `env` пользовательских настроек, `docs/process/rules.md` «Настройка машины») — пока не задан: коммиты агента идут с автором maintainer'а.
-- Ветки на origin `process/merge-remnants`, `process/audit-cycle-1b`, `docs/wrap-list-fix` слиты — удаление отклонил классификатор, команда — maintainer'у.
-- `gh` в Claude Code — бот `homasters`; PR-панель Claude Desktop — бот, не для merge человеком. Ruleset `main` требует Approve владельца пути: «Review changes → Approve», затем auto-merge сработает.
-- CI: красный тест — разбор; Re-run — только инфраструктура; одиночный таймаут `ci.test.ts` под нагрузкой — повтор; канарейка: красный «Install warrant» — поставка сломана.
+- Auto-merge без Approve не сливает: ruleset `main` требует ревью владельца CODEOWNERS (`reviewDecision` пуст — Approve нет).
+- `gh pr edit` у бота падает на scope `read:org` — тело PR менять `gh api -X PATCH repos/Homasters-max/SRA/pulls/<N> -F body=@<файл>`.
+- `transition MERGED` Change с `human-acceptance` — `--ref <impl-PR> --by <maintainer>` (gate `human-approval`).
+- Contract-тесты с настоящим `gh`: под `GITHUB_ACTIONS` его тексты другие — проверять с `GITHUB_ACTIONS=true`.
+- Git-автор бота (`GIT_AUTHOR_*`, `docs/process/rules.md` «Настройка машины») не задан: коммиты агента — с автором maintainer'а.

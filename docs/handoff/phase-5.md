@@ -9,12 +9,12 @@
 ## Готовый запрос
 
 ```text
-Поток phase-5. MVP принят (13 §2, строка 4c), CLI v0.8.0. Сначала навык architecture-audit --against docs/process/audits/2026-09-26-phase-4c.json — снимок устарел (старше v0.8.0, новый модуль core/unknowns), аудит обязателен. Долг процесса закрыт (ADR-0054, git-land ci.md шаг 5); BL-74 и BL-75 влиты в WS-04 потока stabilization. Потом grilling нарезки фазы 5 (строка 5 13 §2) — вход: открытые A-N, BL-N и оставшиеся WS-N docs/backlog.md.
+Поток phase-5. MVP принят (13 §2, строка 4c). Аудит перед фазой сделан — docs/process/audits/2026-10-01-phase-5.md (CLI 0.10.0, 7517c82): новые A-49 (грамматика stable ID), A-50 (правила waiver в validate и в оценке — до D-10), A-51 (ESCALATE литералом в 5 командах), наблюдения для нарезки — §3.5. Если в src после 7517c82 прошли Changes (judge-law закрывает A-34, A-40, A-45, A-47) — сначала architecture-audit --against docs/process/audits/2026-10-01-phase-5.json. Потом grilling нарезки фазы 5 (строка 5 13 §2) — вход: отчёт аудита, открытые A-N, BL-N и оставшиеся WS-N docs/backlog.md.
 ```
 
 ## Открытые вопросы
 
-- нет
+- A-51: действие при `POLICY_CONFLICT` — правило pack `policy-conflict`, одно для всех команд, или ядро без настройки (аудит 2026-10-01-phase-5 §3.4)
 
 ## Не забыть
 

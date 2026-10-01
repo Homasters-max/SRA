@@ -1,0 +1,249 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3TGATJ7RJF4JWQZ4AG6VPFV",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "REQ-KRN-003: «Код выхода SHALL быть старшим из кодов элементов errors[] и кода действия» — исключение названо только для guard --frontend. REQ-VER-011 (вид impl): «GATE_NOT_PASSED gate с verdict BLOCKED при ошибке check перехода остаётся в errors[], но код выхода не выбирает». По REQ-KRN-003 SCN-VER-137 и SCN-VER-095 (BUSY/CHECK_TIMEOUT + GATE_NOT_PASSED класса rule в errors[]) дают 1 (1 > 4), по REQ-VER-011 — 4. Тест REQ-KRN-003 над выводом warrant ci противоречит сценариям REQ-VER-011.",
+      "targets": [
+        "REQ-KRN-003",
+        "REQ-VER-011",
+        "SCN-VER-137",
+        "SCN-VER-095",
+        "SCN-KRN-162"
+      ],
+      "recommendation": "Либо назвать исключение в REQ-KRN-003 (как названо для guard --frontend и как REQ-VER-013 называет свои исключения «и там»), либо не класть такой GATE_NOT_PASSED в errors[] (перенести в data, например data.findings[]), чтобы правило «код = старший из errors[]» держалось без исключений."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "«GATE_NOT_PASSED gate с verdict BLOCKED при ошибке check перехода» допускает два прочтения: (a) любой BLOCKED gate, если в вызове была ошибка check; (b) только gate, чей BLOCKED вызван этой ошибкой (proposal: «ставшего BLOCKED из-за ошибки check»). Пример: локальный warrant ci (L1 gates BLOCKED по ATTESTATION_REQUIRED, ожидаемо код 1) с CHECK_TIMEOUT одного check — (a) 4, (b) 1. Не сказано, как устанавливается причинность, если gate требует kind от нескольких checks или BLOCKED и по другой причине.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-095",
+        "SCN-VER-137"
+      ],
+      "recommendation": "Определить наблюдаемо: gate исключается, только если каждый его элемент requires_evidence без засчитанной записи относится к check с ошибкой в errors[]; добавить сценарий локального ci (ATTESTATION_REQUIRED) с CHECK_TIMEOUT."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-KRN-003 требует для непойманного исключения JSON INTERNAL и код 3, но не описывает исключение после того, как JSON-объект уже выведен (design D9: «иначе только stderr»): какой код выхода тогда — прежний (возможно 0 при ok: true) или 3 при ok: true в stdout. Также не сказано значение command в envelope INTERNAL и исключение до разбора argv.",
+      "targets": [
+        "REQ-KRN-003",
+        "SCN-KRN-163"
+      ],
+      "recommendation": "Добавить в REQ-KRN-003: исключение после вывода — второй объект не печатается, стек в stderr, код выхода = <решение> (например 3, если прежний 0); command — имя подкоманды из argv или пустая строка; сценарий на этот случай."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "REQ-ENF-005: код guard --frontend SHALL быть 0, неразборчивый вход — 2; REQ-KRN-003: любое непойманное исключение — JSON INTERNAL в stdout и код 3, исключение названо только для кода 2. Для guard --frontend claude при непойманном исключении получаются JSON не по протоколу хуков и код 3, который Claude Code трактует как non-blocking error: действие PreToolUse проходит (fail-open). Delta REQ-ENF-005 этот путь не описывает.",
+      "targets": [
+        "REQ-ENF-005",
+        "REQ-KRN-003",
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Явно задать поведение guard --frontend при непойманном исключении: например код 2 и причина в stderr для PreToolUse (fail-closed), allow и stderr для PostToolUse; либо явно принять код 3 с обоснованием. Добавить сценарий."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-VER-011 относит «без прав на репозиторий» к FORGE_ACCESS (3), а design D7 переводит HTTP 404 в null («не найдено»). GitHub API отвечает 404 на ресурс, к которому токен не имеет доступа, поэтому отказ доступа к приватному репозиторию станет PR_NOT_FOUND (REQ-VER-012), деталью decision: missing → REF_NOT_VERIFIED (код 1, «нарушение PR») или отказом артефакта, а не FORGE_ACCESS. Молча предполагается, что отказ прав всегда даёт 401/403.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-012",
+        "REQ-VER-013",
+        "SCN-VER-084"
+      ],
+      "recommendation": "Описать, как 404 отличается от отказа прав (например, предварительный запрос репозитория: 404 на сам репозиторий — FORGE_ACCESS), или сузить FORGE_ACCESS до 401/403/«не авторизован» и назвать 404 без доступа остаточным риском."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Граница между «artifact истёк» (REQ-VER-011 archive: EVIDENCE_NOT_VERIFIED, класс 1; REQ-VER-012: попытка пропускается в skipped[]) и «сбой gh run download» (design D7: FORGE_UNAVAILABLE, класс 4) не задана. Истёкший artifact, классифицированный как сбой загрузки, даст код 4 и бесконечный повтор вместо 1.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-012",
+        "SCN-VER-084"
+      ],
+      "recommendation": "Указать наблюдаемый признак истёкшего/отсутствующего artifact (например expired: true в списке artifacts попытки или ответ 410) и что он даёт EVIDENCE_NOT_VERIFIED / skipped[], а не FORGE_UNAVAILABLE; добавить сценарий."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "REQ-VER-011: неверный GITHUB_REPOSITORY или origin не на форже — USAGE, код 3. Не сказано, проверяется ли это всегда или только когда нужен форж. spec-PR, вид none или --dry-run без обращения к форжу при origin не на GitHub (локальный запуск) дают 0 при ленивой проверке (как сейчас в adapters/forge-gh.ts) и 3 при ранней. Не описан и случай, когда origin отсутствует.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-138",
+        "SCN-VER-085"
+      ],
+      "recommendation": "Явно: репозиторий форжа разрешается и проверяется только при первом обращении к форжу; без обращения (или с --dry-run) USAGE не выдаётся; отсутствующий origin — тот же USAGE. Добавить сценарий spec-PR без форжа."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "В spec нет класса по умолчанию для нераспознанного сбоя gh (design D7: FORGE_UNAVAILABLE, «лишний повтор, но не ложный проход»). «Ответ, который не удалось разобрать» отнесён к классу 4, хотя по определению REQ-KRN-003 класс 4 — «повтор которого может пройти»: смена формата gh повтором не исправится.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-KRN-003"
+      ],
+      "recommendation": "Внести в REQ-VER-011 правило по умолчанию (нераспознанный сбой gh — FORGE_UNAVAILABLE) с обоснованием fail-safe и оговоркой в REQ-KRN-003, что класс 4 включает сбои, о которых неизвестно, исправит ли их повтор."
+    },
+    {
+      "id": "F-9",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-VER-012: заголовок «Ошибки входа (код 3, недоступный форж — 4; ничего не записано)», а пункт того же списка — «TOPOLOGY_VIOLATION, код 1». Заголовок неверно описывает список; поведение однозначно по пункту.",
+      "targets": [
+        "REQ-VER-012"
+      ],
+      "recommendation": "Заголовок: «Ошибки входа (код — по классу, REQ-KRN-003; ничего не записано)» или добавить «TOPOLOGY_VIOLATION — 1»."
+    },
+    {
+      "id": "F-10",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-KRN-003: «Повтор вызова без изменений SHALL иметь смысл только при коде 4» — нормативное утверждение без наблюдаемого критерия, тест на него не написать.",
+      "targets": [
+        "REQ-KRN-003"
+      ],
+      "recommendation": "Переписать как следствие без SHALL («повтор без изменений может изменить исход только при коде 4») или заменить проверяемым: ошибки классов 1, 2, 3 не несут retryable."
+    },
+    {
+      "id": "F-11",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-SDD-001: «Pack core-sdd версии 0.4.x (kernel: \">=0.1 <0.11\")», но выпущенный 0.4.0 несёт kernel \">=0.1 <0.10\" (packs/core-sdd/pack.json); утверждение о всей серии 0.4.x ложно для 0.4.0.",
+      "targets": [
+        "REQ-SDD-001"
+      ],
+      "recommendation": "Написать «версии 0.4.x (с 0.4.1 — kernel: \">=0.1 <0.11\")» или «0.4.1 и выше»."
+    },
+    {
+      "id": "F-12",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-KRN-003: «Исключение, не перехваченное командой, SHALL давать JSON INTERNAL» — без оговорки, что ошибка загрузки модулей до первой строки bin вне требования (proposal Non-Goals, design «Риски»). Буквальный тест битого импорта нарушит требование.",
+      "targets": [
+        "REQ-KRN-003",
+        "SCN-KRN-163"
+      ],
+      "recommendation": "Добавить в REQ-KRN-003: ошибка загрузки модулей CLI до установки обработчика — вне требования (остаточный риск)."
+    },
+    {
+      "id": "F-13",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "PACK_VERSION_RANGE описан только в REQ-KRN-021 (validate) и REQ-VER-011, но выдаёт его общий loadPacks (design D8), то есть код меняется у sync, resolve, verify, status и др. Spec этих команд и раздел BREAKING proposal смену CONFIG_INVALID → PACK_VERSION_RANGE вне validate не называют.",
+      "targets": [
+        "REQ-KRN-021",
+        "REQ-KRN-025"
+      ],
+      "recommendation": "Указать в REQ-KRN-021 или REQ-KRN-003, что PACK_VERSION_RANGE выдаёт любая команда, загружающая packs; строку в таблицу BREAKING proposal."
+    },
+    {
+      "id": "F-14",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Список «Код выхода» REQ-VER-011 перечисляет 0, 1, 3, 4, но класс wait (POLICY_CONFLICT при вычислении effective policy базы или gates impl) даст warrant ci код 2, которого в списке нет.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Добавить «2 — POLICY_CONFLICT» или указать, что остальные коды — по классу REQ-KRN-003."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/exit-contract/specs/kernel/spec.md",
+      "change": "REQ-KRN-003, после фразы о старшем коде: «Исключение: в warrant ci GATE_NOT_PASSED gate, ставшего BLOCKED только из-за ошибки check этого вызова, код выхода не выбирает (REQ-VER-011)». Плюс правила для исключения после вывода JSON и оговорка про ошибку загрузки модулей (F-3, F-12)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/exit-contract/specs/verification/spec.md",
+      "change": "REQ-VER-011: точное правило причинности для D6 (F-2) и сценарий локального ci с ATTESTATION_REQUIRED и CHECK_TIMEOUT; ленивое разрешение репозитория форжа (F-7); граница истёкший artifact / сбой загрузки (F-6); 404 при отсутствии прав (F-5); класс по умолчанию для нераспознанного сбоя gh (F-8); код 2 в списке кодов (F-14). REQ-VER-012: заголовок «Ошибки входа» (F-9)."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/exit-contract/specs/enforcement/spec.md",
+      "change": "REQ-ENF-005: поведение guard --frontend claude при непойманном исключении (код 2 и stderr для PreToolUse, allow для PostToolUse — или явное решение), сценарий (F-4)."
+    },
+    {
+      "id": "P-4",
+      "target": "openspec/changes/exit-contract/specs/core-sdd/spec.md",
+      "change": "REQ-SDD-001: «0.4.x (с 0.4.1 — kernel: \">=0.1 <0.11\")» (F-11)."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Ошибка, когда диапазон kernel самого pack (pack.json kernel) не включает kernel CLI, — тоже «ошибка диапазона pack» (PACK_VERSION_RANGE, которую судья снимает у pack, изменённого PR) или остаётся CONFIG_INVALID? Spec определяет PACK_VERSION_RANGE только для версии pack вне диапазона warrant.json.",
+      "blocking": false,
+      "impact": [
+        "REQ-KRN-021",
+        "REQ-VER-011",
+        "judge-law R-45"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Факты кода (места выбора кода, 404 → null в forge-gh.ts, ленивое разрешение GITHUB_REPOSITORY в адаптере) взяты из design.md Context без проверки: guard Run review запрещает shell, а поиск по коду в репозитории идёт только через cs.js."
+    },
+    {
+      "id": "A-2",
+      "statement": "Claude Code трактует код выхода хука, отличный от 0 и 2, как non-blocking error (действие проходит) — по документации хуков Claude Code; основа F-4."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Как убрать противоречие REQ-KRN-003 / REQ-VER-011 о GATE_NOT_PASSED при ошибке check (F-1)?",
+      "options": [
+        "Назвать исключение в REQ-KRN-003 (GATE_NOT_PASSED остаётся в errors[])",
+        "Не класть такой GATE_NOT_PASSED в errors[]: вынести в data (например data.findings[] или gates), правило REQ-KRN-003 без исключений"
+      ]
+    },
+    {
+      "id": "D-2",
+      "question": "Код guard --frontend claude при непойманном исключении (F-4)?",
+      "options": [
+        "2 и причина в stderr для PreToolUse (fail-closed), 0 для PostToolUse",
+        "INTERNAL и 3, как у остальных команд (fail-open — принять как остаточный риск и записать)"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:8b9613c02ff52ea7ef5a04828963d2689fb1b7d4ff8873cf978def3fdfbae96f",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T12:00:00Z",
+    "finished_at": "2026-10-01T12:40:00Z"
+  }
+}

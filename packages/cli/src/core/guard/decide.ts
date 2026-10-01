@@ -18,10 +18,19 @@
  *   commands (I-190), a policy path no Run writes the hint of a human edit in
  *   a `factory-change` Change (BL-56), instead of `run start` / `run finish`;
  * - `shell` — `deny` for a simple command that starts with a `guard_prefixes`
- *   entry of a check that must not run directly (ADR-0017 п. 5, F8).
+ *   entry of a check that must not run directly (ADR-0017 п. 5, F8);
+ * - a policy that does not load, where a decision above needs it — the
+ *   recovery mode (ADR-0053 п. 2): an edit of `.warrant/warrant.json` alone and
+ *   a shell line of recovery commands and commands that write nothing pass,
+ *   any other edit of the project is refused with the versions and the way out.
+ *
+ * With `cli` in `warrant.json` (ADR-0053 п. 3) a simple command `node <cli> …`
+ * run at the project root reads as `warrant …` in the strict forms of a
+ * `review` Run and of the recovery mode, and their hints name that form.
  */
 import path from "node:path";
 
+import type { CliError } from "../errors.js";
 import { pathMatcher } from "../glob.js";
 import { isPlainObject, strings } from "../json.js";
 import { effectiveCheck, policyPaths } from "../packs/objects.js";
@@ -29,6 +38,7 @@ import type { LoadResult } from "../packs/types.js";
 import { codeScope, scopeMatcher } from "../run/scope.js";
 import type { GuardResult } from "../ports/frontend.js";
 import type { Run } from "../run/types.js";
+import { KERNEL_VERSION } from "../../version.js";
 import { defaultPrefix, type GuardPrefix, leafCommands, matchesPrefix, prefixText, simpleCommands, startsWithPrefix } from "./shell.js";
 
 /** What guard answers, and the `argv` its event keeps (only a `deny` by a prefix, F16). */
@@ -41,6 +51,20 @@ export const RUN_START_HINT = "start a Run first: `warrant run start <change> --
 
 /** `hint` of a failure before the action (F9). */
 export const VALIDATE_HINT = "run `warrant validate`";
+
+/** The pin of the project: the one path an edit may touch while the policy does not load (ADR-0053 п. 2). */
+export const CONFIG_FILE = ".warrant/warrant.json";
+
+/**
+ * `text` with its commands in the form of the pinned CLI (ADR-0053 п. 3):
+ * every `` `warrant `` becomes `` `node <cli> ``, and the text says to run them
+ * from the project root — the only place `node <cli>` is that file. Without
+ * `cli`, or without a command, `text` as it is.
+ */
+export function inCliForm(text: string, cli: string | undefined): string {
+  if (cli === undefined || !text.includes("`warrant ")) return text;
+  return `${text.split("`warrant ").join(`\`node ${cli} `)} (from the project root)`;
+}
 
 const allow = (hints: string[] = []): Answer => ({ decision: "allow", hints });
 
@@ -56,6 +80,11 @@ const SUBMIT_PATH_RE = /^(?!-)[\p{L}\p{N}_./\\:@+,~-]+$/u;
 /** `hint` of a refusal under a `review` Run: the result, the cancel and the state (ADR-0044 п. 5). */
 export const SUBMIT_HINT =
   "a review Run only reads; hand in its result with `warrant run submit` (envelope warrant://skill-result/1); to stop the review: `warrant run finish --state CANCELLED`; to read state: `warrant status`";
+
+/** {@link SUBMIT_HINT} in the form of the pinned CLI. */
+export function submitHint(cli: string | undefined): string {
+  return inCliForm(SUBMIT_HINT, cli);
+}
 
 /** `hint` of a `deny` for the state the CLI writes (I-190): its commands, not a Run. */
 export const CLI_STATE_HINT =
@@ -113,6 +142,8 @@ export interface ReviewEditPlaces {
   tempInProject: boolean;
   /** Paths of the event outside the project and outside the temporary directory. */
   strays: number;
+  /** `cli` of `warrant.json` that passes its pattern: the form of the commands of the hints (ADR-0053 п. 3). */
+  cli?: string;
 }
 
 /**
@@ -123,13 +154,14 @@ export interface ReviewEditPlaces {
  * the envelope file in the temporary directory — `allow`.
  */
 export function reviewEditAnswer(run: Run, files: readonly string[], places: ReviewEditPlaces): Answer {
-  const writeThere = `write the envelope file into ${places.tempDir} and run \`warrant run submit --file <that file>\``;
+  const writeThere = inCliForm(`write the envelope file into ${places.tempDir} and run \`warrant run submit --file <that file>\``, places.cli);
+  const submit = submitHint(places.cli);
   if (files.length > 0) {
     const tempInside = places.tempInProject ? "; the temporary directory lies inside the project, so an envelope cannot be written at all" : "";
     return {
       decision: "deny",
       reason: `${files.join(", ")}: the Run ${run.id} of ${run.change} is a review, and a review Run only reads${tempInside}`,
-      hints: places.tempInProject ? [SUBMIT_HINT] : [SUBMIT_HINT, writeThere]
+      hints: places.tempInProject ? [submit] : [submit, writeThere]
     };
   }
   if (places.strays > 0) {
@@ -267,6 +299,22 @@ export interface ReviewShellPlaces {
   cwd: string;
   /** True when `dir` (absolute) lies inside the project of the event after `realpath`. */
   inProject: (dir: string) => boolean;
+  /** True when `dir` (absolute) is the root of the project after `realpath`: where `node <cli>` is the pinned CLI. */
+  isRoot?: (dir: string) => boolean;
+  /** `cli` of `warrant.json` that passes its pattern (ADR-0053 п. 3). */
+  cli?: string;
+}
+
+/**
+ * `node <cli> …` as `warrant …` (ADR-0053 п. 3): only for `cli` exactly as
+ * written in `warrant.json`, and only when every directory the line may be in
+ * by now is the project root — elsewhere `node <cli>` runs another file.
+ */
+function aliased(command: readonly string[], dirs: ReadonlySet<string>, places: ReviewShellPlaces | undefined): readonly string[] {
+  const cli = places?.cli;
+  const isRoot = places?.isRoot;
+  if (cli === undefined || isRoot === undefined || command[0] !== "node" || command[1] !== cli) return command;
+  return [...dirs].every((dir) => isRoot(dir)) ? ["warrant", ...command.slice(2)] : command;
 }
 
 /**
@@ -340,8 +388,17 @@ export function reviewShellAnswer(argv: readonly string[] | undefined, run: Run,
   const operators: string[] = [];
   const commands = argv === undefined ? [] : leafCommands(argv, true, 1, operators);
   const dirs = new Set(places === undefined ? [] : [places.cwd]);
-  let other = commands.find((command) => !isSubmit(command) && !isCancel(command) && !isReading(command, dirs, places));
-  const join = commands.every((command) => isSubmit(command)) ? undefined : operators.find((operator) => !READING_JOINS.has(operator));
+  const read: (readonly string[])[] = [];
+  let other: readonly string[] | undefined;
+  for (const command of commands) {
+    const as = aliased(command, dirs, places);
+    read.push(as);
+    if (!isSubmit(as) && !isCancel(as) && !isReading(as, dirs, places)) {
+      other = command;
+      break;
+    }
+  }
+  const join = read.every((command) => isSubmit(command)) ? undefined : operators.find((operator) => !READING_JOINS.has(operator));
   if (commands.length > 0 && other === undefined && join === undefined) return allow();
   if (other === undefined && join !== undefined) other = [join];
   const what = other === undefined ? "no command" : `\`${other.join(" ")}\``;
@@ -351,8 +408,116 @@ export function reviewShellAnswer(argv: readonly string[] | undefined, run: Run,
       `${what} under the review Run ${run.id} of ${run.change}: a review Run runs only \`${SUBMIT_PREFIX.join(" ")}\`, ` +
       "the cancel `warrant run finish --state CANCELLED` and commands that write nothing (`warrant status`, `warrant gate`, `--help`, " +
       "`git status|log|diff|show`, `cd` inside the project), joined only by `&&`, `||`, `;` or a newline",
-    hints: [SUBMIT_HINT]
+    hints: [submitHint(places?.cli)]
   };
+}
+
+/** How out of a policy that does not load (ADR-0053 п. 2), by the error of the mode. */
+export type RecoveryExit = "pin-up" | "cli-older" | "fix-config" | "human";
+
+/** The policy that does not load, as guard tells it: the error of the mode, its way out, the versions (ADR-0053 п. 2). */
+export interface RecoveryFailure {
+  /** The first `PACK_VERSION_RANGE` among the load errors, else the first one. */
+  error: CliError;
+  exit: RecoveryExit;
+  /** `<id> <version>` of every pack bundled with the CLI, joined: what `pin-up` raises the pin to. */
+  carries: string;
+  /** The reason of a refusal: the error, the CLI and its packs, the pins of `warrant.json`. */
+  reason: string;
+}
+
+/**
+ * True for a recovery command (ADR-0053 п. 2): `warrant sync [...]`,
+ * `warrant validate [...]`, `warrant status [...]`, `warrant --version`,
+ * `warrant -V`; no word with a redirection, `&`, a substitution or a group.
+ */
+function isRecovery(command: readonly string[]): boolean {
+  if (command.some((word) => UNSAFE_WORD_RE.test(word))) return false;
+  const [name, sub] = command;
+  if (name !== "warrant") return false;
+  if (sub === "sync" || sub === "validate" || sub === "status") return true;
+  return command.length === 2 && (sub === "--version" || sub === "-V");
+}
+
+/** The way out of `failure`, in the form of the pinned CLI. */
+function exitHint(failure: RecoveryFailure, cli: string | undefined): string {
+  switch (failure.exit) {
+    case "pin-up":
+      return inCliForm(
+        `pin-Change: raise packs.<id>.version and kernel in ${CONFIG_FILE} to what this CLI carries (${failure.carries}, kernel ${KERNEL_VERSION}), then run \`warrant sync\``,
+        cli
+      );
+    case "cli-older":
+      return cli === undefined
+        ? `this CLI is older than the pin: keep ${CONFIG_FILE}; the maintainer installs the CLI of the tag the project pins, outside the agent session`
+        : `this CLI is older than the pin: keep ${CONFIG_FILE}; the maintainer updates ${cli} (npm ci, npm run build), outside the agent session`;
+    case "fix-config":
+      return inCliForm(`fix ${CONFIG_FILE} (guard allows this edit), then run \`warrant validate\``, cli);
+    case "human":
+      return "the file the reason names is fixed by a human (maintainer) outside the agent session, in a Change with the profile `factory-change` (ADR-0040 п. 7)";
+  }
+}
+
+/** What guard lets through while the policy does not load (ADR-0053 п. 2). */
+function recoveryListHint(cli: string | undefined): string {
+  return inCliForm(
+    `until the policy loads guard allows only: an edit of ${CONFIG_FILE}; \`warrant sync\`, \`warrant validate\`, \`warrant status\`, ` +
+      "`warrant --version` and commands that write nothing (`git status|log|diff|show`, `warrant gate`, `--help`, `cd` inside the project), " +
+      "joined only by `&&`, `||`, `;` or a newline; paths outside the project are not guarded",
+    cli
+  );
+}
+
+/** Hints of a refusal of the recovery mode: the hint of the error, the way out, what passes. */
+export function recoveryHints(failure: RecoveryFailure, cli: string | undefined): string[] {
+  const own = failure.error.hint === undefined ? [] : [inCliForm(failure.error.hint, cli)];
+  return [...own, exitHint(failure, cli), recoveryListHint(cli)];
+}
+
+/** `hint` after an edit of the pin: the next step is `sync`, not a Run (ADR-0053 п. 2). */
+export function syncHint(cli: string | undefined): string {
+  return inCliForm(`${CONFIG_FILE} changed: run \`warrant sync\``, cli);
+}
+
+/**
+ * `pre` `edit` while the policy does not load (ADR-0053 п. 2): the pin
+ * `.warrant/warrant.json` alone — `allow` with the hint `sync`, under an active
+ * Run too; any other path of the project — `deny`, naming the paths outside
+ * the `write_scope` of an active Run as {@link editWithRun} does.
+ */
+export function recoveryEditAnswer(files: readonly string[], run: Run | undefined, failure: RecoveryFailure, cli?: string): Answer {
+  if (files.length > 0 && files.every((file) => file === CONFIG_FILE)) return allow([syncHint(cli)]);
+  let where = files.join(", ");
+  if (run !== undefined) {
+    const inside = scopeMatcher(run.write_scope, run.scope);
+    const narrowed = run.scope.length === 0 ? "" : `; scope: ${run.scope.join(", ")}`;
+    where = `${files.filter((file) => !inside(file)).join(", ")} outside the Run ${run.id} of ${run.change}: write_scope: ${run.write_scope.join(", ")}${narrowed}`;
+  }
+  return { decision: "deny", reason: `${where}; ${failure.reason}`, hints: recoveryHints(failure, cli) };
+}
+
+/**
+ * `pre` `shell` while the policy does not load (ADR-0053 п. 2): `allow` only
+ * when every command of `argv` is a recovery command or one that writes
+ * nothing, in the strict form of a `review` Run (`&&`, `||`, `;`, a newline);
+ * else `deny` with the reason of `failure`.
+ */
+export function recoveryShellAnswer(argv: readonly string[] | undefined, failure: RecoveryFailure, places?: ReviewShellPlaces): Answer {
+  const operators: string[] = [];
+  const commands = argv === undefined ? [] : leafCommands(argv, true, 1, operators);
+  const dirs = new Set(places === undefined ? [] : [places.cwd]);
+  let other: readonly string[] | undefined;
+  for (const command of commands) {
+    const as = aliased(command, dirs, places);
+    if (!isRecovery(as) && !isReading(as, dirs, places)) {
+      other = command;
+      break;
+    }
+  }
+  const join = operators.find((operator) => !READING_JOINS.has(operator));
+  if (commands.length > 0 && other === undefined && join === undefined) return allow();
+  const what = other !== undefined ? `\`${other.join(" ")}\`` : join !== undefined ? `\`${join}\`` : "no command";
+  return { decision: "deny", reason: `${what}: ${failure.reason}`, hints: recoveryHints(failure, places?.cli) };
 }
 
 /**

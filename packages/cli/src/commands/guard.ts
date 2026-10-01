@@ -20,6 +20,29 @@ export async function runGuard(ctx: Ctx, input: string, env: NodeJS.ProcessEnv =
 }
 
 /**
+ * `warrant guard` on the stdin `read` gives (R-46, REQ-ENF-004): an exception
+ * of the read or of the decision is a failure of guard, not `INTERNAL` — the
+ * decision of {@link runGuardCrash} by the phase of what was read, the reason
+ * on stderr (`ctx.warn`), exit 0. `onInput` learns the text once it is read.
+ */
+export async function runGuardRead(
+  ctx: Ctx,
+  read: () => Promise<string>,
+  env: NodeJS.ProcessEnv = process.env,
+  onInput: (input: string) => void = () => undefined
+): Promise<CommandResult> {
+  let input: string | undefined;
+  try {
+    input = await read();
+    onInput(input);
+    return await runGuard(ctx, input, env);
+  } catch (thrown) {
+    ctx.warn(`warrant guard: ${thrown instanceof Error ? thrown.message : String(thrown)}\n`);
+    return runGuardCrash(input, thrown);
+  }
+}
+
+/**
  * The result of `warrant guard` on an exception nothing caught (exit-contract
  * D9, REQ-ENF-004): `deny` in `pre` or an unknown phase, `allow` in `post`; exit 0.
  */

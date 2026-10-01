@@ -20,11 +20,11 @@ argument-hint: "<change>"
    openspec validate <change> --strict
    ```
 2. Классификация — `$W classify <change> --paths <файл>` (diff spec-PR и пути «Impact» proposal, BL-45), коммит `<change>: classify …`.
-3. Review spec (gate `adversarial-review`, [ADR-0034](../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 10) — в `PROPOSED`, spec закоммичена. `warrant` должен быть на PATH (его зовёт хук субагента): `warrant --version`, нет — `npm link` в корне worktree. Context Pack:
+3. Review spec (gate `adversarial-review`, [ADR-0034](../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 10) — в `PROPOSED`, spec закоммичена. Хук субагента исполняет dev-CLI основного checkout, а `run submit` — dev-CLI worktree (`cli` в `warrant.json`, ADR-0053 п. 3), PATH не нужен: `npm run build` в обоих. Context Pack:
    ```bash
    $W run start <change> --operation review
    ```
-   Весь JSON вывода — промптом субагенту `warrant-reviewer` (`.claude/agents/warrant-reviewer.md`); envelope он сдаёт сам — `cd <worktree> && warrant run submit --file` (ADR-0042 п. 4, ADR-0043; до CLI 0.8.1 — heredoc ≤ 6 000 символов, сверх — сводной находкой, полный текст — в ответе и в тело PR) — и возвращает `evidence`, `status`, находки по `severity`. Файлы Run, `.result.json` и evidence — коммитом `<change>: review <RUN> — <status>`. `BLOCKER` — правка spec, коммит, шаг 3 заново. `PROVEN` с `MAJOR` — не новый раунд (правка `specs/**` делает review `STALE`): строка backlog, исправление — в impl-PR по [ADR-0024](../../../docs/adr/WARRANT-ADR-0024-spec-approved-contract.md) п. 4 (строка I-N, правка delta spec, waiver на `spec-approved`, активирует maintainer; [ADR-0038](../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md)).
+   Весь JSON вывода — промптом субагенту `warrant-reviewer` (`.claude/agents/warrant-reviewer.md`); envelope он сдаёт сам — `cd <worktree> && node packages/cli/dist/bin/warrant.js run submit --file` (ADR-0042 п. 4, ADR-0043; до CLI 0.8.1 — heredoc ≤ 6 000 символов, сверх — сводной находкой, полный текст — в ответе и в тело PR) — и возвращает `evidence`, `status`, находки по `severity`. Файлы Run, `.result.json` и evidence — коммитом `<change>: review <RUN> — <status>`. `BLOCKER` — правка spec, коммит, шаг 3 заново. `PROVEN` с `MAJOR` — не новый раунд (правка `specs/**` делает review `STALE`): строка backlog, исправление — в impl-PR по [ADR-0024](../../../docs/adr/WARRANT-ADR-0024-spec-approved-contract.md) п. 4 (строка I-N, правка delta spec, waiver на `spec-approved`, активирует maintainer; [ADR-0038](../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md)).
 4. Gates `PROPOSED->SPECIFIED`:
    ```bash
    $W verify <change>

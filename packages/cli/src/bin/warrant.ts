@@ -39,7 +39,7 @@ import { runArchive } from "../commands/archive.js";
 import { runLink } from "../commands/link.js";
 import { runWaive } from "../commands/waive.js";
 import { runFinish, runStart, runSubmit } from "../commands/run.js";
-import { runGuard, runGuardFrontend } from "../commands/guard.js";
+import { runGuardFrontend, runGuardRead } from "../commands/guard.js";
 import { runUnknownAdd, runUnknownResolve } from "../commands/unknown.js";
 import { readStdin } from "../io/stdin.js";
 import { UNREADABLE_EXIT, type FrontendAdapter } from "../core/ports/frontend.js";
@@ -600,12 +600,13 @@ program
   )
   .action(async (opts: Record<string, unknown>) => {
     if (typeof opts["frontend"] === "string") return guardFrontend(opts["frontend"]);
+    // An exception of the runner is a failure of guard, `deny` with exit 0, not `INTERNAL` (R-46).
     await run(
       "guard",
-      async (ctx) => {
-        crash.guardInput = await readStdin();
-        return runGuard(ctx, crash.guardInput);
-      },
+      (ctx) =>
+        runGuardRead(ctx, readStdin, process.env, (input) => {
+          crash.guardInput = input;
+        }),
       [],
       opts
     );

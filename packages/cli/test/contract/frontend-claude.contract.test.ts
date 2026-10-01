@@ -25,7 +25,8 @@ import type { FrontendResponse } from "../../src/core/ports/frontend.js";
 import { useProjectBuilder, type ProjectBuilder } from "../app/helpers/project-builder.js";
 import { started } from "../app/helpers/run.js";
 import { CLAUDE_FIXTURES, recordedHook, recordedInputIn, recordedVersions } from "../helpers/claude-hooks.js";
-import { CORE_SDD_RANGE } from "../helpers/cli.js";
+import { CLI_VERSION } from "../../src/version.js";
+import { CORE_SDD_RANGE, CORE_SDD_VERSION } from "../helpers/cli.js";
 
 const project = useProjectBuilder();
 
@@ -161,6 +162,32 @@ describe.each(versions)("adapter claude on the recorded input of Claude Code %s"
       expect.stringMatching(/^warrant guard --frontend claude: stdin is not JSON: /),
       expect.stringMatching(/^warrant guard --frontend claude: stdin is not a Claude Code hook input/)
     ]);
+  });
+});
+
+describe.each(versions)("adapter claude while the policy does not load, on the recorded input of Claude Code %s (ADR-0053 п. 2)", (version) => {
+  it("Bash git status and Write of the pin pass silently, Edit of code is denied with the versions; PostToolUse of the pin brings sync (SCN-ENF-053)", async () => {
+    const p = await repo();
+    const [major, minor] = CORE_SDD_VERSION.split(".").map(Number) as [number, number];
+    const pin = `^${major}.${minor - 1}.0`;
+    const config = p.json(".warrant/warrant.json");
+    p.write(".warrant/warrant.json", { ...config, packs: { "core-sdd": { version: pin } } });
+
+    const bash = JSON.parse(recordedInputIn(recordedHook(version, "pre-bash"), p.root)) as { tool_input: Record<string, unknown> };
+    bash.tool_input["command"] = "git status";
+    expect(await runGuardFrontend(p.ctx, claudeFrontend, JSON.stringify(bash), ENV)).toEqual({ stdout: "", exit: 0 });
+    expect(await answer(p, version, "pre-write", ".warrant/warrant.json")).toEqual({ stdout: "", exit: 0 });
+
+    const denied = output(await answer(p, version, "pre-edit", "src/app.ts"));
+    expect(denied["permissionDecision"]).toBe("deny");
+    expect(denied["permissionDecisionReason"]).toContain(`CLI ${CLI_VERSION}`);
+    expect(denied["permissionDecisionReason"]).toContain(pin);
+    expect(denied["permissionDecisionReason"]).toContain("warrant sync");
+
+    const after = output(await answer(p, version, "post-write", ".warrant/warrant.json"));
+    expect(after["additionalContext"]).toContain("warrant sync");
+    expect(after["additionalContext"]).not.toContain("warrant run start");
+    expect(after).not.toHaveProperty("permissionDecision");
   });
 });
 

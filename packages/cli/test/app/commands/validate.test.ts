@@ -19,7 +19,7 @@ import { runValidate } from "../../../src/commands/validate.js";
 import type { CliError } from "../../../src/core/errors.js";
 import { packContentHash } from "../../../src/core/packs/hash.js";
 import { toEnvelope, type CommandResult } from "../../../src/io/output.js";
-import { CLI_VERSION } from "../../../src/version.js";
+import { CLI_VERSION, KERNEL_VERSION } from "../../../src/version.js";
 import { CLI_ROOT, CORE_SDD_RANGE, REPO_ROOT } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
@@ -504,6 +504,29 @@ describe("warrant validate: a pack version outside the range (exit-contract D8)"
     expect(toEnvelope("validate", result).errors.find((e) => e.code === "PACK_VERSION_RANGE")).not.toHaveProperty("retryable");
     expect(errorCodes(result)).not.toContain("CONFIG_INVALID");
     expect(result.exitCode).toBe(3);
+  });
+
+  it("the finding names the CLI and the way out by direction: raise the pin, or install the pinned CLI (SCN-KRN-167)", async () => {
+    const p = await project().synced();
+    const config = p.json(".warrant/warrant.json");
+    const version = (JSON.parse(readFileSync(path.join(REPO_ROOT, "packs", "core-sdd", "pack.json"), "utf8")) as { version: string }).version;
+    const [major, minor] = version.split(".").map(Number) as [number, number];
+    const older = `^${major}.${minor - 1}.0`;
+    const newer = `^${major}.${minor + 1}.0`;
+
+    p.write(".warrant/warrant.json", { ...config, packs: { ...config.packs, "core-sdd": { version: older } } });
+    const above = (await validate(p)).errors.find((e) => e.code === "PACK_VERSION_RANGE");
+    expect(above?.message).toContain(version);
+    expect(above?.message).toContain(older);
+    expect(above?.message).toContain(`CLI ${CLI_VERSION}`);
+    expect(above?.hint).toContain("packs.core-sdd.version");
+    expect(above?.hint).toContain(`kernel to "${KERNEL_VERSION}"`);
+    expect(above?.hint).toContain("warrant sync");
+
+    p.write(".warrant/warrant.json", { ...config, packs: { ...config.packs, "core-sdd": { version: newer } } });
+    const below = (await validate(p)).errors.find((e) => e.code === "PACK_VERSION_RANGE");
+    expect(below?.hint).toContain("install the CLI the project pins");
+    expect(below?.hint).not.toContain("set packs.core-sdd.version");
   });
 });
 

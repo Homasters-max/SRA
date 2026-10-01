@@ -158,6 +158,11 @@
         "enum": ["claude"]
       },
       "uniqueItems": true
+    },
+    "cli": {
+      "description": "Entry file of the CLI the project pins, relative to the project root (ADR-0053 point 3): the generated hooks and the review subagent run `node <cli>` instead of the first `warrant` on PATH. Segments of ASCII letters, digits and `. _ @ + -`, none empty, none starting with `-`, none `.` or `..`; no leading `/`; `.js`, `.mjs` or `.cjs`. The file itself is not checked here.",
+      "type": "string",
+      "pattern": "^(?!(?:.*/)?\\.{1,2}(?:/|$))(?:[A-Za-z0-9._@+][A-Za-z0-9._@+-]*/)*[A-Za-z0-9._@+][A-Za-z0-9._@+-]*\\.[cm]?js$"
     }
   },
   "required": ["$schema", "kernel", "openspec", "packs"],

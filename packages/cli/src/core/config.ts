@@ -39,9 +39,22 @@ export interface WarrantConfig {
   readonly frontends: readonly string[];
   /** Logins of `identities.agents[].login` (ADR-0010 п. 4, ADR-0044 п. 3), in file order; empty when absent. */
   readonly agents: readonly string[];
+  /** Entry file of the CLI the project pins (ADR-0053 п. 3), relative to the root; `undefined` when absent. */
+  readonly cli: string | undefined;
 }
 
 const PATH_KEYS = ["adr", "glossary", "tests", "src"] as const;
+
+/**
+ * The pattern of `cli` of `config/1` (ADR-0053 п. 3): its one owner is the
+ * schema; guard and the generator of `sync` test a value against it.
+ */
+export function cliPattern(): RegExp {
+  const properties = readSchemaFile("config")["properties"];
+  const cli = isPlainObject(properties) ? properties["cli"] : undefined;
+  const pattern = isPlainObject(cli) ? cli["pattern"] : undefined;
+  return new RegExp(typeof pattern === "string" ? pattern : "(?!)", "u");
+}
 
 /**
  * Names `frontends[]` of `config/1` accepts. The schema is their one owner, so
@@ -107,7 +120,8 @@ function toWarrantConfig(json: Record<string, unknown>): WarrantConfig {
     paths: pathEntries(json["paths"]),
     roles: roleEntries(json["roles"]),
     frontends: strings(json["frontends"]),
-    agents: agentLogins(json["identities"])
+    agents: agentLogins(json["identities"]),
+    cli: typeof json["cli"] === "string" ? json["cli"] : undefined
   };
 }
 

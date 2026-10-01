@@ -11,9 +11,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { runGuard } from "../../../src/commands/guard.js";
+import { runGuard, runGuardRead } from "../../../src/commands/guard.js";
 import type { CommandResult } from "../../../src/io/output.js";
-import { CORE_SDD_RANGE } from "../../helpers/cli.js";
+import { CLI_VERSION } from "../../../src/version.js";
+import { CORE_SDD_RANGE, CORE_SDD_VERSION } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
 import { started } from "../helpers/run.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
@@ -553,13 +554,192 @@ describe("warrant guard: failures (F9)", () => {
     expect(p.warnings.join("")).toContain("paths");
   });
 
-  it("a policy that does not load: pre is denied with the hint warrant validate", async () => {
+  it("a policy that does not load because of a local file: the recovery mode, the file is fixed by a human (ADR-0053 п. 2)", async () => {
     const p = await repo("IMPLEMENTING");
     p.write(".warrant/local/checks/broken.json", { $schema: "warrant://check/1", id: "broken" });
     const result = await guard(p, { phase: "pre", action: "edit", paths: ["docs/a.md"] });
     expect(result.data["decision"]).toBe("deny");
     expect(result.data["reason"]).toContain(".warrant/local/checks/broken.json");
+    expect(result.data["reason"]).toContain(`CLI ${CLI_VERSION}`);
+    const hints = (result.data["hints"] as string[]).join("\n");
+    expect(hints).toContain("factory-change");
+    expect(hints).toContain("until the policy loads guard allows only");
+    expect(hints).not.toContain("pin-Change");
+  });
+});
+
+describe("warrant guard: a policy that does not load — the recovery mode (ADR-0053 п. 2)", () => {
+  const [major, minor] = CORE_SDD_VERSION.split(".").map(Number) as [number, number];
+  /** A range the bundled core-sdd is above: the CLI is newer than the pin. */
+  const OLDER_PIN = `^${major}.${minor - 1}.0`;
+  /** A range the bundled core-sdd is below: the CLI is older than the pin. */
+  const NEWER_PIN = `^${major}.${minor + 1}.0`;
+
+  /** The `warrant.json` of {@link repo} with `core-sdd` pinned to `range`, `kernel` 0.8 and the extra keys. */
+  function pin(p: ProjectBuilder, range: string, extra: Record<string, unknown> = {}): void {
+    const config = p.json(".warrant/warrant.json");
+    p.write(".warrant/warrant.json", { ...config, kernel: "0.8", packs: { ...config["packs"], "core-sdd": { version: range } }, ...extra });
+  }
+
+  it("edits: a project path is denied with the versions and the pin-Change, the pin and a path outside pass (SCN-ENF-048)", async () => {
+    const p = await repo("IMPLEMENTING");
+    pin(p, OLDER_PIN);
+    const code = await guard(p, { phase: "pre", action: "edit", paths: ["src/app.ts"] });
+    expect(code.data["decision"]).toBe("deny");
+    for (const part of ["PACK_VERSION_RANGE", `CLI ${CLI_VERSION}`, CORE_SDD_VERSION, OLDER_PIN, "kernel 0.8"]) expect(code.data["reason"]).toContain(part);
+    expect(code.data["reason"]).not.toMatch(/[A-Za-z]:[\\/]|\/packs\/core-sdd\/pack\.json/);
+    expect(code.data["reason"]).toContain(`pack core-sdd, bundled with CLI ${CLI_VERSION}`);
+    const hints = (code.data["hints"] as string[]).join("\n");
+    expect(hints).toContain(".warrant/warrant.json");
+    expect(hints).toContain("`warrant sync`");
+    expect(hints).toContain("pin-Change");
+
+    const config = await guard(p, { phase: "pre", action: "edit", paths: [".warrant/warrant.json"] });
+    expect(config.data["decision"]).toBe("allow");
+    expect(config.data["hints"]).toEqual([expect.stringContaining("`warrant sync`")]);
+
+    const outside = await guard(p, { phase: "pre", action: "edit", paths: [path.join(tmpdir(), "notes.md")] });
+    expect(outside.data["decision"]).toBe("allow");
+  });
+
+  it("shell: recovery commands and commands that write nothing pass, the rest is denied (SCN-ENF-049)", async () => {
+    const p = await repo("IMPLEMENTING");
+    pin(p, OLDER_PIN);
+    const decide = async (line: string): Promise<Data> => (await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", line] })).data;
+    for (const line of ["git log --oneline", "warrant sync && warrant validate", "warrant --version", "warrant status add-search", "warrant -V", "warrant sync --help"]) {
+      expect((await decide(line))["decision"], line).toBe("allow");
+    }
+    for (const line of ["npm test", "git log | head", "warrant sync > out.txt", "warrant run finish --state CANCELLED", "warrant fmt"]) {
+      const denied = await decide(line);
+      expect(denied["decision"], line).toBe("deny");
+      expect(denied["reason"], line).toContain(`CLI ${CLI_VERSION}`);
+      expect(denied["reason"], line).toContain(CORE_SDD_VERSION);
+      expect(denied["reason"], line).toContain(OLDER_PIN);
+      expect((denied["hints"] as string[]).join("\n"), line).toContain("until the policy loads guard allows only");
+    }
+  });
+
+  it("an active Run: inside write_scope and the pin pass, the rest is denied; post of the pin gives sync (SCN-ENF-050)", async () => {
+    const p = await repo("IMPLEMENTING");
+    const id = await started(p);
+    pin(p, OLDER_PIN);
+    expect((await guard(p, { phase: "pre", action: "edit", paths: ["src/app.ts"] })).data["decision"]).toBe("allow");
+    const docs = await guard(p, { phase: "pre", action: "edit", paths: ["docs/notes.md"] });
+    expect(docs.data["decision"]).toBe("deny");
+    expect(docs.data["reason"]).toContain("docs/notes.md");
+    expect(docs.data["reason"]).toContain("write_scope");
+    expect(docs.data["reason"]).toContain("the policy does not load");
+    expect((await guard(p, { phase: "pre", action: "edit", paths: [".warrant/warrant.json"] })).data["decision"]).toBe("allow");
+    const after = await guard(p, { phase: "post", action: "edit", paths: [".warrant/warrant.json"] });
+    expect(after.data["decision"]).toBe("allow");
+    expect((after.data["hints"] as string[]).join("\n")).toContain("`warrant sync`");
+    const tests = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", "pytest -q"] });
+    // A warrant.json that fails its schema after the edit: post still brings sync.
+    const broken = p.json(".warrant/warrant.json");
+    p.write(".warrant/warrant.json", { ...broken, kernel: 10 });
+    expect((await guard(p, { phase: "post", action: "edit", paths: [".warrant/warrant.json"] })).data["hints"]).toEqual([
+      expect.stringContaining("`warrant sync`")
+    ]);
+    p.write(".warrant/warrant.json", broken);
+    expect(tests.data["decision"]).toBe("deny");
+    expect(tests.data["reason"]).toContain("the policy does not load");
+    // The post of the broken warrant.json is a failure of post: its event is lost, as before (F18).
+    expect(events(p, id)).toHaveLength(5);
+  });
+
+  it("node <cli> reads as warrant at the project root only, and the hints name that form (SCN-ENF-051)", async () => {
+    const p = await repo("PROPOSED", (b) => {
+      b.write(".warrant/warrant.json", { ...b.json(".warrant/warrant.json"), cli: "tools/warrant.js" });
+    });
+    p.commit("spec");
+    await started(p, "add-search", { operation: "review" });
+    const shell = async (line: string): Promise<Data> => (await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", line] })).data;
+    expect((await shell("node tools/warrant.js run submit --file r.json"))["decision"]).toBe("allow");
+    const other = await shell("node other.js run submit --file r.json");
+    expect(other["decision"]).toBe("deny");
+    expect((other["hints"] as string[]).join("\n")).toContain("`node tools/warrant.js run submit`");
+
+    const q = await repo("IMPLEMENTING");
+    pin(q, OLDER_PIN, { cli: "tools/warrant.js" });
+    q.write("docs/.keep", "");
+    const recovery = async (line: string): Promise<Data> => (await guard(q, { phase: "pre", action: "shell", argv: ["bash", "-c", line] })).data;
+    expect((await recovery("node tools/warrant.js sync"))["decision"]).toBe("allow");
+    expect((await recovery("cd docs && node tools/warrant.js sync"))["decision"]).toBe("deny");
+    const edit = await guard(q, { phase: "pre", action: "edit", paths: ["src/app.ts"] });
+    const hints = (edit.data["hints"] as string[]).join("\n");
+    expect(hints).toContain("`node tools/warrant.js sync`");
+    expect(hints).toContain("from the project root");
+    expect(hints).not.toContain("`warrant sync`");
+  });
+
+  it("a pack of .warrant/local/ out of its range: fix the range in warrant.json — no pin-Change, no CLI of the tag, no factory-change (SCN-ENF-055)", async () => {
+    const p = await repo("IMPLEMENTING");
+    p.write(".warrant/local/team/pack.json", {
+      $schema: "warrant://pack/1",
+      id: "team",
+      version: "1.0.0",
+      kernel: ">=0.1 <1.0",
+      description: "Local pack of the team.",
+      depends_on: {},
+      provides: {}
+    });
+    const config = p.json(".warrant/warrant.json");
+    p.write(".warrant/warrant.json", { ...config, packs: { ...config["packs"], team: { version: "^2.0.0" } } });
+    const denied = await guard(p, { phase: "pre", action: "edit", paths: ["src/app.ts"] });
+    expect(denied.data["decision"]).toBe("deny");
+    expect(denied.data["reason"]).toContain(".warrant/local/team/pack.json");
+    const hints = (denied.data["hints"] as string[]).join("\n");
+    expect(hints).toContain("fix .warrant/warrant.json");
+    expect(hints).not.toContain("pin-Change");
+    expect(hints).not.toContain("CLI of the tag");
+    expect(hints).not.toContain("factory-change");
+  });
+
+  it("a CLI older than the pin: keep warrant.json, install the pinned CLI; a pack the CLI does not carry alike (SCN-ENF-054)", async () => {
+    const p = await repo("IMPLEMENTING");
+    pin(p, NEWER_PIN);
+    const older = await guard(p, { phase: "pre", action: "edit", paths: ["src/app.ts"] });
+    expect(older.data["decision"]).toBe("deny");
+    expect(older.data["reason"]).toContain(CORE_SDD_VERSION);
+    expect(older.data["reason"]).toContain(NEWER_PIN);
+    const hints = (older.data["hints"] as string[]).join("\n");
+    expect(hints).toContain("installs the CLI of the tag the project pins");
+    expect(hints).not.toContain("set packs.core-sdd.version");
+    expect(hints).not.toContain("pin-Change");
+
+    const r = await repo("IMPLEMENTING");
+    pin(r, NEWER_PIN, { cli: "tools/warrant.js" });
+    const pinned = ((await guard(r, { phase: "pre", action: "edit", paths: ["src/app.ts"] })).data["hints"] as string[]).join("\n");
+    expect(pinned).toContain("tools/warrant.js");
+    expect(pinned).not.toContain("CLI of its tag");
+    expect(pinned).not.toContain("CLI of the tag");
+
+    const q = await repo("IMPLEMENTING");
+    const config = q.json(".warrant/warrant.json");
+    q.write(".warrant/warrant.json", { ...config, packs: { ...config["packs"], "core-xyz": { version: "^1.0.0" } }, cli: "tools/warrant.js" });
+    const missing = await guard(q, { phase: "pre", action: "edit", paths: ["src/app.ts"] });
+    expect(missing.data["reason"]).toContain("PACK_NOT_FOUND");
+    expect((missing.data["hints"] as string[]).join("\n")).toContain("updates tools/warrant.js");
+  });
+});
+
+describe("warrant guard: an exception of the runner (R-46)", () => {
+  it("stdin that fails to read: deny with the hint warrant validate, the reason on stderr, exit 0 (SCN-ENF-052)", async () => {
+    const p = await repo("IMPLEMENTING");
+    const result = await invoke(() =>
+      runGuardRead(p.ctx, () => Promise.reject(new Error("EPIPE: stdin broke")), ENV)
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.ok).toBe(true);
+    expect(result.data["decision"]).toBe("deny");
     expect(result.data["hints"]).toEqual([expect.stringContaining("warrant validate")]);
+    expect(p.warnings.join("")).toContain("EPIPE: stdin broke");
+
+    // The text read reaches the crash handler of bin before the decision (crash.guardInput).
+    const pre = JSON.stringify({ phase: "pre", action: "other", cwd: p.root });
+    let seen: string | undefined;
+    await invoke(() => runGuardRead(p.ctx, () => Promise.resolve(pre), ENV, (input) => (seen = input)));
+    expect(seen).toBe(pre);
   });
 });
 

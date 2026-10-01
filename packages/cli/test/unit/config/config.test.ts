@@ -20,7 +20,8 @@ const READ: Record<string, string> = {
   paths: "paths",
   roles: "roles",
   frontends: "frontends",
-  identities: "agents"
+  identities: "agents",
+  cli: "cli"
 };
 
 /** Properties of `config/1` nobody reads yet: the first reader adds the field (design §2). */
@@ -83,7 +84,8 @@ describe("WarrantConfig ↔ config/1", () => {
       paths: { adr: "docs/adr", glossary: "docs/glossary.md", tests: "tests" },
       roles: new Map([["data-owner", ["<login>"]]]),
       frontends: [],
-      agents: []
+      agents: [],
+      cli: undefined
     });
   });
 
@@ -124,6 +126,11 @@ describe("WarrantConfig ↔ config/1", () => {
     ]);
     expect(agentRoleErrors(both)[0]?.message).toContain("maintainer");
     expect(agentRoleErrors(loadConfig(project({ ...EXAMPLE, roles: { maintainer: ["kat"] }, identities })))).toEqual([]);
+  });
+
+  it("reads cli, the entry file of the pinned CLI (SCN-KRN-165)", () => {
+    expect(loadConfig(project({ ...EXAMPLE, cli: "packages/cli/dist/bin/warrant.js" })).cli).toBe("packages/cli/dist/bin/warrant.js");
+    expect(loadConfig(project(EXAMPLE)).cli).toBeUndefined();
   });
 
   it("reads frontends, and knownFrontends is the enum of config/1 (SCN-KRN-126)", () => {

@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3VAWMZG2JJQTDA3E61HTZ0X",
+  "claim": {
+    "text": "specification/adversarial-review@0.2.0 reviewed the spec of judge-law: 0 BLOCKER, 4 MAJOR, 6 MINOR, 1 INFO",
+    "targets": []
+  },
+  "kind": "review",
+  "level": "L2",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "bddbbe8dd6b87e63b57e7216b0c8f13cb20fec19",
+    "spec_revision": "openspec/changes/judge-law@bddbbe8dd6b87e63b57e7216b0c8f13cb20fec19",
+    "spec_tree": "sha256:bd3a3ba2125fe00485b0ff0e3f7e4a28ced9ef5333ee228f1d25d4956ab621a8",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "skill",
+    "id": "specification/adversarial-review",
+    "version": "0.2.0",
+    "run": "RUN-01M3VACYVJNZZQXZ1ZXTS7C9V3"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:c2f1893d2da4ae6482f5111f00a586e4488226d81a6ec2dac7e86dda53a9f32e",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-01T08:56:55.025Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/runs/RUN-01M3VACYVJNZZQXZ1ZXTS7C9V3.result.json",
+      "sha256": "sha256:adff32797688eb48a09e909b54efc5513dd111ed30954eedbd97474c5bf1bbbc"
+    }
+  ],
+  "limitations": [
+    "produced locally, unattested",
+    "same model family as author"
+  ],
+  "metrics": {
+    "BLOCKER": 0,
+    "INFO": 1,
+    "MAJOR": 4,
+    "MINOR": 6
+  }
+}

@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "judge-law",
-  "commit": "b08086b2b50afc6080054781867db6e5c545f19f",
+  "commit": "bddbbe8dd6b87e63b57e7216b0c8f13cb20fec19",
   "versions": {
     "warrant": "0.10.0",
     "openspec": "1.13.1",
@@ -9,6 +9,7 @@
     "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b"
   },
   "evidence": [
-    "EVID-01M3VA32MWDZ1JHRKM83CEF0DM"
+    "EVID-01M3VA32MWDZ1JHRKM83CEF0DM",
+    "EVID-01M3VAWMZG2JJQTDA3E61HTZ0X"
   ]
 }

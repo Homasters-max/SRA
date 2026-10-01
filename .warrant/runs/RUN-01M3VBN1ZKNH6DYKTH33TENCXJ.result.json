@@ -1,0 +1,182 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3VBN1ZKNH6DYKTH33TENCXJ",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "The fallback for the fork point is \"без такого — merge-base(HEAD^1, HEAD^2)\". It applies when no boundary commit of the PR lies on the first-parent line of HEAD^1. Then merge-base can be a commit off that line. Example: a stacked PR Y was forked from commit F of branch X, X was later merged into main by a merge commit, and Y never merged main. F is reachable from HEAD^1 only through a second parent. Its law is the law of the X branch at F, which may be an intermediate state that no main commit ever held. One way this happens: X weakened `.warrant/local/**` in one commit and restored it in a later one, so the maintainer merged a diff with no net change. The window then admits a law that is not a law of main. This contradicts ADR-0052 п. 4 (\"effective policy на first-parent коммитах main от точки ответвления\") and its reason (\"все законы окна — законы main, их слил maintainer\"). It also conflicts with the requirement's own definition of the window, which is built from the first-parent line. No scenario covers the fallback.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "Make the fallback a commit on the first-parent line. Use the latest commit of the first-parent line of HEAD^1 that is an ancestor of HEAD^2. If there is none, admit only HEAD^1 and HEAD. A transition recorded under the law of a side-branch commit then gets `policy`, with the stated recovery: merge `main` into the branch and repeat the transition. Add a scenario for a stacked branch."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "D3b splits on whether the lock is in the diff. A base lock that does not match the CLI gives LOCK_MISMATCH only \"при diff PR без .warrant/warrant.lock.json\". With the lock in the diff, only the bundled-pack hash case is named (\"закон, изменённый самим PR\"). Two cases with the lock in the diff are not described. The first: the base lock `kernel` is not the CLI kernel. In SRA this happens on every minor bump PR. The second: the lock on HEAD still does not hold the CLI's kernel or bundled hashes, for example because the PR was synced by an older local CLI. In the second case, every main law of the window and the HEAD law are all \"not computed\". Every hash, forged or honest, then gives LAW_NOT_COMPUTED, and the PR's transitions are not checked at all. D3b exists to close exactly this fail-open, and a PR can reopen it just by touching the lock. The exposure is limited: in impl-PRs the lock path is a policy path (`.warrant/**`), so `factory-change` and a maintainer merge are required.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-149",
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "State the outcome for a lock in the diff. For example: the lock on HEAD SHALL hold this CLI's `kernel` (major.minor) and the hash of each bundled pack, else LOCK_MISMATCH, code 3. Otherwise name the kernel-only case and the unsynced-HEAD-lock case as residual risk in design Risks."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-142 sets only the lock of the fork point (a bundled hash that differs from the CLI's). Under D3b the stated outcome holds only if the lock of HEAD^1 holds the CLI's hash (main resynced after the fork point), or if the lock is in the diff. If the fork point is HEAD^1 and the diff has no lock, the same precondition gives LOCK_MISMATCH with code 3 (SCN-VER-149), not LAW_NOT_COMPUTED. With the lock in an impl diff, it also adds `classification` for `factory-change`. So a test written only from the scenario's text can reach any of these outcomes.",
+      "targets": [
+        "SCN-VER-142",
+        "SCN-VER-149"
+      ],
+      "recommendation": "Add to the WHEN clause: \"main после точки ответвления синхронизировал lock (lock HEAD^1 несёт hash pack текущего CLI), diff PR lock не содержит\"."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "Round 3 F-5 is only partly closed. «База требований» still names one exception to reading everything from HEAD^1: \"закон записанного перехода (effective_policy_hash и ключи gates)\". «Record» adds a second one: \"gate или check, которого в базе нет, — из HEAD (его добавил сам PR)\". I-244 says F-5 was removed by D3a, but the HEAD fallback for definitions remains. No scenario or task covers it either. Tasks 5.3 tests only a gate removed in main, not a gate added by the PR whose WAIVED or NOT_APPLICABLE is judged by its HEAD definition.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/judge-law/tasks.md"
+      ],
+      "recommendation": "In «База требований», add: \"и определения gates и checks, которых в базе нет, — из HEAD (их добавил сам PR)\". Add a test to tasks 5.3: a gate added by the PR in `.warrant/local/**`, recorded `WAIVED`, is judged by its HEAD definition."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-ENF-007 says a failure to remove `current` after the Run file is written is \"та же ошибка записи\", that is, by REQ-KRN-036: BUSY, code 4, `retryable: true`, or another write error with code 3. REQ-KRN-036 defines BUSY only for a rename that is rejected repeatedly on Windows. Removing `current` is a deletion (`rmSync`, core/run/lifecycle.ts:118), not an atomic write, so the code of this error is not defined. If it is BUSY, then `retryable: true` and the hint \"повторите\" promise that a repeat can succeed. The same sentence says a repeat gives RUN_NOT_ACTIVE, which contradicts what code 4 means (ADR-0052 п. 2). The output also returns `ok: false` for a submission that has already happened, and the text does not say whether `data.evidence` and `evidence_status` are still output.",
+      "targets": [
+        "REQ-ENF-007",
+        "REQ-KRN-036"
+      ],
+      "recommendation": "Make a failure to remove `current` after the finished Run file a non-retryable outcome. One option: code 0 with a finding and a hint that `current` is stale. Another: a code-3 error without `retryable` whose `data` carries `evidence`, `evidence_status` and `findings`. In both cases state that the Run is finished."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "D3b classifies a base lock that does not match the CLI, with no lock in the diff, as \"не закон, изменённый PR, а CLI, не совпадающий с законом main\". Its hint is \"версия CLI в workflow или warrant sync в main\". This assumes the CLI does not depend on the PR's tree. In SRA the CLI is built from HEAD (design Risks). There, an impl-PR that changes `packs/core-sdd/**` without `warrant sync` is exactly a law changed by the PR. It gets LOCK_MISMATCH with a hint that points at the workflow or `main`, while the fix is `warrant sync` in the PR itself.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-149"
+      ],
+      "recommendation": "Let the hint also name `warrant sync` in the PR. Alternatively, state that the classification assumes a CLI pinned outside the PR tree, and keep SRA's dogfooding covered by `sync --check` and `validate`."
+    },
+    {
+      "id": "F-7",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "D3b changes behavior that consumers see. A base lock that does not hold the CLI's bundled hash, with no lock in the diff, used to give `factory-change` in impl and SCOPE_VIOLATION elsewhere (code 1). Now it gives LOCK_MISMATCH with code 3 on every PR, including `none` and spec-PRs. A stale lock `kernel` is a new code-3 cause. The proposal does not mention this: neither «What Changes» nor «Capabilities», which lists only «Record» and «Ref» while the change is in «База требований». The design D11 CHANGELOG plan («Вердикт», «Миграция для потребителя») does not mention it either.",
+      "targets": [
+        "openspec/changes/judge-law/proposal.md",
+        "openspec/changes/judge-law/design.md",
+        "REQ-VER-011"
+      ],
+      "recommendation": "Add a bullet to «What Changes» (CLI versus the lock of the base: LOCK_MISMATCH, code 3). Add «База требований» to «Capabilities». Add a migration step to D11: upgrade the CLI in the workflow together with `warrant sync` in one PR."
+    },
+    {
+      "id": "F-8",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "contradiction",
+      "statement": "Closure of round 3 (RUN-01M3VB2A0E55B22CSMQM86BFN6, I-244), checked against the text. F-1 (BLOCKER) is closed by option 3 of D-1. Definitions come from the base, the claim is narrowed to \"закон честного record (hash и ключи gates)\", and SCN-VER-148 is added. This matches the code: verdictsRule reads `gateDefinitions(base.loaded)`, core/ci/record.ts:285. F-2 is closed by D3b and SCN-VER-149; see F-2, F-3, F-6 and F-7 for what remains. F-3 is closed (\"одной из других причин\"). F-4 is closed in substance; see F-5 for the code of the error. F-5 is partly closed; see F-4. F-6 is closed (\"Закон HEAD не вычисляется по тем же условиям\"). F-7 is closed (a risk in design). F-8 is closed (D3 and D3a agree). The NOT_APPLICABLE selection in the delta still matches `evidencePart` and `attestationAccepted` (core/gates/verdict.ts:94-101, 166-235). There, `missing` gives BLOCKED before the NOT_APPLICABLE test, which agrees with \"Элемент без выбранной записи ... основания не даёт\".",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-ENF-007"
+      ],
+      "recommendation": "None beyond F-2 through F-7."
+    },
+    {
+      "id": "F-9",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "ambiguity",
+      "statement": "Proposal «Impact» lists `docs/04-lifecycle.md` (\"если там описана сверка hash\"), but tasks group 7 has no step for it, so whether it changes is left to the implementer.",
+      "targets": [
+        "openspec/changes/judge-law/proposal.md",
+        "openspec/changes/judge-law/tasks.md"
+      ],
+      "recommendation": "Either add a step to 7.x (check 04 §2 and §5 for a description of the hash check) or remove the item from Impact."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/judge-law/specs/verification/spec.md",
+      "change": "«Record», the window: \"без такого — последний коммит first-parent линии HEAD^1, который является предком HEAD^2\" instead of merge-base(HEAD^1, HEAD^2). Add a scenario: a stacked branch forked from a commit of a merged side branch. Update design D2 to match."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/judge-law/specs/verification/spec.md",
+      "change": "«База требований»: name the definitions from HEAD for gates and checks missing in the base as a second exception. State the outcome for a lock in the diff whose HEAD state does not hold this CLI's kernel or bundled hashes, and for a lock kernel mismatch with the lock in the diff. Extend the LOCK_MISMATCH hint with `warrant sync` in the PR. SCN-VER-142: state that the lock of HEAD^1 matches the CLI and the diff has no lock."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/judge-law/specs/enforcement/spec.md",
+      "change": "REQ-ENF-007: a failure to remove `current` after the finished Run file is not retryable. Give it code 0 with a finding, or code 3 without `retryable`, with `data.evidence` and `evidence_status`."
+    },
+    {
+      "id": "P-4",
+      "target": "openspec/changes/judge-law/proposal.md",
+      "change": "«What Changes» and «Capabilities»: LOCK_MISMATCH of the CLI against the lock of the base («База требований»). Design D11: a CHANGELOG migration step, upgrade the CLI together with `warrant sync`."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Is a stacked branch (a PR forked from another unmerged feature branch, later retargeted to main) a supported workflow for consumers? The answer decides whether the fallback of the fork point (F-1) can be reached in practice.",
+      "blocking": false,
+      "impact": [
+        "REQ-VER-011",
+        "design D2"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Code facts were checked by range reads in D:/project/SRA-judge-law: core/gates/verdict.ts:88-235, core/ci/record.ts:100-416, core/ci/base.ts:38-133, core/run/lifecycle.ts:90-121, commands/transition.ts:14-43 and 107-206. Other line references of design.md were not re-verified."
+    },
+    {
+      "id": "A-2",
+      "statement": "`factory-change` of core-sdd matches `.warrant/**` (packs/core-sdd/profiles/factory-change.json). So a lock in the diff of an impl-PR requires `factory-change` through classify, and a spec-PR or a none-PR gets SCOPE_VIOLATION. This bounds the fail-open of F-2."
+    },
+    {
+      "id": "A-3",
+      "statement": "As in earlier rounds, `evidence[]` of a transition holds only the records the engine chose. So two records of one element in `evidence[]` (SCN-VER-144) come only from a hand-edited record, which is the case the judge is meant to catch."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Which commit is the fork point when no boundary commit of the PR lies on the first-parent line of HEAD^1 (F-1)?",
+      "options": [
+        "merge-base(HEAD^1, HEAD^2), as now: a side-branch law can enter the window.",
+        "The latest first-parent commit of HEAD^1 that is an ancestor of HEAD^2: the window holds only main laws, and a transition under a side-branch law gets `policy` with the recovery of merging main and repeating the transition.",
+        "No fork point: only window commits that change law inputs, plus HEAD^1 and HEAD."
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:4818d9e4dea743df35eb9c3716d476f1cf115ff01689dc9755502a19028cbf1c",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T15:00:00Z",
+    "finished_at": "2026-10-01T15:40:00Z"
+  }
+}

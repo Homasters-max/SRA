@@ -55,8 +55,8 @@
 
 ## 5. SRA на закреплённом CLI (D5)
 
-- [ ] 5.1 `.warrant/warrant.json`: `"cli": "packages/cli/dist/bin/warrant.js"`; `warrant sync` (lock). `.claude/agents/warrant-reviewer.md` перегенерирован командой из шапки `test/unit/meta/reviewer-agent.test.ts`.
-- [ ] 5.2 `test/unit/meta/dev-hooks.test.ts` — новая команда хука в `AGENT_HOOKS`. Навык `.claude/skills/change-spec-pr/SKILL.md` шаг 3 — `npm run build` вместо `npm link` (форма ADR-0032, `dev-context.test.ts`).
+- [x] 5.1 `.warrant/warrant.json`: `"cli": "packages/cli/dist/bin/warrant.js"`; `warrant sync` (lock). `.claude/agents/warrant-reviewer.md` перегенерирован командой из шапки `test/unit/meta/reviewer-agent.test.ts`.
+- [x] 5.2 `test/unit/meta/dev-hooks.test.ts` — новая команда хука в `AGENT_HOOKS`. Навык `.claude/skills/change-spec-pr/SKILL.md` шаг 3 — `npm run build` вместо `npm link` (форма ADR-0032, `dev-context.test.ts`).
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts reviewer-agent dev-hooks dev-context`; полный `npm test`.
 

@@ -126,7 +126,7 @@ Status: normative · Maturity: MVP
 ```text
 propose / specify  → ветка spec/<change> от актуального main → PR → human review → merge   (SPECIFIED → APPROVED)
 implement          → ветка worktree/<change> (worktree SHOULD) → PR → CI gates → merge      (VERIFYING → MERGED)
-archive            → warrant ci fetch, warrant archive → ветка archive/<change> → PR или push в main (MERGED → ARCHIVED)
+archive            → warrant ci fetch, warrant archive → ветка archive/<change> → PR → merge                  (MERGED → ARCHIVED)
 ```
 
 Вердикт каждого PR выносит `warrant ci` в CI (§6, §7): impl-PR — на результате merge с tip базы, так что evidence судит то, что вливается в `main` (R-12); `main` сдвинулся до merge — Re-run job, после merge — run восстановления `workflow_dispatch` на merge-коммите ([ADR-0037](adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 3, 4).
@@ -137,7 +137,8 @@ archive            → warrant ci fetch, warrant archive → ветка archive/
 - Merge MUST проходить через CI, который заново вычисляет gates; ни одного коммита в `main` вне PR.
 - Транзиции record едут в *следующем* PR ([§9](#9-change-record)); между PR `warrant status` показывает `STALE` штатно.
 - `openspec archive` MUST вызываться только через `warrant archive`: OpenSpec сам не проверяет граф artifacts и архивирует пустой Change (spike S2).
-- Отказ от Change — ветка `abandon/<change>`: `warrant transition … ABANDONED` и удаление каталога одним коммитом → PR или push как для archive ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md) п. 8).
+- Отказ от Change — ветка `abandon/<change>`: `warrant transition … ABANDONED` и удаление каталога одним коммитом → PR ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md) п. 8).
+- Archive и abandon — только PR: судья на push в `main` не запускается ([ADR-0052](adr/WARRANT-ADR-0052-cycle-1-close.md) п. 7).
 
 ## 6. Enforcement
 

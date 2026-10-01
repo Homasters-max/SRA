@@ -276,7 +276,7 @@ Waiver — явное временное исключение из конкре�
 - Waiver действует на один gate одного Change. Waiver ≠ изменение policy.
 - Gates с `waivable: false` MUST NOT отменяться waiver (`human-approval`, `scope-valid` и др.).
 - Истёкший waiver → `EXPIRED`; gate перевычисляется.
-- Агент MAY предложить waiver (`PROPOSED`, `warrant waive <change> <gate> …`), но не активировать его. Активирует и отзывает человек: `warrant waive --activate <WAV> --by <login>` (пишет `approved_by`), `warrant waive --revoke <WAV> --by <login>`; до `warrant ci` (фаза 4) `--by` — заявление, как у `transition`. Gate засчитывает только `ACTIVE` неистёкший waiver с `approved_by` ∈ roles (R-2).
+- Агент MAY предложить waiver (`PROPOSED`, `warrant waive <change> <gate> …`), но не активировать его. Активирует и отзывает человек: `warrant waive --activate <WAV> --by <login>` (пишет `approved_by`), `warrant waive --revoke <WAV> --by <login>`; `--by` — заявление, как у `transition`. Актом человека активацию делает merge maintainer'ом PR, который вносит файл waiver в `ACTIVE`: `.warrant/waivers/**` — путь класса с приёмкой человеком проекта, spec-PR сливает maintainer, у impl-PR судья проверяет `merged_by` ([ADR-0052](adr/WARRANT-ADR-0052-cycle-1-close.md) п. 8). Gate засчитывает только `ACTIVE` неистёкший waiver с `approved_by` ∈ roles (R-2).
 
 ### Частичный waiver
 

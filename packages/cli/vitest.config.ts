@@ -6,8 +6,10 @@ import { fileURLToPath } from "node:url";
 /**
  * Test levels (ADR-0025 п. 1, 8): directory = level = vitest project.
  *
- * - `unit`, `app` — no processes (setup file `forbid-spawn.ts`), 5 s per test,
- *   `threads` pool with the default number of workers;
+ * - `unit`, `app` — no processes (setup file `forbid-spawn.ts`), `threads` pool
+ *   with the default number of workers; `unit` 5 s per test, `app` 15 s
+ *   (ADR-0054): one `app` test runs several scenarios in a temporary project and
+ *   on a Windows runner took up to 6.4 s, while 5 s keeps `unit` fast;
  * - `contract`, `e2e` — processes allowed, 60 s per test, `forks` pool capped at
  *   `HEAVY_FORKS`: vitest 3.2 has no per-project worker limit, so the cap is set
  *   on the pool the heavy levels alone use (I-119); both need openspec 1.13.1
@@ -17,8 +19,7 @@ import { fileURLToPath } from "node:url";
  * Outside CI the `threads` pool is capped at `LOCAL_THREADS` (a third of the
  * cores): on a developer machine busy with other sessions the default (cores
  * − 1) made single `app` tests cross 5 s; with the cap the wall time of
- * `test:fast` is the same. The 5 s limit stays (ADR-0025 п. 8); CI keeps the
- * default.
+ * `test:fast` is the same. CI keeps the default (ADR-0054 п. 3).
  */
 export const LEVELS = ["unit", "app", "contract", "e2e"] as const;
 
@@ -37,10 +38,13 @@ const PACK_CHECKOUT = "test/helpers/pack-checkout.ts";
  * I-138): while `contract`/`e2e` spawn `warrant`, `openspec` and `git`, every
  * core is busy with process start-up and the filesystem of the temporary
  * projects: `app` files ran 4–5 times slower than alone, and their first test
- * (cold schemas and packs) crossed the 5 s limit. The 5 s limit stays.
+ * (cold schemas and packs) crossed the 5 s limit.
  */
 const LIGHT_GROUP = 0;
 const HEAVY_GROUP = 1;
+
+/** Per test and per hook, ms (ADR-0025 п. 8, ADR-0054 п. 1–2). */
+const LIGHT_TIMEOUT = { unit: 5_000, app: 15_000 } as const;
 
 const light = (name: "unit" | "app") => ({
   extends: true as const,
@@ -50,8 +54,8 @@ const light = (name: "unit" | "app") => ({
     pool: "threads" as const,
     sequence: { groupOrder: LIGHT_GROUP },
     setupFiles: [FORBID_SPAWN],
-    testTimeout: 5_000,
-    hookTimeout: 5_000
+    testTimeout: LIGHT_TIMEOUT[name],
+    hookTimeout: LIGHT_TIMEOUT[name]
   }
 });
 

@@ -2,7 +2,7 @@
   "$schema": "warrant://pack/1",
   "id": "policy",
   "version": "1.0.0",
-  "kernel": ">=0.1 <0.10",
+  "kernel": ">=0.1 <0.11",
   "description": "Fixture pack: profiles, a default overlay and risk overlays for the resolver golden cases.",
   "depends_on": {},
   "provides": {

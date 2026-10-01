@@ -1,6 +1,6 @@
 {
   "name": "warrant",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "description": "WARRANT — specification governance CLI over OpenSpec",
   "license": "UNLICENSED",

@@ -4,8 +4,8 @@
 
 ## 1. Версии 0.10.0 (D11, D12)
 
-- [ ] 1.1 `package.json` — `0.10.0`; `CHANGELOG.md` — `## 0.10.0` с разделами «Вердикт» и «Миграция для потребителя» по D12; `.warrant/warrant.json` — `kernel: "0.10"`.
-- [ ] 1.2 Pack `core-sdd` 0.4.1, `kernel: ">=0.1 <0.11"` (REQ-SDD-001, SCN-SDD-001); тест `core-sdd-catalog`; `warrant sync` (lock), `scripts/golden-update.js` (golden).
+- [x] 1.1 `package.json` — `0.10.0`; `CHANGELOG.md` — `## 0.10.0` с разделами «Вердикт» и «Миграция для потребителя» по D12; `.warrant/warrant.json` — `kernel: "0.10"`.
+- [x] 1.2 Pack `core-sdd` 0.4.1, `kernel: ">=0.1 <0.11"` (REQ-SDD-001, SCN-SDD-001); тест `core-sdd-catalog`; `warrant sync` (lock), `scripts/golden-update.js` (golden).
 
   Проверка: `node scripts/dev/check.js`; `npx vitest run --config packages/cli/vitest.config.ts golden core-sdd`.
 

@@ -85,6 +85,8 @@ KERNEL (меняется редко)                PACKS (подключают�
 }
 ```
 
+Необязательное `cli` — файл входа CLI, который закрепил проект, путём от корня (например `node_modules/warrant/packages/cli/dist/bin/warrant.js` или, в репозитории WARRANT, `packages/cli/dist/bin/warrant.js`). С ним `warrant sync` пишет в хуки frontend и субагента review команду `node "${CLAUDE_PROJECT_DIR:-.}/<cli>"` вместо первого `warrant` в PATH ([ADR-0053](adr/WARRANT-ADR-0053-guard-recovery.md) п. 3).
+
 `.warrant/warrant.lock.json` — вычисленный файл: точные версии packs и skills + content hash каждого. Lock MUST генерироваться CLI и MUST NOT редактироваться вручную.
 
 ## 4. Разрешение и коллизии

@@ -62,8 +62,8 @@
 
 ## 6. Документы (D7)
 
-- [ ] 6.1 `docs/08-packs.md` §3 — `cli`. `docs/process/rules.md` «Настройка машины» — CLI потребителя из тега.
-- [ ] 6.2 `CHANGELOG.md` `## 0.10.0` — «Миграция для потребителя» и строка состава; «Вердикт» — guard не судья, без изменений.
-- [ ] 6.3 Навык `warrant-upgrade` (`~/.claude/skills/warrant-upgrade/SKILL.md`, вне репозитория): подъём minor pack, порядок «закрепление, затем CLI», `cli`, CLI из тега на машине.
+- [x] 6.1 `docs/08-packs.md` §3 — `cli`. `docs/process/rules.md` «Настройка машины» — CLI потребителя из тега.
+- [x] 6.2 `CHANGELOG.md` `## 0.10.0` — «Миграция для потребителя» и строка состава; «Вердикт» — guard не судья, без изменений.
+- [x] 6.3 Навык `warrant-upgrade` (`~/.claude/skills/warrant-upgrade/SKILL.md`, вне репозитория): подъём minor pack, порядок «закрепление, затем CLI», `cli`, CLI из тега на машине.
 
   Проверка: `node scripts/dev/check.js`; `node scripts/dev/hygiene.js` — без новых битых ссылок.

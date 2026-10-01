@@ -49,6 +49,18 @@
 
 ## Настройка машины
 
+CLI потребителя на машине — из тега ([ADR-0053](../adr/WARRANT-ADR-0053-guard-recovery.md) п. 4, форма [ADR-0040](../adr/WARRANT-ADR-0040-slice-fixes.md) п. 7): `npm pack` вне checkout, затем глобальная установка tarball. Ставит maintainer, вне сессии агента:
+
+```bash
+npm pack github:Homasters-max/SRA#v<тег>
+```
+
+```bash
+npm i -g ./warrant-<версия>.tgz
+```
+
+`npm link` на dev-checkout SRA — только для разработки WARRANT: при нём версия CLI потребителя меняется с каждым merge в SRA. Сам репозиторий WARRANT от PATH не зависит: `cli` в `.warrant/warrant.json` — его dev-CLI, хук субагента `warrant-reviewer` исполняет `packages/cli/dist/bin/warrant.js` основного checkout, `run submit` — worktree; навыки зовут `node packages/cli/dist/bin/warrant.js`. После `git pull` основного checkout — `npm run build`.
+
 Профиль OpenSpec (ADR-0032 п. 8) — один раз на машину, затем `openspec update` в корне репозитория не создаёт `openspec-archive-change`, `openspec-sync-specs` и `.claude/commands/opsx/`:
 
 ```bash

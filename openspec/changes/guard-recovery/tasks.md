@@ -9,8 +9,8 @@
 
 ## 1. Поле `cli` (D3)
 
-- [ ] 1.1 `packages/cli/schemas/config.1.schema.json`: необязательное `cli` — шаблон REQ-KRN-004, `description`. `core/config.ts`: `WarrantConfig.cli?: string`, список читаемых свойств `test/unit/config/config.test.ts`.
-- [ ] 1.2 Фикстуры `test/fixtures/schemas/config/` — валидный `cli` и четыре невалидных (SCN-KRN-165), тег SCN в `unit/schemas/fixtures.test.ts`.
+- [x] 1.1 `packages/cli/schemas/config.1.schema.json`: необязательное `cli` — шаблон REQ-KRN-004, `description`. `core/config.ts`: `WarrantConfig.cli?: string`, список читаемых свойств `test/unit/config/config.test.ts`.
+- [x] 1.2 Фикстуры `test/fixtures/schemas/config/` — валидный `cli` и четыре невалидных (SCN-KRN-165), тег SCN в `unit/schemas/fixtures.test.ts`.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts config fixtures`.
 

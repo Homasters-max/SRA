@@ -112,7 +112,7 @@ describe("warrant sync", () => {
     expect(check.ok).toBe(true);
   });
 
-  it("--check reports GENERATED_DRIFT with exit code 1 after config.yaml is edited", async () => {
+  it("--check reports GENERATED_DRIFT with exit code 3 after config.yaml is edited (REQ-KRN-025)", async () => {
     const p = project();
     expect((await sync(p)).exitCode).toBe(0);
     const config = path.join(p.root, "openspec", "config.yaml");
@@ -120,7 +120,7 @@ describe("warrant sync", () => {
     writeFileSync(config, before.replace("schema: warrant-sdd", "schema: warrant-sdd # edited"), "utf8");
 
     const run = await sync(p, { check: true });
-    expect(run.exitCode).toBe(1);
+    expect(run.exitCode).toBe(3);
     expect(run.ok).toBe(false);
     expect(run.data["changed"]).toEqual(["openspec/config.yaml"]);
     const drift = run.errors.find((e) => e.code === "GENERATED_DRIFT");

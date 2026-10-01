@@ -26,7 +26,7 @@
  */
 import { checksForTransition } from "../core/check/execute.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, WarrantError, type ExitCode } from "../core/errors.js";
+import { WarrantError } from "../core/errors.js";
 import { archivePlan, findChangeDir } from "../core/openspec/changes.js";
 import { packObjects } from "../core/packs/objects.js";
 import type { LoadResult, PackObject } from "../core/packs/types.js";
@@ -74,9 +74,9 @@ async function archive(ctx: Ctx, change: string, env: NodeJS.ProcessEnv): Promis
 
   const evaluated = await evaluate(ctx, change, { transition: ARCHIVE_TRANSITION, checks: archiveChecks, base: undefined, env, record });
   if (!evaluated.ok) {
-    if (!evaluated.conflict) return failures(evaluated.errors, EXIT.CONFIG, {}, change);
+    if (!evaluated.conflict) return failures(evaluated.errors, {}, change);
     const { error, transition, decision } = evaluated;
-    return failures([error], EXIT.WAIT, { transition, checks: [], gates: {}, findings: [], ...decisionFields(decision) }, change);
+    return failures([error], { transition, checks: [], gates: {}, findings: [], ...decisionFields(decision) }, change, decision.controller_action);
   }
   const { policy, run, evaluation } = evaluated;
   const transition = evaluation.transition;
@@ -93,8 +93,7 @@ async function archive(ctx: Ctx, change: string, env: NodeJS.ProcessEnv): Promis
   const failed = gatesNotPassed(evaluation.engine.gates);
   if (failed.length > 0) {
     const refused = gatesNotPassedRefusal(evaluation, failed);
-    const code = Math.max(refused.exitCode, run.exitCode) as ExitCode;
-    return failures([...run.errors, refused.error], code, data, change);
+    return failures([...run.errors, refused.error], data, change, refused.outcome);
   }
   for (const error of run.errors) warn(`archive: ${error.code}: ${error.message}\n`);
 
@@ -114,7 +113,6 @@ async function archive(ctx: Ctx, change: string, env: NodeJS.ProcessEnv): Promis
           path: `openspec/changes/${change}`
         }
       ],
-      EXIT.CONFIG,
       data,
       change
     );

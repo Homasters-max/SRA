@@ -196,28 +196,22 @@ export function exitCodeFor(errors: readonly Pick<CliError, "code">[], outcome?:
 
 /**
  * Exception carrying a catalogued code. Core modules throw it; the command
- * layer converts it into `errors[]` and the exit code (design D-8).
+ * layer converts it into `errors[]` (design D-8). Its exit code is the class
+ * of `code` (`exitCodeFor`, exit-contract D4): a throwing site never chooses one.
  */
 export class WarrantError extends Error {
   readonly code: ErrorCode;
   readonly path: string | undefined;
   readonly hint: string | undefined;
-  /**
-   * @deprecated Transitional (exit-contract group 3 removes it with the option
-   * `exitCode`): the code a throwing site chose itself, 3 when it chose none.
-   * The code of an error is the class of `code` (`exitCodeFor`, design D4).
-   */
-  readonly exitCode: ExitCode;
   /** What the failing command puts in `data` (`{}` without it), e.g. `received` of `SKILL_RESULT_INVALID` (I-199). */
   readonly data: Record<string, unknown> | undefined;
 
-  constructor(code: ErrorCode, message: string, options: ErrorOptions & { exitCode?: ExitCode; data?: Record<string, unknown> } = {}) {
+  constructor(code: ErrorCode, message: string, options: ErrorOptions & { data?: Record<string, unknown> } = {}) {
     super(message);
     this.name = "WarrantError";
     this.code = code;
     this.path = options.path;
     this.hint = options.hint;
-    this.exitCode = options.exitCode ?? EXIT.CONFIG;
     this.data = options.data;
   }
 
@@ -231,7 +225,7 @@ export class WarrantError extends Error {
 
 /**
  * The one form of `FORGE_UNAVAILABLE` of `ForgePort` (REQ-VER-011, REQ-VER-012):
- * code 3, `hint` about `gh auth login` or `GH_TOKEN` unless another fixes it.
+ * class `retry` (exit 4), `hint` about `gh auth login` or `GH_TOKEN` unless another fixes it.
  */
 export function forgeUnavailable(message: string, hint: string = FORGE_HINT): WarrantError {
   return new WarrantError("FORGE_UNAVAILABLE", message, { hint });

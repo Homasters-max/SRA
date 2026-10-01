@@ -10,19 +10,18 @@ import path from "node:path";
 import { writeJsonFile } from "../canon/format-json.js";
 import { loadConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
-import { cliError, EXIT, SYNC_HINT, type CliError, type ExitCode } from "../errors.js";
+import { cliError, SYNC_HINT, type CliError } from "../errors.js";
 import { requireOpenspec } from "../openspec/version.js";
 import { LOCK_REL } from "../packs/hash.js";
 import { loadPacks } from "../packs/loader.js";
 import { readAtSessionStart, RESTART_HINT } from "./claude.js";
 import { planSync, subsetDrift, type SyncFinding, type SyncPlan } from "./plan.js";
 
-/** What a run of `sync` left: `data` of the command, its errors and exit code. */
+/** What a run of `sync` left: `data` of the command and its errors (their class gives the exit code). */
 export interface SyncOutcome {
   ok: boolean;
   data: Record<string, unknown>;
   errors: CliError[];
-  exitCode: ExitCode;
 }
 
 /** Error code a drifted file is reported under: the lock has its own. */
@@ -41,12 +40,12 @@ function payload(plan: SyncPlan, changed: string[], restart: SyncFinding[] = [])
   };
 }
 
-function syncFailed(errors: CliError[], exitCode: ExitCode, data: Record<string, unknown>): SyncOutcome {
-  return { ok: false, data, errors, exitCode };
+function syncFailed(errors: CliError[], data: Record<string, unknown>): SyncOutcome {
+  return { ok: false, data, errors };
 }
 
 function syncDone(data: Record<string, unknown>): SyncOutcome {
-  return { ok: true, data, errors: [], exitCode: EXIT.OK };
+  return { ok: true, data, errors: [] };
 }
 
 /**
@@ -65,12 +64,12 @@ export async function applySync(ctx: Ctx, check: boolean): Promise<SyncOutcome> 
   if (loaded.errors.length > 0) {
     // Any loader finding makes the pack set unusable: generating from half a
     // pack set would write files the project never asked for.
-    return syncFailed(loaded.errors, EXIT.CONFIG, { schema: "", changed: [], generated: [], stale: [], findings: [] });
+    return syncFailed(loaded.errors, { schema: "", changed: [], generated: [], stale: [], findings: [] });
   }
 
   const plan = planSync({ root, loaded, openspecVersion });
   if (plan.errors.length > 0) {
-    return syncFailed(plan.errors, EXIT.CONFIG, payload(plan, []));
+    return syncFailed(plan.errors, payload(plan, []));
   }
 
   // A generated file the plan dropped (REQ-KRN-033) is a change too: deleted, or drift under `--check`.
@@ -85,7 +84,7 @@ export async function applySync(ctx: Ctx, check: boolean): Promise<SyncOutcome> 
       ),
       ...subsetDrift(plan)
     ];
-    return syncFailed(errors, EXIT.FAIL, payload(plan, changed));
+    return syncFailed(errors, payload(plan, changed));
   }
 
   for (const rel of plan.removed) rmSync(path.join(root, rel), { force: true });

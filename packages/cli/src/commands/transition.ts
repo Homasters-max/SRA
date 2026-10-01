@@ -38,7 +38,7 @@ import { rmSync } from "node:fs";
 import path from "node:path";
 
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, WarrantError } from "../core/errors.js";
+import { WarrantError } from "../core/errors.js";
 import { HUMAN_APPROVAL } from "../core/evidence/approval.js";
 import { mergedCommitFacts, readGitFacts, type GitFacts } from "../core/git/facts.js";
 import { findChangeDir } from "../core/openspec/changes.js";
@@ -175,9 +175,9 @@ async function forward(params: ForwardParams): Promise<CommandResult> {
   const { root, warn } = ctx;
   const prepared = prepare(ctx, change, { transition, env, record });
   if (!prepared.ok) {
-    if (!prepared.conflict) return failures(prepared.errors, EXIT.CONFIG, {}, change);
+    if (!prepared.conflict) return failures(prepared.errors, {}, change);
     const { error, decision } = prepared;
-    return failures([error], EXIT.WAIT, { transition, gates: {}, findings: [], ...decisionFields(decision) }, change);
+    return failures([error], { transition, gates: {}, findings: [], ...decisionFields(decision) }, change, decision.controller_action);
   }
   const { policy } = prepared;
 
@@ -208,7 +208,7 @@ async function forward(params: ForwardParams): Promise<CommandResult> {
   const failed = gatesNotPassed(evaluation.engine.gates);
   if (failed.length > 0) {
     const refused = gatesNotPassedRefusal(evaluation, failed);
-    return failures([refused.error], refused.exitCode, data, change);
+    return failures([refused.error], data, change, refused.outcome);
   }
   if (target === "MERGED") assertOneRun(root, change, env, evaluation);
 

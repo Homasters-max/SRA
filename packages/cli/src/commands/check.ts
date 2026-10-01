@@ -22,7 +22,7 @@
 import { checksForTransition, executeChecks } from "../core/check/execute.js";
 import { splitPaths } from "../core/check/placeholders.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, WarrantError } from "../core/errors.js";
+import { WarrantError } from "../core/errors.js";
 import { readGitFacts } from "../core/git/facts.js";
 import { loadPacks } from "../core/packs/loader.js";
 import { packObjects } from "../core/packs/objects.js";
@@ -50,15 +50,14 @@ export async function runCheck(
   const { root } = ctx;
   requireConfigPath(root);
   const loaded = loadPacks(root);
-  if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
+  if (loaded.errors.length > 0) return failures(loaded.errors, {}, change);
 
   const record = readChangeRecord(root, change);
   const resolved = resolveForProject(loaded, record["classification"] as Classification | undefined);
-  if (resolved.errors.length > 0) return failures(resolved.errors, EXIT.CONFIG, {}, change);
+  if (resolved.errors.length > 0) return failures(resolved.errors, {}, change);
   if (!resolved.result.ok) {
     return failures(
       [{ code: "POLICY_CONFLICT", message: `${change}: ${resolved.result.conflict.message}` }],
-      EXIT.WAIT,
       { controller_action: "ESCALATE" },
       change
     );
@@ -87,9 +86,9 @@ export async function runCheck(
   if (paths !== undefined && paths.length === 0) throw new WarrantError("USAGE", "--paths lists no path");
 
   const run = await executeChecks({ ctx, change, loaded, policy, selected, facts: await readGitFacts(ctx, opts.base), paths, env });
-  const { entries, errors, exitCode, holder } = run;
+  const { entries, errors, holder } = run;
   const data: Record<string, unknown> = { transition, checks: entries };
   if (holder !== undefined) data["holder"] = holder;
-  if (errors.length > 0) return failures(errors, exitCode, data, change);
+  if (errors.length > 0) return failures(errors, data, change);
   return success(data, change);
 }

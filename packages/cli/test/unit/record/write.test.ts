@@ -6,7 +6,7 @@ import { mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { WarrantError } from "../../../src/core/errors.js";
+import { exitCodeFor, WarrantError } from "../../../src/core/errors.js";
 import { CHANGE_STATES, transitionKind } from "../../../src/core/record/lifecycle.js";
 import { appendTransition, assertNotFrozen, withTransition } from "../../../src/core/record/write.js";
 import { createWrites } from "../../../src/core/writes.js";
@@ -64,7 +64,7 @@ describe("record freeze (SCN-VER-035)", () => {
           call();
         } catch (thrown) {
           expect((thrown as WarrantError).code).toBe("RECORD_FROZEN");
-          expect((thrown as WarrantError).exitCode).toBe(3);
+          expect(exitCodeFor([thrown as WarrantError])).toBe(3);
         }
       } else {
         expect(call).not.toThrow();

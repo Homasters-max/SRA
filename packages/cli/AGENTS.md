@@ -5,7 +5,7 @@
 ## Код
 
 - TypeScript ESM `NodeNext`: в импортах — `.js`; `strict` + `exactOptionalPropertyTypes`.
-- Ошибка — `WarrantError(code, message, { path, exitCode })` из `src/core/errors.ts`; вывод команды — `success` / `failure` / `failures` из `src/io/output.ts`; коды выхода 0/1/2/3 (04 §7).
+- Ошибка — `WarrantError(code, message, { path, hint })` из `src/core/errors.ts`; вывод команды — `success` / `failure` / `failures(errors, data, change?, outcome?)` из `src/io/output.ts`. Код выхода 0…4 считает `exitCodeFor` по классу кода ошибки и действию controller (REQ-KRN-003); место вызова его не выбирает.
 - Команда регистрируется в `src/bin/warrant.ts` через `register` и получает `Ctx`: `runX(ctx, …)`. Команда не импортирует другую команду, кроме `commands/context.ts`; сценарий оценки перехода — `core/transition`.
 - Процессы (`git`, `openspec`, `gh`, checks) — только в `src/adapters/**` через порты `src/core/ports/**` ([ADR-0025](../../docs/adr/WARRANT-ADR-0025-test-levels.md)). Новый внешний вызов = метод порта + адаптер + фейк + сценарий контракта.
 - Модули и ранги — `test/unit/meta/architecture.json` ([ADR-0030](../../docs/adr/WARRANT-ADR-0030-module-boundaries.md)): импорт только своего или нижнего ранга; общий помощник — у владельца из реестра (`isPlainObject`, `strings` → `core/json.ts`), перечисление словаря — у владельца (lifecycle — `core/record/lifecycle.ts`).

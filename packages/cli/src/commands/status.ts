@@ -20,7 +20,7 @@
  * is `BLOCKED` with a finding, not an error of the command.
  */
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, type CliError } from "../core/errors.js";
+import type { CliError } from "../core/errors.js";
 import { readGitFacts, type Availability } from "../core/git/facts.js";
 import type { Finding, Verdict } from "../core/gates/types.js";
 import { findChangeDir } from "../core/openspec/changes.js";
@@ -177,7 +177,7 @@ export async function runStatus(ctx: Ctx, change: string | undefined, env: NodeJ
   requireConfigPath(root);
 
   const loaded = loadPacks(root);
-  if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
+  if (loaded.errors.length > 0) return failures(loaded.errors, {}, change);
 
   const hasOpenspec = await openspecAvailable(ctx.openspec);
   const names = change === undefined || change === "" ? listChangeNames(root) : [change];
@@ -201,20 +201,19 @@ export async function runStatus(ctx: Ctx, change: string | undefined, env: NodeJ
     errors.push(...one.errors);
   }
 
-  // A conflict escalates (exit 2); a broken layer is a configuration fault (exit 3).
+  // A conflict escalates (class `wait`, exit 2); a broken layer is a configuration fault (exit 3), the elder.
   const onlyConflicts = errors.every((error) => error.code === "POLICY_CONFLICT");
-  const exitCode = onlyConflicts ? EXIT.WAIT : EXIT.CONFIG;
   const escalation = onlyConflicts ? { controller_action: "ESCALATE" } : {};
 
   if (change !== undefined && change !== "") {
     const only = statuses[0] as ChangeStatus;
     // The payload stays: `status` must report the stale signals it found even
     // when the policy escalates.
-    if (errors.length > 0) return failures(errors, exitCode, { ...only, ...escalation }, change);
+    if (errors.length > 0) return failures(errors, { ...only, ...escalation }, change);
     return success({ ...only }, change);
   }
 
   const data = { changes: statuses, rules: rulesSummary(loaded.rules) };
-  if (errors.length > 0) return failures(errors, exitCode, { ...data, ...escalation });
+  if (errors.length > 0) return failures(errors, { ...data, ...escalation });
   return success(data);
 }

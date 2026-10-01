@@ -35,7 +35,7 @@ import path from "node:path";
 import { classify, dimensionValueOrder, type HumanValues, type Proposal } from "../core/classify/index.js";
 import { collectFloors, collectProfileMatches } from "../core/classify/packs.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, WarrantError, type CliError } from "../core/errors.js";
+import { WarrantError, type CliError } from "../core/errors.js";
 import { changedFromGit } from "../core/git/paths.js";
 import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
@@ -249,11 +249,11 @@ export async function runClassify(ctx: Ctx, change: string, opts: ClassifyOption
       : await changedFromBase(ctx, opts.base !== undefined && opts.base !== "" ? opts.base : "main");
 
   const loaded = loadPacks(root);
-  if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
+  if (loaded.errors.length > 0) return failures(loaded.errors, {}, change);
   if (proposal?.profiles !== undefined) checkProposedProfiles(loaded, proposal.profiles);
   if (ref !== undefined && login !== undefined) {
     const { roles, errors } = belowFloorRoles(loaded, record);
-    if (errors.length > 0) return failures(errors, EXIT.CONFIG, {}, change);
+    if (errors.length > 0) return failures(errors, {}, change);
     if (!roleMembers(loaded.config, roles).has(login)) {
       throw new WarrantError(
         "ROLE_REQUIRED",
@@ -281,7 +281,7 @@ export async function runClassify(ctx: Ctx, change: string, opts: ClassifyOption
       message: `--set ${b.dimension}=${b.value} is below the floor ${b.floor} (${b.from}); lowering below the floor needs --ref <url> of its approval`,
       path: `#/classification/risk/${b.dimension}`
     }));
-    return failures(errors, EXIT.CONFIG, { changed, below_floor: result.belowFloor }, change);
+    return failures(errors, { changed, below_floor: result.belowFloor }, change);
   }
 
   writeRecord(ctx, change, record, { ...record, classification: result.classification });
@@ -294,10 +294,10 @@ export async function runClassify(ctx: Ctx, change: string, opts: ClassifyOption
     ignored: result.ignored
   };
 
-  if (errors.length > 0) return failures(errors, EXIT.CONFIG, data, change);
+  if (errors.length > 0) return failures(errors, data, change);
   if (!resolved.ok) {
     const conflicts: CliError[] = [{ code: "POLICY_CONFLICT", message: resolved.conflict.message }];
-    return failures(conflicts, EXIT.WAIT, { ...data, controller_action: "ESCALATE", conflicts: resolved.conflict.items }, change);
+    return failures(conflicts, { ...data, controller_action: "ESCALATE", conflicts: resolved.conflict.items }, change);
   }
 
   const { explain: _explain, ...policy } = resolved.policy;

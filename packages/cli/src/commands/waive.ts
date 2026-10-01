@@ -24,7 +24,7 @@ import path from "node:path";
 
 import { writeJsonFile } from "../core/canon/format-json.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, WarrantError, type CliError } from "../core/errors.js";
+import { WarrantError, type CliError } from "../core/errors.js";
 import { allocateWaiver } from "../core/ids/allocate.js";
 import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
@@ -137,7 +137,7 @@ function create(ctx: Ctx, args: string[], opts: WaiveOptions): CommandResult {
   assertNotFrozen(record, change);
 
   const loaded = loadPacks(root);
-  if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
+  if (loaded.errors.length > 0) return failures(loaded.errors, {}, change);
   const gate = packObjects(loaded, "gate").find((o) => o.id === gateId);
   if (gate === undefined) {
     throw new WarrantError("WAIVER_INVALID", `gate "${gateId}" is not declared by any enabled pack or by .warrant/local/`);
@@ -195,7 +195,7 @@ function changeState(ctx: Pick<Ctx, "root" | "writes">, mode: WaiverMove, id: st
   }
 
   const loaded = loadPacks(root);
-  if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {});
+  if (loaded.errors.length > 0) return failures(loaded.errors, {});
   if (!roleMembers(loaded.config, [WAIVER_ROLE]).has(by)) {
     throw new WarrantError("ROLE_REQUIRED", `${by} is not listed in roles "${WAIVER_ROLE}" of .warrant/warrant.json, required to ${mode} a waiver`, {
       path: ".warrant/warrant.json"

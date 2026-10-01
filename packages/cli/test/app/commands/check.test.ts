@@ -326,7 +326,7 @@ describe("warrant check", () => {
     writeFileSync(lock, JSON.stringify(holder), "utf8");
 
     const run = await check(p, ["tests-passed"]);
-    expect(run.exitCode).toBe(2);
+    expect(run.exitCode).toBe(4);
     expect(run.errors[0]?.code).toBe("BUSY");
     expect(toEnvelope("check", run).errors[0]).toMatchObject({ code: "BUSY", retryable: true });
     expect(run.data["holder"].pid).toBe(process.pid);

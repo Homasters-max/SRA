@@ -61,19 +61,9 @@ export function formatEnvelope(envelope: Envelope): string {
   return JSON.stringify(envelope, null, 2) + "\n";
 }
 
-/**
- * The one builder of a result: its exit code is `exitCodeFor(errors, outcome)`
- * (REQ-KRN-003). `legacy` — transitional, see `failures`.
- */
-function build(
-  ok: boolean,
-  data: Record<string, unknown>,
-  errors: CliError[],
-  change: string | undefined,
-  outcome: Outcome | undefined,
-  legacy?: ExitCode
-): CommandResult {
-  const result: CommandResult = { ok, data, errors, exitCode: legacy ?? exitCodeFor(errors, outcome) };
+/** The one builder of a result: its exit code is `exitCodeFor(errors, outcome)` (REQ-KRN-003). */
+function build(ok: boolean, data: Record<string, unknown>, errors: CliError[], change: string | undefined, outcome: Outcome | undefined): CommandResult {
+  const result: CommandResult = { ok, data, errors, exitCode: exitCodeFor(errors, outcome) };
   if (change !== undefined) result.change = change;
   if (outcome !== undefined) result.outcome = outcome;
   return result;
@@ -81,27 +71,15 @@ function build(
 
 /** Builds a failing result from a catalogued error. */
 export function failure(error: WarrantError, change?: string): CommandResult {
-  // Transitional: `WarrantError.exitCode` until exit-contract group 3 removes it.
-  return build(false, error.data ?? {}, [error.toCliError()], change, undefined, error.exitCode);
+  return build(false, error.data ?? {}, [error.toCliError()], change, undefined);
 }
 
 /**
  * Builds a failing result from several collected errors (validate reports
  * everything at once) and the outcome that enters the exit code (exit-contract D4).
  */
-export function failures(errors: CliError[], data?: Record<string, unknown>, change?: string, outcome?: Outcome): CommandResult;
-/** @deprecated Transitional (exit-contract group 3 removes it): the exit code chosen by the call site. */
-export function failures(errors: CliError[], exitCode: ExitCode, data?: Record<string, unknown>, change?: string): CommandResult;
-export function failures(
-  errors: CliError[],
-  dataOrCode: Record<string, unknown> | ExitCode = {},
-  changeOrData?: string | Record<string, unknown>,
-  outcomeOrChange?: Outcome | string
-): CommandResult {
-  if (typeof dataOrCode === "number") {
-    return build(false, (changeOrData as Record<string, unknown> | undefined) ?? {}, errors, outcomeOrChange, undefined, dataOrCode);
-  }
-  return build(false, dataOrCode, errors, changeOrData as string | undefined, outcomeOrChange as Outcome | undefined);
+export function failures(errors: CliError[], data: Record<string, unknown> = {}, change?: string, outcome?: Outcome): CommandResult {
+  return build(false, data, errors, change, outcome);
 }
 
 export function success(data: Record<string, unknown>, change?: string): CommandResult {

@@ -332,14 +332,14 @@ describe("warrant ci fetch: the import", () => {
     expect(p.tree()).toEqual(before);
   });
 
-  it("the lock of check held: BUSY, exit 3, nothing written", async () => {
+  it("the lock of check held: BUSY, exit 4, nothing written", async () => {
     const { p } = await ready();
     const held = acquireLock(lockPath(p.root, await p.git.commonDir()).file, { pid: 1, check: "tests-passed", started_at: AT, cwd: p.root }, p.ctx.signals);
     expect(held.ok).toBe(true);
     try {
       const before = p.tree();
       const result = await fetch(p);
-      expect([result.errors[0]?.code, result.exitCode]).toEqual(["BUSY", 3]);
+      expect([result.errors[0]?.code, result.exitCode]).toEqual(["BUSY", 4]);
       expect(p.tree()).toEqual(before);
     } finally {
       if (held.ok) held.release();

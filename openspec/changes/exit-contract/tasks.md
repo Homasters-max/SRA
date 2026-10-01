@@ -18,8 +18,8 @@
 
 ## 3. Команды на одну функцию (D2, D3)
 
-- [ ] 3.1 Места выбора кода `commands/**`, `core/check/execute.ts`, `core/transition/outcome.ts`, `core/sync/apply.ts`, `core/run/store.ts`, `core/canon/format-json.ts`: передают `outcome`, а не код; `Math.max` в `verify.ts`, `archive.ts`, `execute.ts` удалены (REQ-VER-005, REQ-VER-006, REQ-VER-007). Тесты SCN-KRN-161, SCN-VER-008, SCN-VER-009, SCN-VER-028, SCN-VER-136, SCN-KRN-158, `run` `BUSY` → 4.
-- [ ] 3.2 `validate`, `validate --files`, `fmt --check`, `sync --check` — код 3 (REQ-KRN-021, REQ-KRN-022, REQ-KRN-025, REQ-KRN-032). Тесты SCN-KRN-051, SCN-KRN-127, SCN-KRN-162.
+- [x] 3.1 Места выбора кода `commands/**`, `core/check/execute.ts`, `core/transition/outcome.ts`, `core/sync/apply.ts`, `core/run/store.ts`, `core/canon/format-json.ts`: передают `outcome`, а не код; `Math.max` в `verify.ts`, `archive.ts`, `execute.ts` удалены (REQ-VER-005, REQ-VER-006, REQ-VER-007). Тесты SCN-KRN-161, SCN-VER-008, SCN-VER-009, SCN-VER-028, SCN-VER-136, SCN-KRN-158, `run` `BUSY` → 4.
+- [x] 3.2 `validate`, `validate --files`, `fmt --check`, `sync --check` — код 3 (REQ-KRN-021, REQ-KRN-022, REQ-KRN-025, REQ-KRN-032). Тесты SCN-KRN-051, SCN-KRN-127, SCN-KRN-162.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts check verify run validate fmt sync format-json transition archive`.
 

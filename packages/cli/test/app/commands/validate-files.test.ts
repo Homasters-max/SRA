@@ -41,11 +41,11 @@ const search = (id = "REQ-SRC-001"): ModelRequirement => ({
 });
 
 describe("warrant validate --files", () => {
-  it("reports NOT_CANONICAL with a hint naming warrant fmt, exit 1 (SCN-KRN-127)", async () => {
+  it("reports NOT_CANONICAL with a hint naming warrant fmt, exit 3 (SCN-KRN-127)", async () => {
     const p = await project().synced();
     p.write(".warrant/local/areas.json", '{"SRC":{"capability":"search"},"$schema":"warrant://areas/1","KRN":{"capability":"kernel"}}\n');
     const run = await validateFiles(p, ".warrant/local/areas.json");
-    expect(run.exitCode).toBe(1);
+    expect(run.exitCode).toBe(3);
     expect(run.errors).toEqual([
       expect.objectContaining({ code: "NOT_CANONICAL", path: ".warrant/local/areas.json", hint: expect.stringContaining("warrant fmt") })
     ]);
@@ -62,7 +62,7 @@ describe("warrant validate --files", () => {
       p.write("openspec/config.yaml", "drifted: true\n");
 
       const run = await validateFiles(p, "openspec/specs/search/spec.md");
-      expect(run.exitCode).toBe(1);
+      expect(run.exitCode).toBe(3);
       expect(errorCodes(run)).toEqual(["ID_IMMUTABLE"]);
       expect(run.errors[0]?.message).toContain("REQ-SRC-001");
       expect(run.errors[0]?.path).toBe("openspec/specs/search/spec.md");

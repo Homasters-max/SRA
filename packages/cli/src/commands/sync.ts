@@ -19,5 +19,5 @@ export interface SyncOptions {
 export async function runSync(ctx: Ctx, opts: SyncOptions = {}): Promise<CommandResult> {
   requireConfigPath(ctx.root);
   const outcome = await applySync(ctx, opts.check === true);
-  return outcome.ok ? success(outcome.data) : failures(outcome.errors, outcome.exitCode, outcome.data);
+  return outcome.ok ? success(outcome.data) : failures(outcome.errors, outcome.data);
 }

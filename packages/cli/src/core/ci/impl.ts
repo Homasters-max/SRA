@@ -12,7 +12,7 @@ import { checksForTransition, executeChecks, type ChecksRun } from "../check/exe
 import { canonicalHash } from "../canon/hash.js";
 import { loadConfig } from "../config.js";
 import type { Ctx } from "../ctx.js";
-import { cliError, EXIT, type CliError, type ExitCode } from "../errors.js";
+import { cliError, EXIT, exitCodeFor, type CliError, type ExitCode } from "../errors.js";
 import { HUMAN_APPROVAL } from "../evidence/approval.js";
 import { artifactName } from "../evidence/attestation.js";
 import { evidenceDir } from "../evidence/store.js";
@@ -124,7 +124,7 @@ export async function judgeImpl(ctx: Ctx, subject: CiSubject, base: BaseContext,
     ...hooksFindings(ctx, change, evaluation, base.loaded.config, env),
     ...rolesFinding(ctx, base)
   ];
-  const exitCode = (run.exitCode > EXIT.OK ? run.exitCode : errors.length > 0 ? EXIT.FAIL : EXIT.OK) as ExitCode;
+  const exitCode = exitCodeFor(errors);
   return {
     gates,
     deferred: deferred.sort(),

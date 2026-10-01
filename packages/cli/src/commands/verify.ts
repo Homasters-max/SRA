@@ -13,7 +13,7 @@
  */
 import { checksForTransition } from "../core/check/execute.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, exitCodeFor, type ExitCode } from "../core/errors.js";
+
 import { MERGE_TRANSITION } from "../core/gates/types.js";
 import { evaluate } from "../core/transition/evaluate.js";
 import { decisionFields, gateData, hooksFindings } from "../core/transition/gates.js";
@@ -38,9 +38,9 @@ export async function runVerify(ctx: Ctx, change: string, opts: VerifyOptions = 
     env
   });
   if (!evaluated.ok) {
-    if (!evaluated.conflict) return failures(evaluated.errors, EXIT.CONFIG, {}, change);
+    if (!evaluated.conflict) return failures(evaluated.errors, {}, change);
     const { error, transition, decision } = evaluated;
-    return failures([error], EXIT.WAIT, { transition, checks: [], gates: {}, findings: [], ...decisionFields(decision) }, change);
+    return failures([error], { transition, checks: [], gates: {}, findings: [], ...decisionFields(decision) }, change, decision.controller_action);
   }
   const { policy, run, evaluation } = evaluated;
 
@@ -56,7 +56,7 @@ export async function runVerify(ctx: Ctx, change: string, opts: VerifyOptions = 
   };
   if (run.holder !== undefined) data["holder"] = run.holder;
 
-  const exitCode = Math.max(run.exitCode, exitCodeFor([], evaluation.decision.controller_action)) as ExitCode;
-  if (exitCode === EXIT.OK && run.errors.length === 0) return success(data, change);
-  return failures(run.errors, exitCode, data, change);
+  const action = evaluation.decision.controller_action;
+  if (action === "CONTINUE" && run.errors.length === 0) return success(data, change);
+  return failures(run.errors, data, change, action);
 }

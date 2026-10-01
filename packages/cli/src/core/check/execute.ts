@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import type { Ctx } from "../ctx.js";
-import { EXIT, WarrantError, type CliError, type ExitCode } from "../errors.js";
+import { WarrantError, type CliError } from "../errors.js";
 import { attestationFromEnv } from "../evidence/attestation.js";
 import type { ManifestVersions } from "../evidence/manifest.js";
 import { findParser, parserNames } from "../evidence/parsers/index.js";
@@ -46,8 +46,7 @@ export function checksForTransition(loaded: LoadResult, policy: EffectivePolicy,
     const [first] = invalid as [CliError];
     throw new WarrantError(first.code, first.message, {
       ...(first.path === undefined ? {} : { path: first.path }),
-      ...(first.hint === undefined ? {} : { hint: first.hint }),
-      exitCode: EXIT.CONFIG
+      ...(first.hint === undefined ? {} : { hint: first.hint })
     });
   }
   const gates = gateDefinitions(loaded);
@@ -192,7 +191,7 @@ async function runOneIn(ctx: Context, object: PackObject, scratch: string | unde
       const error = new WarrantError(
         "BUSY",
         `check ${object.id}: the exclusive check lock is held${pid === undefined ? "" : ` by pid ${String(pid)}`}`,
-        { path: where.file, hint: `if that process is gone, delete ${where.file}`, exitCode: EXIT.WAIT }
+        { path: where.file, hint: `if that process is gone, delete ${where.file}` }
       );
       return { ok: false, entry: { id: object.id, error: error.code }, error, holder: lock.holder };
     }
@@ -288,8 +287,6 @@ export interface ChecksRun {
   errors: CliError[];
   /** Failed checks with the kinds they would have produced (for `verify`, REQ-VER-006). */
   failures: { check: string; code: string; kinds: string[] }[];
-  /** Highest exit code of the failures; 0 when every record was written. */
-  exitCode: ExitCode;
   /** Holder of the exclusive lock, when a check found it taken. */
   holder?: unknown;
   /** The records of this run — written, or under `--dry-run` only built — for the gates that judge them. */
@@ -329,7 +326,7 @@ export async function executeChecks(params: ChecksParams): Promise<ChecksRun> {
     versions: () => (versions ??= manifestVersions(params.ctx, policy.hash))
   };
 
-  const run: ChecksRun = { entries: [], errors: [], failures: [], exitCode: EXIT.OK, records: [] };
+  const run: ChecksRun = { entries: [], errors: [], failures: [], records: [] };
   for (const object of params.selected) {
     const outcome = await runOne(ctx, object);
     run.entries.push(outcome.entry);
@@ -339,7 +336,6 @@ export async function executeChecks(params: ChecksParams): Promise<ChecksRun> {
     }
     run.errors.push(outcome.error.toCliError());
     run.failures.push({ check: object.id, code: outcome.error.code, kinds: strings(effectiveCheck(object)["produces"]) });
-    run.exitCode = Math.max(run.exitCode, outcome.error.exitCode) as ExitCode;
     if (outcome.holder !== undefined && run.holder === undefined) run.holder = outcome.holder;
   }
   return run;

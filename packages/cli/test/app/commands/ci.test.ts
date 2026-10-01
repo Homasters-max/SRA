@@ -772,14 +772,14 @@ describe("warrant ci: archive-PR", () => {
     expect(other.exitCode).toBe(1);
   });
 
-  it("the forge unreachable while a ref needs it: FORGE_UNAVAILABLE with the hint, exit 3 (SCN-VER-084)", async () => {
+  it("the forge unreachable while a ref needs it: FORGE_UNAVAILABLE with the hint, exit 4 (SCN-VER-084)", async () => {
     const { p } = await archivePr();
     p.forge.unavailable = true;
     const result = await ci(p);
     expect(result.errors[0]?.code).toBe("FORGE_UNAVAILABLE");
     expect(result.errors[0]?.hint).toContain("gh auth login");
     expect(result.errors[0]?.hint).toContain("GH_TOKEN");
-    expect(result.exitCode).toBe(3);
+    expect(result.exitCode).toBe(4);
   });
 });
 
@@ -934,13 +934,15 @@ describe("warrant ci: the merge verdict of an impl-PR", () => {
     expect(result.exitCode).toBe(0);
   });
 
-  it("a check over its timeout: CHECK_TIMEOUT, tests-passed BLOCKED, exit 3 (SCN-VER-095)", async () => {
+  it("a check over its timeout: CHECK_TIMEOUT, tests-passed BLOCKED (SCN-VER-095)", async () => {
     const { p } = await implPr();
     p.checks.on("fake-tests", { timedOut: true });
     const result = await ci(p, CI_ENV);
     expect(codes(result)).toContain("CHECK_TIMEOUT");
     expect(result.data["gates"]["tests-passed"]).toBe("BLOCKED");
-    expect(result.exitCode).toBe(3);
+    // Transitional (exit-contract group 3): the code is the class of errors[], and GATE_NOT_PASSED of the
+    // BLOCKED gate (rule, 1) is elder than CHECK_TIMEOUT (4). Group 4 (design D6) drops that GATE_NOT_PASSED: 4.
+    expect(result.exitCode).toBe(1);
   });
 
   it("a later PROVEN record of another run does not count: the attempt's NOT_PROVEN fails the gate (SCN-VER-098)", async () => {

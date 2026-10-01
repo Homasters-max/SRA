@@ -19,7 +19,7 @@ import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { ForgeGh } from "../../src/adapters/forge-gh.js";
-import { FORGE_HINT, WarrantError } from "../../src/core/errors.js";
+import { exitCodeFor, FORGE_HINT, WarrantError } from "../../src/core/errors.js";
 import { parseCiRef } from "../../src/core/evidence/attestation.js";
 import type { Comment, CommentRef, ForgePort, PullRequest, WorkflowRun } from "../../src/core/ports/forge.js";
 import { FakeForge } from "../app/helpers/fakes/forge.js";
@@ -251,7 +251,7 @@ describe("ForgePort contract: without a token — FORGE_UNAVAILABLE with the hin
     process.env.GH_TOKEN = "bad-token-of-the-forge-contract";
     try {
       const real = await unavailable(new ForgeGh(REPO_ROOT, { GITHUB_REPOSITORY: REPOSITORY }).pullRequest(53));
-      expect([real.code, real.hint, real.exitCode]).toEqual(["FORGE_UNAVAILABLE", FORGE_HINT, 3]);
+      expect([real.code, real.hint, exitCodeFor([real])]).toEqual(["FORGE_UNAVAILABLE", FORGE_HINT, 4]);
       expect(real.message).toMatch(/401|credentials/i);
     } finally {
       if (saved === undefined) delete process.env.GH_TOKEN;
@@ -260,7 +260,7 @@ describe("ForgePort contract: without a token — FORGE_UNAVAILABLE with the hin
     const fake = fakeForge();
     fake.unavailable = true;
     const faked = await unavailable(fake.pullRequest(53));
-    expect([faked.code, faked.hint, faked.exitCode]).toEqual(["FORGE_UNAVAILABLE", FORGE_HINT, 3]);
+    expect([faked.code, faked.hint, exitCodeFor([faked])]).toEqual(["FORGE_UNAVAILABLE", FORGE_HINT, 4]);
     expect(fake.calls).toEqual(["pullRequest 53"]);
   });
 });

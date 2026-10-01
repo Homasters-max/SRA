@@ -9,7 +9,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, WarrantError, type CliError } from "../core/errors.js";
+import { WarrantError, type CliError } from "../core/errors.js";
 import { reportPath } from "../core/fs.js";
 import { loadPacks } from "../core/packs/loader.js";
 import { readChangeRecord, readJsonFile } from "../core/record/read.js";
@@ -65,17 +65,16 @@ export function runResolve(ctx: Ctx, change: string, opts: ResolveOptions = {}):
       : (record["classification"] as Classification | undefined);
 
   const loaded = loadPacks(root);
-  if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
+  if (loaded.errors.length > 0) return failures(loaded.errors, {}, change);
 
   const { result, errors } = resolveForProject(loaded, classification);
-  if (errors.length > 0) return failures(errors, EXIT.CONFIG, {}, change);
+  if (errors.length > 0) return failures(errors, {}, change);
 
   if (!result.ok) {
     // A policy conflict is not a configuration error: the controller escalates
     // it to a human, so the exit code is WAIT (SCN-KRN-067).
     return failures(
       [{ code: "POLICY_CONFLICT", message: result.conflict.message }],
-      EXIT.WAIT,
       { controller_action: "ESCALATE", conflicts: result.conflict.items },
       change
     );

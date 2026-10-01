@@ -15,7 +15,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { writeJsonFile } from "../canon/format-json.js";
-import { cliError, EXIT, WarrantError, type CliError } from "../errors.js";
+import { cliError, WarrantError, type CliError } from "../errors.js";
 import { projectUri, stateDir } from "../fs.js";
 import type { ProjectFiles } from "../git/files.js";
 import { waitForLock, lockHolder } from "../lock.js";
@@ -152,7 +152,7 @@ export interface RunWriteCtx {
 
 /**
  * Runs `perform` holding the lock `lock` (absolute), taken for `what` with
- * the wait of F18; a lock not taken in time is `BUSY` (exit 2) with its holder.
+ * the wait of F18; a lock not taken in time is `BUSY` (class `retry`, exit 4) with its holder.
  */
 export async function underLock<T>(ctx: RunWriteCtx, lock: string, what: string, perform: () => T): Promise<T> {
   const acquired = await waitForLock(lock, lockHolder(what), ctx.signals, { waitMs: RUN_LOCK_WAIT_MS });
@@ -161,8 +161,7 @@ export async function underLock<T>(ctx: RunWriteCtx, lock: string, what: string,
     const reported = projectUri(ctx.root, lock);
     throw new WarrantError("BUSY", `${what}: ${reported} is held${pid === undefined ? "" : ` by pid ${String(pid)}`}`, {
       path: reported,
-      hint: `retry; if that process is gone, delete ${reported}`,
-      exitCode: EXIT.WAIT
+      hint: `retry; if that process is gone, delete ${reported}`
     });
   }
   try {

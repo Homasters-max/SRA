@@ -1,0 +1,142 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3THAJPT6528Q94RHF43JT66",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Для `warrant guard` без `--frontend` неперехваченное исключение описано одной фразой REQ-KRN-003: «решение, в том числе `deny` при внутреннем сбое (... непредвиденное исключение), — код 0 (REQ-ENF-004)». Не описаны два случая. (1) Фаза `post`: main REQ-ENF-004 требует «сбой `post` SHALL давать `allow` без hints и сообщение в stderr», а design D9 даёт `deny` во всех фазах. (2) Исключение после выведенного решения: общее правило REQ-KRN-003 даёт код 3, оговорка о guard — код 0. Сценария на исключение в нормализованном guard нет; tasks 5.1 ссылается только на «`deny` guard (REQ-ENF-004)».",
+      "targets": [
+        "REQ-KRN-003",
+        "REQ-ENF-004",
+        "openspec/changes/exit-contract/design.md"
+      ],
+      "recommendation": "В REQ-KRN-003 или в design D9 указать: исключение в `pre` — `deny` с hint `warrant validate`, код 0; в `post` — `allow` без hints и stderr, как REQ-ENF-004; после выведенного решения — второго объекта нет, stderr, код 0. Добавить сценарий SCN-KRN-… или SCN-ENF-… на исключение в `pre`."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Ячейка D9 в design.md повреждена: после «в режиме `guard --frontend`» идёт повтор фрагмента `| \"unhandledRejection\")` (review F-3, F-4). Обработчик:`. Неэкранированный `|` делит строку таблицы на лишние колонки, и правило обработчика для guard читается двумя кусками.",
+      "targets": [
+        "openspec/changes/exit-contract/design.md"
+      ],
+      "recommendation": "Переписать ячейку D9 одним текстом: guard без `--frontend` → `deny`, код 0; `guard --frontend` → stderr, пустой stdout, код 2; иначе — `INTERNAL`, код 3, до вывода объекта или только stderr после него."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Delta REQ-VER-011 добавляет строку «2 — `POLICY_CONFLICT` effective policy (класс ожидания)». В main REQ-VER-011 кода 2 у `warrant ci` нет: под код 3 попадает «ошибка конфигурации». Если `POLICY_CONFLICT` в `ci` давал 3, это смена кода для потребителя. В таблице BREAKING proposal и в «Миграции» D12 её нет.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/exit-contract/proposal.md"
+      ],
+      "recommendation": "Сверить нынешний код `POLICY_CONFLICT` в `warrant ci`. Если он был 3 — добавить строку «`POLICY_CONFLICT` в `warrant ci`: 3 → 2» в BREAKING и в D12."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-KRN-003: неперехваченное исключение SHALL давать «JSON-объект с `errors[0].code` `INTERNAL`». По REQ-KRN-002 JSON — формат по умолчанию только при stdout не TTY или с `--json`. Для TTY без `--json` возможны два прочтения: JSON-объект всегда или обычный человекочитаемый вывод ошибки. SCN-KRN-163 этот случай не различает.",
+      "targets": [
+        "REQ-KRN-003",
+        "SCN-KRN-163"
+      ],
+      "recommendation": "Написать «результат с `errors[0].code` `INTERNAL` в формате вывода команды (JSON-объект без TTY или с `--json`)» либо явно потребовать JSON и в TTY."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Proposal: «неверный `GITHUB_REPOSITORY` или `origin` не на форже — `USAGE`, 3». В спецификации это записано только для `warrant ci` (REQ-VER-011, SCN-VER-138). В списке ошибок REQ-VER-012 (`ci fetch`) этого случая нет: там названы URL другого репозитория — `USAGE`, `FORGE_ACCESS` и `FORGE_UNAVAILABLE`. Неверный `GITHUB_REPOSITORY` в `ci fetch` можно прочитать как `USAGE` или как `FORGE_ACCESS`. Код выхода в обоих случаях 3, но код ошибки и `hint` разные.",
+      "targets": [
+        "REQ-VER-012"
+      ],
+      "recommendation": "Добавить в «Ошибки» REQ-VER-012: «`GITHUB_REPOSITORY` не вида `<owner>/<repo>` или `origin` не на форже — `USAGE` с `hint`, к форжу не обращались»."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Delta REQ-VER-007 вводит две ветви кода отказа: при `controller_action` `CONTINUE` и непройденном gate — 2, при `STOP` — 1. Единственный сценарий SCN-VER-030 (`spec-valid: FAIL` при правилах core-sdd) даёт `WAIT` и не проверяет ни одну из ветвей. Tasks 3.1 ссылается на REQ-VER-007 без SCN.",
+      "targets": [
+        "REQ-VER-007",
+        "SCN-VER-030"
+      ],
+      "recommendation": "Добавить сценарий: gate `FAIL` при правилах проекта, где ни одно не совпало (`CONTINUE`), — `GATES_NOT_PASSED`, код 2; правило `STOP` — код 1."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "Main REQ-ENF-007 (`run submit`, не в delta) перечисляет ошибки и заключает: «каждая ошибка SHALL нести `hint`, код выхода 3, ничего не записано». По delta REQ-KRN-036 и REQ-KRN-003 сбой атомарной записи файла результата или Run — `BUSY`, код 4. Строка BREAKING «`BUSY` в `check`, `run`» это подтверждает. Буквальное прочтение REQ-ENF-007 («каждая ошибка» — 3) с этим расходится.",
+      "targets": [
+        "REQ-ENF-007",
+        "REQ-KRN-036",
+        "REQ-KRN-003"
+      ],
+      "recommendation": "Явно сузить фразу REQ-ENF-007 до перечисленных ошибок («каждая из этих ошибок») или сослаться на REQ-KRN-003 для `BUSY`. Если правка main нужна сейчас — включить REQ-ENF-007 в delta."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "ADR-0052 п. 2: «падение до JSON — не 1». REQ-KRN-003 исключает ошибку загрузки модулей CLI до входной точки: она по-прежнему даёт аварийный код Node 1, который совпадает с кодом нарушения правила. Сужение нормы ADR обосновано (design «Риски», канарейка) и названо в Non-Goals. Но абзац proposal «Отступление от ... ADR-0052» перечисляет только состав delta, и это сужение там не указано.",
+      "targets": [
+        "REQ-KRN-003",
+        "openspec/changes/exit-contract/proposal.md"
+      ],
+      "recommendation": "Добавить в абзац об отступлениях от ADR-0052 одну фразу: падение при загрузке модулей остаётся кодом 1 (design «Риски»)."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/exit-contract/specs/kernel/spec.md",
+      "change": "REQ-KRN-003: исключение в нормализованном `guard` — `pre` → `deny`, `post` → `allow`, после вывода — код 0, сценарий (F-1); формат `INTERNAL` при TTY (F-4)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/exit-contract/specs/verification/spec.md",
+      "change": "REQ-VER-012: неверный `GITHUB_REPOSITORY` или `origin` — `USAGE` (F-5); REQ-VER-007: сценарии отказа при `CONTINUE` (код 2) и `STOP` (код 1) (F-6)."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/exit-contract/design.md",
+      "change": "Починить ячейку D9 (F-2); согласовать D9 с REQ-ENF-004 для фазы `post` (F-1)."
+    },
+    {
+      "id": "P-4",
+      "target": "openspec/changes/exit-contract/proposal.md",
+      "change": "BREAKING: `POLICY_CONFLICT` в `warrant ci`, если код был 3 (F-3); отступление от ADR-0052 о падении при загрузке модулей (F-8); при необходимости — REQ-ENF-007 в Modified Capabilities (F-7)."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Итог round 2: F-1 закрыт (REQ-VER-007 в delta и в proposal: GATES_NOT_PASSED — 2, STOP — 1). F-2 закрыт: REQ-KRN-003 выводит `warrant guard` из таблицы (deny, код 0), остаток — F-1 этого раунда. F-3 закрыт («ok: true — код 0, исключение — сбой после вывода»). F-4 закрыт (элемент с `check` относится только к этому check). F-5 закрыт (SCN-ENF-046, исключение после ответа). F-6 закрыт (`hint` убран из SCN-KRN-160). F-7 закрыт (REQ-VER-013 и SCN-VER-138: `USAGE`, код 3, без находки). F-8 закрыт (строка BREAKING «сбой check вместе с нарушением PR или STOP»). F-9 закрыт (названы команды, у которых действие входит в код). F-10 принят осознанно (design «Риски»)."
+    },
+    {
+      "id": "A-2",
+      "statement": "Факты кода взяты из design.md Context. Диапазонами сверены `commands/gate.ts:20-54` и `commands/analyze.ts:15-45`: при ненулевом коде оба дают `ok: false`, так что правило «ok: true — код 0» с ними совместимо. Нынешний код `POLICY_CONFLICT` в `core/ci/**` не проверен: guard Run review запрещает shell, а значит и `cs` (F-3 — INFERENCE)."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:9b8847a8cc910348e7e37339aed7d7a9c379463b520be1f4fbbe257fea25c37b",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T15:10:00Z",
+    "finished_at": "2026-10-01T15:45:00Z"
+  }
+}

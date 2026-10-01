@@ -9,7 +9,7 @@
 ## Готовый запрос
 
 ```text
-Поток phase-5. MVP принят (13 §2, строка 4c), CLI v0.8.0. Сначала навык architecture-audit --against docs/process/audits/2026-09-26-phase-4c.json — снимок устарел (старше v0.8.0, новый модуль core/unknowns), аудит обязателен. Затем process-PR по долгу процесса: BL-72 (ci.md: Re-run всего run, не --failed); BL-74 и BL-75 влиты в WS-04 потока stabilization. Потом grilling нарезки фазы 5 (строка 5 13 §2) — вход: открытые A-N, BL-N и оставшиеся WS-N docs/backlog.md.
+Поток phase-5. MVP принят (13 §2, строка 4c), CLI v0.8.0. Сначала навык architecture-audit --against docs/process/audits/2026-09-26-phase-4c.json — снимок устарел (старше v0.8.0, новый модуль core/unknowns), аудит обязателен. Долг процесса закрыт (ADR-0054, git-land ci.md шаг 5); BL-74 и BL-75 влиты в WS-04 потока stabilization. Потом grilling нарезки фазы 5 (строка 5 13 §2) — вход: открытые A-N, BL-N и оставшиеся WS-N docs/backlog.md.
 ```
 
 ## Открытые вопросы

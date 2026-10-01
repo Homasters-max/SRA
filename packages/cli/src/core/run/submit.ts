@@ -177,7 +177,6 @@ function withReceived(thrown: unknown, input: SubmitInput): unknown {
   return new WarrantError(thrown.code, thrown.message, {
     ...(thrown.path === undefined ? {} : { path: thrown.path }),
     ...(thrown.hint === undefined ? {} : { hint: thrown.hint }),
-    exitCode: thrown.exitCode,
     data: { received: receivedOf(input.text) }
   });
 }

@@ -186,6 +186,70 @@ describe("warrant transition", () => {
     expect(blocked.exitCode).toBe(2);
   });
 
+  it("the refusal under STOP is exit 1: the controller action enters the code (REQ-VER-007)", async () => {
+    const p = await repo("PROPOSED", FEATURE, (b) =>
+      b.write(".warrant/local/controller/rules.json", {
+        $schema: "warrant://controller-rules/1",
+        rules: [{ id: "stop-on-blocked", when: { gate_verdict: "BLOCKED" }, action: "STOP" }]
+      })
+    );
+    const before = p.read(RECORD);
+
+    const run = await transition(p, "SPECIFIED");
+    expect(run.errors.map((e) => e.code)).toEqual(["GATES_NOT_PASSED"]);
+    expect(run.data["gates"]["spec-valid"]).toBe("BLOCKED");
+    expect(run.data).toMatchObject({ controller_action: "STOP", rule: "stop-on-blocked" });
+    expect(run.exitCode).toBe(1);
+    expect(p.read(RECORD)).toBe(before);
+  });
+
+  it("the refusal under CONTINUE is exit 2, never 0: GATES_NOT_PASSED is of class wait (REQ-VER-007)", async () => {
+    // A pack without controller rules: a FAIL no rule matches is CONTINUE (REQ-VER-005).
+    const p = project()
+      .write(".warrant/warrant.json", {
+        $schema: "warrant://config/1",
+        kernel: "0.1",
+        openspec: "1.13.x",
+        packs: { mini: { version: "^1.0.0" } },
+        roles: { maintainer: ["kat"] }
+      })
+      .remove(".warrant/warrant.lock.json")
+      .write(".warrant/local/mini/pack.json", {
+        $schema: "warrant://pack/1",
+        id: "mini",
+        version: "1.0.0",
+        kernel: ">=0.1 <0.11",
+        description: "One gate, one profile, no controller rules.",
+        depends_on: {},
+        provides: { gates: ["gates/required-artifacts-present.json"], profiles: ["profiles/feature.json"] }
+      })
+      .write(".warrant/local/mini/gates/required-artifacts-present.json", {
+        $schema: "warrant://gate/1",
+        id: "required-artifacts-present",
+        version: "1.0.0",
+        level: "L0",
+        waivable: false
+      })
+      .write(".warrant/local/mini/profiles/feature.json", {
+        $schema: "warrant://profile/1",
+        id: "feature",
+        version: "1.0.0",
+        artifacts: { required: ["proposal", "design"] },
+        gates: { "PROPOSED->SPECIFIED": ["required-artifacts-present"] }
+      })
+      .withChange("add-search", { tasks: "# Tasks\n" })
+      .withRecord("add-search", "PROPOSED", FEATURE);
+    p.commit("base");
+    const before = p.read(RECORD);
+
+    const run = await transition(p, "SPECIFIED");
+    expect(run.errors.map((e) => e.code)).toEqual(["GATES_NOT_PASSED"]);
+    expect(run.data["gates"]).toEqual({ "required-artifacts-present": "FAIL" });
+    expect(run.data).toMatchObject({ controller_action: "CONTINUE", rule: null });
+    expect(run.exitCode).toBe(2);
+    expect(p.read(RECORD)).toBe(before);
+  });
+
   it("writes human-approval evidence from --ref and --by before the gates and records APPROVED with ref (SCN-VER-031)", async () => {
     const p = await repo("SPECIFIED", FEATURE, (b) => waiver(b, "WAV-2026-001", "adversarial-review"));
 

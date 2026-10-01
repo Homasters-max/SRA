@@ -306,3 +306,15 @@ async function decide(ctx: Ctx, event: GuardEvent, env: NodeJS.ProcessEnv): Prom
     return ALLOW;
   }
 }
+
+/**
+ * The decision of `warrant guard` on an exception nothing caught (exit-contract
+ * D9, REQ-ENF-004): `post` — `allow` without hints (the caller writes the
+ * message to stderr); `pre`, or stdin not read or without a phase, — the
+ * refusal of a failure. `input` is the text of stdin, once read.
+ */
+export function crashDecision(input: string | undefined, thrown: unknown): GuardResult {
+  const parsed = input === undefined ? undefined : parseEvent(input);
+  const phase = parsed === undefined ? undefined : parsed.ok ? parsed.event.phase : parsed.phase;
+  return phase === "post" ? ALLOW : failedClosed(thrown);
+}

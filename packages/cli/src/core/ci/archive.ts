@@ -19,7 +19,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import type { Ctx } from "../ctx.js";
-import { cliError, EXIT, WarrantError, type CliError, type ExitCode } from "../errors.js";
+import { cliError, WarrantError, type CliError } from "../errors.js";
 import { artifactName, attestationOf, ciRunKey, parseCiRef, runAttemptKey } from "../evidence/attestation.js";
 import { subjectOf } from "../evidence/record.js";
 import { evidenceRel } from "../evidence/store.js";
@@ -49,9 +49,8 @@ export interface EvidenceVerification {
 }
 
 export interface ArchiveReplay {
+  /** `SPECS_NOT_ARCHIVED` (specs differ), or the failure of `openspec` or `git` (class `config`). */
   errors: CliError[];
-  /** 1 — specs differ; 3 — `openspec` failed or is out of range, the base cannot be checked out. */
-  exitCode: ExitCode;
 }
 
 /** The parsed JSON of `text`, or undefined. */
@@ -97,7 +96,7 @@ async function committedRecords(ctx: Pick<Ctx, "git">, subject: CiSubject, chang
 /**
  * Verifies the CI records of every new `MERGED` of `transitions` through the
  * forge (REQ-VER-011 «archive»). One download per run attempt. Throws
- * `FORGE_UNAVAILABLE` (exit 3) when the forge cannot be read.
+ * `FORGE_UNAVAILABLE` (exit 4) or `FORGE_ACCESS` (exit 3) when the forge cannot be read, `USAGE` when its repository is unknown.
  */
 export async function verifyCiEvidence(
   ctx: Pick<Ctx, "git" | "forge">,
@@ -239,16 +238,14 @@ function lf(text: string): string {
 export async function replayArchive(ctx: Pick<Ctx, "git" | "openspec">, subject: CiSubject, base: BaseContext): Promise<ArchiveReplay> {
   const change = subject.change as string;
   const config = (message: string, code: "OPENSPEC_FAILED" | "USAGE" = "OPENSPEC_FAILED"): ArchiveReplay => ({
-    errors: [cliError(code, message, { path: `openspec/changes/${change}` })],
-    exitCode: EXIT.CONFIG
+    errors: [cliError(code, message, { path: `openspec/changes/${change}` })]
   });
   try {
     await requireOpenspec(ctx.openspec, base.loaded.config);
   } catch (thrown) {
     if (!(thrown instanceof WarrantError)) throw thrown;
     return {
-      errors: [cliError(thrown.code, thrown.message, { ...(thrown.path === undefined ? {} : { path: thrown.path }), ...(thrown.hint === undefined ? {} : { hint: thrown.hint }) })],
-      exitCode: EXIT.CONFIG
+      errors: [thrown.toCliError()]
     };
   }
 
@@ -281,7 +278,7 @@ export async function replayArchive(ctx: Pick<Ctx, "git" | "openspec">, subject:
         })
       );
     }
-    return { errors, exitCode: errors.length > 0 ? EXIT.FAIL : EXIT.OK };
+    return { errors };
   } finally {
     await checkout.value.dispose();
   }

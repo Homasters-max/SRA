@@ -313,7 +313,7 @@ describe("warrant sync: the subagent warrant-reviewer", () => {
       // --check: the finding is reported; the exit code is the drift of the files — the file sync would delete among them.
       const check = await sync(p, { check: true });
       expect(check.data["findings"]).toEqual([missing]);
-      expect(check.exitCode).toBe(1);
+      expect(check.exitCode).toBe(3);
       expect(check.errors).toContainEqual(expect.objectContaining({ code: "GENERATED_DRIFT", path: CLAUDE_REVIEWER_REL }));
       expect(exists(p, CLAUDE_REVIEWER_REL)).toBe(true);
 
@@ -362,12 +362,12 @@ describe("warrant sync: project without frontend", () => {
     expect(second.data["changed"]).toEqual([]);
   });
 
-  it("sync --check reports the missing line as GENERATED_DRIFT, code 1", async () => {
+  it("sync --check reports the missing line as GENERATED_DRIFT, code 3", async () => {
     const p = project();
     await p.synced();
     p.write(".gitignore", "");
     const check = await sync(p, { check: true });
-    expect(check.exitCode).toBe(1);
+    expect(check.exitCode).toBe(3);
     expect(check.errors).toEqual([expect.objectContaining({ code: "GENERATED_DRIFT", path: ".gitignore" })]);
   });
 });

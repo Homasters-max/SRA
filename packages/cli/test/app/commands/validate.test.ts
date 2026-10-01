@@ -12,15 +12,18 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { runFmt } from "../../../src/commands/fmt.js";
 import { runResolve } from "../../../src/commands/resolve.js";
+import { runSync } from "../../../src/commands/sync.js";
+import { runValidate } from "../../../src/commands/validate.js";
 import type { CliError } from "../../../src/core/errors.js";
 import { packContentHash } from "../../../src/core/packs/hash.js";
-import type { CommandResult } from "../../../src/io/output.js";
+import { toEnvelope, type CommandResult } from "../../../src/io/output.js";
 import { CLI_VERSION } from "../../../src/version.js";
 import { CLI_ROOT, CORE_SDD_RANGE, REPO_ROOT } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
-import { validate } from "../helpers/validate.js";
+import { errorCodes, validate } from "../helpers/validate.js";
 
 const FIXTURE_PACKS = path.join(CLI_ROOT, "test", "fixtures", "packs");
 const CORE_SDD = path.join(REPO_ROOT, "packs", "core-sdd");
@@ -487,5 +490,46 @@ describe("warrant validate: identities.agents outside roles (ADR-0044 п. 3)", (
     const valid = await validate(p);
     expect(valid.errors).toEqual([]);
     expect(valid.exitCode).toBe(0);
+  });
+});
+
+describe("warrant validate: a pack version outside the range (exit-contract D8)", () => {
+  it("core-sdd outside packs.core-sdd.version: PACK_VERSION_RANGE at its pack.json, no retryable, exit 3; no CONFIG_INVALID (SCN-KRN-164)", async () => {
+    const p = await project().synced();
+    const config = p.json(".warrant/warrant.json");
+    p.write(".warrant/warrant.json", { ...config, packs: { ...config.packs, "core-sdd": { version: "^0.0.1" } } });
+    const result = await validate(p);
+    const range = result.errors.filter((e) => e.code === "PACK_VERSION_RANGE");
+    expect(range.map((e) => e.path)).toEqual([expect.stringMatching(/core-sdd\/pack\.json$/)]);
+    expect(toEnvelope("validate", result).errors.find((e) => e.code === "PACK_VERSION_RANGE")).not.toHaveProperty("retryable");
+    expect(errorCodes(result)).not.toContain("CONFIG_INVALID");
+    expect(result.exitCode).toBe(3);
+  });
+});
+
+describe("one error code, one exit code (REQ-KRN-003)", () => {
+  it("NOT_CANONICAL in fmt --check, validate, validate --files and GENERATED_DRIFT in sync --check, validate: exit 3 in all five (SCN-KRN-162)", async () => {
+    const p = await project().synced();
+    p.commit("base");
+
+    p.write(".warrant/local/areas.json", '{"SRC":{"capability":"search"},"$schema":"warrant://areas/1","KRN":{"capability":"kernel"}}\n');
+    const notCanonical = [
+      await invoke(() => runFmt(p.ctx, [], { check: true })),
+      await validate(p),
+      await invoke(() => runValidate(p.ctx, { files: ".warrant/local/areas.json" }))
+    ];
+    for (const run of notCanonical) {
+      expect(errorCodes(run)).toEqual(["NOT_CANONICAL"]);
+      expect(run.exitCode).toBe(3);
+    }
+
+    p.write(".warrant/local/areas.json", { $schema: "warrant://areas/1", KRN: { capability: "kernel" }, SRC: { capability: "search" } });
+    // A line of .gitignore that sync keeps: drift of a generated file the lock does not hash.
+    p.write(".gitignore", "");
+    const drift = [await invoke(() => runSync(p.ctx, { check: true })), await validate(p)];
+    for (const run of drift) {
+      expect(errorCodes(run)).toEqual(["GENERATED_DRIFT"]);
+      expect(run.exitCode).toBe(3);
+    }
   });
 });

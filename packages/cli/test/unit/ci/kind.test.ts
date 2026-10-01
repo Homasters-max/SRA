@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 
 import { withBase } from "../../../src/core/ci/base.js";
 import { readCiSubject, readMergeHead } from "../../../src/core/ci/kind.js";
-import { WarrantError } from "../../../src/core/errors.js";
+import { exitCodeFor, WarrantError } from "../../../src/core/errors.js";
 import { FakeGit, type Tree } from "../../app/helpers/fakes/git.js";
 
 const tree = (files: Record<string, string>): Tree => new Map(Object.entries(files).map(([p, c]) => [p, Buffer.from(c)]));
@@ -55,7 +55,7 @@ describe("warrant ci: HEAD is the result of a merge", () => {
     single.commit(tree({ "a.md": "b" }), "next");
     const one = await thrown(() => readMergeHead({ git: single }));
     expect(one.code).toBe("USAGE");
-    expect(one.exitCode).toBe(3);
+    expect(exitCodeFor([one])).toBe(3);
     expect(one.hint).toContain("git merge --no-ff");
 
     const octopus = new FakeGit("/repo/.git").init();

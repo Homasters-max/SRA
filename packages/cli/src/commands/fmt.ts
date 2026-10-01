@@ -15,7 +15,7 @@ import path from "node:path";
 
 import { checkFile, canonicalTargets, WARRANT_DIR } from "../core/canon/files.js";
 import type { Ctx } from "../core/ctx.js";
-import { cliError, EXIT, FMT_HINT, WarrantError, type CliError } from "../core/errors.js";
+import { cliError, FMT_HINT, WarrantError, type CliError } from "../core/errors.js";
 import { reportPath, walkFiles } from "../core/fs.js";
 import { failures, success, type CommandResult } from "../io/output.js";
 
@@ -79,14 +79,13 @@ export function runFmt(ctx: Ctx, paths: string[], opts: FmtOptions = {}): Comman
 
   const data = { checked, changed };
 
-  // A file that cannot be parsed is a configuration problem (exit 3) and
-  // outranks a formatting difference (exit 1).
-  if (errors.length > 0) return failures(errors, EXIT.CONFIG, data);
+  // A file that cannot be parsed is reported alone, before formatting
+  // differences; both are of class `config`, exit 3 (exit-contract D3).
+  if (errors.length > 0) return failures(errors, data);
 
   if (opts.check === true && changed.length > 0) {
     return failures(
       changed.map((p) => cliError("NOT_CANONICAL", "file is not in canonical form", { path: p, hint: FMT_HINT })),
-      EXIT.FAIL,
       data
     );
   }

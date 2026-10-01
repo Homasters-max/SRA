@@ -10,15 +10,16 @@
  *
  * Only there does the decision judge a transition: a violation is
  * `REF_NOT_VERIFIED` with the reason `decision`, the forge unavailable is
- * `FORGE_UNAVAILABLE` (exit 3). Elsewhere a violation — and the forge
- * unavailable, detail `forge` — is the finding `DECISION_NOT_VERIFIED`, which
- * does not change the exit code. With no `identities.agents` in the base, a
+ * `FORGE_UNAVAILABLE` (exit 4), access refused `FORGE_ACCESS` (exit 3).
+ * Elsewhere a violation — and the forge unavailable or access refused, detail
+ * `forge` — is the finding `DECISION_NOT_VERIFIED`, which does not change the
+ * exit code; an unknown repository of the forge stays the error `USAGE`. With no `identities.agents` in the base, a
  * decision without a violation is the finding `SHARED_IDENTITY` in every kind
  * of pull request: the comment of the maintainer cannot be told from one of an
  * agent under the same account.
  */
 import type { Ctx } from "../ctx.js";
-import { cliError, WarrantError } from "../errors.js";
+import { cliError, WarrantError, type ErrorCode } from "../errors.js";
 import { isPlainObject } from "../json.js";
 import type { ChangeRecord } from "../record/read.js";
 import { recordPath } from "../record/write.js";
@@ -28,6 +29,9 @@ import type { BaseContext } from "./base.js";
 import type { CiSubject } from "./kind.js";
 import { parseCommentUrl, parsePullUrl, SHARED_IDENTITY_NOTE, type RefJudgement } from "./refs.js";
 
+/** Failures of the forge a decision outside a new `APPROVED` reports as the finding `forge` (REQ-VER-013). */
+const FORGE_FAILURES: ReadonlySet<ErrorCode> = new Set<ErrorCode>(["FORGE_UNAVAILABLE", "FORGE_ACCESS"]);
+
 /** Details of a decision that does not hold (REQ-VER-013); `forge` — only as a finding. */
 export type DecisionDetail = "form" | "repository" | "missing" | "author" | "text" | "pull_request" | "forge";
 
@@ -35,8 +39,8 @@ export type DecisionDetail = "form" | "repository" | "missing" | "author" | "tex
  * Judges the decisions of the record `record` of the Change of `subject`.
  * `approvedPr` — undefined when the pull request brings no new `APPROVED`;
  * otherwise the number of the pull request its ref names, null when it names
- * none (`judgeRefs` reports that ref). Throws `FORGE_UNAVAILABLE` only with a
- * new `APPROVED`.
+ * none (`judgeRefs` reports that ref). Throws `FORGE_UNAVAILABLE` and
+ * `FORGE_ACCESS` only with a new `APPROVED`; `USAGE` of the repository always.
  */
 export async function judgeDecisions(
   ctx: Pick<Ctx, "forge">,
@@ -104,7 +108,7 @@ export async function judgeDecisions(
         out.findings.push({ code: "SHARED_IDENTITY", message: `${where}: written by ${comment.author}: ${SHARED_IDENTITY_NOTE}` });
       }
     } catch (error) {
-      if (judged || !(error instanceof WarrantError) || error.code !== "FORGE_UNAVAILABLE") throw error;
+      if (judged || !(error instanceof WarrantError) || !FORGE_FAILURES.has(error.code)) throw error;
       fail("forge", error.message);
     }
   }

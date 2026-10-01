@@ -8,7 +8,7 @@
  */
 import { checksForTransition } from "../check/execute.js";
 import type { Ctx } from "../ctx.js";
-import { EXIT, WarrantError, type CliError, type ExitCode } from "../errors.js";
+import { WarrantError, type CliError } from "../errors.js";
 import { evidenceDir } from "../evidence/store.js";
 import { reportPath } from "../fs.js";
 import { MERGE_TRANSITION, type Finding } from "../gates/types.js";
@@ -34,8 +34,8 @@ const APPROVED = "APPROVED" satisfies keyof typeof CONFIRMED_BY;
 export interface CiVerdict {
   /** `data` in the order of REQ-VER-011. */
   data: Record<string, unknown>;
+  /** The exit code is their class (`exitCodeFor`, REQ-KRN-003): no place here chooses one. */
   errors: CliError[];
-  exitCode: ExitCode;
 }
 
 /** The gates of `SPECIFIED->APPROVED` of a spec-PR, informational (REQ-VER-011 «spec»): nothing is written. */
@@ -71,12 +71,12 @@ export function planPullRequest(ctx: Ctx, subject: CiSubject, base: BaseContext,
   const wouldWrite: string[] = [];
   if (subject.kind === "impl" && change !== undefined) {
     const prepared = prepare(ctx, change, { transition: MERGE_TRANSITION, env, record: subject.record as ChangeRecord, loaded: base.loaded });
-    if (!prepared.ok) return { data, errors: prepared.conflict ? [prepared.error] : prepared.errors, exitCode: EXIT.CONFIG };
+    if (!prepared.ok) return { data, errors: prepared.conflict ? [prepared.error] : prepared.errors };
     checks = checksForTransition(base.loaded, prepared.policy, MERGE_TRANSITION).map((o) => o.id);
     wouldWrite.push(`${reportPath(evidenceDir(ctx.root, change, env), ctx.root)}/`);
   }
   Object.assign(data, { checks, findings: [], skipped: [], dry_run: true, would_write: wouldWrite });
-  return { data, errors: [], exitCode: EXIT.OK };
+  return { data, errors: [] };
 }
 
 /** The new transitions as `data.transitions[]` prints them. */
@@ -99,7 +99,7 @@ function approvedPr(transitions: readonly NewTransition[]): number | null | unde
   return typeof ref === "string" ? (parsePullUrl(ref)?.number ?? null) : null;
 }
 
-/** Judges the pull request of `subject` by the requirements of `base`. Throws `FORGE_UNAVAILABLE` (exit 3). */
+/** Judges the pull request of `subject` by the requirements of `base`. Throws `FORGE_UNAVAILABLE`, `FORGE_ACCESS` and `USAGE` of the forge. */
 export async function judgePullRequest(ctx: Ctx, subject: CiSubject, base: BaseContext, env: NodeJS.ProcessEnv): Promise<CiVerdict> {
   const errors: CliError[] = [];
   const findings: Finding[] = [];
@@ -126,7 +126,6 @@ export async function judgePullRequest(ctx: Ctx, subject: CiSubject, base: BaseC
   errors.push(...paths.errors);
   skipped.push(...paths.skipped);
 
-  let configExit: ExitCode = EXIT.OK;
   let verified: string[] | undefined;
   if (subject.kind === "archive" && change !== undefined) {
     const ci = await verifyCiEvidence(ctx, subject, transitions, evidence);
@@ -136,10 +135,8 @@ export async function judgePullRequest(ctx: Ctx, subject: CiSubject, base: BaseC
     if (transitions.some((t) => t.to === "ARCHIVED")) {
       const replay = await replayArchive(ctx, subject, base);
       errors.push(...replay.errors);
-      if (replay.exitCode === EXIT.CONFIG) configExit = EXIT.CONFIG;
     }
   }
-  let exitCode: ExitCode = configExit === EXIT.CONFIG ? EXIT.CONFIG : errors.length > 0 ? EXIT.FAIL : EXIT.OK;
 
   if (subject.kind === "spec" && change !== undefined) {
     const gates = await specGates(ctx, subject, base, env, skipped);
@@ -149,7 +146,6 @@ export async function judgePullRequest(ctx: Ctx, subject: CiSubject, base: BaseC
   if (subject.kind === "impl" && change !== undefined) {
     impl = await judgeImpl(ctx, subject, base, env);
     errors.push(...impl.errors);
-    exitCode = Math.max(exitCode, impl.exitCode) as ExitCode;
     if ("gates" in impl) {
       data["gates"] = impl.gates;
       data["deferred"] = impl.deferred;
@@ -169,5 +165,5 @@ export async function judgePullRequest(ctx: Ctx, subject: CiSubject, base: BaseC
     data["artifact"] = impl.artifact;
   }
   if (verified !== undefined) data["evidence"] = verified;
-  return { data, errors, exitCode };
+  return { data, errors };
 }

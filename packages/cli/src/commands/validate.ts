@@ -7,11 +7,12 @@
  * reports `data.checked` and `data.skipped`. With `--files <a,b>`
  * (REQ-KRN-032, ADR-0019) it runs only the checks of one file over those
  * paths: `data.checked[]` — the paths read, `data.skipped[]` — the others with
- * a `reason`; a finding is `FAIL` (exit 1), not a configuration error.
+ * a `reason`; a finding has the code and the exit code (3) of the full
+ * `validate` (REQ-KRN-032, exit-contract D3).
  */
 import { splitPaths } from "../core/check/placeholders.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, WarrantError, type CliError } from "../core/errors.js";
+import { WarrantError, type CliError } from "../core/errors.js";
 import { loadPacks } from "../core/packs/loader.js";
 import { runChecks, runFileChecks, validateRun } from "../core/validate/registry.js";
 import { failures, success, type CommandResult } from "../io/output.js";
@@ -43,7 +44,7 @@ export async function runValidate(ctx: Ctx, opts: ValidateOptions = {}): Promise
   };
 
   if (errors.length === 0) return success(data);
-  return failures(sortErrors(errors), EXIT.CONFIG, data);
+  return failures(sortErrors(errors), data);
 }
 
 async function runValidateFiles(ctx: Ctx, raw: string): Promise<CommandResult> {
@@ -55,5 +56,5 @@ async function runValidateFiles(ctx: Ctx, raw: string): Promise<CommandResult> {
   const { errors, checked, skipped } = await runFileChecks(v, paths);
   const data = { checked, skipped };
   if (errors.length === 0) return success(data);
-  return failures(sortErrors(errors), EXIT.FAIL, data);
+  return failures(sortErrors(errors), data);
 }

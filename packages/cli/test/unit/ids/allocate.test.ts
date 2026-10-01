@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
-import { WarrantError } from "../../../src/core/errors.js";
+import { exitCodeFor, WarrantError } from "../../../src/core/errors.js";
 import { allocateSpecLevel, allocateUlid, allocateWaiver, highestNumber } from "../../../src/core/ids/allocate.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 import { write } from "../../helpers/synced.js";
@@ -59,7 +59,7 @@ describe("allocateSpecLevel", () => {
     } catch (thrown) {
       expect(thrown).toBeInstanceOf(WarrantError);
       expect((thrown as WarrantError).code).toBe("AREA_UNKNOWN");
-      expect((thrown as WarrantError).exitCode).toBe(3);
+      expect(exitCodeFor([thrown as WarrantError])).toBe(3);
     }
   });
 

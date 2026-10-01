@@ -493,13 +493,13 @@ export function loadPacks(projectRoot: string): LoadResult {
     const obj = manifest as Record<string, unknown>;
 
     const version = typeof obj["version"] === "string" ? obj["version"] : "0.0.0";
+    // Its own code, not CONFIG_INVALID: `warrant ci` tells the range of a pack the pull request changes by it (design exit-contract D8).
     if (!satisfies(version, request.range)) {
       errors.push(
-        cliError(
-          "CONFIG_INVALID",
-          `pack ${request.id} version ${version} does not satisfy the configured range "${request.range}"`,
-          { path: reported }
-        )
+        cliError("PACK_VERSION_RANGE", `pack ${request.id} version ${version} does not satisfy the configured range "${request.range}"`, {
+          path: reported,
+          hint: `set packs.${request.id}.version of ${CONFIG_REL.split(path.sep).join("/")} to a range holding ${version}, then run \`warrant sync\``
+        })
       );
     }
     const kernelRange = typeof obj["kernel"] === "string" ? obj["kernel"] : "*";

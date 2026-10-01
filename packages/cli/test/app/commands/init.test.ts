@@ -133,7 +133,7 @@ describe("warrant init", () => {
     // One line of the subagent removed: only its file is rewritten.
     p.write(CLAUDE_REVIEWER_REL, p.read(CLAUDE_REVIEWER_REL).split("\n").slice(1).join("\n"));
     const check = await sync(true);
-    expect(check.exitCode).toBe(1);
+    expect(check.exitCode).toBe(3);
     expect(check.data["findings"]).toEqual([]);
     const again = await sync();
     expect(again.exitCode).toBe(0);

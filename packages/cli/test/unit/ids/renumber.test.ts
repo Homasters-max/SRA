@@ -3,7 +3,7 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { loadConfig } from "../../../src/core/config.js";
-import type { WarrantError } from "../../../src/core/errors.js";
+import { exitCodeFor, type WarrantError } from "../../../src/core/errors.js";
 import { idOccurrenceRe, renumber } from "../../../src/core/ids/renumber.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 import { write } from "../../helpers/synced.js";
@@ -100,7 +100,7 @@ describe("renumber", () => {
     write(root, "openspec/changes/add-search/tasks.md", "REQ-KRN-007\n");
     const error = caught(() => renumber(root, loadConfig(root), "REQ-KRN-007", "REQ-KRN-013", "add-search"));
     expect(error.code).toBe("ID_IMMUTABLE");
-    expect(error.exitCode).toBe(3);
+    expect(exitCodeFor([error])).toBe(3);
     expect(read(root, "openspec/changes/add-search/tasks.md")).toBe("REQ-KRN-007\n");
   });
 

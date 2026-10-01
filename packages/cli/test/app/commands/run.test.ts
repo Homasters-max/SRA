@@ -439,7 +439,7 @@ describe("warrant run finish", () => {
     expect(writtenBeyond(before, p.tree(), dry.data["would_write"])).toEqual([]);
   });
 
-  it("the lock of the Run held by another process: BUSY after the wait, exit 2, the Run unchanged (F18)", async () => {
+  it("the lock of the Run held by another process: BUSY after the wait, exit 4, the Run unchanged (F18, REQ-KRN-036)", async () => {
     const p = await repo("PROPOSED");
     const started = await start(p, "add-search", { operation: "specify" });
     const id = started.data["run"] as string;
@@ -448,7 +448,7 @@ describe("warrant run finish", () => {
     writeFileSync(lock, JSON.stringify({ pid: 4242, what: "guard", at: "2026-09-25T10:00:00.000Z" }), "utf8");
 
     const run = await finish(p);
-    expect(run.exitCode).toBe(2);
+    expect(run.exitCode).toBe(4);
     expect(run.errors[0]?.code).toBe("BUSY");
     expect(run.errors[0]?.message).toContain("4242");
     expect(run.errors[0]?.hint).toContain(`${RUNS}/${id}.lock`);

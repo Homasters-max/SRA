@@ -86,8 +86,8 @@ describe.skipIf(!hasGit)("warrant check (platform)", () => {
       GITHUB_ACTIONS: "",
       FAKE_PIDS: pids
     });
-    expect(run.status).toBe(3);
-    expect(run.json.errors[0].code).toBe("CHECK_TIMEOUT");
+    expect(run.status).toBe(4);
+    expect(run.json.errors[0]).toMatchObject({ code: "CHECK_TIMEOUT", retryable: true });
     expect(Date.now() - started).toBeLessThan(30_000);
 
     expect(existsSync(path.join(root, ".git", "warrant", "check.lock"))).toBe(false);

@@ -22,7 +22,7 @@ import path from "node:path";
 
 import { splitPaths } from "../core/check/placeholders.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, WarrantError, type ErrorCode } from "../core/errors.js";
+import { WarrantError, type ErrorCode } from "../core/errors.js";
 import { reportPath } from "../core/fs.js";
 import { allocateUlid } from "../core/ids/allocate.js";
 import { loadPacks } from "../core/packs/loader.js";
@@ -106,16 +106,15 @@ async function start(ctx: Ctx, change: string | undefined, opts: RunStartOptions
   const specTree = operation === "review" ? await committedSpecTree(ctx, change) : undefined;
 
   const loaded = loadPacks(root);
-  if (loaded.errors.length > 0) return failures(loaded.errors, EXIT.CONFIG, {}, change);
+  if (loaded.errors.length > 0) return failures(loaded.errors, {}, change);
   const writeScope = writeScopeOf(operation, change, loaded.config);
 
   // The hash of the effective policy is the caller's: core/run does not depend on core/resolve (design §2).
   const { result, errors } = resolveForProject(loaded, record["classification"] as Classification | undefined);
-  if (errors.length > 0) return failures(errors, EXIT.CONFIG, {}, change);
+  if (errors.length > 0) return failures(errors, {}, change);
   if (!result.ok) {
     return failures(
       [{ code: "POLICY_CONFLICT", message: result.conflict.message, hint: `see \`warrant resolve ${change} --explain\`` }],
-      EXIT.WAIT,
       { controller_action: "ESCALATE", conflicts: result.conflict.items },
       change
     );

@@ -205,10 +205,10 @@ describe("pack core-sdd: каталог", () => {
     }
   });
 
-  it("версия 0.4.x, kernel >=0.1 <0.10, rules пуст, pack.json валиден (REQ-SDD-001, SCN-KRN-012)", () => {
-    // REQ-SDD-001 называет 0.4.x, kernel <0.10 — delta agent-merge; patch растёт по дисциплине версий (R-14).
+  it("версия 0.4.x, kernel >=0.1 <0.11, rules пуст, pack.json валиден (REQ-SDD-001, SCN-KRN-012)", () => {
+    // REQ-SDD-001 называет 0.4.x, kernel <0.11 — delta exit-contract; patch растёт по дисциплине версий (R-14).
     expect(manifest.version).toMatch(/^0\.4\.\d+$/);
-    expect(manifest.kernel).toBe(">=0.1 <0.10");
+    expect(manifest.kernel).toBe(">=0.1 <0.11");
     expect(provides["rules"]).toEqual([]);
     const result = validateFile(manifest, "pack.json");
     expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true);

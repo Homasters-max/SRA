@@ -98,11 +98,11 @@ describe("warrant fmt", () => {
     expect(again.data["changed"]).toEqual([]);
   });
 
-  it("--check reports the path and exits 1 without writing (SCN-KRN-051)", async () => {
+  it("--check reports the path and exits 3 without writing (SCN-KRN-051)", async () => {
     const p = project().write(".warrant/warrant.json", SHUFFLED_CONFIG);
 
     const run = await fmt(p, [], { check: true });
-    expect(run.exitCode).toBe(1);
+    expect(run.exitCode).toBe(3);
     expect(run.ok).toBe(false);
     expect(run.data["changed"]).toEqual([".warrant/warrant.json"]);
     expect(run.errors[0]?.code).toBe("NOT_CANONICAL");

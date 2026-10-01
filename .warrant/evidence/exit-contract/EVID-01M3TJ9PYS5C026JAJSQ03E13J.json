@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3TJ9PYS5C026JAJSQ03E13J",
+  "claim": {
+    "text": "Homasters-max approved exit-contract for SPECIFIED->APPROVED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "c06794bdb6c74aadd518b5ad8fb1602c53d7c834",
+    "base_commit": "c06794bdb6c74aadd518b5ad8fb1602c53d7c834",
+    "spec_revision": "openspec/changes/exit-contract@c06794bdb6c74aadd518b5ad8fb1602c53d7c834",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/126"
+  },
+  "context_hash": "sha256:14de22917211d7481243afabb81a73f46cc3dfada0e714d009e115b15faefc8f",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-10-01T01:47:08.634Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

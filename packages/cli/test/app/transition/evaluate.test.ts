@@ -101,7 +101,7 @@ describe("core/transition evaluate", () => {
     expect(manifest["evidence"]).toEqual([result.run.entries[0]?.["evidence"]]);
   });
 
-  it("returns a failing gate as GATES_NOT_PASSED with the controller's exit code", async () => {
+  it("returns a failing gate as GATES_NOT_PASSED with the controller's action", async () => {
     const p = await repo("PROPOSED", false);
 
     const result = await evaluate(p.ctx, CHANGE, { checks: checksForTransition, env: LOCAL });
@@ -112,7 +112,7 @@ describe("core/transition evaluate", () => {
     expect(failed).toEqual(["spec-valid"]);
     const refusal = gatesNotPassedRefusal(result.evaluation, failed);
     expect(refusal.error).toEqual({ code: "GATES_NOT_PASSED", message: "PROPOSED->SPECIFIED: gates not passed: spec-valid FAIL" });
-    expect(refusal.exitCode).toBe(2);
+    expect(refusal.outcome).toBe("WAIT");
   });
 
   it("judges recorded evidence only when no checks are asked for", async () => {

@@ -2,6 +2,24 @@
 
 Релизы CLI WARRANT: тег `v<версия>` репозитория `Homasters-max/SRA`. Раздел — на каждую поднятую версию CLI; рост major или minor CLI или pack требует подразделов «Вердикт» и «Миграция для потребителя» ([ADR-0048](docs/adr/WARRANT-ADR-0048-stabilization.md) п. 3). Держит `npm run versions:check`. История до 0.8.3 — теги и `openspec/changes/archive/`.
 
+## 0.10.0 — не выпущена
+
+Minor: остаток цикла 1 стабилизации тремя Change ([ADR-0052](docs/adr/WARRANT-ADR-0052-cycle-1-close.md)); тег — после третьего. `exit-contract`: класс у каждого кода ошибки, код выхода 4 и `retryable` (WS-06, A-42, A-48). Pack `core-sdd` 0.4.1.
+
+### Вердикт
+
+- **Не мягче.** Каждый случай, дававший ненулевой код, даёт ненулевой и теперь.
+- **Строже — в одном узком случае, ошибкой окружения, а не правилом судьи.** PR без нового перехода `APPROVED` с решением UNKNOWN при неверном `GITHUB_REPOSITORY` или без `origin`: раньше — находка `DECISION_NOT_VERIFIED`, код 0; теперь — `USAGE`, код 3 (REQ-VER-013, SCN-VER-138). Исправление — задать `GITHUB_REPOSITORY` в форме `<owner>/<repo>`.
+- **Коды выхода.** У каждого кода ошибки один класс во всех командах: нарушение — 1, ожидание — 2, конфигурация — 3, сбой инфраструктуры — 4 (`BUSY`, `CHECK_TIMEOUT`, `FORGE_UNAVAILABLE`; элемент `errors[]` несёт `retryable: true`). Код выбирается по приоритету `3 > 1 > 4 > 2 > 0`, а не максимумом.
+- **Pack.** `core-sdd` 0.4.1 — только диапазон `kernel` `>=0.1 <0.11`.
+
+### Миграция для потребителя
+
+- **Повторять можно только код 4.** Reusable `warrant.yml` и копия job `warrant` красят job и кодом 4; повтор — решение вызывающего (Re-run), CLI сам не повторяет.
+- **Изменённые коды:** `BUSY` 2 → 4 (в `ci fetch` 3 → 4); `CHECK_TIMEOUT` и недоступный форж 3 → 4; `fmt --check`, `sync --check`, `validate --files` с находками 1 → 3; `TOPOLOGY_VIOLATION` в `ci fetch` 3 → 1; сбой check вместе с нарушением PR или `STOP` — 1 вместо 3; `POLICY_CONFLICT` effective policy базы в `warrant ci` 3 → 2; в `warrant ci` gate, оставшийся `BLOCKED` из-за ошибки check, больше не даёт `GATE_NOT_PASSED`; непредвиденное исключение — `INTERNAL`, код 3, вместо аварийного выхода Node с кодом 1 (`warrant guard` — `deny` с кодом 0, `--frontend` — код 2).
+- **Новые коды ошибок:** `FORGE_ACCESS` (3) — `gh` не найден, не авторизован (нет токена — выход `gh` 4, HTTP 401) или HTTP 403 без лимита, вместо `FORGE_UNAVAILABLE`; `PACK_VERSION_RANGE` (3) — версия pack вне диапазона `warrant.json`, вместо `CONFIG_INVALID`. Неверный `GITHUB_REPOSITORY` или `origin` не на форже — `USAGE` вместо `FORGE_UNAVAILABLE`.
+- Пин — после тега `v0.10.0`: `.warrant/warrant.json` — `kernel: "0.10"`, затем `warrant sync` (lock несёт `kernel`); навык `warrant-upgrade`.
+
 ## 0.9.0 — 2026-10-01
 
 Minor: impl-PR может сливать агент там, где policy не требует человека ([ADR-0050](docs/adr/WARRANT-ADR-0050-agent-merge.md) п. 2–3, [ADR-0051](docs/adr/WARRANT-ADR-0051-agent-merge-first.md)). Pack `core-sdd` 0.4.0.

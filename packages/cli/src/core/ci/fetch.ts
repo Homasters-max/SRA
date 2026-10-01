@@ -13,7 +13,7 @@
  * the artifact stay out.
  */
 import type { Ctx } from "../ctx.js";
-import { cliError, EXIT, WarrantError, type CliError, type ExitCode } from "../errors.js";
+import { cliError, WarrantError, type CliError } from "../errors.js";
 import { acquireLock, lockPath } from "../check/lock.js";
 import { artifactName, attestationOf, ciRunKey, runAttemptKey } from "../evidence/attestation.js";
 import { subjectOf } from "../evidence/record.js";
@@ -35,8 +35,8 @@ export interface FetchSkipped {
 
 export interface FetchVerdict {
   data: Record<string, unknown>;
+  /** The exit code is their class (`exitCodeFor`); a thrown `WarrantError` — the class of its code. */
   errors: CliError[];
-  exitCode: ExitCode;
   change?: string;
 }
 
@@ -98,7 +98,7 @@ async function candidateRuns(ctx: Pick<Ctx, "forge">, pr: PullRequest, head: str
 
 /**
  * Finds and (unless `ctx.writes` is dry) imports the CI evidence of the merged
- * impl-PR `arg`. Input errors throw `WarrantError` (exit 3); nothing is written.
+ * impl-PR `arg`. Input errors throw `WarrantError` (exit by the class of its code); nothing is written.
  */
 export async function fetchCiEvidence(ctx: Ctx, arg: string, env: NodeJS.ProcessEnv): Promise<FetchVerdict> {
   assertCommittedState(env);
@@ -122,7 +122,7 @@ export async function fetchCiEvidence(ctx: Ctx, arg: string, env: NodeJS.Process
 
   const subject = await readSubjectOf(ctx, { merge: m, base, head });
   const change = subject.change;
-  if (subject.errors.length > 0) return { data: { pr: pr.number, merge_commit: m }, errors: subject.errors, exitCode: EXIT.CONFIG };
+  if (subject.errors.length > 0) return { data: { pr: pr.number, merge_commit: m }, errors: subject.errors };
   if (change === undefined) {
     throw new WarrantError("TOPOLOGY_VIOLATION", `merge commit ${m} of pull request ${pr.number} changes the record of no Change`, {
       hint: "pass the number of the impl-PR of the Change"
@@ -184,7 +184,6 @@ export async function fetchCiEvidence(ctx: Ctx, arg: string, env: NodeJS.Process
           hint: `${recoveryRun(m, ofJob)}, wait for it, then warrant ci fetch ${pr.number}`
         })
       ],
-      exitCode: EXIT.CONFIG,
       change
     };
   }
@@ -215,6 +214,6 @@ export async function fetchCiEvidence(ctx: Ctx, arg: string, env: NodeJS.Process
       lock.release();
     }
   }
-  if (imported.errors.length > 0) return { data: data(), errors: imported.errors, exitCode: EXIT.CONFIG, change };
-  return { data: data({ run: selected.run.url, evidence: imported.ids }), errors: [], exitCode: EXIT.OK, change };
+  if (imported.errors.length > 0) return { data: data(), errors: imported.errors, change };
+  return { data: data({ run: selected.run.url, evidence: imported.ids }), errors: [], change };
 }

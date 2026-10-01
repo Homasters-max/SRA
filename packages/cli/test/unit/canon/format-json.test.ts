@@ -13,6 +13,7 @@ import {
   writeJsonFile
 } from "../../../src/core/canon/format-json.js";
 import { WarrantError } from "../../../src/core/errors.js";
+import { failure, toEnvelope } from "../../../src/io/output.js";
 
 const dirs: string[] = [];
 afterAll(() => {
@@ -133,7 +134,7 @@ describe("writeFileAtomic (REQ-KRN-036)", () => {
     expect(readdirSync(dir)).toEqual(["add-search.json"]);
   });
 
-  it("is BUSY with exit 2 after 5 renames refused with EBUSY on win32 (SCN-KRN-158)", () => {
+  it("is BUSY with exit 4 and retryable after 5 renames refused with EBUSY on win32 (SCN-KRN-158)", () => {
     const { dir, file } = seeded();
     const rename = failing("EBUSY");
     let thrown: unknown;
@@ -144,7 +145,9 @@ describe("writeFileAtomic (REQ-KRN-036)", () => {
     }
     expect(thrown).toBeInstanceOf(WarrantError);
     const busy = thrown as WarrantError;
-    expect([busy.code, busy.exitCode]).toEqual(["BUSY", 2]);
+    const result = failure(busy);
+    expect([busy.code, result.exitCode]).toEqual(["BUSY", 4]);
+    expect(toEnvelope("transition", result).errors[0]?.retryable).toBe(true);
     expect(busy.hint).toContain("another process holds the file");
     expect(rename.calls()).toBe(RENAME_ATTEMPTS);
     expect(readFileSync(file, "utf8")).toBe(OLD);

@@ -20,7 +20,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { runCheck, type CheckOptions } from "../../../src/commands/check.js";
 import { runVerify } from "../../../src/commands/verify.js";
 import { bytesHash } from "../../../src/core/canon/hash.js";
-import type { CommandResult } from "../../../src/io/output.js";
+import { toEnvelope, type CommandResult } from "../../../src/io/output.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
 import { validate, validateErrors } from "../helpers/validate.js";
@@ -318,7 +318,7 @@ describe("warrant check", () => {
     expect(existsSync(path.join(p.root, EVIDENCE))).toBe(false);
   });
 
-  it("answers BUSY with the holder and does not run the check while the lock is held (SCN-VER-008)", async () => {
+  it("answers BUSY with the holder and does not run the check while the lock is held (SCN-VER-008, SCN-KRN-160)", async () => {
     const p = await repo("PROPOSED", {}, (b) => overrideTests(b));
     const lock = path.join(p.root, ".git", "warrant", "check.lock");
     mkdirSync(path.dirname(lock), { recursive: true });
@@ -326,8 +326,9 @@ describe("warrant check", () => {
     writeFileSync(lock, JSON.stringify(holder), "utf8");
 
     const run = await check(p, ["tests-passed"]);
-    expect(run.exitCode).toBe(2);
+    expect(run.exitCode).toBe(4);
     expect(run.errors[0]?.code).toBe("BUSY");
+    expect(toEnvelope("check", run).errors[0]).toMatchObject({ code: "BUSY", retryable: true });
     expect(run.data["holder"].pid).toBe(process.pid);
     expect(testRuns(p)).toEqual([]);
     // Someone else's lock is left where it is (D-23).

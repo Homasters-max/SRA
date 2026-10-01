@@ -10,7 +10,9 @@
  * identities of the base (lattice-issues, group 5) — SCN-VER-120, 121. The ref
  * of MERGED by the law of M^1, the ground of recorded WAIVED and NOT_APPLICABLE,
  * code without a Change and NO_HUMAN_ACCEPTANCE (agent-merge, group 4) —
- * SCN-VER-127…135.
+ * SCN-VER-127…135. Exit codes by class (exit-contract, group 4): a gate
+ * BLOCKED by a failed check, the forge refusing access or unknown, the range of
+ * a pack — SCN-VER-084, 095, 137, 138, 139.
  *
  * Each case builds the synced core-sdd project on `main` of `FakeGit`, opens a
  * pull request on a branch and merges it into `main` with a merge commit: HEAD
@@ -25,8 +27,9 @@ import { runArchive } from "../../../src/commands/archive.js";
 import { runCheck } from "../../../src/commands/check.js";
 import { runCi, type CiOptions } from "../../../src/commands/ci.js";
 import { runTransition } from "../../../src/commands/transition.js";
+import { acquireLock, lockPath } from "../../../src/core/check/lock.js";
 import type { WorkflowRun } from "../../../src/core/ports/forge.js";
-import type { CommandResult } from "../../../src/io/output.js";
+import { toEnvelope, type CommandResult } from "../../../src/io/output.js";
 import { advance, artifactOf, AT, HASH, pullRequest, RECORD } from "../helpers/ci.js";
 import { FAKE_REPOSITORY, fakePull, fakeRun, type FakeComment } from "../helpers/fakes/forge.js";
 import { invoke } from "../helpers/invoke.js";
@@ -326,7 +329,7 @@ describe("warrant ci: the structure of the record", () => {
     expect(mismatch.map((e) => e.message.includes("classification") && e.message.includes("factory-change"))).toEqual([true]);
   });
 
-  it("a new minor of a bundled pack outside the range of the base is the law changed, not a broken base; an unchanged pack outside the range is (I-179, I-233)", async () => {
+  it("a new minor of a bundled pack outside the range of the base is the law changed, not a broken base; an unchanged pack outside the range is (I-179, I-233, SCN-VER-139)", async () => {
     const outOfRange = (b: ProjectBuilder): void => {
       const config = b.json(".warrant/warrant.json");
       b.write(".warrant/warrant.json", { ...config, packs: { ...config.packs, "core-sdd": { version: "^0.0.1" } } });
@@ -337,6 +340,7 @@ describe("warrant ci: the structure of the record", () => {
     impl.commit("base: a lock and a range of another core-sdd");
     pullRequest(impl, "worktree/add-search", (b) => advance(b, "VERIFYING"));
     const judged = await ci(impl, CI_ENV);
+    expect(codes(judged)).not.toContain("PACK_VERSION_RANGE");
     expect(codes(judged)).not.toContain("CONFIG_INVALID");
     const mismatch = judged.errors.filter((e) => e.code === "RECORD_MISMATCH");
     expect(mismatch.map((e) => e.message.includes("classification") && e.message.includes("factory-change"))).toEqual([true]);
@@ -346,7 +350,8 @@ describe("warrant ci: the structure of the record", () => {
     broken.commit("base: a range of another core-sdd, the lock holds the bundled pack");
     pullRequest(broken, "docs/readme", (b) => b.write("docs/readme.md", "# Readme\n"));
     const result = await ci(broken);
-    expect(codes(result)).toContain("CONFIG_INVALID");
+    expect(codes(result)).toEqual(["PACK_VERSION_RANGE"]);
+    expect(toEnvelope("ci", result).errors[0]).not.toHaveProperty("retryable");
     expect(result.exitCode).toBe(3);
   });
 
@@ -591,10 +596,11 @@ describe("warrant ci: decisions of UNKNOWNs through the forge (REQ-VER-013)", ()
     expect(result.exitCode).toBe(1);
   });
 
-  it("a spec-PR before approval: a finding DECISION_NOT_VERIFIED — author, or forge when it is unavailable — not an error (SCN-VER-114)", async () => {
-    for (const [unavailable, detail] of [
-      [false, "author"],
-      [true, "forge"]
+  it("a spec-PR before approval: a finding DECISION_NOT_VERIFIED — author, or forge when it is unavailable or refuses access — not an error (SCN-VER-114)", async () => {
+    for (const [failure, detail] of [
+      [undefined, "author"],
+      ["unavailable", "forge"],
+      ["access", "forge"]
     ] as const) {
       const p = await changeRepo("PROPOSED");
       pullRequest(p, "spec/add-search", (b) => {
@@ -602,7 +608,7 @@ describe("warrant ci: decisions of UNKNOWNs through the forge (REQ-VER-013)", ()
         withUnknowns(b, [decided(UNK, DECISION_REF)]);
       });
       p.withForge({ pulls: [fakePull(5)], comments: [issueComment(11, "bob", `Decision on ${UNK}.`)] });
-      p.forge.unavailable = unavailable;
+      p.forge.failure = failure;
       const result = await ci(p);
       expect(result.data["kind"]).toBe("spec");
       const findings = result.data["findings"].filter((f: Data) => f["code"] === "DECISION_NOT_VERIFIED");
@@ -772,14 +778,48 @@ describe("warrant ci: archive-PR", () => {
     expect(other.exitCode).toBe(1);
   });
 
-  it("the forge unreachable while a ref needs it: FORGE_UNAVAILABLE with the hint, exit 3 (SCN-VER-084)", async () => {
+  it("gh without access while a ref needs it: FORGE_ACCESS with the hint, exit 3; the forge unreachable: FORGE_UNAVAILABLE retryable, exit 4 (SCN-VER-084)", async () => {
+    const denied = await archivePr();
+    denied.p.forge.failure = "access";
+    const access = await ci(denied.p);
+    expect(access.errors[0]?.code).toBe("FORGE_ACCESS");
+    expect(access.errors[0]?.hint).toContain("gh auth login");
+    expect(access.errors[0]?.hint).toContain("GH_TOKEN");
+    expect(toEnvelope("ci", access).errors[0]).not.toHaveProperty("retryable");
+    expect(access.exitCode).toBe(3);
+
+    const down = await archivePr();
+    down.p.forge.failure = "unavailable";
+    const unavailable = await ci(down.p);
+    expect(unavailable.errors[0]?.code).toBe("FORGE_UNAVAILABLE");
+    expect(toEnvelope("ci", unavailable).errors[0]).toMatchObject({ code: "FORGE_UNAVAILABLE", retryable: true });
+    expect(unavailable.exitCode).toBe(4);
+  });
+
+  it("GITHUB_REPOSITORY not <owner>/<repo>: USAGE with the hint, exit 3, no call of the forge; a spec-PR that needs no forge — 0; one with a decision — USAGE, no finding (SCN-VER-138)", async () => {
     const { p } = await archivePr();
-    p.forge.unavailable = true;
-    const result = await ci(p);
-    expect(result.errors[0]?.code).toBe("FORGE_UNAVAILABLE");
-    expect(result.errors[0]?.hint).toContain("gh auth login");
-    expect(result.errors[0]?.hint).toContain("GH_TOKEN");
-    expect(result.exitCode).toBe(3);
+    p.forge.failure = "repository";
+    const archive = await ci(p);
+    expect(archive.errors[0]?.code).toBe("USAGE");
+    expect(archive.errors[0]?.hint).toContain("<owner>/<repo>");
+    expect(toEnvelope("ci", archive).errors[0]).not.toHaveProperty("retryable");
+    expect(archive.exitCode).toBe(3);
+    expect(p.forge.calls).toEqual([]);
+
+    for (const decision of [false, true]) {
+      const spec = await changeRepo("PROPOSED");
+      pullRequest(spec, "spec/add-search", (b) => {
+        advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } });
+        if (decision) withUnknowns(b, [decided(UNK, DECISION_REF)]);
+      });
+      spec.forge.failure = "repository";
+      const result = await ci(spec);
+      // An error of the environment, not the finding DECISION_NOT_VERIFIED of an unavailable forge.
+      expect(codes(result)).toEqual(decision ? ["USAGE"] : []);
+      expect((result.data["findings"] ?? []).filter((f: Data) => f["code"] === "DECISION_NOT_VERIFIED")).toEqual([]);
+      if (!decision) expect(result.data["kind"]).toBe("spec");
+      expect(result.exitCode).toBe(decision ? 3 : 0);
+    }
   });
 });
 
@@ -934,13 +974,55 @@ describe("warrant ci: the merge verdict of an impl-PR", () => {
     expect(result.exitCode).toBe(0);
   });
 
-  it("a check over its timeout: CHECK_TIMEOUT, tests-passed BLOCKED, exit 3 (SCN-VER-095)", async () => {
+  it("a check over its timeout: CHECK_TIMEOUT retryable, tests-passed BLOCKED without GATE_NOT_PASSED, exit 4; with SCOPE_VIOLATION — 1 (SCN-VER-095)", async () => {
     const { p } = await implPr();
     p.checks.on("fake-tests", { timedOut: true });
     const result = await ci(p, CI_ENV);
-    expect(codes(result)).toContain("CHECK_TIMEOUT");
+    expect(codes(result)).toEqual(["CHECK_TIMEOUT"]);
+    expect(toEnvelope("ci", result).errors[0]).toMatchObject({ code: "CHECK_TIMEOUT", retryable: true });
     expect(result.data["gates"]["tests-passed"]).toBe("BLOCKED");
-    expect(result.exitCode).toBe(3);
+    expect(result.exitCode).toBe(4);
+
+    // A violation of the pull request is elder than the failure (1 > 4): a retry would not lift it.
+    const scoped = await changeRepo("IMPLEMENTING");
+    pullRequest(scoped, "worktree/add-search", (b) => {
+      b.write("src/search.ts", "export const search = 1;\n");
+      b.write("openspec/specs/search/spec.md", "# search\n");
+      advance(b, "VERIFYING", { gates: { "tests-passed": "PASS" } });
+    });
+    scoped.checks.on("fake-tests", { timedOut: true });
+    const violated = await ci(scoped, CI_ENV);
+    expect(codes(violated)).toEqual(expect.arrayContaining(["CHECK_TIMEOUT", "SCOPE_VIOLATION"]));
+    // scope-valid fails on the specs in the diff; tests-passed, starved by the failed check, gives no GATE_NOT_PASSED.
+    expect(violated.errors.filter((e) => e.code === "GATE_NOT_PASSED").map((e) => e.message)).toEqual(["gate scope-valid of VERIFYING->MERGED is FAIL"]);
+    expect(violated.data["gates"]["tests-passed"]).toBe("BLOCKED");
+    expect(violated.exitCode).toBe(1);
+  });
+
+  it("a conflict of the effective policy of the base: POLICY_CONFLICT, class wait — exit 2 (3 before exit-contract), --dry-run too", async () => {
+    const { p } = await implPr(CHORE, (b) =>
+      b.write(".warrant/local/overlays/perf.json", { $schema: "warrant://overlay/1", id: "perf", version: "1.0.0", match: {}, evidence: { required: ["perf-report"] } })
+    );
+    const result = await ci(p, CI_ENV);
+    expect(codes(result)).toEqual(["POLICY_CONFLICT"]);
+    expect(result.exitCode).toBe(2);
+    const plan = await ci(p, CI_ENV, { dryRun: true });
+    expect([codes(plan), plan.exitCode]).toEqual([["POLICY_CONFLICT"], 2]);
+  });
+
+  it("the lock of check held: BUSY retryable, the gate of the check BLOCKED without GATE_NOT_PASSED, exit 4 (SCN-VER-137)", async () => {
+    const { p } = await implPr();
+    const held = acquireLock(lockPath(p.root, await p.git.commonDir()).file, { pid: 1, check: "tests-passed", started_at: AT, cwd: p.root }, p.ctx.signals);
+    expect(held.ok).toBe(true);
+    try {
+      const result = await ci(p, CI_ENV);
+      expect(codes(result)).toEqual(["BUSY"]);
+      expect(toEnvelope("ci", result).errors[0]).toMatchObject({ code: "BUSY", retryable: true });
+      expect(result.data["gates"]["tests-passed"]).toBe("BLOCKED");
+      expect(result.exitCode).toBe(4);
+    } finally {
+      if (held.ok) held.release();
+    }
   });
 
   it("a later PROVEN record of another run does not count: the attempt's NOT_PROVEN fails the gate (SCN-VER-098)", async () => {

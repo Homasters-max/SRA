@@ -3,8 +3,7 @@
  * REQ-VER-008): the gates that keep it out, the refusal, and the entry written
  * when it passed. Shared by `transition` and `archive`.
  */
-import { exitCodeOf } from "../controller/evaluate.js";
-import { EXIT, type CliError, type ExitCode } from "../errors.js";
+import type { CliError, ControllerAction } from "../errors.js";
 import { PASSING_VERDICTS, type Verdict } from "../gates/types.js";
 import type { TransitionEntry } from "../record/write.js";
 import type { EffectivePolicy } from "../resolve/index.js";
@@ -40,12 +39,11 @@ export function forwardEntry(to: string, policy: EffectivePolicy, evaluation: Ev
 }
 
 /**
- * `GATES_NOT_PASSED` with the verdicts; the exit code is the controller's, and
- * never 0 — a gate that did not pass always keeps the transition out.
+ * `GATES_NOT_PASSED` with the verdicts and the controller action that enters
+ * the exit code with it (REQ-VER-007, exit-contract D2): the class `wait` of
+ * the code keeps the refusal off 0 under `CONTINUE`, `STOP` makes it 1.
  */
-export function gatesNotPassedRefusal(evaluation: Evaluation, failed: string[]): { error: CliError; exitCode: ExitCode } {
-  let code: ExitCode = exitCodeOf(evaluation.decision.controller_action);
-  if (code === EXIT.OK) code = EXIT.WAIT;
+export function gatesNotPassedRefusal(evaluation: Evaluation, failed: string[]): { error: CliError; outcome: ControllerAction } {
   const message = `${evaluation.transition}: gates not passed: ${failed.map((id) => `${id} ${String(evaluation.engine.gates[id])}`).join(", ")}`;
-  return { error: { code: "GATES_NOT_PASSED", message }, exitCode: code };
+  return { error: { code: "GATES_NOT_PASSED", message }, outcome: evaluation.decision.controller_action };
 }

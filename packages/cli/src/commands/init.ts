@@ -135,7 +135,7 @@ export async function runInit(ctx: Ctx, opts: InitOptions = {}): Promise<Command
     created: [...new Set([...created, ...((synced.data["changed"] as string[] | undefined) ?? [])])],
     sync: synced.data
   };
-  if (!synced.ok) return failures(synced.errors, synced.exitCode, data);
+  if (!synced.ok) return failures(synced.errors, data);
   return success(data);
 }
 

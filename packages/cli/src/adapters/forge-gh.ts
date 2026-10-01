@@ -6,17 +6,22 @@
  * zip dependency. The repository is `GITHUB_REPOSITORY`, else the GitHub URL
  * of the remote `origin` (https or ssh), resolved on the first call; the token
  * is `gh`'s own (`gh auth login` or `GH_TOKEN`), there is no `forge` key in
- * `warrant.json` (N45). HTTP 404 is `null`; every other failure is
- * `FORGE_UNAVAILABLE` with the first line `gh` printed.
+ * `warrant.json` (N45). A failure of `gh` is told by what it printed and its
+ * exit code (`ghFailure`, design exit-contract D7) — the boundary of the
+ * external tool, the one place its text is read: HTTP 404 is `null`; a refusal
+ * of access is `FORGE_ACCESS` (exit 3); anything else `FORGE_UNAVAILABLE`
+ * (exit 4), so a misread failure costs a retry, never a false pass. A
+ * `GITHUB_REPOSITORY` not `<owner>/<repo>`, or no GitHub `origin`, is `USAGE`
+ * before any call of `gh`.
  */
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { forgeUnavailable } from "../core/errors.js";
+import { forgeAccess, forgeUnavailable, WarrantError } from "../core/errors.js";
 import { isPlainObject } from "../core/json.js";
 import type { Comment, CommentRef, ForgePort, PullRequest, RunFilter, WorkflowRun } from "../core/ports/forge.js";
-import { exec } from "./exec.js";
+import { exec, type ExecResult } from "./exec.js";
 
 const OWNER_REPO = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
@@ -126,10 +131,39 @@ export function parseComment(body: unknown, kind: CommentRef["kind"]): Comment {
   };
 }
 
-/** First line of what a failed `gh` call printed; `gh` that did not start prints nothing. */
-function firstLine(stderr: Buffer, stdout: Buffer): string {
-  const text = (stderr.toString("utf8").trim() || stdout.toString("utf8").trim()).split("\n")[0]?.trim() ?? "";
-  return text === "" ? "`gh` did not run: the GitHub CLI is not on PATH" : text;
+/** First line of what a failed `gh` call printed. */
+function firstLine(run: Pick<ExecResult, "status" | "stderr" | "stdout">): string {
+  const text = (run.stderr.toString("utf8").trim() || run.stdout.toString("utf8").trim()).split("\n")[0]?.trim() ?? "";
+  return text === "" ? `gh exited with ${String(run.status)} and printed nothing` : text;
+}
+
+/** The HTTP status in what `gh api` prints: `gh: <message> (HTTP 403)`, or `gh: HTTP 502` for a body that is not JSON. */
+const HTTP_STATUS = /\(HTTP (\d{3})\)|\bHTTP (\d{3})\b/;
+
+/** A 403 or 429 of a rate limit (primary or secondary): the forge refuses for now, not for good. */
+const RATE_LIMIT = /rate limit/i;
+
+/** The exit code of `gh` without a token (`gh help exit-codes`: 4 — authentication required). */
+const GH_AUTH_REQUIRED = 4;
+
+/**
+ * The failure of a `gh` call `what` (design exit-contract D7): null for HTTP 404
+ * (not found, or invisible to the token — GitHub does not tell them apart);
+ * `FORGE_ACCESS` when `gh` did not start (not on PATH), has no token (exit 4,
+ * «gh auth login»), or got HTTP 401 or a 403 not of a rate limit;
+ * `FORGE_UNAVAILABLE` for anything else — the network, a timeout, 5xx, 429 or
+ * a 403 of a rate limit, a failure `gh` names in a way not known here.
+ */
+export function ghFailure(run: Pick<ExecResult, "started" | "status" | "stderr" | "stdout">, what: string): WarrantError | null {
+  if (!run.started) return forgeAccess(`${what}: \`gh\` did not run: the GitHub CLI is not on PATH`);
+  const text = run.stderr.toString("utf8");
+  const message = `${what}: ${firstLine(run)}`;
+  const match = HTTP_STATUS.exec(text);
+  const status = match === null ? undefined : Number(match[1] ?? match[2]);
+  if (status === 404) return null;
+  if (status === 401 || (status === 403 && !RATE_LIMIT.test(text))) return forgeAccess(message);
+  if (status === undefined && (run.status === GH_AUTH_REQUIRED || /gh auth login/.test(text))) return forgeAccess(message);
+  return forgeUnavailable(message);
 }
 
 /** Every file under `dir`, POSIX paths relative to it → bytes. */
@@ -190,7 +224,8 @@ export class ForgeGh implements ForgePort {
     const dir = mkdtempSync(path.join(tmpdir(), "warrant-artifact-"));
     try {
       const run = await exec("gh", ["run", "download", String(runId), "-n", name, "-D", dir, "-R", repo], this.root);
-      if (!run.ok) throw forgeUnavailable(`gh run download ${runId} -n ${name}: ${firstLine(run.stderr, run.stdout)}`);
+      // The artifact is listed alive: its download failing is no answer «not found».
+      if (!run.ok) throw ghFailure(run, `gh run download ${runId} -n ${name}`) ?? forgeUnavailable(`gh run download ${runId} -n ${name}: ${firstLine(run)}`);
       return filesUnder(dir);
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -205,7 +240,7 @@ export class ForgeGh implements ForgePort {
     return body === null ? null : parseComment(body, ref.kind);
   }
 
-  /** `<owner>/<repo>`: `GITHUB_REPOSITORY`, else the GitHub URL of `origin`; once per adapter. */
+  /** `<owner>/<repo>`: `GITHUB_REPOSITORY`, else the GitHub URL of `origin`; once per adapter; `USAGE` before any call of `gh` otherwise. */
   private repository(): Promise<string> {
     this.repo ??= this.resolveRepository();
     return this.repo;
@@ -215,26 +250,26 @@ export class ForgeGh implements ForgePort {
     const fromEnv = this.env.GITHUB_REPOSITORY?.trim();
     if (fromEnv !== undefined && fromEnv !== "") {
       if (OWNER_REPO.test(fromEnv)) return fromEnv;
-      throw forgeUnavailable(`GITHUB_REPOSITORY "${fromEnv}" is not <owner>/<repo>`, REPOSITORY_HINT);
+      throw new WarrantError("USAGE", `GITHUB_REPOSITORY "${fromEnv}" is not <owner>/<repo>`, { hint: REPOSITORY_HINT });
     }
     const origin = await exec("git", ["remote", "get-url", "origin"], this.root);
     const url = origin.stdout.toString("utf8").trim();
     const repo = origin.ok ? parseRemoteUrl(url) : null;
     if (repo === null) {
       const what = origin.ok ? `the remote origin ${url} is not a GitHub repository` : "the repository has no remote origin";
-      throw forgeUnavailable(`the forge repository is unknown: GITHUB_REPOSITORY is not set and ${what}`, REPOSITORY_HINT);
+      throw new WarrantError("USAGE", `the forge repository is unknown: GITHUB_REPOSITORY is not set and ${what}`, { hint: REPOSITORY_HINT });
     }
     return repo;
   }
 
-  /** JSON answer of `gh api` (an endpoint, or full argv); null on HTTP 404; `FORGE_UNAVAILABLE` otherwise. */
+  /** JSON answer of `gh api` (an endpoint, or full argv); null on HTTP 404; the failure of `ghFailure` otherwise. */
   private async api(request: string | string[], what: string): Promise<unknown> {
     const args = typeof request === "string" ? ["api", request] : request;
     const run = await exec("gh", args, this.root);
     if (!run.ok) {
-      const line = firstLine(run.stderr, run.stdout);
-      if (/\(HTTP 404\)|HTTP 404:/.test(run.stderr.toString("utf8"))) return null;
-      throw forgeUnavailable(`gh could not read ${what}: ${line}`);
+      const failure = ghFailure(run, `gh could not read ${what}`);
+      if (failure === null) return null;
+      throw failure;
     }
     try {
       return JSON.parse(run.stdout.toString("utf8")) as unknown;

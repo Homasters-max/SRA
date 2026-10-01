@@ -2,7 +2,7 @@
   "$schema": "warrant://pack/1",
   "id": "rules",
   "version": "1.0.0",
-  "kernel": ">=0.1 <0.10",
+  "kernel": ">=0.1 <0.11",
   "description": "Fixture pack: two path rules, one enforced and one not (ADR-0022).",
   "depends_on": {},
   "provides": {

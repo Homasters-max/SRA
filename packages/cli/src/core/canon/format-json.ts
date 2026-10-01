@@ -12,7 +12,7 @@ import { randomBytes } from "node:crypto";
 import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { EXIT, WarrantError } from "../errors.js";
+import { WarrantError } from "../errors.js";
 import { getSchema, type Json } from "../schemas/loader.js";
 import { parseSchemaUri } from "../schemas/registry.js";
 import { orderKeys, type JsonObject } from "./order-keys.js";
@@ -86,7 +86,7 @@ function pause(ms: number): void {
  * interrupted write leaves the former file (or its absence) whole; on a failure
  * the temporary file is removed. On `win32` a rename refused with `EPERM`,
  * `EBUSY` or `EACCES` is tried {@link RENAME_ATTEMPTS} times in all with a pause
- * of {@link RENAME_PAUSE_MS} ms, then it is `BUSY`, exit 2 (I-206); any other
+ * of {@link RENAME_PAUSE_MS} ms, then it is `BUSY`, exit 4 (I-206); any other
  * failure is thrown as it is.
  */
 export function writeFileAtomic(absolutePath: string, data: string | Uint8Array, options: AtomicWriteOptions = {}): void {
@@ -108,8 +108,7 @@ export function writeFileAtomic(absolutePath: string, data: string | Uint8Array,
         if (attempt >= RENAME_ATTEMPTS) {
           throw new WarrantError("BUSY", `${absolutePath}: the rename onto the file failed ${String(RENAME_ATTEMPTS)} times (${code})`, {
             path: absolutePath,
-            hint: "another process holds the file (antivirus, editor): retry",
-            exitCode: EXIT.WAIT
+            hint: "another process holds the file (antivirus, editor): retry"
           });
         }
         pause(RENAME_PAUSE_MS);

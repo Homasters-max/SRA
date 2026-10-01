@@ -36,7 +36,7 @@ npm test
 
 ## Команды
 
-Реализованы команды фаз 1 (`phase-1-kernel`, REQ-KRN-021…027), 2 (`phase-2-core-sdd`, REQ-KRN-028), 3 (`phase-3-verification`, REQ-VER-001…008), 3b (`phase-3b`: `link`, `waive`, `classify --ref`, REQ-KRN-028, 030, 031) и 4a (`phase-4a`: `run`, `guard`, адаптер `claude`, `validate --files`, REQ-ENF-001…005, REQ-KRN-032, 033). Каждая печатает один JSON-объект `{ command, ok, change?, data, errors }` (ошибка — с `hint`, как исправить); коды выхода `0 / 1 / 2 / 3` ([04 §7](docs/04-lifecycle.md)). `--dry-run` у `transition`, `archive`, `waive`, `run start`, `run finish` печатает тот же JSON с `dry_run: true` и `would_write[]`, ничего не записывая.
+Реализованы команды фаз 1 (`phase-1-kernel`, REQ-KRN-021…027), 2 (`phase-2-core-sdd`, REQ-KRN-028), 3 (`phase-3-verification`, REQ-VER-001…008), 3b (`phase-3b`: `link`, `waive`, `classify --ref`, REQ-KRN-028, 030, 031) и 4a (`phase-4a`: `run`, `guard`, адаптер `claude`, `validate --files`, REQ-ENF-001…005, REQ-KRN-032, 033). Каждая печатает один JSON-объект `{ command, ok, change?, data, errors }` (ошибка — с `hint`, как исправить); коды выхода `0 / 1 / 2 / 3 / 4`, `4` — сбой инфраструктуры, повтор может пройти (`retryable: true`; [04 §7](docs/04-lifecycle.md)). `--dry-run` у `transition`, `archive`, `waive`, `run start`, `run finish` печатает тот же JSON с `dry_run: true` и `would_write[]`, ничего не записывая.
 
 | Команда | Что делает |
 |---|---|
@@ -59,7 +59,7 @@ npm test
 | `warrant status [change]` | состояние record, `effective_policy.{hash,sources,risk_level}`, artifacts OpenSpec, `stale[]`, `verification` — verdicts следующего перехода по записанному evidence (checks не запускаются) |
 | `warrant check <change> [id...] [--paths a,b] [--base <ref>]` | запускает checks (по умолчанию — нужные gates следующего перехода) без shell, с замком `exclusive` и `timeout_s`; пишет evidence `.warrant/evidence/<change>/EVID-*.json` и `manifest.json`, сырой вывод — в `raw/` (не коммитится). Код 0 при записанном evidence, даже `NOT_PROVEN`; 2 — `BUSY`; 3 — таймаут или check не настроен |
 | `warrant gate <change> [id...] [--transition <FROM->TO>] [--base <ref>]` | verdicts gates перехода по записанному evidence (пред-фильтр `STALE` по commit/base), `findings[]`, решение controller; код по `controller_action` (`CONTINUE` 0, `STOP` 1, `WAIT`/`ESCALATE` 2) |
-| `warrant verify <change> [--transition <FROM->TO>] [--base <ref>] [--paths a,b]` | `check` → `gate` → controller одним вызовом; упавший check делает свои gates `BLOCKED`, код — максимум |
+| `warrant verify <change> [--transition <FROM->TO>] [--base <ref>] [--paths a,b]` | `check` → `gate` → controller одним вызовом; упавший check делает свои gates `BLOCKED`, код — старший по приоритету `3 > 1 > 4 > 2 > 0` |
 | `warrant transition <change> <STATE> [--ref <url>] [--by <login>] [--commit <sha>]` | пишет переход в record, если все gates перехода `PASS`/`WAIVED`/`NOT_APPLICABLE` (иначе `GATES_NOT_PASSED`); `APPROVED`/`MERGED` требуют `--ref`, gate `human-approval` — `--by` (пишется evidence `human-approval`); `MERGED` судится на commit evidence (`--commit`, по умолчанию — свежайшая запись), который должен быть влит в HEAD; назад и `ABANDONED` — без gates |
 | `warrant archive <change>` | только из `MERGED`: `openspec validate --strict`, gates `MERGED->ARCHIVED`, `openspec archive`, переход `ARCHIVED`; record замораживается |
 

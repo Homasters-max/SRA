@@ -9,7 +9,16 @@ import type { Ctx } from "../core/ctx.js";
 import { EXIT, WarrantError } from "../core/errors.js";
 import { systemClock } from "../core/ports/clock.js";
 import { createWrites } from "../core/writes.js";
-import { emitNative, emitToProcess, failure, resultFromThrown, writeStdout, type CommandResult } from "../io/output.js";
+import {
+  claimAnswer,
+  emitNative,
+  emitToProcess,
+  failure,
+  processPrinter,
+  resultFromThrown,
+  writeStdout,
+  type CommandResult
+} from "../io/output.js";
 import { CLI_VERSION } from "../version.js";
 import { projectRoot, requireConfigPath } from "../commands/context.js";
 import { initFrontends, runInitCommand } from "../commands/init.js";
@@ -35,6 +44,25 @@ import { runUnknownAdd, runUnknownResolve } from "../commands/unknown.js";
 import { readStdin } from "../io/stdin.js";
 import { UNREADABLE_EXIT, type FrontendAdapter } from "../core/ports/frontend.js";
 import { claudeFrontend } from "../adapters/frontend/claude.js";
+import { onCrash, type CrashState } from "./crash.js";
+
+/** What the handler of an uncaught exception learns as the call goes: the running command, the stdin of `guard`. */
+const crash: Pick<CrashState, "command" | "guardInput"> = {};
+
+/**
+ * An exception no command caught (exit-contract D9): the answer of `onCrash`,
+ * then the process ends once stdout has taken what is written — its state is
+ * unknown, and a hung handle must not keep it alive.
+ */
+function crashed(thrown: unknown): void {
+  const exit = onCrash(thrown, { argv: process.argv, answered: !claimAnswer(), ...crash }, processPrinter);
+  process.exitCode = exit;
+  process.stdout.write("", () => process.exit(exit));
+}
+
+// First of all (D9): nothing the CLI runs may end the process before these are in place.
+process.on("uncaughtException", crashed);
+process.on("unhandledRejection", crashed);
 
 /** Adapters of `warrant guard --frontend <name>` (REQ-ENF-005): the one place of `bin` that names a frontend (design §9). */
 const FRONTENDS: readonly FrontendAdapter[] = [claudeFrontend];
@@ -73,6 +101,7 @@ const program = new Command("warrant")
 
 async function run(name: string, runner: Runner, args: string[], opts: Record<string, unknown>): Promise<void> {
   let result: CommandResult;
+  crash.command = name;
   try {
     result = await runner(productionCtx(opts["dryRun"] === true), args, opts);
   } catch (thrown) {
@@ -345,7 +374,7 @@ const ciCommand = register(
           "warrant ci --dry-run"
         ]) +
           "\nHEAD must be the result of a merge: the first parent the tip of the base, the second the head of the PR.\n" +
-          "Exit codes: 0 no violation; 1 a violation of the PR (errors[]); 3 configuration, USAGE, a failed check, FORGE_UNAVAILABLE.\n"
+          "Exit codes: 0 no violation; 1 a violation of the PR (errors[]); 2 POLICY_CONFLICT; 3 configuration, USAGE, CHECK_NOT_CONFIGURED, FORGE_ACCESS; 4 retryable — CHECK_TIMEOUT, BUSY, FORGE_UNAVAILABLE.\n"
       )
 );
 register(
@@ -360,7 +389,7 @@ register(
         "after",
         examples(["warrant ci fetch 57", "warrant ci fetch https://github.com/<owner>/<repo>/pull/57 --dry-run"]) +
           "\nNo run on the tree of the merge commit M (main moved before the merge): gh workflow run <workflow file of the job warrant> -f merge_commit=<M> (the hint of NO_CI_EVIDENCE names it), then fetch again.\n" +
-          "Exit codes: 0 imported or already present; 3 USAGE, PR_NOT_FOUND, PR_NOT_MERGED, PR_NOT_IMPL, NO_CI_EVIDENCE, EVIDENCE_CONFLICT, BUSY, FORGE_UNAVAILABLE — nothing written.\n"
+          "Exit codes: 0 imported or already present; 1 TOPOLOGY_VIOLATION; 3 USAGE, PR_NOT_FOUND, PR_NOT_MERGED, PR_NOT_IMPL, NO_CI_EVIDENCE, EVIDENCE_CONFLICT, FORGE_ACCESS; 4 retryable — BUSY, FORGE_UNAVAILABLE. Nothing is written unless 0.\n"
       ),
   ciCommand
 );
@@ -571,7 +600,15 @@ program
   )
   .action(async (opts: Record<string, unknown>) => {
     if (typeof opts["frontend"] === "string") return guardFrontend(opts["frontend"]);
-    await run("guard", async (ctx) => runGuard(ctx, await readStdin()), [], opts);
+    await run(
+      "guard",
+      async (ctx) => {
+        crash.guardInput = await readStdin();
+        return runGuard(ctx, crash.guardInput);
+      },
+      [],
+      opts
+    );
   });
 
 /** `hint` of a usage error Commander reports, for the commands born with hints (REQ-KRN-002). */

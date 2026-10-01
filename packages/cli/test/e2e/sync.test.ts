@@ -17,7 +17,7 @@ import { PACKS, useSyncedProject } from "../helpers/synced.js";
 const project = useSyncedProject();
 
 describe("warrant sync (argv)", () => {
-  it("syncs with exit 0 into a schema openspec accepts; --check exits 0 clean and 1 on drift (SCN-KRN-063)", async () => {
+  it("syncs with exit 0 into a schema openspec accepts; --check exits 0 clean and 3 on drift (SCN-KRN-063)", async () => {
     const root = project();
     const env = { WARRANT_PACKS_DIR: PACKS };
 
@@ -36,7 +36,7 @@ describe("warrant sync (argv)", () => {
     const config = path.join(root, "openspec", "config.yaml");
     writeFileSync(config, readFileSync(config, "utf8").replace("schema: warrant-sdd", "schema: warrant-sdd # edited"), "utf8");
     const drift = await runCli(["sync", "--check"], root, env);
-    expect(drift.status).toBe(1);
+    expect(drift.status).toBe(3);
     expect(drift.json?.ok).toBe(false);
     expect(drift.json?.errors.map((e: { code: string }) => e.code)).toEqual(["GENERATED_DRIFT"]);
     // --check writes nothing.

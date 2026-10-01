@@ -15,9 +15,7 @@
  * `archive`, `transition` and `status`: git and OpenSpec are only ever reached
  * through `ctx`, the engine and the controller stay pure.
  */
-import { exitCodeOf } from "../core/controller/evaluate.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT } from "../core/errors.js";
 import { MERGE_TRANSITION } from "../core/gates/types.js";
 import { evaluate } from "../core/transition/evaluate.js";
 import { decisionFields, gateData, hooksFindings } from "../core/transition/gates.js";
@@ -41,14 +39,14 @@ export async function runGate(
   requireConfigPath(ctx.root);
   const evaluated = await evaluate(ctx, change, { transition: opts.transition, base: opts.base, env, gates: ids });
   if (!evaluated.ok) {
-    if (!evaluated.conflict) return failures(evaluated.errors, EXIT.CONFIG, {}, change);
+    if (!evaluated.conflict) return failures(evaluated.errors, {}, change);
     const { error, transition, decision } = evaluated;
-    return failures([error], EXIT.WAIT, { transition, gates: {}, findings: [], ...decisionFields(decision) }, change);
+    return failures([error], { transition, gates: {}, findings: [], ...decisionFields(decision) }, change, decision.controller_action);
   }
   const { evaluation } = evaluated;
 
   const hooks = evaluation.transition === MERGE_TRANSITION ? hooksFindings(ctx, change, evaluation, evaluated.loaded.config, env) : [];
   const data = gateData(evaluation, hooks);
-  const exitCode = exitCodeOf(evaluation.decision.controller_action);
-  return exitCode === EXIT.OK ? success(data, change) : failures([], exitCode, data, change);
+  const action = evaluation.decision.controller_action;
+  return action === "CONTINUE" ? success(data, change) : failures([], data, change, action);
 }

@@ -57,16 +57,18 @@ describe("loadPacks", () => {
     expect(codes(result.errors)).toEqual(["PACK_NOT_FOUND"]);
   });
 
-  it("reports a kernel range this CLI does not satisfy", () => {
+  it("reports a kernel range this CLI does not satisfy: CONFIG_INVALID, not PACK_VERSION_RANGE (design exit-contract D8)", () => {
     const result = loadPacks(project({ packs: { "bad-kernel": { version: "^1.0" } } }));
     expect(codes(result.errors)).toEqual(["CONFIG_INVALID"]);
     expect(result.errors[0]?.message).toMatch(/requires kernel/);
   });
 
-  it("reports a pack version outside the configured range", () => {
+  it("reports a pack version outside the configured range as PACK_VERSION_RANGE with the path of its pack.json, not CONFIG_INVALID (SCN-KRN-164)", () => {
     const result = loadPacks(project({ packs: { base: { version: "^2.0" } } }));
-    expect(codes(result.errors)).toEqual(["CONFIG_INVALID"]);
+    expect(codes(result.errors)).toEqual(["PACK_VERSION_RANGE"]);
     expect(result.errors[0]?.message).toMatch(/does not satisfy/);
+    expect(result.errors[0]?.path).toMatch(/base\/pack\.json$/);
+    expect(result.errors[0]?.hint).toContain("warrant sync");
   });
 
   it("reports DUPLICATE_OBJECT_ID when two packs declare the same gate (SCN-KRN-044)", () => {

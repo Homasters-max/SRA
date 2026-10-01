@@ -6,9 +6,12 @@
  * slice-fixes §4); `reviews` is not introduced (ADR-0025: a port has only the
  * methods in use). The adapter (`adapters/forge-gh.ts`)
  * talks through `gh`: the repository is `GITHUB_REPOSITORY` or the URL of the
- * remote `origin`, the token is `gh`'s own (N45). A failure of authorisation,
- * of the network or of `gh` itself throws `FORGE_UNAVAILABLE` with a `hint`
- * (`forgeUnavailable` of `core/errors.ts`); what the forge does not have is `null`.
+ * remote `origin`, the token is `gh`'s own (N45). A refusal of access (`gh`
+ * missing or without a token, HTTP 401, 403 not of a rate limit) throws
+ * `FORGE_ACCESS`, any other failure of the network, the forge or `gh`
+ * `FORGE_UNAVAILABLE` (`forgeAccess`, `forgeUnavailable` of `core/errors.ts`,
+ * design exit-contract D7); a repository that is not `<owner>/<repo>` —
+ * `USAGE`; what the forge does not have is `null`.
  */
 
 /** A pull request of this repository (`GET repos/{owner}/{repo}/pulls/{n}`). */

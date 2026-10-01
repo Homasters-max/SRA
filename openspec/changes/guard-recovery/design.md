@@ -64,7 +64,7 @@
   - `edit`, все `files` которого равны `.warrant/warrant.json`, — `allow` с hint `warrant sync`;
   - иной `edit` — `deny`;
   - `shell` — `allow`, если каждая простая команда — `isReading` или `isRecovery`, соединители — `READING_JOINS`, без `UNSAFE_WORD_RE`. Иначе `deny`.
-- `isRecovery` — `warrant sync [...]`, `warrant validate [...]`, `warrant status [...]` (он уже в `isReading`), `warrant --version`, `warrant -V`.
+- `isRecovery` — `warrant sync [...]`, `warrant validate [...]`, `warrant status [...]` (он уже в `isReading`), `warrant --version`, `warrant -V`. `--help` и `-h` уже даёт `isReading`. `warrant run submit` и `run finish` (в том числе отмена) в режим не входят: восстановлению они не нужны, а пишут файлы Run.
 - `allow` внутри `write_scope` активного Run остаётся без policy, как сейчас. Отказ вне `write_scope` при незагружаемой policy тоже уходит в `recoveryAnswer`: правка только `.warrant/warrant.json` проходит и при Run.
 - Событие записывается в `guard_events[]` как прежде. Замок и `BUSY` не меняются.
 
@@ -75,25 +75,31 @@
   - диапазоны и `kernel` — терпимое чтение `warrant.json` (сырой JSON, без `loadConfig`, который бросает на невалидной схеме). Файл не читается — части `pins` нет.
 - Hints по порядку:
   1. `hint` первой ошибки, если он есть;
-  2. `PIN_HINT` — шаги pin-Change: поднять `packs.<id>.version` и `kernel` до версий CLI, затем `warrant sync`, или исполнить закреплённый CLI (`cli` в `warrant.json`, CLI тега);
+  2. если среди ошибок загрузки есть `PACK_VERSION_RANGE` — `PIN_HINT`, шаги pin-Change: поднять `packs.<id>.version` и `kernel` до версий CLI, затем `warrant sync`, или исполнить закреплённый CLI (`cli` в `warrant.json`, CLI тега). Иначе (битый `.warrant/local/**`, pack не найден) — исправить файл, названный путём ошибки: pin-Change туда не ведёт;
   3. `RECOVERY_HINT` — что guard разрешает, пока policy не грузится.
+- При `cli`, который даёт алиас (D4), команды в hints режима пишутся как `node <cli> …`: агент, который выполнит hint буквально, не уйдёт в PATH.
 - Адаптер `claude` склеивает reason и hints в `permissionDecisionReason` — как сейчас (REQ-ENF-005).
-- Сообщение `PACK_VERSION_RANGE` встроенного pack называет и CLI: «pack core-sdd 0.4.1 bundled with CLI 0.10.0 does not satisfy the configured range "^0.3.4"». Hint добавляет `kernel`. Код и путь не меняются: на них держится D8 `exit-contract`. Это та же находка `validate` и `post`-hints — «находка» ADR-0053 п. 2.
+- Сообщение `PACK_VERSION_RANGE` встроенного pack называет и CLI: «pack core-sdd 0.4.1 bundled with CLI 0.10.0 does not satisfy the configured range "^0.3.4"». Hint добавляет `kernel`. Код и путь не меняются: на них держится D8 `exit-contract`. Это та же находка `validate` и `post`-hints — «находка» ADR-0053 п. 2; норма — delta REQ-KRN-021, SCN-KRN-167.
 
 **D3. Закреплённый CLI — поле `cli` и генератор, без переадресации** (REQ-KRN-004, REQ-KRN-033).
 - `cli` — путь к файлу входа CLI от корня проекта. Значения:
   - SRA — `packages/cli/dist/bin/warrant.js`;
   - Node-потребитель — `node_modules/warrant/packages/cli/dist/bin/warrant.js` после `npm i -D <tgz тега>`.
-- Шаблон схемы не пропускает пробел, кавычки, `$`, `..`, абсолютный путь. Поэтому команда собирается без экранирования: `node "${CLAUDE_PROJECT_DIR}/<cli>" guard --frontend claude`.
-- `${CLAUDE_PROJECT_DIR}` — потому что `cwd` хука не обязан быть корнем. Форма проверена хуками разработки SRA.
+- Шаблон схемы не пропускает пробел, кавычки, `$`, `..`, абсолютный путь. Поэтому команда собирается без экранирования: `node "${CLAUDE_PROJECT_DIR:-.}/<cli>" guard --frontend claude`.
+- `${CLAUDE_PROJECT_DIR:-.}` — потому что `cwd` хука не обязан быть корнем, а переменная Claude Code может не дойти до хука. Зонд 2026-10-01, Claude Code 2.1.283, `claude -p` во временном проекте:
+  - хук `settings.json` получает `CLAUDE_PROJECT_DIR` — корень проекта;
+  - форма `${CLAUDE_PROJECT_DIR:-.}` раскрывается в него же, а без переменной (`env -u`, Git Bash) — в `.`;
+  - хук frontmatter субагента в `claude -p` не исполнился ни в одной форме, в том числе с абсолютным путём. Это не зависит от формы команды. Прежний зонд I-168 был интерактивным; повтор — задача 4.3.
+- Файла `cli` нет — `sync` даёт находку `CLI_NOT_FOUND` (код 0), как `REVIEWER_SKILL_MISSING`. `validate` файл не проверяет: в CI потребителя зависимости проекта могут быть не установлены.
 - Без `cli` байты сгенерированных файлов не меняются: у потребителя без поля дрейфа нет.
 - Во frontmatter субагента команда с `cli` пишется в одинарных кавычках YAML (в ней есть `"`), без `cli` — прежняя строка в двойных кавычках.
-- `isGuardHook` признаёт своими обе формы: точную строку `warrant guard --frontend claude` и `^node "\$\{CLAUDE_PROJECT_DIR\}/<шаблон cli>" guard --frontend claude$`. `merge` заменяет любую из них текущей, `own` сверяет текущую по hash. Смена или удаление `cli` — штатный `sync`, а не ручная правка.
+- `isGuardHook` признаёт своими обе формы: точную строку `warrant guard --frontend claude` и `^node "\$\{CLAUDE_PROJECT_DIR:-\.\}/<шаблон cli>" guard --frontend claude$`. `merge` заменяет любую из них текущей, `own` сверяет текущую по hash. Смена или удаление `cli` — штатный `sync`, а не ручная правка.
 - Тело субагента при `cli` сдаёт результат командой `node <cli> run submit --file …` — относительный путь из корня проекта. Агент сдаёт из корня без `cd` (I-197). guard читает эту форму как `warrant` (D4).
+- Текст skill из lock не меняется: его hash записан в lock, и он содержит `warrant run submit` (`sra/skills/specification/adversarial-review/SKILL.md`). Раздел сдачи говорит, что команды `warrant` в тексте skill исполняются в форме `node <cli>`.
 - В SRA хук берёт `CLAUDE_PROJECT_DIR`, то есть checkout, где начата сессия (обычно основной, `main`). `run submit` берёт dev-CLI worktree. Оба — dev-CLI, PATH не участвует.
 
 **D4. guard читает `node <cli>` как `warrant`** (REQ-ENF-004).
-- `cli` guard берёт терпимым чтением `warrant.json`, тем же, что D2. Значение должно пройти шаблон схемы.
+- `cli` guard берёт терпимым чтением `warrant.json`, тем же, что D2. Файла нет, он не разбирается как JSON-объект, `cli` не строка или не проходит шаблон схемы — алиаса нет, команда судится как не `warrant` (fail-closed).
 - Нормализация `[node, <cli>, ...rest] → [warrant, ...rest]` применяется к простым командам до `isSubmit`, `isCancel`, `isReading`, `isRecovery`, только в ветках Run `review` и режима восстановления.
 - `shellAnswer` (префиксы checks) не меняется: `node <cli>` не префикс check.
 - Сравнение точное, по строке поля: `./tools/warrant.js` при `cli: "tools/warrant.js"` — `deny` (fail-closed).
@@ -117,7 +123,12 @@
   npm i -g ./warrant-<версия>.tgz
   ```
   Первую команду — вне checkout. `npm link` — только для разработки WARRANT; SRA исполняет dev-CLI через `cli`.
-- Навык `warrant-upgrade` (`~/.claude/skills/`, вне репозитория): подъём minor pack (caret `^0.3` не пускает `0.4`); порядок «сначала `warrant.json` (диапазон, `kernel`), `warrant sync`, затем CLI»; поле `cli` для Node-проекта; запасной выход — режим восстановления guard.
+- Навык `warrant-upgrade` (`~/.claude/skills/`, вне репозитория):
+  - подъём minor pack (caret `^0.3` не пускает `0.4`);
+  - порядок «сначала `warrant.json` (диапазон, `kernel`), `warrant sync`, затем CLI»;
+  - CLI на машине ставит maintainer вне сессии агента (`rules.md` «Настройка машины»): режим восстановления не пускает `npm pack` и `npm i`, а глобальная установка — настройка машины, не правка проекта. Агент отдаёт команду maintainer'у одной строкой;
+  - поле `cli` для Node-проекта — только когда CLI машины не ниже 0.10 (схема старше 0.10 не знает поля);
+  - запасной выход — режим восстановления guard (CLI ≥ 0.10).
 - CHANGELOG `## 0.10.0`:
   - «Вердикт» — без изменений: guard не судья;
   - «Миграция для потребителя» — CLI из тега на машине, порядок перехода, `cli` и команда хука после `warrant sync`, перезапуск сессии Claude Code.
@@ -143,22 +154,24 @@
 1. Поле `cli`: схема, `config.ts`, SCN-KRN-165.
 2. guard: `PolicyNotLoaded`, `bundledPackVersions`, `recoveryAnswer`, алиас `node <cli>`, сообщение `PACK_VERSION_RANGE`; SCN-ENF-048…051.
 3. Адаптер и R-46: SCN-ENF-052, SCN-ENF-053.
-4. Генератор: команда хука и тела субагента, опознание своих хуков; SCN-KRN-166. Зонд хука frontmatter с `${CLAUDE_PROJECT_DIR}`.
+4. Генератор: команда хука и тела субагента, опознание своих хуков, `CLI_NOT_FOUND`; SCN-KRN-166. Повтор зонда хука frontmatter — интерактивно.
 5. SRA: `cli`, перегенерация агента, мета-тесты, навык `change-spec-pr`.
 6. Документы: 08 §3, `rules.md`, CHANGELOG, backlog; навык `warrant-upgrade`.
 
 ### 4. Риски
 
 - **Файла `cli` нет** (worktree без `npm run build`, `node_modules` без пакета). `node` падает с кодом 1, Claude Code считает это неблокирующей ошибкой, и действие проходит без guard (fail-open). Так же сейчас ведёт себя хук без `warrant` в PATH (код 127). `run submit` агента при этом падает видимо — шаг 5 «Сдачи результата» его останавливает. Контроль — шаг `npm run build` в `git-start`; долг — находка `sync` об отсутствующем файле, если понадобится.
-- **`${CLAUDE_PROJECT_DIR}` во frontmatter субагента** не проверен зондом. Проверено только в `settings.json`. Задача 4.3 — зонд. Если переменной нет — I-N и форма `node <cli>` из корня.
-- **Агент правит `.warrant/warrant.json`, пока policy не грузится**, и может ослабить закрепление: убрать pack, сменить диапазон. Контроль:
+- **Хук frontmatter субагента в `claude -p` не исполнился** (зонд D3) ни в одной форме. Форма `${CLAUDE_PROJECT_DIR:-.}` работает и без переменной, поэтому форма команды от этого не зависит. Исполняется ли хук frontmatter интерактивно в 2.1.283 — повтор зонда I-168 (задача 4.3); не исполняется — это дефект и без этого Change, строка backlog.
+- **CLI старше 0.10** режима восстановления не знает и отвергает `warrant.json` с `cli` (`additionalProperties: false`): с ним запирание прежнее. Исправление действует с CLI 0.10; LATTICE переходит на `v0.10.0` с CLI из тега (ADR-0055 п. 1). CHANGELOG и `warrant-upgrade`: `cli` — после перехода машины на ≥ 0.10.
+- **Агент правит `.warrant/warrant.json`, пока policy не грузится**, — весь файл, включая `cli` и `frontends`, — и может ослабить закрепление: убрать pack, сменить диапазон. Контроль:
   - правка видна в diff PR;
   - путь — policy-путь `factory-change`; у SRA и LATTICE с 0.9.0 — профиль приёмки человеком и CODEOWNERS;
   - после правки policy грузится и guard судит обычными правилами.
-- **Алиас `node <cli>`** расширяет строгую форму Run `review` ровно на одно слово из закоммиченного `warrant.json`. Сам `cli` правится только как policy-путь.
+- **Алиас `node <cli>`** расширяет строгую форму Run `review` ровно на одно слово из `warrant.json`. Вне режима восстановления `cli` правится только как policy-путь; в режиме — как любая правка `warrant.json` выше.
 - **Хук SRA исполняет dev-CLI основного checkout, а не worktree.** Это так же, как `npm link` сейчас. Расхождение — только между merge и `npm run build` в основном checkout.
 
 ## Решения по ходу реализации
 
 | ID | Решение | Затронуто |
 |---|---|---|
+| I-247 | Review spec раунда 1 (NOT_PROVEN, BLOCKER 1, MAJOR 5, MINOR 7, INFO 1, RUN-01M3VSWJFXVH8A3KJ605MH69TA) закрыт правкой spec до раунда 2: F-1 — SCN-KRN-166 сужен до раздела сдачи, раздел говорит о командах skill (D3); F-2 — находка `CLI_NOT_FOUND`, предел fail-open в REQ-KRN-033; F-3 — форма `${CLAUDE_PROJECT_DIR:-.}` по зонду (D3); F-4 — что не даёт алиаса (D4); F-5 — delta REQ-KRN-021, SCN-KRN-167; F-6 (D-1) — CLI машины ставит maintainer вне сессии (D7); F-7 — риск CLI старше 0.10; F-8 — `-h`, `run submit` и `run finish` вне режима; F-9 — pin-Change только при `PACK_VERSION_RANGE` (D2); F-10 — hints в форме `node <cli>`; F-11 — «без `cli`» в SCN-KRN-130, 139; F-12 — шаблон `cli`; F-13 — исключение после решения; F-14 — риск правки `warrant.json` | `specs/**`, `design.md`, `tasks.md` |

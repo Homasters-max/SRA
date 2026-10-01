@@ -13,7 +13,8 @@ policy, которая не грузится, его не запрещает ([A
 проект без `.warrant/warrant.json` SHALL давать `allow`. Если `warrant.json` задаёт `cli` ([REQ-KRN-004](../kernel/spec.md)),
 простая команда, чьи первые слова — `node` и ровно значение `cli`, SHALL читаться в строгих формах ниже (Run `review` и
 восстановление) как `warrant` с теми же остальными словами: так сгенерированный субагент сдаёт результат закреплённым CLI
-([REQ-KRN-033](../kernel/spec.md)); `warrant.json`, который не читается, алиаса не даёт. Решение
+([REQ-KRN-033](../kernel/spec.md)). `warrant.json`, которого нет или который не разбирается как JSON-объект, и `cli`, который не
+строка или не проходит шаблон REQ-KRN-004, алиаса не дают: такая команда судится как любая другая не `warrant`. Решение
 `pre`:
 - `edit` при активном Run — `deny` для пути вне `write_scope` или вне непустого `scope` (reason называет путь и scope; hint —
   править внутри `write_scope`, а для других путей `warrant run finish`, затем `warrant run start` с операцией, которая их пишет),
@@ -76,17 +77,21 @@ policy, которая не грузится, его не запрещает ([A
   - иной `edit` пути проекта — `deny`;
   - `shell` — `allow`, только если каждая простая команда строки — команда восстановления `warrant sync [...]`,
     `warrant validate [...]`, `warrant status [...]`, `warrant --version` или `warrant -V`, либо команда без записи списка Run
-    `review` (`warrant gate <change> [...]`, `warrant <слова> --help`, `git status | log | diff | show` с теми же ограничениями,
-    `cd` внутри проекта), и строка — в строгой форме команды без записи (выше); иначе `deny`;
+    `review` (`warrant gate <change> [...]`, `warrant <слова> --help` или `-h`, `git status | log | diff | show` с теми же
+    ограничениями, `cd` внутри проекта), и строка — в строгой форме команды без записи (выше); иначе `deny`. `warrant run submit`
+    и `warrant run finish` в этот список не входят: восстановлению они не нужны, а пишут файлы Run;
   - `deny` этого режима SHALL нести reason: код, путь и сообщение первой ошибки загрузки, версию CLI, версию каждого встроенного
     pack, диапазон каждого pack и `kernel` из `warrant.json`; `warrant.json`, который не читается, диапазонов и `kernel` не даёт.
-    Hints SHALL содержать `hint` ошибки загрузки, если он есть; шаги pin-Change — поднять `packs.<id>.version` и `kernel` в
-    `.warrant/warrant.json` до версий, которые несёт CLI, затем `warrant sync`, или исполнить CLI, который закрепил проект
-    (`cli`, CLI тега); перечень того, что guard разрешает, пока policy не грузится.
+    Hints SHALL содержать `hint` ошибки загрузки, если он есть; если среди ошибок загрузки есть `PACK_VERSION_RANGE` — шаги
+    pin-Change: поднять `packs.<id>.version` и `kernel` в `.warrant/warrant.json` до версий, которые несёт CLI, затем
+    `warrant sync`, или исполнить CLI, который закрепил проект (`cli`, CLI тега); иначе — исправить файл, названный путём
+    ошибки; и перечень того, что guard разрешает, пока policy не грузится. При `cli`, который даёт алиас (выше), команды
+    `warrant` в этих hints и в hint разрешённой правки `.warrant/warrant.json` SHALL называться в форме `node <cli>`.
 
 Исключение runner'а `warrant guard` без `--frontend` до решения (например, сбой чтения stdin) SHALL давать решение внутреннего
 сбоя по фазе события, как исключение, которое не перехватил никто ([REQ-KRN-003](../kernel/spec.md)): `pre` или фаза неизвестна
 — `deny` с hint `warrant validate`, `post` — `allow` без hints; сообщение — в stderr, код 0, а не `INTERNAL` с кодом 3.
+Исключение после выведенного решения — только сообщение в stderr, код 0, второго ответа нет.
 
 Решение `post` SHALL быть `allow`; `hints[]` — находки [`validate --files`](../kernel/spec.md) по путям события (не больше 10
 строк + «и ещё N») и текст правил `rule/1`, чьи `paths` подходят под путь и чьих id ещё нет в `rules_shown` событий Run

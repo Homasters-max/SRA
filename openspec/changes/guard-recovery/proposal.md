@@ -22,7 +22,7 @@
   Правило Run `review` и правило `write_scope` активного Run не меняются: оба решают без policy.
 - **Причина отказа называет версии и выход** (ADR-0053 п. 2). Reason: код и сообщение ошибки загрузки, версия CLI, версии встроенных packs, закреплённые диапазоны и `kernel`. Hints: `hint` ошибки загрузки, шаги pin-Change (поднять диапазон и `kernel` в `warrant.json`, затем `warrant sync`, или исполнить закреплённый CLI) и что guard разрешает до загрузки policy. Сообщение `PACK_VERSION_RANGE` встроенного pack тоже называет версию CLI.
 - **Хук и агент исполняют закреплённый проектом CLI** (ADR-0053 п. 3, REQ-KRN-004, REQ-KRN-033). Новое необязательное поле `cli` в `warrant.json` — путь к файлу входа CLI от корня проекта. Например, у SRA это `packages/cli/dist/bin/warrant.js`, у Node-проекта — CLI тега в `node_modules`.
-  - С полем `sync` пишет в хуки `.claude/settings.json` и субагента `warrant-reviewer` команду `node "${CLAUDE_PROJECT_DIR}/<cli>" guard --frontend claude`. Тело субагента сдаёт результат командой `node <cli> run submit`.
+  - С полем `sync` пишет в хуки `.claude/settings.json` и субагента `warrant-reviewer` команду `node "${CLAUDE_PROJECT_DIR:-.}/<cli>" guard --frontend claude`. Тело субагента сдаёт результат командой `node <cli> run submit`. Файла `cli` нет — находка `sync` `CLI_NOT_FOUND`.
   - guard читает `node <cli>` как `warrant` в строгой форме команд Run `review` и команд восстановления.
   - Без поля всё по-прежнему: `warrant` из PATH. У потребителя там CLI тега (п. 4 ADR-0053).
 - **`warrant.json` SRA получает `cli`** — dev-CLI репозитория. Агент `warrant-reviewer` SRA перегенерирован: его хук и `run submit` больше не зависят от PATH. После этого машину можно перевести на CLI из тега.
@@ -46,7 +46,8 @@
   - REQ-ENF-005 — ответ адаптера `claude` при policy, которая не грузится.
 - `kernel`:
   - REQ-KRN-004 — поле `cli` схемы `config/1`;
-  - REQ-KRN-033 — команда CLI в сгенерированных хуках и субагенте. ADR-0053 называет REQ-KRN-025, но текст команды хука живёт в REQ-KRN-033; REQ-KRN-025 не меняется.
+  - REQ-KRN-033 — команда CLI в сгенерированных хуках и субагенте, находка `CLI_NOT_FOUND`. ADR-0053 называет REQ-KRN-025, но текст команды хука живёт в REQ-KRN-033; REQ-KRN-025 не меняется;
+  - REQ-KRN-021 — сообщение и `hint` `PACK_VERSION_RANGE` называют версию CLI и `kernel`.
 
 ## Non-Goals
 

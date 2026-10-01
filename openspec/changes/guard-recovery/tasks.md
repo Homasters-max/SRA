@@ -16,7 +16,7 @@
 
 ## 2. guard при policy, которая не грузится (D1, D2, D4)
 
-- [ ] 2.1 `core/packs/loader.ts`: `bundledPackVersions()`. Сообщение `PACK_VERSION_RANGE` встроенного pack называет версию CLI, hint — `kernel`; код и путь прежние.
+- [ ] 2.1 `core/packs/loader.ts`: `bundledPackVersions()`. Сообщение `PACK_VERSION_RANGE` встроенного pack называет версию CLI, hint — `kernel`; код и путь прежние. SCN-KRN-167 — `e2e/validate.test.ts` или app-тест `validate`, рядом с SCN-KRN-164.
 - [ ] 2.2 `core/guard/guard.ts`:
   - `PolicyNotLoaded` из `loadPolicy` — первая ошибка, версии CLI и packs, `pins` из терпимого чтения `warrant.json`;
   - `pinnedCli(root)` — тем же чтением;
@@ -44,12 +44,12 @@
 - [ ] 4.1 `core/sync/claude.ts`:
   - `guardCommand(cli?)` вместо константы в группах и frontmatter;
   - `isGuardHook` — обе формы;
-  - `reviewerAgent(skill, cli?)` — команда хука и `node <cli> run submit` в разделе сдачи;
+  - `reviewerAgent(skill, cli?)` — команда хука, `node <cli> run submit` в разделе сдачи и фраза о командах `warrant` в тексте skill;
   - `claudeSettingsTarget` от конфигурации.
   
-  `core/sync/plan.ts` передаёт `config.cli`.
+  `core/sync/plan.ts` передаёт `config.cli`; файла `cli` нет — находка `CLI_NOT_FOUND` в `data.findings[]`.
 - [ ] 4.2 Тесты `app/commands/sync-frontend.test.ts`: SCN-KRN-166. SCN-KRN-130, 134, 139, 140, 142, 154 — зелёные, байты без `cli` не изменились.
-- [ ] 4.3 Зонд Claude Code: хук frontmatter субагента с `node "${CLAUDE_PROJECT_DIR}/…"` исполняется (`scripts/dev/probe-hooks-lib.js` или ручной прогон субагента). Итог — строка `I-N`; переменной нет — форма из риска design.
+- [ ] 4.3 Повтор зонда I-168 интерактивно (maintainer, `scripts/dev/probe-hooks.js`): хук frontmatter субагента с `node "${CLAUDE_PROJECT_DIR:-.}/…"` исполняется. Итог — строка `I-N`; не исполняется — строка backlog (дефект и до Change).
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts sync-frontend sync claude`.
 

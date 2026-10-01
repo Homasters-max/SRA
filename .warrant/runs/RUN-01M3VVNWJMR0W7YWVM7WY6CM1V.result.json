@@ -1,0 +1,77 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3VVNWJMR0W7YWVM7WY6CM1V",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "Правка раунда 3 (F-1, F-4) отнесла `PACK_VERSION_RANGE` pack из `.warrant/local/` и версию «ни выше, ни ниже» к ветке, условие которой они не выполняют. REQ-ENF-004: «иная ошибка (в том числе `PACK_VERSION_RANGE` pack из `.warrant/local/` и версия, которая ни выше, ни ниже диапазона), чей путь — `.warrant/warrant.json` с фрагментом `#/…` или без него, — исправить этот файл»; следующая ветка: «иная ошибка с другим путём — правку названного файла делает человек (maintainer) … в Change `factory-change`». Но путь `PACK_VERSION_RANGE` — путь `pack.json` pack'а (REQ-KRN-021 «`PACK_VERSION_RANGE` с путём его `pack.json`», SCN-KRN-164; `loader.ts` `path: reported`): `.warrant/local/<id>/pack.json` у локального pack и абсолютный путь вне проекта у встроенного (`reportPath`). Буквально эти ошибки попадают в ветку «другой путь»: для локального pack агент получит «правку делает maintainer в `factory-change`», для встроенного — совет человеку править `pack.json` внутри установленного CLI. При этом первый hint режима — `hint` самой ошибки (REQ-KRN-021: «задать диапазон, который содержит версию pack») — советует обратное. Два прочтения дают разные hints; сценария нет ни для одного из случаев.",
+      "targets": [
+        "REQ-ENF-004",
+        "REQ-KRN-021"
+      ],
+      "recommendation": "Развести условие ветки: «иная ошибка, чей путь — `.warrant/warrant.json` (с фрагментом `#/…` или без), а также `PACK_VERSION_RANGE` pack из `.warrant/local/` и встроенного pack, чья версия ни выше, ни ниже диапазона, — исправить диапазон в `.warrant/warrant.json`, затем `warrant validate`»; ветку «другой путь» явно ограничить ошибками, кроме `PACK_VERSION_RANGE`. Добавить сценарий: локальный pack вне диапазона — `hints[]` называет `.warrant/warrant.json` и не называет `factory-change`."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "Hints режима начинаются с «`hint` ошибки режима, если он есть» (REQ-ENF-004) — текста загрузчика, а REQ-KRN-021 задаёт этот текст с `warrant sync` («поднять `packs.<id>.version` и `kernel` …, затем `warrant sync`»). Та же REQ-ENF-004 требует: «При `cli`, который проходит шаблон, команды `warrant` в hints … режима восстановления SHALL называться в форме `node <cli>`», а SCN-ENF-051 — «`hints[]` последнего … не называют `warrant sync` без `node tools/warrant.js`». Не сказано, переписывается ли `hint` ошибки в форму `node <cli>`. Если нет — при `cli` и `PACK_VERSION_RANGE` (основной случай ADR-0053) агент получает `warrant sync`, который режим разрешает, и исполняет CLI из PATH — другой CLI перепишет lock и сгенерированные файлы своими packs; ровно этого избегает форма `node <cli>`. SCN-ENF-051 не называет причину незагрузки, поэтому при `CONFIG_INVALID` без `hint` он проходит при любом прочтении и этот случай не проверяет.",
+      "targets": [
+        "REQ-ENF-004",
+        "REQ-KRN-021",
+        "SCN-ENF-051"
+      ],
+      "recommendation": "Записать, что команды `warrant` в `hint` ошибки режима тоже даются в форме `node <cli>` (guard переписывает их или загрузчик строит hint от формы команды). В SCN-ENF-051 задать причину незагрузки как в SCN-ENF-048 (`PACK_VERSION_RANGE`), чтобы проверялся `hint` загрузчика."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Reason режима SHALL называть «её код, путь и сообщение» (REQ-ENF-004) — путь ошибки режима. У `PACK_VERSION_RANGE` встроенного pack это путь `pack.json` в каталоге установленного CLI: `reportPath` даёт абсолютный путь вне проекта (`C:/Users/<login>/…/node_modules/warrant/packs/core-sdd/pack.json` или путь dev-checkout). При активном Run reason записывается в `guard_events[].reason` (SCN-ENF-050: «в Run пять событий»), а файл Run коммитится (REQ-ENF-001 «Файл Run SHALL коммититься вместе с работой»). Машинный путь попадает в историю git — то, что та же REQ-ENF-004 запрещает для Run `review` («путь вне проекта reason SHALL NOT называть — он попадает в `guard_events[]`»). Spec молча предполагает, что путь ошибки — путь проекта.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-050"
+      ],
+      "recommendation": "Для пути ошибки вне проекта reason называет не путь, а источник (например, «pack core-sdd, bundled with CLI <версия>»); путь — только путь проекта. Дополнить SCN-ENF-050 или SCN-ENF-048: `reason` в событии Run не содержит абсолютного пути."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/guard-recovery/specs/enforcement/spec.md",
+      "change": "Ветка выхода «исправить `.warrant/warrant.json`» называет `PACK_VERSION_RANGE` локального pack и встроенного pack «ни выше, ни ниже» отдельно от условия на путь; ветка «другой путь» исключает `PACK_VERSION_RANGE`; новый сценарий локального pack (F-1)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/guard-recovery/specs/enforcement/spec.md",
+      "change": "Команды `warrant` в `hint` ошибки режима — в форме `node <cli>`; SCN-ENF-051 с причиной `PACK_VERSION_RANGE` (F-2). Путь ошибки вне проекта reason не называет (F-3)."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Закрытие находок раунда 3 проверено по тексту delta specs, design и proposal: F-1 (направление только у встроенного pack) и F-4 (версия ни выше, ни ниже) закрыты по смыслу, но формулировка ветки внесла F-1 этого раунда; F-2 (`PACK_NOT_FOUND` `#/packs/<id>` — CLI старше; путь с фрагментом), F-3 (при `cli` — обновить файл `cli`), F-5 (hint `post` при Run, SCN-ENF-050), F-6 (форма `node <cli>` при поле по шаблону, «из корня проекта», SCN-ENF-051), F-7 (design, tasks, proposal) закрыты."
+    },
+    {
+      "id": "A-2",
+      "statement": "`post` при policy, которая не грузится, не падает: `post` зовёт `loadPacks` (ошибки в `errors`, не бросает) и берёт правила из `loaded.rules`, поэтому hint `warrant sync` SCN-ENF-050 и SCN-ENF-053 достижим (`core/guard/guard.ts:215-242`); при `warrant.json`, который не проходит схему, `loadConfig` бросает, и `post` даёт `allow` без hints — этот случай не проверялся."
+    },
+    {
+      "id": "A-3",
+      "statement": "`warrant sync` и `warrant validate` не имеют опций, которые пишут вне проекта (`bin/warrant.ts`: у `sync` только `--check`), поэтому `[...]` у команд восстановления не расширяет запись."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:642926f04ece0cb5e1df1f55d43bbc1b458ebdae06aff58b2145b8cd5870817f",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T13:00:00Z",
+    "finished_at": "2026-10-01T13:35:00Z"
+  }
+}

@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "guard-recovery",
-  "commit": "36cbdfa71b58304e06802342b68f2e5a177192b0",
+  "commit": "0a994e0e42e55b647c5395535d3843b893214515",
   "versions": {
     "warrant": "0.10.0",
     "openspec": "1.13.1",
@@ -11,6 +11,7 @@
   "evidence": [
     "EVID-01M3VT9MQSDMEAA12BCD8RQR1Y",
     "EVID-01M3VV1MJZ5YA1C6NDZHC8876F",
-    "EVID-01M3VVJNB9XQAQCDK2DGAK7AF9"
+    "EVID-01M3VVJNB9XQAQCDK2DGAK7AF9",
+    "EVID-01M3VVWW5PF6E9XASHG60DK1AK"
   ]
 }

@@ -40,6 +40,6 @@
 
 ## 6. Документы
 
-- [ ] 6.1 `docs/04-lifecycle.md` (строка «Коды выхода»), `README.md`, `.claude/skills/cli-contract/SKILL.md` (коды 0…4, `retryable`); `docs/backlog.md` — WS-06, A-42, A-48 закрыты Change `exit-contract`; поправка факта ADR-0052 «`BUSY` в `fmt`» — строкой I-N.
+- [x] 6.1 `docs/04-lifecycle.md` (строка «Коды выхода»), `README.md`, `.claude/skills/cli-contract/SKILL.md` (коды 0…4, `retryable`); `docs/backlog.md` — WS-06, A-42, A-48 закрыты Change `exit-contract`; поправка факта ADR-0052 «`BUSY` в `fmt`» — строкой I-N.
 
   Проверка: `node scripts/dev/check.js`; `npx vitest run --config packages/cli/vitest.config.ts dev-context`.

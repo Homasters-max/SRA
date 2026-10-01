@@ -1,0 +1,25 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "exit-contract",
+  "change_state": "PROPOSED",
+  "classification": {
+    "profiles": [
+      "chore",
+      "factory-change",
+      "human-acceptance"
+    ],
+    "risk": {
+      "blast_radius": {
+        "value": "SYSTEM",
+        "from": "floor:core-sdd:2"
+      }
+    }
+  },
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-10-01T01:12:14.368Z",
+      "by": "cli:local"
+    }
+  ]
+}

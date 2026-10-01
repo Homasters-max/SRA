@@ -4,7 +4,7 @@
 
 ## 0.10.0 — не выпущена
 
-Minor: остаток цикла 1 стабилизации тремя Change ([ADR-0052](docs/adr/WARRANT-ADR-0052-cycle-1-close.md)); тег — после третьего. `exit-contract`: класс у каждого кода ошибки, код выхода 4 и `retryable` (WS-06, A-42, A-48). Pack `core-sdd` 0.4.1.
+Minor: версия для LATTICE — `exit-contract` и `guard-recovery` ([ADR-0052](docs/adr/WARRANT-ADR-0052-cycle-1-close.md), [ADR-0053](docs/adr/WARRANT-ADR-0053-guard-recovery.md), [ADR-0055](docs/adr/WARRANT-ADR-0055-release-for-lattice.md)); тег — archive-PR `guard-recovery`, `judge-law` и `code-floor` — 0.11.0. `exit-contract`: класс у каждого кода ошибки, код выхода 4 и `retryable` (WS-06, A-42, A-48). Pack `core-sdd` 0.4.1.
 
 ### Вердикт
 

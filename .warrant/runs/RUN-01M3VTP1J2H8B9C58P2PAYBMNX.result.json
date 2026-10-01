@@ -1,0 +1,166 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3VTP1J2H8B9C58P2PAYBMNX",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "Proposal (раздел What Changes) говорит: «Правило Run `review` и правило `write_scope` активного Run не меняются: оба решают без policy». Delta REQ-ENF-004 оставляет без изменений только `allow` внутри `write_scope` («Правило Run `review` и `allow` внутри `write_scope` активного Run policy не нужна, и они не меняются»), а отказ вне `write_scope` при policy, которая не грузится, отдаёт режиму восстановления. SCN-ENF-050 (Run `implement`, `write_scope` `src/**`) требует `allow` правки `.warrant/warrant.json`, design D1 тоже: «правка только `.warrant/warrant.json` проходит и при Run». По proposal та же правка — `deny` (вне `write_scope`), по spec — `allow`. Кроме того, отказ вне `write_scope` (`docs/notes.md`) по spec получает reason о policy вместо reason с путём и scope из SCN-ENF-011. Spec и сценарий однозначны, но контракт Change расходится с ними, и режим восстановления по факту расширяет `write_scope` Run.",
+      "targets": [
+        "openspec/changes/guard-recovery/proposal.md",
+        "REQ-ENF-004",
+        "SCN-ENF-050"
+      ],
+      "recommendation": "Привести proposal к spec: «`allow` внутри `write_scope` не меняется; отказ вне `write_scope` при policy, которая не грузится, решает режим восстановления: правка только `.warrant/warrant.json` проходит и при активном Run». Либо, если расширение `write_scope` нежелательно, — в spec оставить `deny` вне `write_scope` при Run и поправить SCN-ENF-050 (третье событие — `deny`). Явно сказать, называет ли reason такого отказа путь и `write_scope`."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Шаги pin-Change в hints режима восстановления (REQ-ENF-004: «поднять `packs.<id>.version` и `kernel` в `.warrant/warrant.json` до версий, которые несёт CLI, затем `warrant sync`») и `hint` `PACK_VERSION_RANGE` (REQ-KRN-021: «поднять `packs.<id>.version` и `kernel`») описывают только одно направление расхождения: CLI новее закрепления (инцидент LATTICE). Обратный случай не описан: проект уже закрепил `^0.5.0` или `kernel` 0.11 pin-Change'ем, а на машине CLI 0.10 с pack 0.4.1. Тогда «поднять до версий, которые несёт CLI» — это откат закрепления, и режим восстановления его разрешает (правка `.warrant/warrant.json`). Агент, который следует hint буквально, отменит pin-Change, хотя верный выход — CLI, который закрепил проект (его ставит maintainer, design D7). SCN-KRN-167 и SCN-ENF-048 проверяют только прямое направление.",
+      "targets": [
+        "REQ-ENF-004",
+        "REQ-KRN-021",
+        "SCN-KRN-167",
+        "SCN-ENF-048"
+      ],
+      "recommendation": "Связать hint с направлением: версия встроенного pack выше диапазона — поднять диапазон и `kernel`, затем `warrant sync`; ниже диапазона — не менять `warrant.json`, исполнить закреплённый CLI (`cli`) или попросить maintainer'а поставить CLI тега («Настройка машины»). Добавить сценарий с `^0.5.0` при pack 0.4.1: hints не содержат шага «поднять … до версий CLI»."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Алиас REQ-ENF-004 — чисто текстовый: «простая команда, чьи первые слова — `node` и ровно значение `cli`, SHALL читаться … как `warrant`». Молча предполагается, что команда исполняется из корня проекта. `cli` — путь от корня, а `node <cli>` разрешает его от каталога исполнения. Это `cwd` события (Bash Claude Code сохраняет каталог между вызовами) и каждый каталог после `cd` внутри проекта, а `cd` строгая форма разрешает. Из подкаталога `sub` строка `node <cli> status` исполняет `sub/<cli>` — другой файл, возможно другой CLI или чужой скрипт, а guard читает её как `warrant status` и даёт `allow` под Run `review` и в режиме восстановления (`warrant sync [...]` — с любыми аргументами). Для `warrant` из PATH такого предела не было: имя не зависит от каталога.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-051"
+      ],
+      "recommendation": "Давать алиас только там, где `node <cli>` указывает на `<корень>/<cli>`: каждый каталог, в котором строка может оказаться к этому месту (`cwd` события и цели прежних `cd`, как в правиле `cd`), — корень проекта после `realpath`. Иначе команда судится как не `warrant`. Добавить в SCN-ENF-051 случай: `cwd` события — подкаталог проекта, или `cd src && node tools/warrant.js status` — `deny`."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "F-10 раунда 1 закрыт только для режима восстановления: форму `node <cli>` получают hints этого режима и hint разрешённой правки `.warrant/warrant.json`. Hints Run `review` при `cli` по-прежнему называют `warrant` из PATH: отказ shell («hint, называющим `warrant run submit`, отмену `warrant run finish --state CANCELLED` и `warrant status`») и отказ правки вне временного каталога («`warrant run submit --file <файл в нём>`»). F-10 называл именно этот hint. Агент, который выполнит его буквально, уйдёт в PATH, от которого Change уводит.",
+      "targets": [
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Распространить правило формы `node <cli>` на hints и reason Run `review` (shell и правка). Либо прямо записать, что hints Run `review` называют `warrant`, а форму задаёт тело субагента. Проверить в SCN-ENF-051 hint второго события."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Разрешённая правка `.warrant/warrant.json` в режиме восстановления — «`allow` с hint `warrant sync`». Но через адаптер `claude` `allow` `PreToolUse` — пустой stdout (REQ-ENF-005, SCN-ENF-053), и hint до агента не доходит. Решение `post` без активного Run по REQ-ENF-004 даёт для правки пути проекта hint `warrant run start`, а не `warrant sync`. В Claude Code агент после правки закрепления получает совет начать Run, а нужный шаг `warrant sync` не получает. Поведение `post` после правки в режиме восстановления не описано.",
+      "targets": [
+        "REQ-ENF-004",
+        "REQ-ENF-005",
+        "SCN-ENF-053"
+      ],
+      "recommendation": "Задать hints `post` для правки `.warrant/warrant.json`: например, `warrant sync` (в форме `node <cli>` при алиасе) вместо или вместе с `warrant run start`. Либо прямо сказать, что hint `allow` нужен только нормализованному протоколу, а шаг `warrant sync` агент берёт из прежнего отказа. Дополнить SCN-ENF-053 событием `PostToolUse`."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Reason режима восстановления называет только первую ошибку загрузки («код, путь и сообщение первой ошибки»), а выбор hints смотрит на все («если среди ошибок загрузки есть `PACK_VERSION_RANGE` — шаги pin-Change … иначе — исправить файл, названный путём ошибки»). Первая ошибка может быть `CONFIG_INVALID` в `.warrant/local/**`, а вторая — `PACK_VERSION_RANGE`. Тогда reason называет один файл, а hints ведут к pin-Change, и hint «исправить файл» выпадает. Неясно и то, какой «путь ошибки» имеется в виду — первой ошибки или каждой.",
+      "targets": [
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Выбрать одно: hints по первой ошибке (той, что в reason) или по всем, тогда reason перечисляет коды всех ошибок, а hint «исправить файл» добавляется для каждой ошибки не `PACK_VERSION_RANGE`."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-actor",
+      "statement": "При ошибке загрузки не `PACK_VERSION_RANGE` hint говорит «исправить файл, названный путём ошибки», но не называет, кто это делает. Путь чаще всего — `.warrant/local/**` или файл pack. Режим восстановления разрешает агенту правку только `.warrant/warrant.json`. По REQ-ENF-004 (ADR-0040 п. 7) и design («Альтернативы») `.warrant/local/**` правит человек в Change `factory-change`. Агент получает совет, который сам выполнить не может, и следующая правка даст `deny`. Остаток F-9 раунда 1: его рекомендация про `factory-change` не принята.",
+      "targets": [
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Назвать исполнителя: путь — `.warrant/warrant.json`, агент правит сам; иначе правку делает человек (maintainer) вне сессии агента, в Change `factory-change`, как hint policy-пути."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-KRN-033: «при `cli` вместо `warrant` в этих командах и в тексте раздела сдачи SHALL стоять `node <cli>`». Буквально это затрагивает каждое вхождение `warrant` в разделе: `warrant://skill-result/1`, `warrant run start <change> --operation review` в шаге 1 (его исполняет вызвавший), «`warrant` не найден» в шаге 5. Та же фраза требует, чтобы раздел говорил, что «команды `warrant` в тексте skill выше исполняются в той же форме», а это предложение само содержит `warrant`. Строка `description` frontmatter («hands it in with warrant run submit --file») в раздел не входит, и требование её не касается. SCN-KRN-166 проверяет только `run submit`, поэтому генератор и тест могут разойтись в остальных вхождениях.",
+      "targets": [
+        "REQ-KRN-033",
+        "SCN-KRN-166"
+      ],
+      "recommendation": "Сформулировать как «команды CLI (`warrant <подкоманда> …`) в разделе сдачи пишутся как `node <cli> <подкоманда> …`; имена схем и оговорка о тексте skill не меняются». Сказать, меняется ли `description` frontmatter."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Находка `CLI_NOT_FOUND` описана не полностью. (1) В отличие от `REVIEWER_SKILL_MISSING`, не сказано, что делает `sync --check`: сообщает ли находку и влияет ли она на код выхода. (2) Фраза стоит внутри условия `frontends ∋ \"claude\"`, и неясно, даёт ли находку `sync` при `cli` без `frontends` — так у SRA (design: «В `warrant.json` нет `frontends`»). (3) Неясно, что считать «файла нет», если по пути `cli` лежит каталог или битая ссылка.",
+      "targets": [
+        "REQ-KRN-033",
+        "SCN-KRN-166"
+      ],
+      "recommendation": "Дописать: `CLI_NOT_FOUND` даёт `sync` и `sync --check` (код определяет только расхождение файлов) при любом `frontends` или только при `claude`; «нет файла» — путь не существует или не обычный файл после разрешения ссылок."
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Пока policy не грузится, режим восстановления разрешает правку всего `.warrant/warrant.json`, включая `cli` (F-14 раунда 1, риск в design). Вместе с алиасом это даёт больше, чем правку. guard берёт `cli` из текущего файла при каждом решении, поэтому агент может направить `cli` на любой существующий `.js` проекта (`node_modules/**`, `scripts/**`) и, не исправляя закрепление, исполнить его строкой `node <этот файл> sync <любые аргументы>`: она читается как `warrant sync [...]` и даёт `allow`. Строка риска design «Алиас … в режиме — как любая правка `warrant.json` выше» описывает правку, но не исполнение произвольного скрипта.",
+      "targets": [
+        "REQ-ENF-004",
+        "openspec/changes/guard-recovery/design.md"
+      ],
+      "recommendation": "Записать в риске design, что в режиме восстановления алиас открывает исполнение любого `.js` проекта, или ограничить алиас в режиме восстановления значением `cli` из `HEAD`."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/guard-recovery/proposal.md",
+      "change": "Строку «Правило Run `review` и правило `write_scope` активного Run не меняются» заменить на «`allow` внутри `write_scope` не меняется; отказ вне `write_scope` при policy, которая не грузится, решает режим восстановления» (F-1)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/guard-recovery/specs/enforcement/spec.md",
+      "change": "Алиас `node <cli>` — только когда каждый каталог, где строка может оказаться к этому месту, — корень проекта после `realpath`; сценарий из подкаталога — `deny` (F-3)."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/guard-recovery/specs/enforcement/spec.md",
+      "change": "Шаги pin-Change зависят от направления: pack CLI новее диапазона — поднять диапазон и `kernel`; старше — исполнить закреплённый CLI или поставить CLI тега, `warrant.json` не менять. То же в `hint` REQ-KRN-021; сценарий с `^0.5.0` при pack 0.4.1 (F-2)."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Закрытие F-1…F-14 раунда 1 проверено по тексту spec и design. Закрыты: F-1, F-2, F-3, F-5, F-6, F-7, F-8, F-11, F-13, F-14. F-4 и F-12 закрыты текстом требований, хотя сценарии SCN-ENF-051 и SCN-KRN-165 новыми значениями не дополнены; это не считается дефектом. Остатки F-9 и F-10 — находки F-7 и F-4."
+    },
+    {
+      "id": "A-2",
+      "statement": "Bash Claude Code сохраняет рабочий каталог между вызовами, поэтому `cwd` события может быть подкаталогом проекта (F-3). Зондом не проверялось."
+    },
+    {
+      "id": "A-3",
+      "statement": "`warrant sync` при policy, которая не грузится, завершается ошибкой до записи файлов проекта. Поэтому его разрешение в режиме восстановления не открывает правку путей проекта в обход fail-closed. Спецификацию `sync` на этот случай не перечитывал."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:3b617a66f884883e6f424d1b6885d5a60b18a9f664e938e230fd5700ff18a9f3",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T11:00:00Z",
+    "finished_at": "2026-10-01T11:45:00Z"
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3VV7J7MRYXZ93SRXYGDR788",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Выход по направлению для `PACK_VERSION_RANGE` (REQ-ENF-004, режим восстановления; `hint` REQ-KRN-021) написан для pack, который несёт CLI: выше диапазона — «поднять `packs.<id>.version` и `kernel` ... до версий, которые несёт CLI»; ниже — «исполнить CLI, который закрепил проект, или поставить CLI тега». Но загрузчик ищет pack и в `.warrant/local/<id>/` (`core/packs/loader.ts` `findPackDir`, источник `.warrant/local`), и `PACK_VERSION_RANGE` такого pack имеет путь `.warrant/local/<id>/pack.json`. Его версию задаёт файл проекта, а не CLI: «до версий, которые несёт CLI» не определено, подъём `kernel` не нужен, а совет «исполнить закреплённый CLI / CLI тега» ничего не исправит. Верный выход для локального pack — диапазон в `warrant.json` (агент) или правка `.warrant/local/**` человеком в Change `factory-change`. REQ-KRN-021 уже различает встроенный pack в сообщении («у встроенного pack ещё и с версией CLI»), но не в `hint`; SCN-KRN-167, SCN-ENF-048 и SCN-ENF-054 проверяют только встроенный pack.",
+      "targets": [
+        "REQ-ENF-004",
+        "REQ-KRN-021",
+        "SCN-KRN-167",
+        "SCN-ENF-054"
+      ],
+      "recommendation": "Ограничить выход по направлению встроенным pack (источник bundled). Для pack из `.warrant/local/<id>/` задать свой выход: выше диапазона — поднять `packs.<id>.version` до версии этого pack (без `kernel` и без ссылки на CLI); ниже — правка `.warrant/local/<id>/**` человеком (maintainer) в Change `factory-change`. Добавить сценарий с локальным pack вне диапазона."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Ветка «иная ошибка с путём `.warrant/warrant.json` — исправить этот файл (правка разрешена), затем `warrant validate`» (REQ-ENF-004) не различает направление, хотя F-2 раунда 2 закрыт именно для этого случая у `PACK_VERSION_RANGE`. `PACK_NOT_FOUND` загрузчика для pack, которого CLI не несёт, имеет путь `.warrant/warrant.json#/packs/<id>` (`loader.ts`): так выглядит CLI старше закрепления, когда проект подключил pack, который появился в более новом CLI. Hint ведёт агента к правке `warrant.json`, то есть к удалению pack или смене закрепления — ослаблению pin, от которого REQ уже уводит при «CLI старше». Кроме того, не сказано, считается ли путь с JSON Pointer (`.warrant/warrant.json#/packs/<id>`, `#/identities/...`) «путём `.warrant/warrant.json`»: от прочтения зависит, получит ли агент совет «исправить файл сам» или «правку делает maintainer в `factory-change`».",
+      "targets": [
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Сказать, что «путь `.warrant/warrant.json`» — путь с любым фрагментом `#/…` или без него. Для `PACK_NOT_FOUND` pack, которого нет ни среди встроенных, ни в `.warrant/local/` — выход «CLI старше закрепления» (как ниже диапазона): `warrant.json` не менять, CLI тега или закреплённый `cli`; либо явно перечислить оба выхода. Добавить сценарий `PACK_NOT_FOUND` при policy, которая не грузится."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Выход «CLI старше закрепления» — «исполнить CLI, который закрепил проект (`cli`), или поставить на машину CLI тега» (REQ-ENF-004, REQ-KRN-021). При `cli` хук уже исполняет именно файл `cli` (REQ-KRN-033): если отказ дал он, то устарел сам файл `cli` — `node_modules` не обновлён после pin-Change, `dist` не пересобран. Совет «исполнить закреплённый CLI» тогда круговой, а «поставить на машину CLI тега» (глобально) не меняет файл, который исполняет хук. Нужный шаг — обновить файл `cli` (`npm ci`, `npm run build`), а режим восстановления этих команд агенту не даёт.",
+      "targets": [
+        "REQ-ENF-004",
+        "REQ-KRN-021"
+      ],
+      "recommendation": "Дописать в выход «CLI старше»: при `cli` — обновить файл `cli` (установить зависимости проекта или собрать CLI); это делает maintainer вне сессии агента. Либо различать, исполняет ли guard сам файл `cli` (realpath `process.argv[1]` против `<корень>/<cli>`)."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Направление расхождения определено только как «версия pack выше диапазона» и «ниже диапазона» (REQ-ENF-004, REQ-KRN-021; design — `semver.gtr`). Версия может не попадать в диапазон и не быть ни выше, ни ниже: диапазон с разрывом (`^0.3.0 || ^0.5.0` при pack 0.4.1). Hint выхода для этого случая не задан, и две реализации дадут разные hints.",
+      "targets": [
+        "REQ-ENF-004",
+        "REQ-KRN-021"
+      ],
+      "recommendation": "Назвать третий случай: ни выше, ни ниже — hint без направления (версия pack и диапазон, закрепление, которое её содержит, без шага «исполнить закреплённый CLI»), или явно отнести его к одному из двух."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "F-5 раунда 2 закрыт только без активного Run: hint `warrant sync` после правки `.warrant/warrant.json` даёт `post` «без активного Run» (REQ-ENF-004). Режим восстановления разрешает эту правку и при активном Run (`allow` ... «в том числе вне `write_scope` активного Run», SCN-ENF-050, третье событие). При Run hints `post` — находки и текст правил, `warrant sync` в них нет, а hint `pre` разрешённой правки через адаптер `claude` до агента не доходит (пустой stdout, REQ-ENF-005). Агент под Run `implement` после правки закрепления шага `warrant sync` не получает.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-050"
+      ],
+      "recommendation": "Давать hint `warrant sync` (форма `node <cli>` при алиасе) в `post` правки `.warrant/warrant.json` и при активном Run — рядом с находками и правилами; дополнить SCN-ENF-050 событием `post`."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "«При `cli`, который даёт алиас, команды `warrant` в hints Run `review` и режима восстановления SHALL называться в форме `node <cli>`» (REQ-ENF-004). Алиас зависит не только от поля (строка, шаблон), но и от каталога каждой команды: только из корня проекта. Для hints неясно, какое условие имеется в виду: валидное поле или ещё и `cwd` события в корне. Если `cwd` — подкаталог, hint `node tools/warrant.js sync` при буквальном исполнении даст `deny`, а hint `warrant sync` уйдёт в PATH. SCN-ENF-051 проверяет форму только у hints режима восстановления; форма hints Run `review` (отказ shell, hint временного каталога) — остаток рекомендации F-4 раунда 2 — сценарием не проверена.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-051"
+      ],
+      "recommendation": "Записать: форма `node <cli>` в hints — при `cli`, который проходит шаблон, независимо от `cwd`, и hint говорит исполнять её из корня проекта. В SCN-ENF-051 проверить hint второго события (Run `review`): `node tools/warrant.js run submit`, без `warrant run submit` из PATH."
+    },
+    {
+      "id": "F-7",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "contradiction",
+      "statement": "Контекст отстал от spec: design «Риски» — «Файла `cli` нет ... долг — находка `sync` об отсутствующем файле, если понадобится», хотя D3 и REQ-KRN-033 уже вводят `CLI_NOT_FOUND`; design D2 называет hints `PIN_UP_HINT`/`PIN_DOWN_HINT`, tasks 2.3 — `PIN_HINT`; proposal «иная ошибка: исправить названный файл» не различает исполнителя, как REQ-ENF-004 (агент — `warrant.json`, maintainer — остальное).",
+      "targets": [
+        "openspec/changes/guard-recovery/design.md",
+        "openspec/changes/guard-recovery/tasks.md",
+        "openspec/changes/guard-recovery/proposal.md"
+      ],
+      "recommendation": "Убрать строку долга из риска «Файла `cli` нет», выровнять имена hints в tasks 2.3 и строку proposal о выходе при иной ошибке."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/guard-recovery/specs/enforcement/spec.md",
+      "change": "Выход по направлению — только для встроенного pack; для pack из `.warrant/local/<id>/` — диапазон в `warrant.json` или правка человеком в `factory-change`; `PACK_NOT_FOUND` pack, которого CLI не несёт, — выход «CLI старше» (F-1, F-2). То же в `hint` REQ-KRN-021."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/guard-recovery/specs/enforcement/spec.md",
+      "change": "Hint `warrant sync` в `post` правки `.warrant/warrant.json` и при активном Run; SCN-ENF-050 с событием `post` (F-5)."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Закрытие F-1…F-10 раунда 2 проверено по тексту proposal, delta specs и design: F-1, F-3, F-6, F-7, F-8, F-9, F-10 закрыты; F-2 закрыт для встроенного pack (остатки — F-1, F-2, F-3, F-4 этого раунда); F-4 закрыт текстом требования, сценарий — F-6; F-5 закрыт без Run, остаток при Run — F-5."
+    },
+    {
+      "id": "A-2",
+      "statement": "`warrant sync` с любыми аргументами при policy, которая не грузится, не пишет файлы проекта и не умеет писать в другой проект (опции каталога); код `commands/sync.ts` и опции `bin/warrant.ts` не перечитывались."
+    },
+    {
+      "id": "A-3",
+      "statement": "`kernel` из `warrant.json` загрузчик с kernel CLI не сверяет (`loadPacks` проверяет только `kernel` pack'а — `CONFIG_INVALID`), поэтому расхождение одного `kernel` проекта в режим восстановления не ведёт; проверено по `core/packs/loader.ts:468-580`."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:aac546387fe0a1e1c94b7bca8359867019794228d6e2029aa7710febe6ecb5e4",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T12:00:00Z",
+    "finished_at": "2026-10-01T12:40:00Z"
+  }
+}

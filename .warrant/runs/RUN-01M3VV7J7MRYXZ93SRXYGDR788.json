@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01M3VV7J7MRYXZ93SRXYGDR788",
+  "change": "guard-recovery",
+  "operation": "review",
+  "skill": "specification/adversarial-review@0.2.0",
+  "model": "claude-opus-5-5",
+  "write_scope": [],
+  "scope": [],
+  "branch": "spec/guard-recovery",
+  "started_at": "2026-10-01T13:42:29.917Z",
+  "finished_at": "2026-10-01T13:48:33.516Z",
+  "run_state": "SUCCEEDED",
+  "context_hash": "sha256:aac546387fe0a1e1c94b7bca8359867019794228d6e2029aa7710febe6ecb5e4",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "spec_tree": "sha256:70eeb68164af383d6474e510e6f04a3d529537d2fed73b6b9c76e4a27708179c",
+  "evidence": [
+    "EVID-01M3VVJNB9XQAQCDK2DGAK7AF9"
+  ],
+  "guard_events": []
+}

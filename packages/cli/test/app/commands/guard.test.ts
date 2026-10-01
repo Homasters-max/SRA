@@ -588,6 +588,7 @@ describe("warrant guard: a policy that does not load — the recovery mode (ADR-
     expect(code.data["decision"]).toBe("deny");
     for (const part of ["PACK_VERSION_RANGE", `CLI ${CLI_VERSION}`, CORE_SDD_VERSION, OLDER_PIN, "kernel 0.8"]) expect(code.data["reason"]).toContain(part);
     expect(code.data["reason"]).not.toMatch(/[A-Za-z]:[\\/]|\/packs\/core-sdd\/pack\.json/);
+    expect(code.data["reason"]).toContain(`pack core-sdd, bundled with CLI ${CLI_VERSION}`);
     const hints = (code.data["hints"] as string[]).join("\n");
     expect(hints).toContain(".warrant/warrant.json");
     expect(hints).toContain("`warrant sync`");
@@ -661,6 +662,29 @@ describe("warrant guard: a policy that does not load — the recovery mode (ADR-
     expect(hints).toContain("`node tools/warrant.js sync`");
     expect(hints).toContain("from the project root");
     expect(hints).not.toContain("`warrant sync`");
+  });
+
+  it("a pack of .warrant/local/ out of its range: fix the range in warrant.json — no pin-Change, no CLI of the tag, no factory-change (SCN-ENF-055)", async () => {
+    const p = await repo("IMPLEMENTING");
+    p.write(".warrant/local/team/pack.json", {
+      $schema: "warrant://pack/1",
+      id: "team",
+      version: "1.0.0",
+      kernel: ">=0.1 <1.0",
+      description: "Local pack of the team.",
+      depends_on: {},
+      provides: {}
+    });
+    const config = p.json(".warrant/warrant.json");
+    p.write(".warrant/warrant.json", { ...config, packs: { ...config["packs"], team: { version: "^2.0.0" } } });
+    const denied = await guard(p, { phase: "pre", action: "edit", paths: ["src/app.ts"] });
+    expect(denied.data["decision"]).toBe("deny");
+    expect(denied.data["reason"]).toContain(".warrant/local/team/pack.json");
+    const hints = (denied.data["hints"] as string[]).join("\n");
+    expect(hints).toContain("fix .warrant/warrant.json");
+    expect(hints).not.toContain("pin-Change");
+    expect(hints).not.toContain("CLI of the tag");
+    expect(hints).not.toContain("factory-change");
   });
 
   it("a CLI older than the pin: keep warrant.json, install the pinned CLI; a pack the CLI does not carry alike (SCN-ENF-054)", async () => {

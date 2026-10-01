@@ -1,0 +1,223 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3VSWJFXVH8A3KJ605MH69TA",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "SCN-KRN-166 требует, чтобы тело субагента при `cli` «не содержало `warrant run submit`». REQ-KRN-033 же велит включать в тело текст skill review pack'а из lock целиком и менять `warrant` на `node <cli>` только «в этих командах и в тексте раздела сдачи». Текст skill `sra/skills/specification/adversarial-review/SKILL.md:77` содержит «его принимает CLI (`warrant run submit`, REQ-ENF-007)»: эта строка уже есть в `.claude/agents/warrant-reviewer.md:85`. По REQ-KRN-033 сценарий не выполним с pack `core-sdd`; чтобы он прошёл, генератор должен переписать текст skill, а требование этого не разрешает. Два прочтения дают разные байты файла субагента.",
+      "targets": [
+        "SCN-KRN-166",
+        "REQ-KRN-033",
+        "sra/skills/specification/adversarial-review/SKILL.md"
+      ],
+      "recommendation": "Сузить THEN SCN-KRN-166: раздел «Сдача результата» содержит `node tools/warrant.js run submit --file` и не содержит `warrant run submit`, а текст skill включён без изменений. Либо явно задать в REQ-KRN-033 замену во всём теле, включая текст skill, и тогда указать, что hash skill в lock от этого не зависит."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "Не описано, что происходит, если файла `cli` нет: worktree без `npm run build`, `node_modules` без пакета, опечатка. REQ-KRN-004 говорит, что «наличие файла схема не проверяет», а REQ-KRN-033 фиксирует хук `node \"${CLAUDE_PROJECT_DIR}/<cli>\" guard --frontend claude`. `node` тогда выходит с кодом 1, Claude Code считает это неблокирующей ошибкой, и действие проходит без guard (design §4 «Риски»). Это fail-open. REQ-ENF-005 же специально требует код 2 вместо 3, чтобы сбой guard блокировал действие. Для субагента review guard при этом тихо выключается, и запрет правки проекта не держится.",
+      "targets": [
+        "REQ-KRN-033",
+        "REQ-KRN-004",
+        "REQ-ENF-005"
+      ],
+      "recommendation": "Задать поведение в spec. Вариант (а): форма команды хука, в которой сбой запуска блокирует, например `node \"${CLAUDE_PROJECT_DIR}/<cli>\" guard --frontend claude || exit 2`. Вариант (б): находка `sync` и `validate` об отсутствующем файле `cli` со сценарием. Минимум — сценарий, фиксирующий принятое поведение."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-KRN-033 фиксирует для хука frontmatter субагента команду «ровно» `node \"${CLAUDE_PROJECT_DIR}/<cli>\" guard --frontend claude` и молча предполагает, что Claude Code раскрывает `${CLAUDE_PROJECT_DIR}` в хуках frontmatter субагента. Design §4 признаёт, что это не проверено (проверено только в `settings.json'), а задача 4.3 при отрицательном зонде переходит через `I-N` на форму `node <cli>` из корня. Это отклонение от нормы spec строкой `I-N`, хотя норма во время реализации меняется только новым ADR. Если переменная не раскрывается, хук субагента падает и даёт fail-open (см. F-2).",
+      "targets": [
+        "REQ-KRN-033",
+        "SCN-KRN-166"
+      ],
+      "recommendation": "Провести зонд до утверждения spec и записать итог в design. Либо прямо задать в REQ-KRN-033 условную форму для frontmatter субагента, чтобы запасной вариант был нормой, а не отклонением."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "REQ-ENF-004 не определяет «`warrant.json`, который не читается»: невалидный JSON, нарушение схемы или поле неверного типа. От этого зависят алиас `node <cli>` и части reason (диапазоны, `kernel`). Spec даёт алиас при любом значении `cli`, если файл читается. Design D4 требует, чтобы значение прошло шаблон схемы. При `cli: \"./tools/warrant.js\"` (не проходит шаблон, policy не грузится с `CONFIG_INVALID`) строка `node ./tools/warrant.js sync` по spec — `allow`, по design — `deny`. Не описано и частичное чтение: `packs` не объект, `kernel` не строка.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-051"
+      ],
+      "recommendation": "Определить терпимое чтение в REQ-ENF-004: файл разбирается как JSON-объект; `cli` даёт алиас, только если это строка, проходящая шаблон REQ-KRN-004; диапазон pack попадает в reason, только если `packs.<id>.version` — строка; `kernel` — только если строка. Добавить в SCN-ENF-051 случай `cli`, не проходящего шаблон, — `deny`."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "Proposal («Сообщение `PACK_VERSION_RANGE` встроенного pack тоже называет версию CLI»), design D2 (hint добавляет `kernel`) и ADR-0053 п. 2 («Отказ и находка называют причину и выход») меняют сообщение и hint ошибки `PACK_VERSION_RANGE`, которую дают `validate` и любая загрузка packs. Ни одна delta это не закрепляет: kernel delta меняет только REQ-KRN-004 и REQ-KRN-033, а `PACK_VERSION_RANGE` определён в REQ-KRN-021, который не изменён. Сценария нет, поэтому изменение «находки» из ADR-0053 п. 2 нельзя проверить по spec.",
+      "targets": [
+        "openspec/changes/guard-recovery/proposal.md",
+        "REQ-KRN-021"
+      ],
+      "recommendation": "Добавить MODIFIED REQ-KRN-021: сообщение `PACK_VERSION_RANGE` встроенного pack называет версию CLI, hint — `kernel`; код и путь прежние. Добавить сценарий. Либо убрать этот пункт из proposal и оставить ADR-0053 п. 2 только за reason guard."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Proposal (навык `warrant-upgrade`, CHANGELOG «Миграция») закрепляет порядок «сначала закрепление (диапазон, `kernel`), затем CLI», а обратный порядок считает запасным выходом. Это предполагает, что шаги делает человек вне сессии агента. Внутри сессии после шага «сначала закрепление» policy старого CLI не грузится, и режим восстановления отклоняет установку CLI (`npm pack`, `npm i -g`, `npm i -D <tgz>`): их нет в списке команд восстановления. С CLI без `guard-recovery` (0.8.x, 0.9.x) запирание полное, как в инциденте. Обратный порядок «CLI, затем закрепление» режим восстановления проходит целиком: правка `.warrant/warrant.json` и `warrant sync` разрешены.",
+      "targets": [
+        "openspec/changes/guard-recovery/proposal.md",
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Назвать в proposal и навыке, кто делает каждый шаг: человек вне сессии или агент внутри. Для агента внутри сессии указать порядок «CLI, затем закрепление», который поддерживает режим восстановления. Либо вынести вопрос на решение maintainer'а (см. decisions_required D-1)."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-KRN-004 добавляет `cli` в `warrant://config/1` без смены major, а корень схемы — `additionalProperties: false` (`packages/cli/schemas/config.1.schema.json:164`). CLI до 0.10 читают `warrant.json` с `cli` как `CONFIG_INVALID`, и их guard даёт `deny` на всё. Если поле добавить, пока хук ещё исполняет старый CLI из PATH, запирание повторяется. Требование и миграция не говорят, что поле требует CLI не ниже 0.10.",
+      "targets": [
+        "REQ-KRN-004",
+        "openspec/changes/guard-recovery/proposal.md"
+      ],
+      "recommendation": "Указать в REQ-KRN-004 или в 08 §3, что `cli` читает CLI не ниже 0.10 (`kernel` 0.10). В «Миграции для потребителя» — что поле добавляется после перехода CLI машины на 0.10."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Список команд без записи для режима восстановления расходится со списком Run `review`. В нём есть `warrant <слова> --help`, но нет `-h`, и нет `warrant run finish --state CANCELLED`. Неясно, намеренно ли это: `warrant run -h` и отмена активного Run, пока policy не грузится, по букве — `deny`. Design же переиспользует `isReading`, а он по main spec принимает `-h`.",
+      "targets": [
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Перечислить формы явно (`--help` или `-h`) и сказать, разрешена ли в режиме восстановления отмена `warrant run finish --state CANCELLED [--dry-run]`. Добавить случай в SCN-ENF-049 или SCN-ENF-050."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Hints режима восстановления всегда содержат шаги pin-Change: поднять диапазон и `kernel`, затем `warrant sync`. Причиной может быть и не расхождение версий: битый `.warrant/local/**`, `PACK_NOT_FOUND`, нарушение схемы `warrant.json`. Тогда шаги pin-Change ведут не туда, а правка `.warrant/local/**` отклоняется (design, «Альтернативы»), и подсказки о правке человеком в Change `factory-change` нет.",
+      "targets": [
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Связать hint с кодом ошибки: шаги pin-Change — при `PACK_VERSION_RANGE` и `CONFIG_INVALID` о `kernel` pack; при ошибке в `.warrant/local/**` — hint о правке человеком в `factory-change`. Либо прямо сказать, что hint один на все коды."
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "При `cli` не сказано, какую форму команд называют hints guard. Это hint отказа под Run `review` («называющим `warrant run submit`, … `warrant run finish --state CANCELLED` и `warrant status`»), перечень разрешённого и шаги pin-Change в режиме восстановления: `warrant …` или `node <cli> …`. Агент, который следует hint дословно, исполнит `warrant` из PATH — тот самый CLI, от которого Change уводит.",
+      "targets": [
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Указать: при `cli` hints называют команды формой `node <cli> …` (или обе формы). Проверить в SCN-ENF-051."
+    },
+    {
+      "id": "F-11",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Неизменённые SCN-KRN-130 и SCN-KRN-139 требуют хуков `warrant guard --frontend claude` и тела с `warrant run submit --file`, но не говорят «без `cli`». С новым полем они верны только для проекта без `cli`. SCN-KRN-166 противоречит им для проекта с полем.",
+      "targets": [
+        "SCN-KRN-130",
+        "SCN-KRN-139",
+        "SCN-KRN-166"
+      ],
+      "recommendation": "Дописать в WHEN SCN-KRN-130 и SCN-KRN-139 «без `cli` в `warrant.json`»."
+    },
+    {
+      "id": "F-12",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Шаблон `cli` в REQ-KRN-004 неточен. «Сегменты из букв» — только ASCII или любые буквы Unicode (кириллица)? «Без ведущего `/` и `-`» — у всего пути или у каждого сегмента? SCN-KRN-165 эти случаи не различает, и регулярное выражение схемы можно написать по-разному.",
+      "targets": [
+        "REQ-KRN-004",
+        "SCN-KRN-165"
+      ],
+      "recommendation": "Задать класс символов явно (например, ASCII `A-Za-z0-9._@+-`) и сказать, относится ли запрет ведущего `-` к сегментам. Добавить в SCN-KRN-165 по значению на каждый случай."
+    },
+    {
+      "id": "F-13",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Абзац R-46 описывает исключение runner'а `warrant guard` без `--frontend` только «до решения». Исключение после выведенного envelope не описано: второй envelope или нет, какой код. Для `--frontend claude` REQ-ENF-005 этот случай задаёт явно.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-052"
+      ],
+      "recommendation": "Добавить: исключение после выведенного решения — сообщение в stderr, второго envelope нет, код 0. Дополнить SCN-ENF-052."
+    },
+    {
+      "id": "F-14",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Пока policy не грузится, агент получает правку всего `.warrant/warrant.json`. При загружаемой policy она отклоняется: `.warrant/**` — policy-путь профиля `factory-change` (`packs/core-sdd/profiles/factory-change.json:11`). Так агент может сменить `cli` или `frontends`, убрать pack, а после `warrant sync` направить хук на любой `.js` проекта. Design §4 утверждает, что `cli` «правится только как policy-путь», но в режиме восстановления это не так. Контроль — только diff PR и CODEOWNERS.",
+      "targets": [
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Явно записать в REQ-ENF-004 или design, что режим восстановления шире обычного для `warrant.json`, и исправить строку риска про `cli`. Либо ограничить разрешение полями закрепления (`packs.*.version`, `kernel`), если это проверяемо."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/guard-recovery/specs/kernel/spec.md",
+      "change": "SCN-KRN-166 THEN: «раздел «Сдача результата» тела субагента содержит `node tools/warrant.js run submit --file` и не содержит `warrant run submit`; текст skill включён без изменений» вместо «тело … не содержит `warrant run submit`» (F-1)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/guard-recovery/specs/kernel/spec.md",
+      "change": "Добавить MODIFIED REQ-KRN-021 со сценарием: сообщение `PACK_VERSION_RANGE` встроенного pack называет версию CLI, hint — `kernel`; код и путь прежние (F-5)."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/guard-recovery/specs/enforcement/spec.md",
+      "change": "Определить терпимое чтение `warrant.json`: JSON-объект; `cli` — строка по шаблону REQ-KRN-004, иначе алиаса нет; поля pins — только строки. Добавить в SCN-ENF-051 случай `cli` вне шаблона (F-4)."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Claude Code считает ненулевой код хука, кроме 2, неблокирующей ошибкой. Это взято из design §4 и REQ-ENF-005, зондом не проверялось."
+    },
+    {
+      "id": "A-2",
+      "statement": "Текст skill в файле субагента — это `sra/skills/specification/adversarial-review/SKILL.md` из lock pack `core-sdd` без изменений. Это следует из строки 85 закоммиченного `.claude/agents/warrant-reviewer.md`, которая совпадает со строкой 77 skill."
+    },
+    {
+      "id": "A-3",
+      "statement": "Поле `kernel` в `warrant.json` loader не сверяет с kernel CLI: в `loadPacks` сверяется только `kernel` из `pack.json`. Поэтому в SCN-ENF-048 первая ошибка — `PACK_VERSION_RANGE`."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Какой порядок подъёма закрепляют навык `warrant-upgrade` и CHANGELOG «Миграция» для агента внутри сессии под guard (F-6)?",
+      "options": [
+        "Сначала CLI, затем закрепление: режим восстановления проходит этот порядок целиком внутри сессии",
+        "Сначала закрепление, затем CLI (ADR-0053 п. 5), с оговоркой, что оба шага делает человек вне сессии агента",
+        "Добавить установку CLI (`npm i -g <tgz>`, `npm i -D <tgz>`) в команды восстановления: нужна правка нормы ADR-0053 п. 2"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:8dcff0e5d991bbff7b927f1e5839c8b33229b8f0a6ad375dbb1281b749cbd040",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T10:00:00Z",
+    "finished_at": "2026-10-01T10:40:00Z"
+  }
+}

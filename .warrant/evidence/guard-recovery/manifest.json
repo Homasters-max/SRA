@@ -1,0 +1,14 @@
+{
+  "$schema": "warrant://evidence-manifest/1",
+  "change": "guard-recovery",
+  "commit": "499e9f0e9f350877a27464413eb8dc92d0a9d3b8",
+  "versions": {
+    "warrant": "0.10.0",
+    "openspec": "1.13.1",
+    "lock_hash": "sha256:4129af00197743d332954216c9b46289cae50c7c9a10ba35c7cf9ff5c0384660",
+    "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829"
+  },
+  "evidence": [
+    "EVID-01M3VT9MQSDMEAA12BCD8RQR1Y"
+  ]
+}

@@ -16,18 +16,19 @@
 **База требований.** Всё, из чего `warrant ci` выводит требования к PR, SHALL читаться из packs и `warrant.json` дерева HEAD^1
 (базы), а не из PR ([ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md) п. 1): policy-пути (`match.paths`
 profile `factory-change`), `paths.src`, `paths.tests`, `roles`, `approvals[]`, effective policy и классификация по путям diff.
-PR предъявляет только предмет суждения. Исключение — закон записанного перехода (`effective_policy_hash` и ключи `gates`): его
-судит окно законов, в которое входит и HEAD (ниже, «Record»; [ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 4). Встроенный pack (`source: bundled`) приходит с CLI: pack базы — тот, чей `hash`
+PR предъявляет только предмет суждения. Исключения: закон записанного перехода (`effective_policy_hash` и ключи `gates`) судит
+окно законов, в которое входит и HEAD, а определения gates и checks, которых в базе нет, берутся из HEAD (ниже, «Record»; [ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 4). Встроенный pack (`source: bundled`) приходит с CLI: pack базы — тот, чей `hash`
 записан в `warrant.lock.json` HEAD^1. Встроенный pack, которого lock базы не содержит с этим `hash`, при diff PR с `.warrant/warrant.lock.json` — закон,
 изменённый самим PR: в виде impl `classification.profiles` на HEAD SHALL содержать `factory-change` (`RECORD_MISMATCH`, причина `classification`),
 в остальных видах — `SCOPE_VIOLATION` с путём `.warrant/warrant.lock.json`. Ошибка загрузки базы `PACK_VERSION_RANGE` у такого pack
 (его версия вне диапазона `warrant.json` базы) — следствие изменённого закона, а не сломанная база: `warrant ci` её не сообщает и
 судит PR дальше; `PACK_VERSION_RANGE` у pack, совпадающего с lock базы, — код 3. Различие SHALL держаться на коде ошибки, а не на
-тексте её `message` ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2). Lock базы, который не содержит
-встроенный pack с `hash` встроенного pack этого CLI или несёт `kernel` (major.minor) не этого CLI, при diff PR без
-`.warrant/warrant.lock.json` — не закон, изменённый PR, а CLI, не совпадающий с законом `main`: `LOCK_MISMATCH` с путём lock и
-`hint` (версия CLI в workflow или `warrant sync` в `main`), код 3; иначе законы `main` окна (ниже) стали бы невычисленными
-без ограничения срока.
+тексте её `message` ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2). Lock SHALL совпадать с CLI,
+которым судит `warrant ci`: содержать каждый встроенный pack с `hash` встроенного pack этого CLI и `kernel` (major.minor) этого
+CLI. Lock на HEAD, который с CLI не совпадает, и lock базы, который не совпадает, при diff PR без `.warrant/warrant.lock.json`, —
+`LOCK_MISMATCH` с путём lock и `hint` (lock записан другим CLI: `warrant sync` тем CLI, которым судит CI), код 3: это CLI, не
+совпадающий с законом, а не закон, изменённый PR. Иначе законы `main` окна и закон HEAD (ниже) стали бы невычисленными без
+ограничения срока, и любой hash перехода давал бы находку вместо нарушения.
 
 **Change и вид PR.** Change SHALL выводиться из records `.warrant/changes/*.json`, изменённых или удалённых в diff, а не из имени
 ветки ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 13):
@@ -54,7 +55,8 @@ PR предъявляет только предмет суждения. Искл
   классификация с профилем, которого нет в packs коммита, и классификация, для которой effective policy коммита не составляется
   (`POLICY_CONFLICT`), закона на этом коммите не дают. Окно законов:
   - точка ответвления PR — самый ранний коммит first-parent линии HEAD^1, который является родителем коммита PR (коммита,
-    достижимого из HEAD^2 и не достижимого из HEAD^1); без такого — `merge-base(HEAD^1, HEAD^2)`;
+    достижимого из HEAD^2 и не достижимого из HEAD^1); без такого — последний коммит first-parent линии HEAD^1, который является
+    предком HEAD^2 (`merge-base` может лежать вне first-parent линии — например, у ветки от коммита слитой боковой ветки);
   - коммиты first-parent линии HEAD^1 после точки ответвления, чей diff с первым родителем задевает policy-пути базы или входы
     закона — `.warrant/warrant.json`, `.warrant/warrant.lock.json`, `.warrant/local/**` (lock несёт `kernel` и `hash` каждого
     pack); коммит, у которого входы закона те же, что у уже вычисленного коммита окна, даёт тот же закон;
@@ -454,7 +456,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 
 #### Scenario: Закон коммита окна не вычислен
 <!-- id: SCN-VER-142 -->
-- **WHEN** lock точки ответвления несёт `hash` встроенного pack `core-sdd`, отличный от pack текущего CLI, а hash перехода `APPROVED` не совпал ни с одним вычисленным законом окна
+- **WHEN** точка ответвления — не HEAD^1, lock базы и HEAD совпадают с текущим CLI, lock точки ответвления несёт `hash` встроенного pack `core-sdd`, отличный от pack текущего CLI, а hash перехода `APPROVED` не совпал ни с одним вычисленным законом окна
 - **THEN** `RECORD_MISMATCH` с причиной `policy` нет, `data.findings[]` содержит `LAW_NOT_COMPUTED` с переходом и коммитом точки ответвления; находка на код выхода не влияет
 
 #### Scenario: gates перехода не по закону
@@ -491,3 +493,13 @@ checks и `data.would_write[]` без запуска checks и без обращ
 <!-- id: SCN-VER-149 -->
 - **WHEN** lock базы несёт `hash` встроенного pack `core-sdd`, отличный от pack текущего CLI, а diff PR не содержит `.warrant/warrant.lock.json`
 - **THEN** `errors[]` содержит `LOCK_MISMATCH` с путём `.warrant/warrant.lock.json` и `hint`, код 3; находок `LAW_NOT_COMPUTED` нет
+
+#### Scenario: Ветка от коммита боковой ветки
+<!-- id: SCN-VER-150 -->
+- **WHEN** ветка PR ответвлена от коммита X боковой ветки, слитой в `main` merge-коммитом, X не лежит на first-parent линии HEAD^1, а hash перехода — закон X, которого нет ни на одном коммите first-parent линии
+- **THEN** точка ответвления — последний коммит first-parent линии HEAD^1, предок HEAD^2; закон X в окно не входит, `errors[]` содержит `RECORD_MISMATCH` с причиной `policy`, код 1
+
+#### Scenario: Gate, добавленный PR
+<!-- id: SCN-VER-151 -->
+- **WHEN** impl-PR добавляет в `.warrant/local/gates/` gate с `applies_when` на переход `IMPLEMENTING->VERIFYING` и записывает его `NOT_APPLICABLE` в новом `VERIFYING` по закону HEAD
+- **THEN** основание судится по определению gate из HEAD: `RECORD_MISMATCH` с причиной `not_applicable` нет, код 0 при прочих правилах без нарушений

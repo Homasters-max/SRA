@@ -54,8 +54,8 @@
 - [ ] 5.1 `core/ports/git.ts` и `adapters/git.ts` — `boundary(base, head)`; contract-тест адаптера git. `core/ci/law.ts` — `lawWindow` по D2.
 - [ ] 5.2 Правило закона перехода в `judgeRecord` (`core/ci/record.ts`) по D3; определения для оснований по D3a; `LOCK_MISMATCH` CLI против lock базы по D3b (`core/ci/base.ts`). Находка `LAW_NOT_COMPUTED`. Из `mergedRules` удалены сверка hash и `gates` с `basePolicy` (REQ-VER-011 «Record»).
 - [ ] 5.3 Тесты `ci.test.ts`:
-  - SCN-VER-140, SCN-VER-141, SCN-VER-142, SCN-VER-143, SCN-VER-146, SCN-VER-147, SCN-VER-148, SCN-VER-149;
-  - тест I-179 — lock в diff, и случай без lock — код 3 (D3b);
+  - SCN-VER-140…SCN-VER-143, SCN-VER-146…SCN-VER-151;
+  - тест I-179 — lock в diff; случаи без lock и с lock HEAD другого CLI — код 3 (D3b);
   - дедупликация по дереву входов закона: коммит `main` только с `packages/cli/src/**` worktree не создаёт;
   - коммит окна вне checkout — `USAGE`, код 3;
   - gate, удалённый в `main` после перехода, записанный `WAIVED`, основания не требует (D3a);
@@ -66,7 +66,7 @@
 ## 6. `guard` и `run submit` (D9, D10)
 
 - [ ] 6.1 `bin/warrant.ts`: `run` с переводом исключения. Action `guard` без `--frontend` переводит исключение в `runGuardCrash`, функция перевода — в `commands/guard.ts` (REQ-ENF-004, REQ-KRN-003, R-46). Тест: исключение runner'а `guard` даёт `deny`, код 0; фаза `post` даёт `allow`.
-- [ ] 6.2 SCN-ENF-047 и сбой удаления `current` (Run завершён, повтор — `RUN_NOT_ACTIVE`): `run submit` при `BUSY` записи файла Run — код 4, `retryable: true`, Run активен; повтор того же envelope — `data.reused: true`, код 0 (REQ-ENF-007, BL-105).
+- [ ] 6.2 SCN-ENF-047 и сбой удаления `current` (код 3, Run завершён, повтор — `RUN_NOT_ACTIVE`): `run submit` при `BUSY` записи файла Run — код 4, `retryable: true`, Run активен; повтор того же envelope — `data.reused: true`, код 0 (REQ-ENF-007, BL-105).
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts guard bin run`.
 

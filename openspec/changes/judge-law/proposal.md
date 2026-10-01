@@ -27,6 +27,7 @@
   - HEAD.
 
   Классификация закона — `classification` record базы или HEAD. Если текущий CLI не вычисляет закон коммита `main` (например, встроенный pack другой версии), это информационная находка `LAW_NOT_COMPUTED`, а не нарушение. Невычисленный закон HEAD нарушение не снимает: HEAD предъявляет сам PR. Сверка `MERGED` с базой archive-PR заменяется этим правилом.
+- **Lock против CLI** (уточняет I-179). Lock на HEAD и lock базы при diff без lock должны совпадать с CLI, которым судит CI: встроенные pack по `hash` и `kernel`. Иначе — `LOCK_MISMATCH`, код 3, а не «закон изменён PR». Без этого устаревший lock делал бы законы окна невычисленными, а любой подложный hash — находкой.
 - **Основание `NOT_APPLICABLE` по evidence — одним предикатом с движком** (ADR-0052 п. 3, A-45). Для каждого требования gate берётся самая свежая подходящая запись `evidence[]` перехода, принятая по attestation, как у REQ-VER-003. Основание есть, только если все такие записи — `NOT_APPLICABLE` от check. У `MERGED` судья дополнительно требует `attestation.type: "ci"` и `subject.commit` M^2. Evidence судья по-прежнему не пересчитывает (N44).
 - **Ref перехода — один шаг до правил** (A-47). PR, M, M^1 и diff M вычисляются один раз, и правила получают готовый результат. Каждый PR форж запрашивает один раз.
 - **M^1 с непригодным `warrant.json`** (R-45). Исключение agent-merge закрыто fail-closed: роль одобрения — `roles.maintainer`, вывод несёт находку `AGENT_MERGE_CLOSED`. Падения с кодом 3 больше нет.
@@ -45,7 +46,8 @@
 ### Modified Capabilities
 
 - `verification` — REQ-VER-011, разделы:
-  - «Record»: окно законов `main` для hash и gates всех новых переходов вперёд, `LAW_NOT_COMPUTED`, основание `NOT_APPLICABLE` по самой свежей записи;
+  - «База требований»: lock против CLI (`LOCK_MISMATCH`), исключения для закона перехода и gates, добавленных PR;
+  - «Record»: окно законов `main` для hash и gates всех новых переходов вперёд, `LAW_NOT_COMPUTED`, определения для оснований, основание `NOT_APPLICABLE` по самой свежей записи;
   - «Ref»: непригодная конфигурация M^1 закрывает исключение agent-merge.
 - `enforcement` — REQ-ENF-007: код выхода ошибки `run submit` — по классу кода.
 
@@ -71,5 +73,4 @@
 - Документы:
   - `CHANGELOG.md` (`## 0.10.0`);
   - `docs/backlog.md`: закрываются WS-03, A-34, A-40, A-45, A-47, R-45, R-46, BL-105; новая строка — `applies_when` у переходов, кроме `MERGED`;
-  - `docs/04-lifecycle.md`, если там описана сверка hash.
 - Spec: `openspec/changes/judge-law/specs/{verification,enforcement}/spec.md`.

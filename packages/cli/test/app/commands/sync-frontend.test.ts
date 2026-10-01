@@ -14,7 +14,7 @@ import { parse as parseYaml } from "yaml";
 
 import { runSync, type SyncOptions } from "../../../src/commands/sync.js";
 import { AGENTS_MD_MARKER } from "../../../src/core/sync/agents.js";
-import { CLAUDE_DENY, CLAUDE_REVIEWER_REL, GUARD_COMMAND, RESTART_HINT } from "../../../src/core/sync/claude.js";
+import { CLAUDE_DENY, CLAUDE_REVIEWER_REL, GUARD_COMMAND, guardCommand, RESTART_HINT } from "../../../src/core/sync/claude.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { CORE_SDD_RANGE, REPO_ROOT } from "../../helpers/cli.js";
 import { invoke } from "../helpers/invoke.js";
@@ -58,6 +58,13 @@ function exists(p: ProjectBuilder, rel: string): boolean {
 
 function settings(p: ProjectBuilder): Record<string, any> {
   return JSON.parse(p.read(SETTINGS)) as Record<string, any>;
+}
+
+/** Keys of the leading frontmatter, parsed as YAML like Claude Code does, and the body after it. */
+function agentParts(text: string): { frontmatter: Record<string, any>; body: string } {
+  const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(text);
+  expect(match, "leading --- frontmatter").not.toBeNull();
+  return { frontmatter: parseYaml(match?.[1] ?? "") as Record<string, any>, body: match?.[2] ?? "" };
 }
 
 const FOREIGN_HOOK = { matcher: "Bash", hooks: [{ type: "command", command: "echo foreign" }] };
@@ -230,13 +237,6 @@ describe("warrant sync: AGENTS.md and CLAUDE.md", () => {
 describe("warrant sync: the subagent warrant-reviewer", () => {
   const SKILL = path.join(REPO_ROOT, "sra", "skills", "specification", "adversarial-review", "SKILL.md");
 
-  /** Keys of the leading frontmatter, parsed as YAML like Claude Code does, and the body after it. */
-  function agentParts(text: string): { frontmatter: Record<string, any>; body: string } {
-    const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(text);
-    expect(match, "leading --- frontmatter").not.toBeNull();
-    return { frontmatter: parseYaml(match?.[1] ?? "") as Record<string, any>, body: match?.[2] ?? "" };
-  }
-
   it("frontmatter with reading tools, Bash and Write and the guard hook on Bash|Write, the marker, the review skill, run submit --file; a second sync changes no byte (SCN-KRN-139)", async () => {
     const p = project(["claude"]);
     const run = await sync(p);
@@ -369,5 +369,63 @@ describe("warrant sync: project without frontend", () => {
     const check = await sync(p, { check: true });
     expect(check.exitCode).toBe(3);
     expect(check.errors).toEqual([expect.objectContaining({ code: "GENERATED_DRIFT", path: ".gitignore" })]);
+  });
+});
+
+describe("warrant sync: the CLI the project pins (ADR-0053 п. 3)", () => {
+  it("cli puts node <cli> into the hooks and the submit of the subagent, replaces the old hooks; without cli the old form comes back (SCN-KRN-166)", async () => {
+    const PINNED = 'node "${CLAUDE_PROJECT_DIR:-.}/tools/warrant.js" guard --frontend claude';
+    expect(guardCommand("tools/warrant.js")).toBe(PINNED);
+    const p = project(["claude"]);
+    expect((await sync(p)).errors).toEqual([]);
+    const plain = p.json(".warrant/warrant.json");
+
+    p.write(".warrant/warrant.json", { ...plain, cli: "tools/warrant.js" });
+    const pinned = await sync(p);
+    expect(pinned.errors).toEqual([]);
+    const hooks = settings(p)["hooks"];
+    for (const event of ["PreToolUse", "PostToolUse"]) {
+      const commands = (hooks[event] as Array<{ hooks: Array<{ command: string }> }>).flatMap((g) => g.hooks.map((h) => h.command));
+      expect(commands, event).toEqual([PINNED]);
+    }
+    const { frontmatter, body } = agentParts(p.read(CLAUDE_REVIEWER_REL));
+    expect(frontmatter["hooks"]).toEqual({ PreToolUse: [{ matcher: "Bash|Write", hooks: [{ type: "command", command: PINNED }] }] });
+    const section = body.slice(body.indexOf("## Сдача результата"));
+    expect(section).toContain("node tools/warrant.js run submit --file");
+    expect(section).not.toContain("warrant run submit");
+    expect(section).toContain("Команды `warrant` в тексте skill выше исполняй как `node tools/warrant.js`");
+    const findings = pinned.data["findings"] as Array<{ code: string; path: string }>;
+    expect(findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "FRONTEND_RESTART_REQUIRED", path: SETTINGS }),
+        expect.objectContaining({ code: "FRONTEND_RESTART_REQUIRED", path: CLAUDE_REVIEWER_REL }),
+        expect.objectContaining({ code: "CLI_NOT_FOUND", path: "tools/warrant.js" })
+      ])
+    );
+    expect(pinned.exitCode).toBe(0);
+    expect((await sync(p, { check: true })).data["findings"]).toEqual([expect.objectContaining({ code: "CLI_NOT_FOUND" })]);
+
+    p.write("tools/warrant.js", "");
+    expect(((await sync(p)).data["findings"] as unknown[]).length).toBe(0);
+
+    p.write(".warrant/warrant.json", plain);
+    const back = await sync(p);
+    expect(back.errors).toEqual([]);
+    expect(settings(p)["hooks"]["PreToolUse"]).toEqual([
+      { matcher: "Edit|Write|NotebookEdit|Bash", hooks: [{ type: "command", command: GUARD_COMMAND }] }
+    ]);
+    const again = agentParts(p.read(CLAUDE_REVIEWER_REL)).body;
+    expect(again.slice(again.indexOf("## Сдача результата"))).toContain("warrant run submit --file");
+    expect((back.data["findings"] as Array<{ code: string }>).map((f) => f.code)).not.toContain("CLI_NOT_FOUND");
+  });
+
+  it("cli without frontends: no hooks, no finding", async () => {
+    const p = project();
+    const config = p.json(".warrant/warrant.json");
+    p.write(".warrant/warrant.json", { ...config, cli: "tools/warrant.js" });
+    const run = await sync(p);
+    expect(run.errors).toEqual([]);
+    expect(run.data["findings"]).toEqual([]);
+    expect(exists(p, SETTINGS)).toBe(false);
   });
 });

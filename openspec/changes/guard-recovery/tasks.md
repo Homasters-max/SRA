@@ -41,14 +41,14 @@
 
 ## 4. Генератор `claude` (D3)
 
-- [ ] 4.1 `core/sync/claude.ts`:
+- [x] 4.1 `core/sync/claude.ts`:
   - `guardCommand(cli?)` вместо константы в группах и frontmatter;
   - `isGuardHook` — обе формы;
   - `reviewerAgent(skill, cli?)` — команда хука, `node <cli> run submit` в разделе сдачи и фраза о командах `warrant` в тексте skill;
   - `claudeSettingsTarget` от конфигурации.
   
   `core/sync/plan.ts` передаёт `config.cli`; файла `cli` нет — находка `CLI_NOT_FOUND` в `data.findings[]`.
-- [ ] 4.2 Тесты `app/commands/sync-frontend.test.ts`: SCN-KRN-166. SCN-KRN-130, 134, 139, 140, 142, 154 — зелёные, байты без `cli` не изменились.
+- [x] 4.2 Тесты `app/commands/sync-frontend.test.ts`: SCN-KRN-166. SCN-KRN-130, 134, 139, 140, 142, 154 — зелёные, байты без `cli` не изменились.
 - [ ] 4.3 Повтор зонда I-168 интерактивно (maintainer, `scripts/dev/probe-hooks.js`): хук frontmatter субагента с `node "${CLAUDE_PROJECT_DIR:-.}/…"` исполняется. Итог — строка `I-N`; не исполняется — строка backlog (дефект и до Change).
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts sync-frontend sync claude`.

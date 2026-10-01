@@ -7,7 +7,7 @@
  * `sync` writes them, `sync --check` and `validate` only compare. Having one
  * planner is what makes the two commands unable to disagree (SCN-KRN-045).
  */
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { bytesHash } from "../canon/hash.js";
@@ -25,7 +25,7 @@ import { CLI_VERSION } from "../../version.js";
 import { CURRENT_FILE } from "../run/store.js";
 import { agentsMd, AGENTS_MD_MARKER, AGENTS_MD_REL } from "./agents.js";
 import { REVIEW_SKILL } from "../run/types.js";
-import { CLAUDE_FRONTEND, CLAUDE_REVIEWER_REL, claudeSettingsTarget, reviewerAgent } from "./claude.js";
+import { CLAUDE_FRONTEND, CLAUDE_REVIEWER_REL, CLI_NOT_FOUND_HINT, claudeSettings, reviewerAgent } from "./claude.js";
 import { mergeRules, type OpenspecRules } from "./rules.js";
 import { driftPath, linesTarget, type SubsetTarget } from "./subset.js";
 
@@ -97,7 +97,7 @@ export interface SyncPlan {
  * is not planned: `apply.ts` gives it for the files it wrote (ADR-0042 п. 5).
  */
 export interface SyncFinding {
-  code: "REVIEWER_SKILL_MISSING" | "FRONTEND_RESTART_REQUIRED";
+  code: "REVIEWER_SKILL_MISSING" | "FRONTEND_RESTART_REQUIRED" | "CLI_NOT_FOUND";
   path: string;
   hint: string;
 }
@@ -364,7 +364,10 @@ function reviewerPlan(root: string, loaded: LoadResult, skills: readonly Resolve
   if (!loaded.config.frontends.includes(CLAUDE_FRONTEND)) return { kind: "none" };
   const review = skills.find((skill) => skill.name === REVIEW_SKILL);
   if (review !== undefined) {
-    return { kind: "generate", bytes: reviewerAgent({ version: review.version, text: readFileSync(review.absolute, "utf8") }) };
+    return {
+      kind: "generate",
+      bytes: reviewerAgent({ version: review.version, text: readFileSync(review.absolute, "utf8") }, loaded.config.cli)
+    };
   }
   const declared = loaded.packs.some((pack) => providedList(pack, "skills").some((spec) => skillName(spec) === REVIEW_SKILL));
   if (declared) return { kind: "none" };
@@ -539,6 +542,11 @@ export function planSync(input: PlanInput): SyncPlan {
     findings.push(reviewer.finding);
     if (reviewer.stale) removed.push(CLAUDE_REVIEWER_REL);
   }
+  // The hooks of the pinned CLI run no guard without its file: a finding, not an error — CI may not install it (ADR-0053 п. 3).
+  const cli = loaded.config.cli;
+  if (cli !== undefined && loaded.config.frontends.includes(CLAUDE_FRONTEND) && !isFile(path.join(root, cli))) {
+    findings.push({ code: "CLI_NOT_FOUND", path: cli, hint: CLI_NOT_FOUND_HINT });
+  }
 
   const subsets = planSubsets(root, subsetTargets(loaded), errors);
 
@@ -597,9 +605,18 @@ export const RUNS_CURRENT_IGNORE = `.warrant/runs/${CURRENT_FILE}`;
 function subsetTargets(loaded: LoadResult): SubsetTarget[] {
   const targets = [linesTarget(".gitignore", [RUNS_CURRENT_IGNORE])];
   if (loaded.config.frontends.includes(CLAUDE_FRONTEND)) {
-    targets.push(claudeSettingsTarget);
+    targets.push(claudeSettings(loaded.config.cli));
   }
   return targets;
+}
+
+/** True for a regular file at `absolute`, links followed: no path, a directory or a broken link is not one. */
+function isFile(absolute: string): boolean {
+  try {
+    return statSync(absolute).isFile();
+  } catch {
+    return false;
+  }
 }
 
 /** Drift and merged bytes of each target; a target that cannot merge is an error of the plan. */

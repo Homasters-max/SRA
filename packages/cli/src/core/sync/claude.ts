@@ -3,6 +3,8 @@
  * design phase-4a §8): the managed subset of `.claude/settings.json` — the
  * static deny of ADR-0014 п. 1 and the hook groups of `warrant guard
  * --frontend claude` (F19) — and the subagent `warrant-reviewer` of the review Run (design phase-4b §6).
+ * With `cli` in `warrant.json` the hooks and the subagent run the CLI the
+ * project pins, `node <cli>`, not the first `warrant` on PATH (ADR-0053 п. 3).
  * The generator is one of the places the frontend name may appear (design §9).
  */
 import { canonicalHash } from "../canon/hash.js";
@@ -19,8 +21,23 @@ export const CLAUDE_FRONTEND = "claude";
 
 export const CLAUDE_SETTINGS_REL = ".claude/settings.json";
 
-/** Command of our hooks; a group is ours when one of its hooks runs exactly this. */
+/** Command of our hooks without `cli`; a group is ours when one of its hooks runs it or {@link guardCommand} of any `cli`. */
 export const GUARD_COMMAND = "warrant guard --frontend claude";
+
+/**
+ * The command of our hooks (REQ-KRN-033): with `cli` — `node` on the pinned
+ * file from `CLAUDE_PROJECT_DIR`, or from the directory the hook runs in when
+ * Claude Code does not set it (probe 2026-10-01, design guard-recovery D3).
+ */
+export function guardCommand(cli?: string): string {
+  return cli === undefined ? GUARD_COMMAND : `node "\${CLAUDE_PROJECT_DIR:-.}/${cli}" guard --frontend claude`;
+}
+
+/** The pinned form of {@link guardCommand} for any `cli` the pattern of `config/1` admits. */
+const PINNED_GUARD_RE = /^node "\$\{CLAUDE_PROJECT_DIR:-\.\}\/[A-Za-z0-9._@+/-]+" guard --frontend claude$/;
+
+/** `CLI_NOT_FOUND` (REQ-KRN-033): no regular file at `cli` — the hooks run no guard. */
+export const CLI_NOT_FOUND_HINT = "build or install the CLI the project pins (npm run build, npm ci), or remove `cli` from .warrant/warrant.json";
 
 /**
  * Paths no agent edits (ADR-0014 п. 1). `/path` anchors a rule of project
@@ -50,13 +67,14 @@ export const CLAUDE_HOOKS: ReadonlyArray<{ event: string; matcher: string }> = [
   { event: "PostToolUse", matcher: "Edit|Write|NotebookEdit" }
 ];
 
-function guardGroup(matcher: string): Record<string, unknown> {
-  return { matcher, hooks: [{ type: "command", command: GUARD_COMMAND }] };
+function guardGroup(matcher: string, cli: string | undefined): Record<string, unknown> {
+  return { matcher, hooks: [{ type: "command", command: guardCommand(cli) }] };
 }
 
-/** True for a hook entry that runs our command. */
+/** True for a hook entry that runs our command, in either form: `sync` replaces it with the current one. */
 function isGuardHook(hook: unknown): boolean {
-  return isPlainObject(hook) && hook["type"] === "command" && hook["command"] === GUARD_COMMAND;
+  if (!isPlainObject(hook) || hook["type"] !== "command" || typeof hook["command"] !== "string") return false;
+  return hook["command"] === GUARD_COMMAND || PINNED_GUARD_RE.test(hook["command"]);
 }
 
 /** True for a group holding at least one of our hooks. */
@@ -78,7 +96,7 @@ function parse(current: Buffer | undefined): Parsed {
   return isPlainObject(json) ? { ok: true, doc: json } : { ok: false, message: `${CLAUDE_SETTINGS_REL} is not a JSON object` };
 }
 
-function own(current: Buffer | undefined): OwnEntry[] {
+function own(current: Buffer | undefined, cli: string | undefined): OwnEntry[] {
   const parsed = parse(current);
   if (!parsed.ok) return [{ pointer: "", exact: false }];
   const permissions = parsed.doc["permissions"];
@@ -88,7 +106,7 @@ function own(current: Buffer | undefined): OwnEntry[] {
   for (const { event, matcher } of CLAUDE_HOOKS) {
     const groups = Array.isArray(hooks[event]) ? hooks[event] : [];
     const ours = groups.filter(isGuardGroup);
-    const exact = ours.length === 1 && canonicalHash(ours[0]) === canonicalHash(guardGroup(matcher));
+    const exact = ours.length === 1 && canonicalHash(ours[0]) === canonicalHash(guardGroup(matcher, cli));
     entries.push({ pointer: `/hooks/${event}`, exact });
   }
   return entries;
@@ -108,7 +126,7 @@ function refused(pointer: string, message: string): Merged {
  * out of every group that holds it (a group left empty is dropped) and our
  * exact group put where the first of them stood, or at the end.
  */
-function merge(current: Buffer | undefined): Merged {
+function merge(current: Buffer | undefined, cli: string | undefined): Merged {
   const parsed = parse(current);
   if (!parsed.ok) return refused("", parsed.message);
   const doc = { ...parsed.doc };
@@ -137,7 +155,7 @@ function merge(current: Buffer | undefined): Merged {
       const rest = (record["hooks"] as unknown[]).filter((hook) => !isGuardHook(hook));
       if (rest.length > 0) next.push({ ...record, hooks: rest });
     }
-    next.splice(at === -1 ? next.length : at, 0, guardGroup(matcher));
+    next.splice(at === -1 ? next.length : at, 0, guardGroup(matcher, cli));
     nextHooks[event] = next;
   }
   doc["hooks"] = nextHooks;
@@ -145,8 +163,13 @@ function merge(current: Buffer | undefined): Merged {
   return { bytes: Buffer.from(canonicalText(doc as Json).text, "utf8"), json: doc };
 }
 
-/** The managed subset of `.claude/settings.json`, written in canonical JSON. */
-export const claudeSettingsTarget: SubsetTarget = subsetTarget({ path: CLAUDE_SETTINGS_REL, own, merge });
+/** The managed subset of `.claude/settings.json` with the hooks of `cli`, written in canonical JSON. */
+export function claudeSettings(cli?: string): SubsetTarget {
+  return subsetTarget({ path: CLAUDE_SETTINGS_REL, own: (current) => own(current, cli), merge: (current) => merge(current, cli) });
+}
+
+/** {@link claudeSettings} without `cli`. */
+export const claudeSettingsTarget: SubsetTarget = claudeSettings();
 
 /** The subagent of the review Run (REQ-KRN-033, ADR-0034 п. 10, design phase-4b §6): an exact-bytes target. */
 export const CLAUDE_REVIEWER_REL = ".claude/agents/warrant-reviewer.md";
@@ -205,9 +228,19 @@ export function exampleEnvelope(skill: ReviewSkill): string {
  * body of the review skill and how the result is handed in: the envelope as
  * a file `<RUN-id>.envelope.json` in the session scratchpad, then
  * `warrant run submit --file` — a command line has a length limit on Windows
- * (ADR-0042 п. 4, ADR-0043, I-197, I-198).
+ * (ADR-0042 п. 4, ADR-0043, I-197, I-198). With `cli` the hook and the
+ * commands the subagent runs are those of the pinned CLI, `node <cli>`, and
+ * the section says the commands of the skill text are run alike (ADR-0053
+ * п. 3); without it the bytes are as before.
  */
-export function reviewerAgent(skill: ReviewSkill): Buffer {
+export function reviewerAgent(skill: ReviewSkill, cli?: string): Buffer {
+  const command = guardCommand(cli);
+  const w = cli === undefined ? "warrant" : `node ${cli}`;
+  const hookLine = cli === undefined ? `          command: "${command}"` : `          command: '${command}'`;
+  const skillCommands =
+    cli === undefined
+      ? []
+      : [`Команды \`warrant\` в тексте skill выше исполняй как \`${w}\` из корня проекта: это CLI, который закрепил проект.`, ""];
   const lines = [
     "---",
     "name: warrant-reviewer",
@@ -218,7 +251,7 @@ export function reviewerAgent(skill: ReviewSkill): Buffer {
     `    - matcher: "${REVIEWER_HOOK_MATCHER}"`,
     "      hooks:",
     "        - type: command",
-    `          command: "${GUARD_COMMAND}"`,
+    hookLine,
     "---",
     "",
     AGENTS_MD_MARKER,
@@ -227,11 +260,12 @@ export function reviewerAgent(skill: ReviewSkill): Buffer {
     "",
     "## Сдача результата",
     "",
-    "Ты работаешь в Run `review`: хук этого файла (`" + GUARD_COMMAND + "` на `Bash` и `Write`) запрещает правку файлов",
-    "проекта и любую команду shell, кроме `warrant run submit`. Файлы читай инструментами Read, Grep, Glob. Единственная",
+    "Ты работаешь в Run `review`: хук этого файла (`" + command + "` на `Bash` и `Write`) запрещает правку файлов",
+    `проекта и любую команду shell, кроме \`${w} run submit\`. Файлы читай инструментами Read, Grep, Glob. Единственная`,
     "запись — файл envelope во временном каталоге: это часть сдачи, а не правка, которую запрещает текст skill (его запрет",
     "касается файлов проекта).",
     "",
+    ...skillCommands,
     "1. Context Pack — вывод `warrant run start <change> --operation review`, его передаёт тот, кто тебя вызвал: `run`,",
     "   `change`, `items[]`, `context_hash`. Без него review не начинай — попроси Context Pack.",
     `2. Собери envelope \`warrant://skill-result/1\` раздела «Результат» (\`skill\` — \`${REVIEW_SKILL}@${skill.version}\`, \`run\` и`,
@@ -241,8 +275,8 @@ export function reviewerAgent(skill: ReviewSkill): Buffer {
     "3. Сдай его из корня проекта, без `cd` и без других команд в строке — сначала пробой, затем по-настоящему:",
     "",
     "```bash",
-    "warrant run submit --file <путь к файлу envelope> --dry-run",
-    "warrant run submit --file <путь к файлу envelope>",
+    `${w} run submit --file <путь к файлу envelope> --dry-run`,
+    `${w} run submit --file <путь к файлу envelope>`,
     "```",
     "",
     "   Пример envelope (все обязательные поля; `run` и `skill` — свои):",
@@ -254,7 +288,7 @@ export function reviewerAgent(skill: ReviewSkill): Buffer {
     "4. Ответ `ok: false` — Run остаётся активным: исправь файл по `errors[].message`, `hint` и `data.received` и сдай",
     "   снова с шага 3. Ответ `ok: true` — Run завершён: верни вызвавшему `evidence`, `status` и число находок по",
     "   `severity` из ответа.",
-    "5. `warrant` не найден или команда отклонена не guard'ом — остановись и сообщи вызвавшему; guard не обходи.",
+    `5. \`${cli === undefined ? "warrant" : cli}\` не найден или команда отклонена не guard'ом — остановись и сообщи вызвавшему; guard не обходи.`,
     ""
   ];
   return Buffer.from(lines.join("\n"), "utf8");

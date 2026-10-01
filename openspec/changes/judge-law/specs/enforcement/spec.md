@@ -13,7 +13,7 @@ stdin для активного Run операции `review` ([ADR-0034](../../
 относительный `--file` SHALL разрешаться от корня проекта, файл, который не читается (нет, каталог, нет прав), — `USAGE` с `path`
 и `hint` без `data.received`; пустой или пробельный файл и такой же stdin — `USAGE`; `data.received` SHALL нести каждый
 `SKILL_RESULT_INVALID`, в том числе несовпадение `run` и `skill` (design I-199);
-каждая ошибка SHALL нести `hint`, код выхода — по классу её кода ([REQ-KRN-003](../kernel/spec.md): ошибки выше — 3, `BUSY` атомарной записи файла Run или evidence ([REQ-KRN-036](../kernel/spec.md)) — 4 с `retryable: true`), ничего не записано. Иначе команда SHALL:
+каждая ошибка SHALL нести `hint`, код выхода — по классу её кода ([REQ-KRN-003](../kernel/spec.md)): ошибки выше — код 3, ничего не записано. Иначе команда SHALL:
 записать envelope в канонической форме в `<state>/runs/<RUN-id>.result.json` (коммитится вместе с Run); записать evidence
 ([REQ-VER-001](../verification/spec.md)) `kind: "review"`, `level: "L2"`, `produced_by{ type: "skill", id, version, run }`,
 `attestation{ type: "none" }`, `limitations` `produced locally, unattested` и `same model family as author`,
@@ -21,7 +21,7 @@ stdin для активного Run операции `review` ([ADR-0034](../../
 `severity`, `artifacts[]` — файл envelope с `sha256`; `evidence_status` — `PROVEN`, если `run_state: SUCCEEDED` и нет находки
 `BLOCKER`; `NOT_PROVEN`, если есть `BLOCKER`; `INCONCLUSIVE` при `FAILED` или `CANCELLED`
 ([ADR-0036](../../../../docs/adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 4); завершить Run: `run_state` из envelope,
-`finished_at`, id записи в `evidence[]`, `skill`, `model` из `provenance`, удалить `current`. Если запись `kind: "review"` с
+`finished_at`, id записи в `evidence[]`, `skill`, `model` из `provenance`, удалить `current`. Сбой атомарной записи любого из этих файлов ([REQ-KRN-036](../kernel/spec.md)) — `BUSY` с `hint`, код 4, `retryable: true`: файлы, записанные раньше по порядку REQ-KRN-036, остаются, Run остаётся активным, а повтор с тем же envelope завершает Run: запись evidence уже есть — по правилу повтора ниже (`data.reused: true`), нет — как первая сдача. Если запись `kind: "review"` с
 `produced_by.run`, равным id активного Run, уже есть (прежняя сдача оборвалась до записи Run;
 [ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 5), команда SHALL сравнить sha256 канонической формы нового
 envelope с `artifacts[0].sha256` записи: равны — переиспользовать id записи без новой и без перезаписи записи, дописать id в
@@ -74,4 +74,4 @@ envelope с `artifacts[0].sha256` записи: равны — переиспо�
 #### Scenario: Сдача при занятом файле Run
 <!-- id: SCN-ENF-047 -->
 - **WHEN** при активном Run `review` `warrant run submit --file envelope.json` получает валидный envelope, а атомарную запись файла Run держит другой процесс
-- **THEN** `errors[0].code` равен `BUSY` с `hint` и `retryable: true`, код 4, ничего не записано, Run остаётся активным
+- **THEN** `errors[0].code` равен `BUSY` с `hint` и `retryable: true`, код 4, Run остаётся активным (`current` не удалён); повтор `warrant run submit --file envelope.json` с тем же envelope после освобождения файла — код 0, `data.reused: true`, Run завершён

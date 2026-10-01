@@ -24,11 +24,13 @@ PR предъявляет только предмет суждения. Искл
 (его версия вне диапазона `warrant.json` базы) — следствие изменённого закона, а не сломанная база: `warrant ci` её не сообщает и
 судит PR дальше; `PACK_VERSION_RANGE` у pack, совпадающего с lock базы, — код 3. Различие SHALL держаться на коде ошибки, а не на
 тексте её `message` ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2). Lock SHALL совпадать с CLI,
-которым судит `warrant ci`: содержать каждый встроенный pack с `hash` встроенного pack этого CLI и `kernel` (major.minor) этого
-CLI. Lock на HEAD, который с CLI не совпадает, и lock базы, который не совпадает, при diff PR без `.warrant/warrant.lock.json`, —
+которым судит `warrant ci`: каждый встроенный pack, включённый в `warrant.json` того же дерева, SHALL быть в lock с `hash`
+встроенного pack этого CLI, а `kernel` lock (major.minor) — kernel этого CLI; прочие расхождения lock (локальные pack,
+`.warrant/local/**`) судит `warrant validate`, а не это правило. Lock на HEAD, который с CLI не совпадает, и lock базы, который не совпадает, при diff PR без `.warrant/warrant.lock.json`, —
 `LOCK_MISMATCH` с путём lock и `hint` (lock записан другим CLI: `warrant sync` тем CLI, которым судит CI), код 3: это CLI, не
 совпадающий с законом, а не закон, изменённый PR. Иначе законы `main` окна и закон HEAD (ниже) стали бы невычисленными без
-ограничения срока, и любой hash перехода давал бы находку вместо нарушения.
+ограничения срока, и любой hash перехода давал бы находку вместо нарушения. При `LOCK_MISMATCH` правило закона перехода
+(«Record») не выполняется, остальные правила судят PR дальше; `--dry-run` lock не сверяет.
 
 **Change и вид PR.** Change SHALL выводиться из records `.warrant/changes/*.json`, изменённых или удалённых в diff, а не из имени
 ветки ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 13):
@@ -56,7 +58,8 @@ CLI. Lock на HEAD, который с CLI не совпадает, и lock ба
   (`POLICY_CONFLICT`), закона на этом коммите не дают. Окно законов:
   - точка ответвления PR — самый ранний коммит first-parent линии HEAD^1, который является родителем коммита PR (коммита,
     достижимого из HEAD^2 и не достижимого из HEAD^1); без такого — последний коммит first-parent линии HEAD^1, который является
-    предком HEAD^2 (`merge-base` может лежать вне first-parent линии — например, у ветки от коммита слитой боковой ветки);
+    предком HEAD^2 (`merge-base` может лежать вне first-parent линии — например, у ветки от коммита слитой боковой ветки); нет и
+    такого (истории не связаны) — точка ответвления — HEAD^1;
   - коммиты first-parent линии HEAD^1 после точки ответвления, чей diff с первым родителем задевает policy-пути базы или входы
     закона — `.warrant/warrant.json`, `.warrant/warrant.lock.json`, `.warrant/local/**` (lock несёт `kernel` и `hash` каждого
     pack); коммит, у которого входы закона те же, что у уже вычисленного коммита окна, даёт тот же закон;
@@ -67,8 +70,8 @@ CLI. Lock на HEAD, который с CLI не совпадает, и lock ба
   разбирается (`CONFIG_MISSING`, `CONFIG_INVALID`) или lock коммита не содержит встроенный pack с `hash` встроенного pack этого CLI.
   Если hash перехода не совпал ни с одним вычисленным законом, а закон хотя бы одного такого коммита не вычислен, нарушения нет:
   вывод SHALL содержать информационную находку `{ code: "LAW_NOT_COMPUTED", message }` в `data.findings[]` с переходом и
-  коммитами невычисленных законов. Закон HEAD не вычисляется по тем же условиям; закон HEAD, который текущий CLI не вычисляет, находки не даёт и нарушение не снимает: HEAD
-  предъявляет сам PR. Коммит окна, которого нет в checkout, — `USAGE` с `hint`, код 3, как у базы.
+  коммитами невычисленных законов. Закон HEAD не вычисляется, если packs HEAD не загружаются или `warrant.json` HEAD нет или он не разбирается (lock HEAD,
+  не совпадающий с CLI, — `LOCK_MISMATCH` выше); такой закон находки не даёт и нарушение не снимает: HEAD предъявляет сам PR. Коммит окна, которого нет в checkout, — `USAGE` с `hint`, код 3, как у базы.
 
   Определения для оснований — определения gates и checks, по которым судятся основания `WAIVED`, `NOT_APPLICABLE` и правило
   `ci_evidence` (ниже), — SHALL браться из базы; gate или check, которого в базе нет, — из HEAD (его добавил сам PR); gate, которого
@@ -106,8 +109,9 @@ CLI. Lock на HEAD, который с CLI не совпадает, и lock ба
     п. 3: тот же выбор, что у движка gates). Выбранная запись — самая свежая (по `created_at`, при равенстве — больший id) из
     записей `evidence[]` перехода, которые удовлетворяют элементу (kind, а у элемента с `check` — `produced_by.type: "check"` и
     `produced_by.id`) и приняты по attestation: у `MERGED` — тип из `accepts_attestation` того же определения, а без него — любой,
-    кроме `none`; судья у `MERGED` принимает из них только записи с `attestation.type: "ci"` и `subject.commit` M^2 (как правило
-    `ci_evidence`; M не найден — `subject.commit` не сверяется); у остальных переходов attestation не ограничен. Более старая запись
+    кроме `none`; у остальных переходов attestation не ограничен. У `MERGED` выбранная запись SHALL ещё нести
+    `attestation.type: "ci"` и `subject.commit` M^2 (как правило `ci_evidence`; M не найден — `subject.commit` не сверяется):
+    сужение судьи применяется к выбранной записи, а не до выбора. Более старая запись
     `NOT_APPLICABLE` рядом с более свежей записью того же элемента в другом статусе основанием не служит. Элемент без выбранной
     записи, как и gate без `requires_evidence`, основания по evidence не даёт;
 - у нового перехода `MERGED` для каждого gate `PASS`, чьи `requires_evidence` содержат kind, который производят checks перехода
@@ -441,7 +445,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 
 #### Scenario: Изменённый PR pack вне диапазона базы
 <!-- id: SCN-VER-139 -->
-- **WHEN** impl-PR поднимает встроенный pack `core-sdd` с `0.3.4` до `0.4.0` и диапазон в `warrant.json` до `^0.4.0`, а `warrant.json` базы задаёт `^0.3.0`
+- **WHEN** impl-PR поднимает встроенный pack `core-sdd` с `0.3.4` до `0.4.0`, диапазон в `warrant.json` до `^0.4.0` и `.warrant/warrant.lock.json` — `warrant sync` текущим CLI, а `warrant.json` базы задаёт `^0.3.0`
 - **THEN** `PACK_VERSION_RANGE` базы в `errors[]` нет, PR судится по остальным правилам; тот же `PACK_VERSION_RANGE` у pack, чей `hash` есть в lock базы, — код 3
 
 #### Scenario: Закон перехода не из main
@@ -476,7 +480,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 
 #### Scenario: Закон HEAD не вычислен
 <!-- id: SCN-VER-146 -->
-- **WHEN** lock на HEAD не содержит встроенный pack с `hash` pack текущего CLI, законы коммитов `main` окна вычислены, а hash нового перехода `VERIFYING` не совпал ни с одним из них
+- **WHEN** lock на HEAD совпадает с текущим CLI, но файл `.warrant/local/gates/*.json` на HEAD не проходит схему (packs HEAD не загружаются), законы коммитов `main` окна вычислены, а hash нового перехода `VERIFYING` не совпал ни с одним из них
 - **THEN** `errors[]` содержит `RECORD_MISMATCH` с переходом `VERIFYING` и причиной `policy`, код 1; находки `LAW_NOT_COMPUTED` нет
 
 #### Scenario: Переход до merge main в ветку

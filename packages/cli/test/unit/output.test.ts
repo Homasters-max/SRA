@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cliError, EXIT, WarrantError } from "../../src/core/errors.js";
-import { emit, failure, failures, success, toEnvelope, type Printer } from "../../src/io/output.js";
+import { claimAnswer, emit, failure, failures, success, toEnvelope, type Printer } from "../../src/io/output.js";
 
 function capture(): Printer & { out: string[]; err: string[] } {
   const out: string[] = [];
@@ -91,5 +91,13 @@ describe("exit code of a result (exit-contract D2, D4)", () => {
 
   it("emit returns the computed code", () => {
     expect(emit("ci", failures([cliError("SCOPE_VIOLATION", "x"), cliError("BUSY", "y")]), capture())).toBe(EXIT.FAIL);
+  });
+});
+
+describe("one answer per process (exit-contract D9)", () => {
+  it("claimAnswer gives the answer once: emitToProcess, emitNative and the crash handler print no second object", () => {
+    expect(claimAnswer()).toBe(true);
+    expect(claimAnswer()).toBe(false);
+    expect(claimAnswer()).toBe(false);
   });
 });

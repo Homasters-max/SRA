@@ -7,13 +7,24 @@
  * `core/ports/frontend.ts` translates the native hook input and the answer.
  */
 import type { Ctx } from "../core/ctx.js";
-import { guard, guardFrontend } from "../core/guard/guard.js";
-import type { FrontendAdapter, FrontendResponse } from "../core/ports/frontend.js";
+import { crashDecision, guard, guardFrontend } from "../core/guard/guard.js";
+import type { FrontendAdapter, FrontendResponse, GuardResult } from "../core/ports/frontend.js";
 import { success, type CommandResult } from "../io/output.js";
 
-export async function runGuard(ctx: Ctx, input: string, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
-  const answer = await guard(ctx, input, env);
+function decision(answer: GuardResult): CommandResult {
   return success({ decision: answer.decision, ...(answer.reason === undefined ? {} : { reason: answer.reason }), hints: answer.hints });
+}
+
+export async function runGuard(ctx: Ctx, input: string, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
+  return decision(await guard(ctx, input, env));
+}
+
+/**
+ * The result of `warrant guard` on an exception nothing caught (exit-contract
+ * D9, REQ-ENF-004): `deny` in `pre` or an unknown phase, `allow` in `post`; exit 0.
+ */
+export function runGuardCrash(input: string | undefined, thrown: unknown): CommandResult {
+  return decision(crashDecision(input, thrown));
 }
 
 /** `warrant guard --frontend <name>`: the native answer of `adapter`, not the envelope (REQ-ENF-005). */

@@ -33,8 +33,8 @@
 
 ## 5. Падение до JSON и meta-тест (D9, D10)
 
-- [ ] 5.1 `bin/warrant.ts`: обработчики `uncaughtException` и `unhandledRejection` по D9 — `INTERNAL` до вывода, только stderr после, код 2 в `guard --frontend`; тесты SCN-KRN-163, SCN-ENF-046 и `deny` guard (REQ-ENF-004) вызывают обработчик напрямую.
-- [ ] 5.2 Meta-тест `test/unit/meta/`: `EXIT.` и сложение кодов — только в `core/errors.ts`, `io/output.ts`, `bin/warrant.ts`; тест падает на добавленной в `commands/` ссылке `EXIT.FAIL`.
+- [x] 5.1 `bin/warrant.ts`: обработчики `uncaughtException` и `unhandledRejection` по D9 — `INTERNAL` до вывода, только stderr после, код 2 в `guard --frontend`; тесты SCN-KRN-163, SCN-ENF-046 и `deny` guard (REQ-ENF-004) вызывают обработчик напрямую.
+- [x] 5.2 Meta-тест `test/unit/meta/`: `EXIT.` и сложение кодов — только в `core/errors.ts`, `io/output.ts`, `bin/warrant.ts`; тест падает на добавленной в `commands/` ссылке `EXIT.FAIL`.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts meta bin`; полный `npm test`.
 

@@ -129,14 +129,29 @@ export function writeStdout(text: string): Promise<void> {
   });
 }
 
+/** Whether the process has given its one answer on stdout (exit-contract D9). */
+let answered = false;
+
+/**
+ * Claims the one answer of the process: `true` the first time, `false` once
+ * `emitToProcess`, `emitNative` or the handler of an uncaught exception
+ * (`bin/crash.ts`, D9) has claimed it — a second object is never printed.
+ */
+export function claimAnswer(): boolean {
+  if (answered) return false;
+  answered = true;
+  return true;
+}
+
 /**
  * Prints the envelope of the process's command and sets `process.exitCode`
  * once the write completed (B4, REQ-KRN-003). The process is never ended with
  * `process.exit`: that would drop whatever part of a large envelope is still
  * buffered for a pipe. Node exits by itself once stdout has drained, provided
- * no other handle is left open.
+ * no other handle is left open. Nothing is printed once the answer is given.
  */
 export async function emitToProcess(command: string, result: CommandResult): Promise<void> {
+  if (!claimAnswer()) return;
   await writeStdout(formatEnvelope(toEnvelope(command, result)));
   process.exitCode = result.exitCode;
 }
@@ -146,6 +161,7 @@ export async function emitToProcess(command: string, result: CommandResult): Pro
  * REQ-ENF-005) instead of the envelope and sets its exit code the same way.
  */
 export async function emitNative(answer: { stdout: string; exit: number }): Promise<void> {
+  if (!claimAnswer()) return;
   if (answer.stdout !== "") await writeStdout(answer.stdout);
   process.exitCode = answer.exit;
 }

@@ -352,9 +352,14 @@ describe("ForgeGh: the failures of the real gh, pinned (exit-contract D7)", () =
     expect([failure?.code, failure?.hint]).toEqual(["FORGE_UNAVAILABLE", FORGE_RETRY_HINT]);
   });
 
-  it("no token: gh exits 4 asking for gh auth login — FORGE_ACCESS with the hint", async () => {
+  it("no token: gh exits 4 asking for gh auth login, or for GH_TOKEN under GitHub Actions — FORGE_ACCESS with the hint", async () => {
     const run = await gh(["api", `${base}/404`], {});
-    expect([run.ok, run.status, firstLineOf(run)]).toEqual([false, 4, "To get started with GitHub CLI, please run:  gh auth login"]);
+    expect([run.ok, run.status]).toEqual([false, 4]);
+    // The text depends on GITHUB_ACTIONS in the environment of gh; the class rests on exit 4 (D7).
+    expect([
+      "To get started with GitHub CLI, please run:  gh auth login",
+      "gh: To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environment variable. Example:"
+    ]).toContain(firstLineOf(run));
     const failure = ghFailure(run, "x");
     expect([failure?.code, failure?.hint, exitCodeFor(failure === null ? [] : [failure])]).toEqual(["FORGE_ACCESS", FORGE_HINT, 3]);
   });

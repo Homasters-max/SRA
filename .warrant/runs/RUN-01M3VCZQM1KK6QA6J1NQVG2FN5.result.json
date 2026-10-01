@@ -1,0 +1,127 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3VCZQM1KK6QA6J1NQVG2FN5",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "Round 4 F-4 added a second exception to «База требований»: \"определения gates и checks, которых в базе нет, берутся из HEAD\". The closing sentence of «Record» still names only the first one: \"Требования к переходам, кроме закона перехода (окно выше), выводятся из базы\". Read literally, this sentence forbids the HEAD definitions that the paragraph «Определения для оснований» and SCN-VER-151 require. Behavior is still unambiguous because the specific paragraph wins, but the two sentences contradict each other in the text.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Change the sentence to: \"Требования к переходам, кроме закона перехода (окно выше) и определений gates и checks, которых в базе нет (из HEAD), выводятся из базы\". Or refer to «База требований» for the list of exceptions."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Round 5 F-5 limited the lock match for HEAD and the base to \"каждый встроенный pack, включённый в warrant.json того же дерева\". The condition for a window commit was not limited the same way: a law of a main commit is not computed if \"lock коммита не содержит встроенный pack с hash встроенного pack этого CLI\". Take a project whose warrant.json enables no bundled pack, only `.warrant/local/<id>/` packs. Read literally, every main law of the window is then not computed, so any forged hash gives the finding LAW_NOT_COMPUTED instead of RECORD_MISMATCH `policy`. Design D1 (`changedBundledPacks` iterates only the loaded bundled packs, core/ci/base.ts:120-132) computes those laws. The two readings give different verdicts for the same record.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "Use the wording of round 5 F-5: \"lock коммита не содержит с `hash` встроенного pack этого CLI какой-либо встроенный pack, включённый в warrant.json коммита (lock коммита нет — тоже)\"."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "The spec defines when the HEAD law is not computed (\"packs HEAD не загружаются или warrant.json HEAD нет или он не разбирается\"). It does not say how the rest of `warrant ci` treats an unloadable HEAD. (a) `runCi` calls `requireConfigPath(ctx.root)` first (commands/ci.ts:35). So a HEAD without warrant.json ends with CONFIG_MISSING, code 3, before any rule. Under \"нарушение не снимает\" a reader expects RECORD_MISMATCH `policy`, code 1. That case can never be reached. (b) Gates and checks missing from the base take their definitions from HEAD. Nothing says what happens to them when the packs of HEAD do not load, or whether the load errors of HEAD are reported as configuration errors (code 3). Only SCN-VER-146 fixes code 1, and only indirectly. The gap is harmless: the hash must then match a main law, so a gate missing from the base was deleted by main and needs no ground. But the implementation is left to guess.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-146"
+      ],
+      "recommendation": "Add to «Record»: HEAD without warrant.json stays CONFIG_MISSING, code 3, as in every command, so drop \"warrant.json HEAD нет\" from the conditions or point to CONFIG_MISSING. Load errors of the packs of HEAD are not reported; they only make the HEAD law uncomputed. A gate or check that is missing from the base, when the packs of HEAD do not load, is treated as one that is in neither the base nor HEAD."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-150 expects RECORD_MISMATCH `policy`, code 1. It does not state that every law of the window is computed, while SCN-VER-140 and SCN-VER-146 state this explicitly. The window of SCN-VER-150 starts at an older first-parent commit S, the fork of the side branch, and includes the merge commit of the side branch. If the lock of S or of any later window commit does not hold the hash of the CLI's bundled pack, the rule gives LAW_NOT_COMPUTED and no violation. Round 4 F-3 found the same gap in SCN-VER-142, and round 5 F-3 found it in SCN-VER-139.",
+      "targets": [
+        "SCN-VER-150"
+      ],
+      "recommendation": "Add to the WHEN: \"все законы окна вычислены (lock каждого коммита окна совпадает с текущим CLI)\"."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "The bound of the window is the fork point, and the history of the PR determines it: \"самый ранний коммит first-parent линии HEAD^1, который является родителем коммита PR\". The author of the PR can move it back to any older first-parent commit O. One way is to base the branch on O. Another is to add one commit with parent O and merge it into the branch. Every main law since O then becomes admissible for every new transition, including laws that main has since tightened (a gate added to a transition). This matters most for MERGED. The archive-PR is merged by the agent, and main spec compared MERGED with exactly the base law. Under the window, a MERGED recorded by the law of O passes. The ref check (policy of M^1) and the merge verdict of the impl-PR (policy of the base) still bound the effect. Design «Риски» names rebase and the intermediate law, but not a fork point chosen early on purpose. ADR-0052 п. 4 accepts the window; this finding asks only that the residual risk be named.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "Add to design «Риски»: the fork point follows the history of the PR, so the PR can extend the window back to an older law of main. Name what bounds it: each law was merged into main by a maintainer, the merge verdict of the impl-PR follows the base, and the ref of MERGED follows the policy of M^1. Optionally add a backlog line, for example a limit on the age of the fork point or a finding when the fork point is older than the last law change for the record's classification."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "Round 5 F-6 is closed in REQ-ENF-007: when removing `current` fails, `data` carries `run`, `evidence`, `evidence_status` and `run_state`. The second half of its recommendation is still open. The review skill shipped with the pack (sra/skills/specification/adversarial-review/SKILL.md, step 4 of «Сдача результата») says: \"Ответ ok: false — Run остаётся активным: исправь файл ... и сдай снова\". For this one error that is false: Run is finished, and resubmitting gives RUN_NOT_ACTIVE. Neither tasks.md (6.2, 7.2) nor backlog records updating the skill. REQ-SDD-008 pins the skill at version 0.2.0, so the update needs its own decision.",
+      "targets": [
+        "REQ-ENF-007",
+        "openspec/changes/judge-law/tasks.md"
+      ],
+      "recommendation": "Add a backlog line in tasks 7.2: the skill text for `ok: false` with `data.run_state` of a finished Run. The skill should return `data.evidence` to its caller and not resubmit. Alternatively, update the skill in this Change and bump its version (REQ-SDD-008)."
+    },
+    {
+      "id": "F-7",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "contradiction",
+      "statement": "Closure of round 5 (RUN-01M3VCBZE93S8WX2KR834TTZFS, I-246), checked against the text. F-1 (BLOCKER) is closed: SCN-VER-146 now has a HEAD lock that matches the CLI and packs of HEAD that do not load, and «Record» lists the conditions left for HEAD after LOCK_MISMATCH. The scenario can pass: judgeImpl, prepare and the checks use only base.loaded (core/ci/impl.ts:87-118), and rolesFinding catches errors from loadConfig of HEAD. F-2 is closed (\"правило закона перехода не выполняется, остальные правила судят PR дальше; --dry-run lock не сверяет\"). F-3 is closed (SCN-VER-139: lock synced by the current CLI). F-4 is closed (design «Риски», lock in diff). F-5 is closed for HEAD and the base; the window commit still uses the old wording (F-2). F-6 is closed in REQ-ENF-007; the skill text is still open (F-6). F-7 is closed (\"сужение судьи применяется к выбранной записи, а не до выбора\"; D5). F-8 is closed in the spec (unrelated histories give the fork point HEAD^1); design D2 does not mention this case. LOCK_MISMATCH reuses the existing kernel code (REQ-KRN-021, checkLock), class 3.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-ENF-007"
+      ],
+      "recommendation": "Optionally add the case of unrelated histories (fork point HEAD^1) to D2."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/judge-law/specs/verification/spec.md",
+      "change": "«Record», closing sentence: name both exceptions to base requirements: the law of a transition, and definitions of gates and checks missing from the base. Not-computed condition of a window commit: a bundled pack enabled in that commit's warrant.json, or a missing lock. HEAD without warrant.json is CONFIG_MISSING, code 3. Load errors of HEAD's packs are not reported, and definitions that would come from HEAD then count as absent. SCN-VER-150: add \"все законы окна вычислены\"."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/judge-law/design.md",
+      "change": "«Риски»: the fork point is chosen by the history of the PR, which can widen the window to older main laws; name what bounds it. D2: unrelated histories give the fork point HEAD^1."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/judge-law/tasks.md",
+      "change": "7.2: backlog line: the review skill text for `ok: false` after a finished Run (failure to remove `current`)."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Code facts were checked by range reads in D:/project/SRA-judge-law: commands/ci.ts:1-69, commands/context.ts:10-29, core/ci/base.ts:30-139, core/ci/record.ts:100-174 and 250-409, core/ci/impl.ts:40-129, core/ci/judge.ts:40-119, core/gates/verdict.ts:60-239, core/packs/hash.ts:70-154, core/record/lifecycle.ts:1-40. Other line references in design were not re-verified."
+    },
+    {
+      "id": "A-2",
+      "statement": "As in earlier rounds, `evidence[]` of a transition holds the records the engine chose (GateOutcome.evidence). So the judge's choice of the freshest record within `evidence[]` equals the engine's choice for honest records, and SCN-VER-144 describes a hand-edited record."
+    },
+    {
+      "id": "A-3",
+      "statement": "ADR-0052 п. 4 (window from the fork point to HEAD^1 plus HEAD, MERGED included) is taken as decided. F-5 asks only for the residual risk to be named and does not reopen the decision."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:328650f94ba78aa36a7ff92945e3f597a42374e947ed1a395df93530f75f4405",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T17:00:00Z",
+    "finished_at": "2026-10-01T17:45:00Z"
+  }
+}

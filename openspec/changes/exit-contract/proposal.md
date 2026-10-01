@@ -26,6 +26,7 @@
   | `fmt --check`, `sync --check`, `validate --files` с находками | 1 | 3 |
   | `warrant ci` при занятом замке check | 2 | 4 |
   | `TOPOLOGY_VIOLATION` в `ci fetch` | 3 | 1 |
+  | сбой check (`CHECK_TIMEOUT`, `BUSY`) вместе с нарушением PR или `STOP` (`ci`, `verify`) | 3 или 2 | 1 |
   | непредвиденное исключение | аварийный выход Node | `INTERNAL`, 3; в `guard --frontend` — 2 |
 
 - **Форж** делит отказ доступа и сбой:
@@ -59,13 +60,14 @@
 - `verification` — изменения по требованиям:
   - REQ-VER-002 — `BUSY` и `CHECK_TIMEOUT`: 4;
   - REQ-VER-005 и REQ-VER-006 — приоритет вместо максимума;
+  - REQ-VER-007 — код отказа `transition` по классу `GATES_NOT_PASSED`;
   - REQ-VER-011 — коды форжа и check, `GITHUB_REPOSITORY`, `PACK_VERSION_RANGE` базы;
   - REQ-VER-012 — коды форжа, `BUSY`;
   - REQ-VER-013 — коды форжа в решениях UNKNOWN.
-- `enforcement` — REQ-ENF-005: код 2 `guard --frontend` — протокол frontend, вне таблицы.
+- `enforcement` — REQ-ENF-005: код 2 `guard --frontend` — протокол frontend, вне таблицы; исключение адаптера — код 2.
 - `core-sdd` — REQ-SDD-001: `kernel` pack — `>=0.1 <0.11`; иначе CLI 0.10 pack не грузит.
 
-Отступление от списка delta specs в ADR-0052 (Consequences): добавлены REQ-KRN-022, REQ-KRN-025 и REQ-SDD-001. REQ-SDD-001 — следствие подъёма `kernel` до 0.10 (п. 1). Для REQ-KRN-022 и REQ-KRN-025: по правилу п. 2 «один сбой — один код» `NOT_CANONICAL`, `GENERATED_DRIFT` и `LOCK_MISMATCH` дают один код и в `validate`, и в режимах `--check`. Обоснование и альтернатива — design D3.
+Отступление от списка delta specs в ADR-0052 (Consequences): добавлены REQ-KRN-022, REQ-KRN-025, REQ-VER-007 и REQ-SDD-001. REQ-VER-007 — код отказа `transition` по классу (review 2). REQ-SDD-001 — следствие подъёма `kernel` до 0.10 (п. 1). Для REQ-KRN-022 и REQ-KRN-025: по правилу п. 2 «один сбой — один код» `NOT_CANONICAL`, `GENERATED_DRIFT` и `LOCK_MISMATCH` дают один код и в `validate`, и в режимах `--check`. Обоснование и альтернатива — design D3.
 
 ## Non-Goals
 

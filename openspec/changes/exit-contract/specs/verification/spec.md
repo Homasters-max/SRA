@@ -169,6 +169,87 @@ Controller SHALL быть чистой функцией входов. Код в�
 - **WHEN** `warrant verify add-search --transition VERIFYING->MERGED` без override `tests-passed`
 - **THEN** `errors[]` содержит `CHECK_NOT_CONFIGURED`, `gates["tests-passed"]` равен `BLOCKED`, остальные gates вычислены, код выхода 3
 
+### Requirement: Команда transition
+<!-- id: REQ-VER-007 -->
+
+`warrant transition <change> <STATE> [--ref <url>] [--by <login>] [--commit <sha>]` SHALL записать переход в record только если он
+допустим ([04 §2](../../../../docs/04-lifecycle.md)) и, для перехода вперёд, каждый gate перехода дал `PASS`, `WAIVED` или `NOT_APPLICABLE`
+(иначе `ok: false`, `errors[0].code: "GATES_NOT_PASSED"`, `data.gates`, код выхода 2 — класс ожидания `GATES_NOT_PASSED`, а при `controller_action` `STOP` — 1
+([REQ-KRN-003](../kernel/spec.md)); `CONTINUE` при не пройденном gate кода 0 не даёт; record не изменён). `APPROVED` и `MERGED`
+без `--ref` SHALL давать `USAGE`; `--ref` этих переходов SHALL быть URL pull request форджа (путь `/<owner>/<repo>/pull/<N>`, фрагмент
+допускается): spec-PR для `APPROVED`, impl-PR для `MERGED` ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 5), иначе
+`USAGE` с `hint`. Если effective policy требует gate `human-approval` на переходе, `--by <login>` SHALL быть обязателен,
+`login` ∈ `roles[<role>]` для `role` из `approvals[]` перехода, и команда SHALL до вычисления gates записать evidence kind `human-approval`
+(`produced_by: { "type": "human", "id": "<login>" }`, `attestation: { "type": "human-review", "ref": <--ref> }`, `evidence_status: "PROVEN"`,
+`limitations: ["ref not verified (phase 4: warrant ci)"]`): локально `--ref` проверяется только по форме, `--by` — заявление; ref
+верифицирует через API форджа `warrant ci` ([REQ-VER-011](#requirement-команда-ci), R-10).
+Для `MERGED` оцениваемый commit SHALL быть `--commit` или commit самой свежей записи evidence Change и SHALL быть head влитого impl-PR:
+родителем, кроме первого, merge-коммита M на first-parent линии HEAD; commit, не являющийся предком HEAD, commit first-parent линии,
+ранний commit PR (предок head, но не родитель M) и fast-forward SHALL давать `COMMIT_NOT_MERGED`, код 3, с указанием head M, если M найден
+(R-1); base — точка ответвления `merge-base(M^1, commit)` (I-97; impl-PR вливается merge-коммитом, squash и rebase дают `COMMIT_NOT_MERGED`);
+запись с `subject.tree` судится деревом M ([REQ-VER-003](#requirement-команда-gate-и-алгоритм-verdict)).
+Все записи перехода `MERGED` SHALL быть на этом commit, а все записи с `attestation.type: "ci"`, на которых вынесены verdicts, SHALL
+иметь один и тот же `attestation.ref` — evidence одного CI-run (иначе `REF_MISMATCH` с id записей, код 3, record не изменён; R-6).
+Запись transition SHALL содержать `to`, `at`, `by: "cli:local"`, `effective_policy_hash`, `gates{}`, `evidence[]` (id записей,
+на которых вынесены verdicts), `ref` при наличии. Переход назад (`VERIFYING->IMPLEMENTING`, `IMPLEMENTING->SPECIFIED`) SHALL записываться
+без gates. `ABANDONED` SHALL удалить `openspec/changes/<change>/` и записать переход; после `ABANDONED` и `ARCHIVED` любая команда,
+меняющая record, SHALL отказывать с `RECORD_FROZEN`, код 3. Флага `--force` SHALL NOT быть.
+
+#### Scenario: Переход с прошедшими gates
+<!-- id: SCN-VER-029 -->
+- **WHEN** `warrant transition add-search SPECIFIED` при `PASS` всех gates `PROPOSED->SPECIFIED`
+- **THEN** record получает transition `{ to: "SPECIFIED", by: "cli:local", gates: {…PASS}, evidence: ["EVID-…"], effective_policy_hash }`, `change_state` равен `SPECIFIED`, код 0
+
+#### Scenario: Отказ при FAIL
+<!-- id: SCN-VER-030 -->
+- **WHEN** `warrant transition add-search SPECIFIED` при `spec-valid: FAIL`
+- **THEN** `errors[0].code` равен `GATES_NOT_PASSED`, record не изменён, код выхода 2
+
+#### Scenario: APPROVED с ref и by
+<!-- id: SCN-VER-031 -->
+- **WHEN** `warrant transition add-search APPROVED --ref https://github.com/o/r/pull/7 --by kat` при `roles.maintainer: ["kat"]`, waiver на `adversarial-review` и `PASS` остальных gates
+- **THEN** записана evidence `human-approval` с `attestation.ref` равным `--ref` и `limitations` содержит `ref not verified (phase 4: warrant ci)`, `gates["human-approval"]` равен `PASS`, transition несёт `ref`
+
+#### Scenario: by вне роли
+<!-- id: SCN-VER-032 -->
+- **WHEN** `--by bob`, а `bob` нет в `roles.maintainer`
+- **THEN** `errors[0].code` равен `ROLE_REQUIRED`, evidence не записано, код 3
+
+#### Scenario: MERGED на commit evidence
+<!-- id: SCN-VER-033 -->
+- **WHEN** на ветке archive после merge impl-PR `https://github.com/o/r/pull/9` merge-коммитом M выполнен `warrant transition add-search MERGED --ref https://github.com/o/r/pull/9 --commit <impl-head>` при записях `attestation: { type: "ci", ref: <ci-run-url> }` на `<impl-head>` — втором родителе M, с `subject.tree` равным дереву M
+- **THEN** gates `VERIFYING->MERGED` вычислены на `<impl-head>` с base `merge-base(M^1, <impl-head>)`, переход записан с `ref` равным URL impl-PR
+
+#### Scenario: Commit не влит
+<!-- id: SCN-VER-034 -->
+- **WHEN** `--commit <sha>` не является предком HEAD
+- **THEN** `errors[0].code` равен `COMMIT_NOT_MERGED`, код 3, record не изменён
+
+#### Scenario: ABANDONED
+<!-- id: SCN-VER-035 -->
+- **WHEN** `warrant transition add-search ABANDONED` при `change_state: SPECIFIED`
+- **THEN** каталог `openspec/changes/add-search/` удалён, record в `ABANDONED`, `warrant status add-search` даёт `stale: []`, повторный `transition` отказывает с `RECORD_FROZEN`
+
+#### Scenario: Ранний commit impl-PR
+<!-- id: SCN-VER-050 -->
+- **WHEN** `--commit` указывает на commit impl-PR, предшествующий его head (предок второго родителя M, но не он сам)
+- **THEN** `errors[0].code` равен `COMMIT_NOT_MERGED`, сообщение называет head M, record не изменён
+
+#### Scenario: Fast-forward
+<!-- id: SCN-VER-051 -->
+- **WHEN** impl-ветка влита fast-forward, и `--commit` — её последний commit на first-parent линии HEAD
+- **THEN** `errors[0].code` равен `COMMIT_NOT_MERGED`, код 3
+
+#### Scenario: ref не совпадает с run записей
+<!-- id: SCN-VER-052 -->
+- **WHEN** `warrant transition add-search MERGED --ref https://github.com/o/r/pull/9 --commit <impl-head>`, а verdicts вынесены на записях `ci` на `<impl-head>` с `attestation.ref` `…/actions/runs/1` и `…/actions/runs/2`
+- **THEN** `errors[0].code` равен `REF_MISMATCH` с id записей, код 3, record не изменён
+
+#### Scenario: ref не pull request
+<!-- id: SCN-VER-071 -->
+- **WHEN** `warrant transition add-search MERGED --ref https://github.com/o/r/actions/runs/42 --by kat`
+- **THEN** `errors[0].code` равен `USAGE`, `hint` называет URL impl-PR, evidence не записано, record не изменён, код 3
+
 ### Requirement: Команда ci
 <!-- id: REQ-VER-011 -->
 
@@ -310,8 +391,9 @@ archive (ниже), иначе `SCOPE_VIOLATION` (R-16). Правила путе
   - `change_state` не `VERIFYING` — нарушение `CHANGE_NOT_VERIFYING`;
   - ошибки checks (`CHECK_TIMEOUT`, `BUSY`, `CHECK_NOT_CONFIGURED`, `CHECK_LOCAL_FORBIDDEN`) — в `errors[]` с кодом выхода их класса
     ([REQ-KRN-003](../kernel/spec.md): `CHECK_TIMEOUT` и `BUSY` — 4, остальные — 3), как в [REQ-VER-006](#requirement-команда-verify);
-    gate с verdict `BLOCKED`, хотя бы один элемент `requires_evidence` которого требует kind, производимый check перехода,
-    завершившимся такой ошибкой, SHALL NOT давать `GATE_NOT_PASSED`: его verdict — в `data.gates`, причина — ошибка check в
+    gate с verdict `BLOCKED`, хотя бы один элемент `requires_evidence` которого удовлетворил бы check перехода, завершившийся
+    такой ошибкой (элемент с `check` — только этот check, без `check` — любой check, чьи `produces` содержат kind элемента),
+    SHALL NOT давать `GATE_NOT_PASSED`: его verdict — в `data.gates`, причина — ошибка check в
     `errors[]`; остальные gates `FAIL` и `BLOCKED` (например, `BLOCKED` с `ATTESTATION_REQUIRED` по kind другого check) дают
     `GATE_NOT_PASSED` по общему правилу;
   - `FRONTEND_HOOKS_INACTIVE` ([REQ-VER-009](#requirement-живость-hooks)) — в `data.findings[]` без влияния на код выхода.
@@ -556,7 +638,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 #### Scenario: Неверный GITHUB_REPOSITORY
 <!-- id: SCN-VER-138 -->
 - **WHEN** archive-PR требует проверки run, а `GITHUB_REPOSITORY` равен `not-a-repo`
-- **THEN** `errors[0].code` равен `USAGE` с `hint` про форму `<owner>/<repo>`, без `retryable`, код 3; к форжу не было обращений; тот же `GITHUB_REPOSITORY` у spec-PR без нового перехода `APPROVED` и без решений UNKNOWN — код 0
+- **THEN** `errors[0].code` равен `USAGE` с `hint` про форму `<owner>/<repo>`, без `retryable`, код 3; к форжу не было обращений; тот же `GITHUB_REPOSITORY` у spec-PR без нового перехода `APPROVED` и без решений UNKNOWN — код 0, а у spec-PR с решением UNKNOWN — `USAGE`, код 3, без находки `DECISION_NOT_VERIFIED`
 
 #### Scenario: Изменённый PR pack вне диапазона базы
 <!-- id: SCN-VER-139 -->
@@ -663,7 +745,8 @@ workflow вручную со входом `merge_commit` = M; ничего не 
 В PR с новым переходом `APPROVED` нарушение SHALL быть ошибкой `REF_NOT_VERIFIED`: `message` начинается с
 `unknowns/<i> (<UNK>) ref <URL>: decision: <деталь>`, `path` — `.warrant/changes/<change>.json#/unknowns/<i>/ref`, код 1;
 недоступный форж — `FORGE_UNAVAILABLE` (код 4), отказ доступа — `FORGE_ACCESS` (код 3), как у ref переходов. В остальных видах PR
-решение ещё не судит переход: нарушение, недоступный форж и отказ доступа (деталь `forge`) SHALL быть находкой `{ code: "DECISION_NOT_VERIFIED", message }` в `data.findings[]` с тем же
+решение ещё не судит переход: нарушение, недоступный форж и отказ доступа (деталь `forge`; неверный репозиторий форжа — ошибка
+окружения `USAGE`, код 3, а не находка) SHALL быть находкой `{ code: "DECISION_NOT_VERIFIED", message }` в `data.findings[]` с тем же
 началом `message`, код выхода от неё не меняется. Причина `decision` и находка вместо `FORGE_UNAVAILABLE` и `FORGE_ACCESS` — исключения из списка причин
 `REF_NOT_VERIFIED` и кодов форжа [REQ-VER-011](#requirement-команда-ci), названные и там.
 При пустом `identities.agents` базы каждое проверенное решение без нарушения SHALL давать информационную находку

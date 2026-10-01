@@ -284,7 +284,11 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 `hookSpecificOutput.additionalContext`; `allow` `PreToolUse` — пустой stdout (`additionalContext` `PreToolUse` доходит до
 модели только после результата инструмента — зонд Claude Code 2.1.263, design I-165).
 Код выхода SHALL быть 0; вход, который нельзя разобрать, SHALL давать код 2 и причину в stderr (Claude Code отменяет действие
-`PreToolUse`). Имя frontend SHALL встречаться только в адаптере, генераторе `sync` и значении `--frontend`
+`PreToolUse`). Коды этого адаптера — ответ протоколу хуков Claude Code, а не коды [REQ-KRN-003](../kernel/spec.md): код 2 здесь
+не `WAIT`, и таблица классов ошибок его не меняет ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2). Исключение,
+не перехваченное адаптером, SHALL давать код 2, причину в stderr и пустой stdout — как неразборчивый вход (fail-closed: Claude Code
+отменяет действие), а не `INTERNAL` с кодом 3, который Claude Code считает неблокирующей ошибкой; исключение после выведенного
+ответа — тоже код 2, причина в stderr, второго ответа нет. Имя frontend SHALL встречаться только в адаптере, генераторе `sync` и значении `--frontend`
 ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 2); неизвестное значение `--frontend` — `USAGE`, код 3.
 
 #### Scenario: Отказ Edit
@@ -311,6 +315,11 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 <!-- id: SCN-ENF-021 -->
 - **WHEN** в `warrant guard --frontend claude` подан не-JSON
 - **THEN** код выхода 2, stderr называет причину, stdout пуст
+
+#### Scenario: Исключение адаптера
+<!-- id: SCN-ENF-046 -->
+- **WHEN** обработка разобранного входа `PreToolUse` в `warrant guard --frontend claude` завершается исключением, которое адаптер не перехватил
+- **THEN** код выхода 2, stderr называет причину, stdout пуст (нет `INTERNAL`); исключение после выведенного ответа — код 2, stdout содержит только первый ответ
 
 ### Requirement: Схема skill-result
 <!-- id: REQ-ENF-006 -->

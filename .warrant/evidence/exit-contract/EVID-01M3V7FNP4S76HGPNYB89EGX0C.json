@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3V7FNP4S76HGPNYB89EGX0C",
+  "claim": {
+    "text": "openspec-validate passed for exit-contract",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "b225a2494edfe95ac49d9ba0d3d2f5f228f3cf36",
+    "base_commit": "39b9a16558dae09a0e699d2377129c219bd74158",
+    "spec_revision": "openspec/changes/exit-contract@b225a2494edfe95ac49d9ba0d3d2f5f228f3cf36",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:9ee1074f995f184324c77d13ecfd1d5d2ecd6f9fde5bf7caf88aaa634c21b713",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-10-01T07:57:24.038Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/exit-contract/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:6a789024cc195ec72fa5925cf5f664cfa0b43313d751011d5900fdd434dbdb75"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

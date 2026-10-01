@@ -1,0 +1,43 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3V52T4FT5YF0KCX4BJBNKM6",
+  "claim": {
+    "text": "tests-passed passed for exit-contract",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "546e1c79cb12c7859fb787cf39a040f6743ccc20",
+    "base_commit": "c06794bdb6c74aadd518b5ad8fb1602c53d7c834",
+    "spec_revision": "openspec/changes/exit-contract@546e1c79cb12c7859fb787cf39a040f6743ccc20",
+    "tree": "f8c4ebab7b20cb9e11163fee9383ef2644458540",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "ci",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/36829032368/attempts/1"
+  },
+  "context_hash": "sha256:03c20dae6b9fd62d1e1a6d1bb66bdfae9a158985407c80584c05f3f74c8c04b1",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-10-01T07:15:25.457Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/exit-contract/raw/tests-passed/junit.xml",
+      "sha256": "sha256:f371935e3e46923bc0b51c64fed8ce93be6000d7c16e977fb52dd8aa787b0c89"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 1,
+    "tests": 1693
+  }
+}

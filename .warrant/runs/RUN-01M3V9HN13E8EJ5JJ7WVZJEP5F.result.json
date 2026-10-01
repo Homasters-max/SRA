@@ -1,0 +1,244 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3V9HN13E8EJ5JJ7WVZJEP5F",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "REQ-ENF-007 (delta) puts BUSY of the atomic write of the Run file or evidence into the same sentence as the validation errors: \"код выхода — по классу её кода (... BUSY ... — 4 с retryable: true), ничего не записано\", and SCN-ENF-047 requires \"ничего не записано, Run остаётся активным\" when another process holds the atomic write of the Run file. Main REQ-KRN-036 fixes the write order \"записи evidence → manifest.json → record или Run\", and REQ-ENF-007's own repeat path (SCN-ENF-043, \"прежняя сдача оборвалась до записи Run\") exists because of that order. The code agrees with REQ-KRN-036: finishRun (core/run/lifecycle.ts:105-116) calls also.write() — the result file <RUN>.result.json, the evidence record and manifest (core/run/submit.ts:280-287) — inside updateRun before writeRunFile (core/run/store.ts:203-204). A BUSY on the Run file therefore leaves the result file, the record and the manifest written; a BUSY on the evidence record leaves the result file. SCN-ENF-047 cannot pass against an implementation that follows REQ-KRN-036, and the two possible readings (keep the partial files and reuse them on repeat vs roll them back) are observably different.",
+      "targets": [
+        "REQ-ENF-007",
+        "SCN-ENF-047",
+        "REQ-KRN-036",
+        "SCN-ENF-043"
+      ],
+      "recommendation": "Split the error sentence. Errors found before any write (RUN_NOT_ACTIVE, STATE_INVALID, SKILL_RESULT_INVALID, USAGE, EVIDENCE_CONFLICT) give code 3 with nothing written. BUSY of any atomic write of the plan (result file, evidence, manifest, Run, current) gives code 4 with retryable: true. Files earlier in the REQ-KRN-036 order may remain, the Run stays RUNNING, and a repeat submit of the same envelope completes through the reuse path (data.reused: true). Rewrite the THEN of SCN-ENF-047 to say this, and add the repeat after the BUSY to it."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "The unchanged paragraph «База требований» of REQ-VER-011 stays absolute: \"Всё, из чего warrant ci выводит требования к PR, SHALL читаться из packs и warrant.json дерева HEAD^1 (базы), а не из PR ... effective policy\". The new Record rule admits the effective policy of HEAD (the PR itself) as a permissible law (\"Окно законов — ... и HEAD — diff самого PR\"), and SCN-VER-143 uses \"hash закона HEAD\". The Record section carves this out (\"кроме закона перехода (окно выше)\"), but the general paragraph does not, and ADR-0052 amends only ADR-0049 and ADR-0051, not ADR-0038 п. 1, which that paragraph cites.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-143"
+      ],
+      "recommendation": "Add the exception to «База требований»: the law of a transition (hash and gate keys) is judged against the window of ADR-0052 п. 4, which includes HEAD, and everything else stays from HEAD^1. Cite ADR-0052 п. 4 next to ADR-0038 п. 1."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "The window is introduced as \"Окно законов — коммиты main, которые слил maintainer, и HEAD\". It can be read as a filter, where only commits merged by a maintainer count and a forge lookup of merged_by is needed per commit. It can also be read as a rationale. As a fact it does not hold: since 0.9.0 the bot merges archive-PRs and impl-PRs outside the acceptance class, and in this repository every such PR touches `.warrant/**`, which is a policy path (`match.paths` of `factory-change`). So the window contains commits merged by an agent. The three-item list that follows defines the window without the merger, and design D2 has no merger filter.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Drop \"которые слил maintainer\" from the definition. Keep the window as exactly the three listed items. If the rationale is wanted, move it to a non-normative clause: commits that change the law itself touch acceptance-class paths, and a maintainer merges those (ADR-0051 п. 2)."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "SCN-VER-144 (and the proposal, \"свежей PASS\") describes \"две записи check его единственного элемента — NOT_APPLICABLE и более позднюю PASS\". PASS is a gate verdict, not an evidence_status: the evidence/1 enum is PROVEN, NOT_PROVEN, INCONCLUSIVE, NOT_APPLICABLE (common.1.schema.json). Taken literally, the later record fails evidence/1, and the transition gets RECORD_MISMATCH with reason `evidence`, not the expected reason `not_applicable`. So the scenario as written does not test the rule it names.",
+      "targets": [
+        "SCN-VER-144",
+        "openspec/changes/judge-law/proposal.md"
+      ],
+      "recommendation": "Replace `PASS` with `PROVEN` (evidence_status) in SCN-VER-144 and in proposal.md \"What Changes\"."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "The CLI of the CI run computes every law in the window, and the spec treats a law as \"not computed\" only when packs fail to load, warrant.json is missing or unusable, or the lock lacks the bundled pack hash of this CLI. It silently assumes that effective_policy_hash depends only on repository files and the bundled pack, not on the CLI code that composes and hashes the policy (core/resolve/merge.ts). The SRA job runs the CLI of the checkout (warrant.yml, input `checkout`). Consumers pin a tag. A CLI change to composition or hashing without a pack or `kernel` change makes laws at older window commits computed under a different algorithm than the transition used, so an honest record gets RECORD_MISMATCH. This contradicts the spec's own claim \"Сдвиг main между переходом и прогоном warrant ci честный record не ломает\".",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "State the assumption and its edge. Either list a CLI or kernel change of the hash algorithm among the \"not computed\" conditions, for example by tying the algorithm to the `kernel` version so that a change of it bumps `kernel`. Or name it as residual risk with recovery (repeat the transition) in the requirement and in the CHANGELOG migration."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "The fork point is computed from the current history of HEAD^2. If the PR branch is rebased onto a newer main (or GitHub \"Update branch\" rebases it) instead of merging main, the fork point moves forward. Transitions recorded before the rebase under the law of the old fork point then fall out of the window whenever main changed the law in between, and an honest record gets RECORD_MISMATCH with reason `policy`. The design discusses merge-of-main only (Alternatives, \"Окно от merge-base\"). The requirement claims that a shift of main does not break an honest record without naming the rebase case.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-141"
+      ],
+      "recommendation": "Name the rebase/force-push case in REQ-VER-011: the window follows the current history, so transitions recorded before a rebase are judged by the laws after the new fork point. Give the recovery (repeat the transition after the rebase). Mirror it in the CHANGELOG \"Миграция для потребителя\" and in design Risks. Optionally add a scenario."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "A permissible law is computed only for the classification of the record of the base or of HEAD, and the only PR-side commit in the window is HEAD. Two cases make an honest record fail with RECORD_MISMATCH `policy`, and neither the spec nor the CHANGELOG migration names them. (1) The PR re-classifies the Change more than once: APPROVED is recorded under the base classification, IMPLEMENTING under an intermediate one, VERIFYING under the HEAD one. IMPLEMENTING then matches no law. (2) The PR changes its own law (pack or `.warrant/local/**`) in one commit, records a transition, then changes the law again. Design Risks covers only \"PR law + main law both changed\".",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "State in REQ-VER-011 that a transition recorded under a classification or a PR law that is neither the base, HEAD nor a window commit gives RECORD_MISMATCH `policy`. Give its recovery (backward and forward transition under the final classification and law) in the requirement and in the CHANGELOG migration."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "HEAD is a window commit, so the general rule \"закон хотя бы одного коммита окна не вычислен → нарушения нет, LAW_NOT_COMPUTED\" also applies when the law of HEAD is not computed. That happens when the lock on HEAD lacks the bundled pack hash of the CI CLI, or warrant.json on HEAD is unusable. Both are under the control of the PR being judged. A PR that makes its own lock disagree with the CLI turns every forged hash of its new transitions into an informational finding. Design Risks only discusses window commits of main with another bundled pack, not HEAD.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-142"
+      ],
+      "recommendation": "Define the HEAD case separately. A law of HEAD that is not computed is either a violation (RECORD_MISMATCH `policy` or the bundled-pack rule of «База требований»), or it is named explicitly as accepted residual risk, with what else catches it (for example validate or LOCK_MISMATCH in the job). Add a scenario."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "The rule `ci_evidence` lost its anchor. In main spec the same bullet said the MERGED hash equals \"hash effective policy, вычисленной по базе для classification на HEAD\", and \"checks перехода VERIFYING->MERGED\" were those of that policy (code: checkKinds(base, basePolicy(...)) in mergedRules). The delta removes that clause and leaves \"kind, который производят checks перехода VERIFYING->MERGED\" with no policy and classification named. It also does not say what happens when the policy of the base for the classification on HEAD cannot be composed (POLICY_CONFLICT, a profile unknown to the base). In main spec that case was RECORD_MISMATCH `policy`. Now the hash may match the law of HEAD or of a window commit while the base policy does not compose. Design D3 says only \"правило ci_evidence остаётся по базе\".",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-108"
+      ],
+      "recommendation": "Name the policy of the ci_evidence rule, for example the effective policy of HEAD^1 for the classification on HEAD (or the matched law). State the outcome when it cannot be composed (for example RECORD_MISMATCH `ci_evidence` or `policy`, with the reason)."
+    },
+    {
+      "id": "F-10",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "A permissible law is \"effective policy, вычисленная по packs и конфигурации коммита окна\". Elsewhere the same requirement names `.warrant/local/**` separately from packs (\"policy (packs, .warrant/local/**, конфигурация)\" in «Ref»; \"ни один объект policy базы (packs и .warrant/local/**)\"). SCN-VER-140 and SCN-VER-141 depend on `.warrant/local/gates/*.json` being part of the law.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-140",
+        "SCN-VER-141"
+      ],
+      "recommendation": "Write \"по packs, `.warrant/local/**` и конфигурации коммита окна\", as in «Ref»."
+    },
+    {
+      "id": "F-11",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "The NOT_APPLICABLE ground says the record is chosen \"по правилу REQ-VER-003\" and then states it more strictly than REQ-VER-003 does. It adds a tie-break (\"при равенстве — больший id\"), while REQ-VER-003 says only \"самая свежая по created_at\". It also says that at MERGED a declared `accepts_attestation` restricts the accepted types, while REQ-VER-003 only excludes `none` unless the gate declares it. The code (freshest, attestationAccepted in core/gates/verdict.ts) matches the delta, not the text of REQ-VER-003, so \"как у REQ-VER-003\" points to a weaker norm.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-003"
+      ],
+      "recommendation": "Either amend REQ-VER-003 in this Change (tie-break by id, declared accepts_attestation restricts the types) or cite the norm that already states it (06a §3). This keeps one definition for the engine and the judge, as ADR-0052 п. 3 intends."
+    },
+    {
+      "id": "F-12",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-145 says \"impl-PR слил логин из identities.agents\" without saying whose identities.agents. With an unusable warrant.json on M^1 the requirement takes agents from the base of requirements. Its second half, \"слитый членом roles.maintainer базы, нарушения не даёт\", holds only if that maintainer is not the PR author, because INV-03 applies with a non-empty agents list. SCN-VER-135 says \"(не автором PR)\". Also, \"warrant.json M^1 нет или он непригоден\" is not tied to observable codes (design D1: CONFIG_MISSING, CONFIG_INVALID).",
+      "targets": [
+        "SCN-VER-145",
+        "REQ-VER-011"
+      ],
+      "recommendation": "In SCN-VER-145 say \"из identities.agents базы\" and \"(не автором PR)\". In the requirement, define \"непригоден\" as the load error CONFIG_MISSING or CONFIG_INVALID of that commit, the same wording for M^1 and for window commits."
+    },
+    {
+      "id": "F-13",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "The spec does not say what happens when a window commit cannot be checked out or its history is missing (worktree failure, shallow checkout, `boundary` failure). Design D1 decides it: \"Сбой worktreeAt (USAGE...) остаётся ошибкой окружения, код 3\". The requirement lists only the \"not computed\" conditions, so a reader may file this case under them and emit LAW_NOT_COMPUTED.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Add one clause: a git failure while building the window or a law of its commit is an environment error (code 3, REQ-KRN-003), not LAW_NOT_COMPUTED."
+    },
+    {
+      "id": "F-14",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "Window commits are selected by \"diff ... задевает policy-пути базы\". This assumes every input of the law (packs, `.warrant/local/**`, warrant.json, lock) lies inside the policy paths of HEAD^1. The default `factory-change` holds `.warrant/**` and `packs/**`. But `.warrant/local/**` may narrow `match.paths` (SCN-VER-107 shows that this object can be changed). After such a narrowing, a later main commit that changes a law input outside the narrowed paths is not in the window, and honest records by its law get RECORD_MISMATCH.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "State the assumption. Either select by policy paths together with the fixed law inputs (`.warrant/warrant.json`, `.warrant/warrant.lock.json`, `.warrant/local/**`) without changing the ADR-0052 rule for other paths, or name the narrowing case as a known limit."
+    },
+    {
+      "id": "F-15",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "missing-boundary",
+      "statement": "In SRA `.warrant/**` is a policy path, so nearly every main commit after the fork point is in the window. When a hash is not found (forged, or the F-5 to F-7 cases), the lazy walk computes a law (worktree and loadPacks) for every one of them. The spec sets no bound, and the reusable job has `timeout-minutes: 30`.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Consider a bound or a skipped[] entry for very long windows, or at least note the worst-case cost next to the design Risk «Цена прогона»."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/judge-law/specs/enforcement/spec.md",
+      "change": "REQ-ENF-007: \"каждая ошибка SHALL нести hint; ошибки до записи — код 3, ничего не записано; BUSY любой атомарной записи плана (результат, evidence, manifest, Run, current; REQ-KRN-036) — код 4 с retryable: true, Run остаётся RUNNING, файлы раньше по порядку REQ-KRN-036 могут остаться, и повтор того же envelope завершает Run путём повтора (data.reused: true)\". SCN-ENF-047 THEN: \"BUSY, hint, retryable: true, код 4, Run остаётся активным; повтор с тем же envelope — код 0, data.reused: true\"."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/judge-law/specs/verification/spec.md",
+      "change": "«База требований»: add \"кроме закона перехода (hash и ключи gates): его судит окно законов ADR-0052 п. 4, в которое входит HEAD (Record)\". In «Record» drop \"которые слил maintainer\" from the definition of the window. Write \"по packs, .warrant/local/** и конфигурации коммита\". Name the policy of the rule ci_evidence and the outcome when it is not composed."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/judge-law/specs/verification/spec.md",
+      "change": "Add the edges of the window to «Record»: HEAD law not computed (violation, or named residual risk); git failure while building the window — code 3; transitions recorded under an intermediate classification or PR law, before a rebase, or by a CLI with another hash algorithm — RECORD_MISMATCH `policy` with the recovery (repeat the transition). Fix SCN-VER-144 (`PROVEN`, not `PASS`) and SCN-VER-145 (agents of the base, maintainer is not the author)."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Should a law of HEAD that the CI CLI cannot compute (lock on HEAD without the CLI's bundled pack hash, unusable warrant.json on HEAD) be a violation, or LAW_NOT_COMPUTED like a window commit of main?",
+      "blocking": false,
+      "impact": [
+        "REQ-VER-011",
+        "design D1",
+        "design D3"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "The evidence[] of a transition holds the records the engine chose for its gates (GateOutcome.evidence in core/gates/verdict.ts). The judge's choice of the freshest record within evidence[] then equals the engine's choice. Not checked in commands/transition.ts."
+    },
+    {
+      "id": "A-2",
+      "statement": "The SRA job runs `warrant ci` with the CLI of the checkout (input `warrant: checkout` of .github/workflows/warrant.yml), so the law of every window commit is computed by the CLI of HEAD."
+    },
+    {
+      "id": "A-3",
+      "statement": "Main specs for REQ-VER-011 and REQ-ENF-007 are at main dcec61e or later (after archive of exit-contract), as design.md states. The comparison was made against openspec/specs/** of the worktree D:/project/SRA-judge-law."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "How should run submit behave on BUSY after part of the write plan is done (F-1)?",
+      "options": [
+        "Keep the partial files; code 4; a repeat goes through the reuse path (consistent with REQ-KRN-036 and ADR-0044 п. 5)",
+        "Roll back the written files on BUSY so that nothing is written (needs a new rule beside REQ-KRN-036)"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:4f5016e646d74337c4da7541ec44b0d5d6d06531d91a4e713e1afe77028126ff",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T12:00:00Z",
+    "finished_at": "2026-10-01T12:45:00Z"
+  }
+}

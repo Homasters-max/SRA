@@ -25,7 +25,7 @@ argument-hint: "<задача>"
 
 ## Стоп
 
-- Известный flaky WS-30 (e2e `gate`/`verify (argv)` на ubuntu, «does not provide an export named …»): один раз `gh run rerun <run>` (весь run, BL-72); второе падение — стоп и отчёт. Не чинить по ходу; `--admin` и обход защиты — нет.
+- Известный flaky WS-30 (e2e `gate`/`verify (argv)` на ubuntu, «does not provide an export named …»): один раз `gh run rerun <run>` (весь run, не `--failed` — `git-land` [ci.md](../git-land/ci.md) шаг 5); второе падение — стоп и отчёт. Не чинить по ходу; `--admin` и обход защиты — нет.
 - Отказ классификатора auto mode (настройки репозитория, защита ветки, откат правки ради зелёного job, PR с правкой `.github/workflows/**`) — не обходить другим путём: дать maintainer'у команды отдельными `bash`-блоками, остальное продолжать.
 - Красный CI не по flaky — разбор по `git-land` [ci.md](../git-land/ci.md); тот же сбой после двух исправлений — стоп.
 - Решение, меняющее spec, design или ADR, — вопросом maintainer'у, не по ходу.

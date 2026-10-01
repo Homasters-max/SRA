@@ -13,7 +13,6 @@
  */
 import { checksForTransition } from "../core/check/execute.js";
 import type { Ctx } from "../core/ctx.js";
-
 import { MERGE_TRANSITION } from "../core/gates/types.js";
 import { evaluate } from "../core/transition/evaluate.js";
 import { decisionFields, gateData, hooksFindings } from "../core/transition/gates.js";

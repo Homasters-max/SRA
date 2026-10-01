@@ -42,21 +42,22 @@
 
 ## 4. Закон на коммите и R-45 (D1, D4)
 
-- [ ] 4.1 `core/ci/law.ts`: `lawAt` по D1. `mergeLaw` (`core/ci/merge.ts`) — на `lawAt`. `MergeLaw.config` необязателен; без него `mergedByLaw` берёт `roles.maintainer` и `identities.agents` базы (REQ-VER-011 «Ref»).
+- [ ] 4.1 `core/ci/law.ts`: `lawAt` по D1 (закон, `POLICY_CONFLICT`, неизвестный профиль; объекты коммита). Unit-тест формы hash: hash фикстуры закреплён с `KERNEL_VERSION`. `mergeLaw` (`core/ci/merge.ts`) — на `lawAt`. `MergeLaw.config` необязателен; без него `mergedByLaw` берёт `roles.maintainer` и `identities.agents` базы (REQ-VER-011 «Ref»).
 - [ ] 4.2 Тесты в describe D3 `ci.test.ts`:
   - SCN-VER-145: `warrant.json` M^1 не JSON, затем его нет; слил агент — код 1, слил maintainer — код 0;
-  - fail-closed по `kernel` M^1 и по профилю `classification`, которого нет в packs M^1 (R-45).
+  - fail-closed по `kernel` M^1, по профилю `classification`, которого нет в packs M^1 (R-45), и по `POLICY_CONFLICT` M^1.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts ci merge`.
 
 ## 5. Окно законов (D2, D3)
 
 - [ ] 5.1 `core/ports/git.ts` и `adapters/git.ts` — `boundary(base, head)`; contract-тест адаптера git. `core/ci/law.ts` — `lawWindow` по D2.
-- [ ] 5.2 Правило закона перехода в `judgeRecord` (`core/ci/record.ts`) по D3. Находка `LAW_NOT_COMPUTED`. Из `mergedRules` удалены сверка hash и `gates` с `basePolicy` (REQ-VER-011 «Record»).
+- [ ] 5.2 Правило закона перехода в `judgeRecord` (`core/ci/record.ts`) по D3; определения для оснований по D3a. Находка `LAW_NOT_COMPUTED`. Из `mergedRules` удалены сверка hash и `gates` с `basePolicy` (REQ-VER-011 «Record»).
 - [ ] 5.3 Тесты `ci.test.ts`:
   - SCN-VER-140, SCN-VER-141, SCN-VER-142, SCN-VER-143, SCN-VER-146, SCN-VER-147;
   - дедупликация по дереву входов закона: коммит `main` только с `packages/cli/src/**` worktree не создаёт;
   - коммит окна вне checkout — `USAGE`, код 3;
+  - gate, удалённый в `main` после перехода, записанный `WAIVED`, судится по определению своего закона (D3a);
   - прежние тесты причины `policy` у `MERGED` переведены на окно.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts ci git law`; полный `npm test`.
@@ -73,6 +74,6 @@
 - [ ] 7.1 `CHANGELOG.md`, `## 0.10.0 — не выпущена` — по D11.
 - [ ] 7.2 `docs/backlog.md`:
   - закрыты WS-03, A-34, A-40, A-45, A-47, R-45, R-46, BL-105 — Change `judge-law`;
-  - новая строка — основание `applies_when` у переходов, кроме `MERGED` (остаточный риск, proposal Non-Goals).
+  - новые строки: основание `applies_when` у переходов, кроме `MERGED` (остаточный риск, proposal Non-Goals); текст REQ-VER-003 о выборе записи (tie-break по id, ограничение `accepts_attestation`) отстаёт от кода (I-243).
 
   Проверка: `node scripts/dev/check.js`; `npx vitest run --config packages/cli/vitest.config.ts dev-context`.

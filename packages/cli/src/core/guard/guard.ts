@@ -253,12 +253,20 @@ function rulesToShow(rules: readonly LoadedRule[], files: readonly string[], run
 async function post(ctx: Ctx, event: GuardEvent, env: NodeJS.ProcessEnv): Promise<GuardResult> {
   const files = projectFiles(ctx.root, event);
   const run = activeRun(ctx.root, env);
-  const loaded = loadPacks(ctx.root);
-  const errors = files.length === 0 ? [] : (await runFileChecks(validateRun(ctx, loaded), files)).errors;
-  const findingsHints = findingHints(errors);
   // An edit of the pin is followed by `sync`, not a Run (ADR-0053 п. 2); the hint of `pre` does not reach the agent (I-165).
   const edit = event.action === "edit";
   const sync = edit && files.includes(CONFIG_FILE) ? [syncHint(readPins(ctx.root).cli)] : [];
+  let loaded: LoadResult;
+  try {
+    loaded = loadPacks(ctx.root);
+  } catch (thrown) {
+    // A `warrant.json` that does not load after its own edit: the hint `sync` still reaches the agent — `sync` names the error.
+    if (sync.length === 0) throw thrown;
+    ctx.warn(`guard: ${(thrown as Error).message}\n`);
+    return { decision: "allow", hints: sync };
+  }
+  const errors = files.length === 0 ? [] : (await runFileChecks(validateRun(ctx, loaded), files)).errors;
+  const findingsHints = findingHints(errors);
   // Without a Run the hint `run start` of `pre` comes again after the edit: a frontend may deliver the context of
   // `pre` only with the result of the action, or not at all (I-165).
   if (run === undefined) {

@@ -634,8 +634,16 @@ describe("warrant guard: a policy that does not load — the recovery mode (ADR-
     expect(after.data["decision"]).toBe("allow");
     expect((after.data["hints"] as string[]).join("\n")).toContain("`warrant sync`");
     const tests = await guard(p, { phase: "pre", action: "shell", argv: ["bash", "-c", "pytest -q"] });
+    // A warrant.json that fails its schema after the edit: post still brings sync.
+    const broken = p.json(".warrant/warrant.json");
+    p.write(".warrant/warrant.json", { ...broken, kernel: 10 });
+    expect((await guard(p, { phase: "post", action: "edit", paths: [".warrant/warrant.json"] })).data["hints"]).toEqual([
+      expect.stringContaining("`warrant sync`")
+    ]);
+    p.write(".warrant/warrant.json", broken);
     expect(tests.data["decision"]).toBe("deny");
     expect(tests.data["reason"]).toContain("the policy does not load");
+    // The post of the broken warrant.json is a failure of post: its event is lost, as before (F18).
     expect(events(p, id)).toHaveLength(5);
   });
 
@@ -698,6 +706,13 @@ describe("warrant guard: a policy that does not load — the recovery mode (ADR-
     expect(hints).toContain("installs the CLI of the tag the project pins");
     expect(hints).not.toContain("set packs.core-sdd.version");
     expect(hints).not.toContain("pin-Change");
+
+    const r = await repo("IMPLEMENTING");
+    pin(r, NEWER_PIN, { cli: "tools/warrant.js" });
+    const pinned = ((await guard(r, { phase: "pre", action: "edit", paths: ["src/app.ts"] })).data["hints"] as string[]).join("\n");
+    expect(pinned).toContain("tools/warrant.js");
+    expect(pinned).not.toContain("CLI of its tag");
+    expect(pinned).not.toContain("CLI of the tag");
 
     const q = await repo("IMPLEMENTING");
     const config = q.json(".warrant/warrant.json");

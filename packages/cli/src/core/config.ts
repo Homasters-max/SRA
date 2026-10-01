@@ -46,6 +46,17 @@ export interface WarrantConfig {
 const PATH_KEYS = ["adr", "glossary", "tests", "src"] as const;
 
 /**
+ * The pattern of `cli` of `config/1` (ADR-0053 п. 3): its one owner is the
+ * schema; guard and the generator of `sync` test a value against it.
+ */
+export function cliPattern(): RegExp {
+  const properties = readSchemaFile("config")["properties"];
+  const cli = isPlainObject(properties) ? properties["cli"] : undefined;
+  const pattern = isPlainObject(cli) ? cli["pattern"] : undefined;
+  return new RegExp(typeof pattern === "string" ? pattern : "(?!)", "u");
+}
+
+/**
  * Names `frontends[]` of `config/1` accepts. The schema is their one owner, so
  * no frontend name is spelled in the kernel (design §9).
  */

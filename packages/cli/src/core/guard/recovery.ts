@@ -10,12 +10,11 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { CONFIG_REL } from "../config.js";
+import { CONFIG_REL, cliPattern } from "../config.js";
 import type { CliError } from "../errors.js";
 import { isPlainObject } from "../json.js";
 import { bundledPackVersions } from "../packs/loader.js";
 import type { LoadResult } from "../packs/types.js";
-import { readSchemaFile } from "../schemas/loader.js";
 import { versionDirection } from "../version-range.js";
 import { CLI_VERSION } from "../../version.js";
 import { CONFIG_FILE, type RecoveryExit, type RecoveryFailure } from "./decide.js";
@@ -29,14 +28,6 @@ export interface Pins {
   cli: string | undefined;
   /** The file read as a JSON object. */
   read: boolean;
-}
-
-/** The pattern of `cli` — its one owner is `config/1`. */
-function cliPattern(): RegExp | undefined {
-  const properties = readSchemaFile("config")["properties"];
-  const cli = isPlainObject(properties) ? properties["cli"] : undefined;
-  const pattern = isPlainObject(cli) ? cli["pattern"] : undefined;
-  return typeof pattern === "string" ? new RegExp(pattern, "u") : undefined;
 }
 
 /** `warrant.json` of `root`, leniently: a file that is not a JSON object gives empty pins. */
@@ -54,7 +45,7 @@ export function readPins(root: string): Pins {
       )
     : [];
   const given = json["cli"];
-  const cli = typeof given === "string" && cliPattern()?.test(given) === true ? given : undefined;
+  const cli = typeof given === "string" && cliPattern().test(given) ? given : undefined;
   return { packs, kernel: typeof json["kernel"] === "string" ? json["kernel"] : undefined, cli, read: true };
 }
 

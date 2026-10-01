@@ -82,7 +82,7 @@ export function bundledPackVersions(): { id: string; version: string }[] {
  * a pack of `.warrant/local/` or a version in a gap of the range — the range
  * is set to hold the version.
  */
-function rangeError(id: string, version: string, range: string, source: string, reported: string): CliError {
+function rangeError(id: string, version: string, range: string, source: string, reported: string, cli: string | undefined): CliError {
   const config = CONFIG_REL.split(path.sep).join("/");
   const bundled = source === "bundled";
   const direction = bundled ? versionDirection(version, range, { coerce: true }) : "outside";
@@ -91,7 +91,9 @@ function rangeError(id: string, version: string, range: string, source: string, 
     direction === "above"
       ? `set packs.${id}.version of ${config} to a range holding ${version} and kernel to "${KERNEL_VERSION}", then run \`warrant sync\``
       : direction === "below"
-        ? `this CLI ${CLI_VERSION} is older than the pin: keep ${config} and install the CLI the project pins (the CLI of its tag, or the file of \`cli\`)`
+        ? cli === undefined
+          ? `this CLI ${CLI_VERSION} is older than the pin: keep ${config} and install the CLI the project pins (the CLI of its tag)`
+          : `this CLI ${CLI_VERSION} is older than the pin: keep ${config} and update the pinned CLI file ${cli} (npm ci, npm run build)`
         : `set packs.${id}.version of ${config} to a range holding ${version}, then run \`warrant sync\``;
   return cliError("PACK_VERSION_RANGE", `pack ${id} version ${version}${carrier} does not satisfy the configured range "${range}"`, {
     path: reported,
@@ -540,7 +542,7 @@ export function loadPacks(projectRoot: string): LoadResult {
     const version = typeof obj["version"] === "string" ? obj["version"] : "0.0.0";
     // Its own code, not CONFIG_INVALID: `warrant ci` tells the range of a pack the pull request changes by it (design exit-contract D8).
     if (!satisfies(version, request.range)) {
-      errors.push(rangeError(request.id, version, request.range, located.source, reported));
+      errors.push(rangeError(request.id, version, request.range, located.source, reported, config.cli));
     }
     const kernelRange = typeof obj["kernel"] === "string" ? obj["kernel"] : "*";
     if (!satisfies(KERNEL_VERSION, kernelRange)) {

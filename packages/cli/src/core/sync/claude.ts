@@ -10,6 +10,7 @@
 import { canonicalHash } from "../canon/hash.js";
 import { canonicalText } from "../canon/format-json.js";
 import { cliError } from "../errors.js";
+import { cliPattern } from "../config.js";
 import { isPlainObject } from "../json.js";
 import { REVIEW_SKILL } from "../run/types.js";
 import type { Json } from "../schemas/loader.js";
@@ -33,8 +34,8 @@ export function guardCommand(cli?: string): string {
   return cli === undefined ? GUARD_COMMAND : `node "\${CLAUDE_PROJECT_DIR:-.}/${cli}" guard --frontend claude`;
 }
 
-/** The pinned form of {@link guardCommand} for any `cli` the pattern of `config/1` admits. */
-const PINNED_GUARD_RE = /^node "\$\{CLAUDE_PROJECT_DIR:-\.\}\/[A-Za-z0-9._@+/-]+" guard --frontend claude$/;
+/** The pinned form of {@link guardCommand}; its file must pass the pattern of `cli` of `config/1`. */
+const PINNED_GUARD_RE = /^node "\$\{CLAUDE_PROJECT_DIR:-\.\}\/([^"]+)" guard --frontend claude$/;
 
 /** `CLI_NOT_FOUND` (REQ-KRN-033): no regular file at `cli` — the hooks run no guard. */
 export const CLI_NOT_FOUND_HINT = "build or install the CLI the project pins (npm run build, npm ci), or remove `cli` from .warrant/warrant.json";
@@ -74,7 +75,9 @@ function guardGroup(matcher: string, cli: string | undefined): Record<string, un
 /** True for a hook entry that runs our command, in either form: `sync` replaces it with the current one. */
 function isGuardHook(hook: unknown): boolean {
   if (!isPlainObject(hook) || hook["type"] !== "command" || typeof hook["command"] !== "string") return false;
-  return hook["command"] === GUARD_COMMAND || PINNED_GUARD_RE.test(hook["command"]);
+  if (hook["command"] === GUARD_COMMAND) return true;
+  const pinned = PINNED_GUARD_RE.exec(hook["command"]);
+  return pinned !== null && cliPattern().test(pinned[1] as string);
 }
 
 /** True for a group holding at least one of our hooks. */

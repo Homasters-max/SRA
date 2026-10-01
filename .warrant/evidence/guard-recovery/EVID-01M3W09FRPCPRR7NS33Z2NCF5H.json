@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3W09FRPCPRR7NS33Z2NCF5H",
+  "claim": {
+    "text": "openspec-validate passed for guard-recovery",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "c5bf24ad230b875e17d4e7a9ff814b570ac1e903",
+    "base_commit": "996bc647b14439d1bf33db17686a18c3b02c74f3",
+    "spec_revision": "openspec/changes/guard-recovery@c5bf24ad230b875e17d4e7a9ff814b570ac1e903",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:00c5577680a3df775d19b21cfcf7d5f1ea68116c5840cd87a00560d1b6902574",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-10-01T15:10:55.768Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/guard-recovery/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:dde497a66c4d222869352e3ef5e6a90943815e26447ba4400ab15d6c07649ee8"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

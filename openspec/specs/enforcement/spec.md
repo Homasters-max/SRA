@@ -140,7 +140,17 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 `data{ decision: allow|deny, reason?, hints[] }`, код выхода 0 при любом решении. Пути события SHALL переводиться в пути проекта
 от `cwd`; проект и активный Run SHALL определяться по `cwd` события — вызов, чей `cwd` лежит в другом checkout, судится
 состоянием того checkout'а (предел, как INV-07); путь вне проекта SHALL давать `allow`, кроме правки при активном Run `review`
-(ниже), и SHALL NOT записываться в `guard_events[].paths`; проект без `.warrant/warrant.json` SHALL давать `allow`. Решение
+(ниже), и SHALL NOT записываться в `guard_events[].paths`; событие `edit` без пути проекта SHALL решаться до загрузки policy —
+policy, которая не грузится, его не запрещает ([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 2);
+проект без `.warrant/warrant.json` SHALL давать `allow`. Если `warrant.json` задаёт `cli` ([REQ-KRN-004](../kernel/spec.md)),
+простая команда, чьи первые слова — `node` и ровно значение `cli`, SHALL читаться в строгих формах ниже (Run `review` и
+восстановление) как `warrant` с теми же остальными словами — так сгенерированный субагент сдаёт результат закреплённым CLI
+([REQ-KRN-033](../kernel/spec.md)), — но только если каждый каталог, в котором строка может оказаться к этой команде (`cwd`
+события и `cd` раньше в строке), после `realpath` — корень проекта: из другого каталога `node <cli>` исполняет другой файл.
+`warrant.json`, которого нет или который не разбирается как JSON-объект, и `cli`, который не строка или не проходит шаблон
+REQ-KRN-004, алиаса не дают; команда без алиаса судится как любая другая не `warrant`. При `cli`, который проходит шаблон,
+команды `warrant` в hints Run `review` и режима восстановления SHALL называться в форме `node <cli>` с оговоркой «из корня
+проекта». Решение
 `pre`:
 - `edit` при активном Run — `deny` для пути вне `write_scope` или вне непустого `scope` (reason называет путь и scope; hint —
   править внутри `write_scope`, а для других путей `warrant run finish`, затем `warrant run start` с операцией, которая их пишет),
@@ -194,12 +204,51 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
   одного слова, как прежде; явные `guard_prefixes` сверяются строгим префиксом
   ([ADR-0042](../../../../docs/adr/WARRANT-ADR-0042-lattice-fixes.md) п. 3);
 - `other` — `allow`;
-- внутренний сбой (невалидное событие, битый Run, неразрешимая policy) — `deny` с reason и hint `warrant validate`.
+- внутренний сбой (невалидное событие, битый Run) — `deny` с reason и hint `warrant validate`;
+- policy, которая не грузится (любая ошибка загрузки `warrant.json` и packs: `PACK_VERSION_RANGE`, `CONFIG_INVALID`,
+  `PACK_NOT_FOUND` и другие), там, где решению выше нужна policy, — режим восстановления, а не `deny` на всё
+  ([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 2). Правило Run `review` и `allow` внутри `write_scope`
+  активного Run policy не нужна, и они не меняются; отказ вне `write_scope` активного Run (ему policy нужна для hints) решает
+  этот режим. Fail-closed остаётся только для правки путей проекта:
+  - `edit`, чьи пути проекта — только `.warrant/warrant.json` (закрепление), — `allow` с hint `warrant sync`, в том числе вне
+    `write_scope` активного Run;
+  - иной `edit` пути проекта — `deny`; reason этого режима, а при активном Run — ещё путь и `write_scope`;
+  - `shell` — `allow`, только если каждая простая команда строки — команда восстановления `warrant sync [...]`,
+    `warrant validate [...]`, `warrant status [...]`, `warrant --version` или `warrant -V`, либо команда без записи списка Run
+    `review` (`warrant gate <change> [...]`, `warrant <слова> --help` или `-h`, `git status | log | diff | show` с теми же
+    ограничениями, `cd` внутри проекта), и строка — в строгой форме команды без записи (выше); иначе `deny`. `warrant run submit`
+    и `warrant run finish` в этот список не входят: восстановлению они не нужны, а пишут файлы Run;
+  - ошибка режима — первая ошибка загрузки с кодом `PACK_VERSION_RANGE`, а без неё — первая ошибка загрузки; reason и hints
+    `deny` SHALL строиться по ней. Reason: её код, путь и сообщение, версия CLI, версия каждого встроенного pack, диапазон
+    каждого pack и `kernel` из `warrant.json`; `warrant.json`, который не читается, диапазонов и `kernel` не даёт. Путь вне
+    проекта (`pack.json` встроенного pack) reason SHALL NOT называть — он попадает в `guard_events[]` коммитимого Run; вместо
+    него — источник «pack <id>, bundled with CLI <версия>». Hints: `hint` ошибки режима, если он есть, — его команды тоже в
+    форме `node <cli>` при `cli`, как выше; затем выход:
+    - `PACK_VERSION_RANGE` встроенного pack, чья версия выше каждой версии диапазона (CLI новее закрепления), — pin-Change:
+      поднять `packs.<id>.version` и `kernel` в `.warrant/warrant.json` до версий, которые несёт CLI, затем `warrant sync`;
+    - `PACK_VERSION_RANGE` встроенного pack, чья версия ниже каждой версии диапазона, и `PACK_NOT_FOUND` с путём
+      `.warrant/warrant.json#/packs/<id>` (CLI такого pack не несёт) — CLI старше закрепления, `warrant.json` не менять
+      (у `PACK_NOT_FOUND` — разве что id pack написан неверно): без `cli` — поставить на машину CLI тега, который закрепил
+      проект; при `cli` — обновить файл `cli` (`npm ci`, `npm run build`); это делает maintainer вне сессии агента;
+    - прочая `PACK_VERSION_RANGE` — pack из `.warrant/local/` и версия, которая ни выше, ни ниже диапазона, — исправить
+      `.warrant/warrant.json`: задать диапазон, который содержит версию pack (правка разрешена), затем `warrant validate`;
+    - иная ошибка, чей путь — `.warrant/warrant.json` с фрагментом `#/…` или без него, — исправить этот файл (правка
+      разрешена), затем `warrant validate`;
+    - иная ошибка с другим путём, кроме `PACK_VERSION_RANGE`, — правку названного файла делает человек (maintainer) вне сессии
+      агента, в Change `factory-change`;
+
+    и перечень того, что guard разрешает, пока policy не грузится.
+
+Исключение runner'а `warrant guard` без `--frontend` до решения (например, сбой чтения stdin) SHALL давать решение внутреннего
+сбоя по фазе события, как исключение, которое не перехватил никто ([REQ-KRN-003](../kernel/spec.md)): `pre` или фаза неизвестна
+— `deny` с hint `warrant validate`, `post` — `allow` без hints; сообщение — в stderr, код 0, а не `INTERNAL` с кодом 3.
+Исключение после выведенного решения — только сообщение в stderr, код 0, второго ответа нет.
 
 Решение `post` SHALL быть `allow`; `hints[]` — находки [`validate --files`](../kernel/spec.md) по путям события (не больше 10
 строк + «и ещё N») и текст правил `rule/1`, чьи `paths` подходят под путь и чьих id ещё нет в `rules_shown` событий Run
 ([ADR-0022](../../../../docs/adr/WARRANT-ADR-0022-path-rules.md) п. 3); без активного Run вместо текста правил — hint
-`warrant run start` `pre` для правки пути проекта (design I-165); сбой `post` SHALL давать `allow` без hints и сообщение
+`warrant run start` `pre` для правки пути проекта (design I-165); правка `.warrant/warrant.json` SHALL давать hint
+`warrant sync` (форма `node <cli>`, как выше) — без Run вместо `warrant run start`, при Run рядом с находками и правилами; сбой `post` SHALL давать `allow` без hints и сообщение
 в stderr. При активном Run каждый вызов SHALL дописать событие в `guard_events[]` под замком Run; замок не взят за ~2 с —
 `pre` даёт `deny` с reason `BUSY`, `post` теряет событие с сообщением в stderr.
 
@@ -273,6 +322,41 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 - **WHEN** при активном Run `review` guard получает `pre` `shell` с `argv: ["bash", "-c", "warrant status add-search"]`, затем `["bash", "-c", "git diff main -- openspec && warrant gate add-search"]`, затем `["bash", "-c", "warrant run finish --state CANCELLED"]`; затем `["bash", "-c", "git diff --outp=x.patch"]`, `["bash", "-c", "git -c diff.external=x diff"]`, `["bash", "-c", "warrant status > s.txt"]`, `["bash", "-c", "git log | head"]`, `["bash", "-c", "warrant run finish"]` и `["bash", "-c", "cd ../other && warrant run finish --state CANCELLED"]` (`../other` вне проекта); `["bash", "-c", "git log --oneline"]`
 - **THEN** первые три и последняя — `allow`; остальные шесть — `deny` с hint, называющим `warrant run finish --state CANCELLED`
 
+#### Scenario: Правка при policy, которая не грузится
+<!-- id: SCN-ENF-048 -->
+- **WHEN** `warrant.json` закрепил `core-sdd` `^0.3.4` и `kernel` `0.8`, CLI несёт `core-sdd` 0.4.1, активного Run нет, а guard получает `pre` `edit` пути `src/app.ts` при `paths.src: "src"`, затем `.warrant/warrant.json`, затем путь вне проекта
+- **THEN** первое — `deny`: `reason` содержит `PACK_VERSION_RANGE`, версию CLI, `0.4.1`, `^0.3.4` и `0.8`, называет `pack core-sdd, bundled with CLI` и не содержит пути вне проекта, `hints[]` называет `.warrant/warrant.json` и `warrant sync`; второе — `allow` с hint `warrant sync`; третье — `allow`
+
+#### Scenario: Shell при policy, которая не грузится
+<!-- id: SCN-ENF-049 -->
+- **WHEN** policy не грузится, как в SCN-ENF-048, а guard получает `pre` `shell` с `argv: ["bash", "-c", "git log --oneline"]`, затем `["bash", "-c", "warrant sync && warrant validate"]`, `["bash", "-c", "warrant --version"]`, `["bash", "-c", "warrant status add-search"]`, затем `["bash", "-c", "npm test"]`, `["bash", "-c", "git log | head"]`, `["bash", "-c", "warrant sync > out.txt"]`
+- **THEN** первые четыре — `allow`; последние три — `deny`, `reason` называет версию CLI, `0.4.1` и `^0.3.4`, `hints[]` перечисляет разрешённые команды
+
+#### Scenario: Policy, которая не грузится, при активном Run
+<!-- id: SCN-ENF-050 -->
+- **WHEN** policy не грузится, активен Run `implement` с `write_scope` `src/**`, а guard получает `pre` `edit` пути `src/app.ts`, затем `docs/notes.md`, затем `.warrant/warrant.json`, затем `post` `edit` пути `.warrant/warrant.json`, затем `pre` `shell` с `argv: ["bash", "-c", "pytest -q"]`
+- **THEN** первое и третье — `allow`, второе и пятое — `deny` с `reason` о policy, которая не грузится (второе называет ещё `docs/notes.md` и `write_scope`); четвёртое — `allow` с hint `warrant sync`; в Run пять событий
+
+#### Scenario: Закреплённый CLI в строгой форме
+<!-- id: SCN-ENF-051 -->
+- **WHEN** `warrant.json` задаёт `cli: "tools/warrant.js"`; при активном Run `review` guard получает `pre` `shell` с `argv: ["bash", "-c", "node tools/warrant.js run submit --file r.json"]`, затем `["bash", "-c", "node other.js run submit --file r.json"]`; без Run при policy, которая не грузится из-за `PACK_VERSION_RANGE` (как в SCN-ENF-048), — `["bash", "-c", "node tools/warrant.js sync"]`, затем `["bash", "-c", "cd docs && node tools/warrant.js sync"]` (`docs` — каталог проекта), затем `pre` `edit` пути `src/app.ts`
+- **THEN** первое и третье — `allow`, второе и четвёртое — `deny`; `hints[]` второго называют `node tools/warrant.js run submit`, `hints[]` последнего, в том числе `hint` ошибки загрузчика, — `node tools/warrant.js sync` и «из корня проекта» и не называют `warrant sync` без `node tools/warrant.js`
+
+#### Scenario: CLI старше закрепления
+<!-- id: SCN-ENF-054 -->
+- **WHEN** `warrant.json` закрепил `core-sdd` `^0.5.0`, CLI несёт `core-sdd` 0.4.1, активного Run нет, а guard получает `pre` `edit` пути `src/app.ts` при `paths.src: "src"`
+- **THEN** `deny`: `reason` называет `0.4.1` и `^0.5.0`, `hints[]` называет установку CLI тега, который закрепил проект, и не советует менять `packs.core-sdd.version`; при `packs.core-xyz` (pack, которого CLI не несёт) — `PACK_NOT_FOUND`, тот же выход; при `cli` — обновить файл `cli`, а не CLI тега
+
+#### Scenario: Локальный pack вне диапазона
+<!-- id: SCN-ENF-055 -->
+- **WHEN** `warrant.json` подключает pack `team` из `.warrant/local/team/` версии `1.0.0` с диапазоном `^2.0.0`, а guard получает `pre` `edit` пути `src/app.ts` при `paths.src: "src"`
+- **THEN** `deny`: `hints[]` советует исправить диапазон в `.warrant/warrant.json` и не называет ни pin-Change, ни CLI тега, ни Change `factory-change`
+
+#### Scenario: Исключение runner'а guard
+<!-- id: SCN-ENF-052 -->
+- **WHEN** чтение stdin в `warrant guard` без `--frontend` завершается исключением
+- **THEN** stdout — envelope `guard` с `data.decision: "deny"` и hint `warrant validate`, stderr называет причину, код выхода 0
+
 ### Requirement: Адаптер claude
 <!-- id: REQ-ENF-005 -->
 
@@ -282,7 +366,10 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 `hookSpecificOutput.permissionDecision: "deny"` с `permissionDecisionReason` из reason и hints; `allow` — без
 `permissionDecision` (решает обычный механизм разрешений Claude Code), hints `PostToolUse` — в
 `hookSpecificOutput.additionalContext`; `allow` `PreToolUse` — пустой stdout (`additionalContext` `PreToolUse` доходит до
-модели только после результата инструмента — зонд Claude Code 2.1.263, design I-165).
+модели только после результата инструмента — зонд Claude Code 2.1.263, design I-165). При policy, которая не грузится,
+адаптер SHALL отвечать по режиму восстановления REQ-ENF-004: разрешённое — пустой stdout, отказ — `permissionDecision: "deny"`,
+чей `permissionDecisionReason` несёт reason с версиями и все hints, включая шаги pin-Change
+([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 2).
 Код выхода SHALL быть 0; вход, который нельзя разобрать, SHALL давать код 2 и причину в stderr (Claude Code отменяет действие
 `PreToolUse`). Коды этого адаптера — ответ протоколу хуков Claude Code, а не коды [REQ-KRN-003](../kernel/spec.md): код 2 здесь
 не `WAIT`, и таблица классов ошибок его не меняет ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2). Исключение,
@@ -320,6 +407,11 @@ paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-fronten
 <!-- id: SCN-ENF-046 -->
 - **WHEN** обработка разобранного входа `PreToolUse` в `warrant guard --frontend claude` завершается исключением, которое адаптер не перехватил
 - **THEN** код выхода 2, stderr называет причину, stdout пуст (нет `INTERNAL`); исключение после выведенного ответа — код 2, stdout содержит только первый ответ
+
+#### Scenario: Восстановление через адаптер
+<!-- id: SCN-ENF-053 -->
+- **WHEN** policy не грузится, как в SCN-ENF-048, а в `warrant guard --frontend claude` поданы записанные входы `PreToolUse` `Bash` с `command: "git status"`, `Write` с `file_path` `.warrant/warrant.json`, `Edit` с `file_path` `src/app.ts`, затем `PostToolUse` `Write` с `file_path` `.warrant/warrant.json`
+- **THEN** первые два — пустой stdout, код 0; третий — `permissionDecision: "deny"`, `permissionDecisionReason` содержит версию CLI, `^0.3.4` и `warrant sync`, код 0; четвёртый — `hookSpecificOutput.additionalContext` содержит `warrant sync` и не содержит `warrant run start`, `permissionDecision` нет
 
 ### Requirement: Схема skill-result
 <!-- id: REQ-ENF-006 -->

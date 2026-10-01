@@ -137,7 +137,12 @@ SHALL доходить целиком (B4).
 `paths` (`adr`, `glossary`, `tests`, `src`), `roles` (роль → список логинов), `identities.agents[]`
 ([ADR-0010](../../../../docs/adr/WARRANT-ADR-0010-trust-by-reference.md)), `trusted_signers[]`,
 `frontends[]` — уникальные имена frontend, для которых `warrant sync` генерирует файлы (в фазе 4 — только `claude`,
-[ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 1).
+[ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 1),
+`cli` — файл входа CLI, который закрепил проект, путём от корня проекта: сегменты из ASCII-букв, цифр и `. _ @ + -`, разделённые
+`/`, ни один сегмент не пуст, не начинается с `-` и не равен `.` или `..`, путь не начинается с `/` и оканчивается на `.js`,
+`.mjs` или `.cjs`; его исполняют сгенерированные хуки и
+субагент вместо `warrant` из PATH (REQ-KRN-033, [ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 3).
+Наличие файла схема не проверяет.
 
 #### Scenario: Пример из документации
 <!-- id: SCN-KRN-008 -->
@@ -158,6 +163,11 @@ SHALL доходить целиком (B4).
 <!-- id: SCN-KRN-126 -->
 - **WHEN** `frontends` равен `["claude"]`, `["codex"]` или `["claude", "claude"]`
 - **THEN** первый файл валиден, второй и третий невалидны с указанием `/frontends`
+
+#### Scenario: Закреплённый CLI
+<!-- id: SCN-KRN-165 -->
+- **WHEN** `cli` равен `"packages/cli/dist/bin/warrant.js"`, `"/usr/bin/warrant.js"`, `"../x/warrant.js"`, `"bin/warrant"` или `"a b/warrant.js"`
+- **THEN** первый файл валиден, остальные невалидны с указанием `/cli`
 
 ### Requirement: Схема lock
 <!-- id: REQ-KRN-005 -->
@@ -516,7 +526,11 @@ pack для kind, [REQ-KRN-001](#requirement-адресация-и-форма-js
 `warrant validate` SHALL проверять и сообщать все находки за один вызов: (1) каждый `*.json` под `.warrant/**`
 (кроме сырого вывода checks `.warrant/evidence/**/raw/**` — он не часть записи, [REQ-VER-001](../verification/spec.md), I-76)
 и в подключённых packs имеет `$schema` и валиден; (2) `warrant.json` и lock согласованы — версии packs в диапазонах (версия подключённого pack вне диапазона `warrant.json` —
-`PACK_VERSION_RANGE` с путём его `pack.json`; свой код, а не `CONFIG_INVALID`, отличает эту ошибку от прочих ошибок загрузки, и
+`PACK_VERSION_RANGE` с путём его `pack.json`, сообщением с версией pack и диапазоном — у встроенного pack ещё и с версией
+CLI, который его несёт, — и `hint`: у встроенного pack, чья версия выше каждой версии диапазона, — поднять `packs.<id>.version`
+и `kernel` в `warrant.json`, затем `warrant sync`; ниже каждой — `warrant.json` не менять, поставить CLI, который закрепил проект;
+иначе (pack из `.warrant/local/`, версия ни выше, ни ниже) — задать диапазон, который содержит версию pack, затем `warrant sync`
+([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 2); свой код, а не `CONFIG_INVALID`, отличает эту ошибку от прочих ошибок загрузки, и
 тот же код SHALL давать любая команда, загружающая packs; pack, чей `kernel` не включает версию kernel CLI, — по-прежнему
 `CONFIG_INVALID`),
 hash каждого pack, skill и сгенерированного файла совпадает с содержимым, а pack, присутствующий в lock, но отсутствующий в
@@ -676,6 +690,11 @@ archive (иначе `ID_DANGLING` с путём, строкой и ID; [ADR-0019
 <!-- id: SCN-KRN-164 -->
 - **WHEN** `warrant.json` задаёт `packs.core-sdd.version: "^0.3.0"`, а подключённый pack `core-sdd` имеет версию `0.4.0`
 - **THEN** `errors[]` содержит `PACK_VERSION_RANGE` с путём `pack.json` pack'а `core-sdd`, без `retryable`, код 3; `CONFIG_INVALID` об этом pack нет
+
+#### Scenario: Версии в находке диапазона
+<!-- id: SCN-KRN-167 -->
+- **WHEN** `warrant.json` задаёт `packs.core-sdd.version: "^0.3.4"`, а встроенный pack `core-sdd` CLI имеет версию `0.4.1`
+- **THEN** `errors[]` содержит `PACK_VERSION_RANGE`, чей `message` называет `0.4.1`, `^0.3.4` и версию CLI, а `hint` — `packs.core-sdd.version`, `kernel` и `warrant sync`, код 3; при `^0.5.0` `hint` называет CLI, который закрепил проект, и не советует менять `packs.core-sdd.version`
 
 ### Requirement: Команда fmt
 <!-- id: REQ-KRN-022 -->
@@ -1120,16 +1139,29 @@ NOT запускать дочерних процессов, кроме одно�
 ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 3): в `.claude/settings.json` — записи
 `permissions.deny` на правку `.warrant/changes/**`, `.warrant/evidence/**`, `.warrant/runs/**`, `openspec/specs/**`,
 `openspec/config.yaml`, `openspec/schemas/**` и на `git push origin main`, `gh pr merge`, `openspec archive`
-([ADR-0014](../../../../docs/adr/WARRANT-ADR-0014-claude-code-enforcement.md) п. 1), и хуки с командой ровно
-`warrant guard --frontend claude` — `PreToolUse` с matcher `Edit|Write|NotebookEdit|Bash` и `PostToolUse` с matcher
-`Edit|Write|NotebookEdit`; файл субагента
+([ADR-0014](../../../../docs/adr/WARRANT-ADR-0014-claude-code-enforcement.md) п. 1), и хуки с командой guard —
+`PreToolUse` с matcher `Edit|Write|NotebookEdit|Bash` и `PostToolUse` с matcher `Edit|Write|NotebookEdit`. Команда guard — ровно
+`warrant guard --frontend claude`, а при `cli` в `warrant.json` ([REQ-KRN-004](#requirement-схема-config)) — ровно
+`node "${CLAUDE_PROJECT_DIR:-.}/<cli>" guard --frontend claude`: хук исполняет CLI, который закрепил проект, а не первый `warrant` в
+PATH ([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 3); путь берётся от переменной Claude Code
+`CLAUDE_PROJECT_DIR`, а без неё — от каталога, где исполняется хук. Своим `sync` SHALL считать хук с командой любой из двух форм
+(при любом `cli`) и заменять его текущей формой. Если при `frontends ∋ "claude"` и `cli` по пути `cli` нет обычного
+файла (нет пути, каталог, битая ссылка), `sync` и `sync --check` SHALL давать в `data.findings[]` находку
+`{ code: "CLI_NOT_FOUND", path, hint }` с путём `cli` и `hint` собрать или установить закреплённый CLI; код выхода находка не
+меняет (у `--check` его определяет только расхождение файлов): хук без файла guard не исполняет (Claude Code не блокирует
+действие при таком сбое хука), но CI, где зависимости проекта не установлены, этим не краснеет; без `frontends ∋ "claude"`
+находки нет; файл субагента
 `.claude/agents/warrant-reviewer.md` целиком ([ADR-0036](../../../../docs/adr/WARRANT-ADR-0036-phase-4b-producers.md), ADR-0014 п. 3): frontmatter с `name: warrant-reviewer`,
-`description`, `tools` с `Write` и без `Edit` и `NotebookEdit` и хуком `PreToolUse` с matcher `Bash|Write` и командой ровно
-`warrant guard --frontend claude`, затем строка-маркер `<!-- generated by warrant — do not edit -->`, текст skill review pack'а
+`description`, `tools` с `Write` и без `Edit` и `NotebookEdit` и хуком `PreToolUse` с matcher `Bash|Write` и командой guard,
+затем строка-маркер `<!-- generated by warrant — do not edit -->`, текст skill review pack'а
 (skill `specification/adversarial-review` из lock) и порядок сдачи результата: envelope `warrant://skill-result/1` — файлом
 `<RUN-id>.envelope.json` в scratchpad-каталоге сессии Claude Code (он лежит во временном каталоге ОС; нет scratchpad — прямо во
 временном каталоге ОС; правку проекта guard под Run `review` отклоняет), `warrant run submit --file <путь> --dry-run`, затем та же
-команда без `--dry-run` — из корня проекта с активным Run, без `cd` (design I-197, I-198); раздел сдачи SHALL прямо говорить, что запись одного файла envelope во
+команда без `--dry-run` — из корня проекта с активным Run, без `cd` (design I-197, I-198); при `cli` в командах, которые исполняет
+субагент, — `warrant run submit` раздела сдачи — вместо `warrant` SHALL стоять `node <cli>`, форма, которую guard читает как
+`warrant` ([REQ-ENF-004](../enforcement/spec.md)), а раздел SHALL называть команду своего хука и говорить, что команды `warrant`
+в тексте skill выше субагент исполняет в той же форме `node <cli>`; текст skill из lock, `description`, имя схемы
+`warrant://skill-result/1` и команда вызывающего `warrant run start` в шаге Context Pack не меняются; раздел сдачи SHALL прямо говорить, что запись одного файла envelope во
 временный каталог — часть сдачи, а не правка, которую запрещает текст skill (запрет skill касается файлов проекта); каждый пример
 envelope в тексте SHALL проходить схему `skill-result/1` ([ADR-0042](../../../../docs/adr/WARRANT-ADR-0042-lattice-fixes.md) п. 4). Если ни один подключённый pack не даёт skill `specification/adversarial-review`, файл субагента SHALL NOT
 генерироваться, а вывод `sync` SHALL содержать в `data.findings[]` находку `{ code: "REVIEWER_SKILL_MISSING", path, hint }` с путём файла
@@ -1148,7 +1180,7 @@ envelope в тексте SHALL проходить схему `skill-result/1` ([
 
 #### Scenario: Управляемое подмножество settings.json
 <!-- id: SCN-KRN-130 -->
-- **WHEN** `warrant sync` при `frontends: ["claude"]` и `.claude/settings.json` с чужим хуком `PreToolUse` и ключом `env`
+- **WHEN** `warrant sync` при `frontends: ["claude"]` без `cli` и `.claude/settings.json` с чужим хуком `PreToolUse` и ключом `env`
 - **THEN** файл содержит свои записи deny и хуки `warrant guard --frontend claude`, чужой хук и `env` сохранены; повторный `sync` не меняет ни одного байта
 
 #### Scenario: Снятый deny
@@ -1178,7 +1210,7 @@ envelope в тексте SHALL проходить схему `skill-result/1` ([
 
 #### Scenario: Файл субагента review
 <!-- id: SCN-KRN-139 -->
-- **WHEN** `warrant sync` при `frontends: ["claude"]`
+- **WHEN** `warrant sync` при `frontends: ["claude"]` без `cli`
 - **THEN** `.claude/agents/warrant-reviewer.md` начинается frontmatter с `name: warrant-reviewer`, `tools` содержит `Write` и не содержит `Edit`, `NotebookEdit`, хук `PreToolUse` `Bash|Write` вызывает `warrant guard --frontend claude`; тело содержит строку-маркер, текст skill `specification/adversarial-review`, `warrant run submit --file` и `--dry-run` и оговорку, что файл envelope во временном каталоге — часть сдачи, а каждый пример envelope из тела проходит схему `warrant://skill-result/1`; повторный `sync` не меняет ни одного байта
 
 #### Scenario: Правленый файл субагента
@@ -1195,6 +1227,11 @@ envelope в тексте SHALL проходить схему `skill-result/1` ([
 <!-- id: SCN-KRN-154 -->
 - **WHEN** `warrant init --frontend claude` в новом проекте, где `.warrant/local/rules/` содержит правило с `paths: ["**"]`, затем повторный `warrant sync` без изменений, затем `sync` после удаления строки из `.claude/agents/warrant-reviewer.md`
 - **THEN** вывод `init` содержит `FRONTEND_RESTART_REQUIRED` для `.claude/settings.json`, `.claude/agents/warrant-reviewer.md` и `AGENTS.md` с `hint` о перезапуске сессии Claude Code и ни одной находки с путём `CLAUDE.md`, код 0; повторный `sync` находки не даёт; последний `sync` даёт её только для файла субагента
+
+#### Scenario: Хук закреплённого CLI
+<!-- id: SCN-KRN-166 -->
+- **WHEN** `warrant sync` при `frontends: ["claude"]` и `cli: "tools/warrant.js"`, а `.claude/settings.json` несёт прежние группы хуков `warrant guard --frontend claude`; затем `cli` удалён и `sync` повторён
+- **THEN** после первого `sync` хуки `PreToolUse` и `PostToolUse` в `settings.json` и хук субагента — ровно `node "${CLAUDE_PROJECT_DIR:-.}/tools/warrant.js" guard --frontend claude`, групп с `warrant guard --frontend claude` нет; раздел «Сдача результата» субагента содержит `node tools/warrant.js run submit --file`, не содержит `warrant run submit` и говорит, что команды `warrant` в тексте skill исполняются как `node tools/warrant.js`; `data.findings[]` содержит `FRONTEND_RESTART_REQUIRED` для обоих файлов и `CLI_NOT_FOUND` с `path` `tools/warrant.js` (файла нет), код 0; после второго — снова `warrant guard --frontend claude` и `warrant run submit` в разделе сдачи, `CLI_NOT_FOUND` нет
 
 ### Requirement: Режим --dry-run меняющих команд
 <!-- id: REQ-KRN-034 -->

@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3VDQWY6J897TQZHFAPJFQW3",
+  "claim": {
+    "text": "openspec-validate passed for judge-law",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "3d19e1bbd92d4486a7c786e4685c14259c173356",
+    "base_commit": "dcec61e67d670b3ee445fc13c736ba725786316e",
+    "spec_revision": "openspec/changes/judge-law@3d19e1bbd92d4486a7c786e4685c14259c173356",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:0f81ef9b6cead99112f1fd2c7bf1be1a927f0ff094a4906198d676d47aa3ce2d",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-01T09:46:45.063Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/judge-law/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:85ada060842a1afb2494c00f3545ab327ee8b93ae8a4cbc9ee0ef4e5b7a8e758"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

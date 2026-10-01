@@ -1,0 +1,14 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-2026-020",
+  "change": "guard-recovery",
+  "gate": "spec-approved",
+  "reason": "I-250: MAJOR review spec раунда 4 (R-53…R-55) закрыты правкой delta REQ-ENF-004 (ветка выхода прочей PACK_VERSION_RANGE, hint загрузчика в форме node <cli>, путь вне проекта не в reason) и SCN-ENF-048, 051, 055 по ADR-0024 п. 4; I-252 — уточнение Impact",
+  "risk": "LOW",
+  "compensating_controls": [
+    "Правки delta только сужают и уточняют hints режима восстановления; каждая — тестом SCN; ревью реализации агентом reviewer; Approve maintainer'а impl-PR"
+  ],
+  "owner": "human:Homasters-max",
+  "expires_at": "2026-10-15",
+  "waiver_state": "PROPOSED"
+}

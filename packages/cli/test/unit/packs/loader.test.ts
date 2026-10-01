@@ -68,7 +68,8 @@ describe("loadPacks", () => {
     expect(codes(result.errors)).toEqual(["PACK_VERSION_RANGE"]);
     expect(result.errors[0]?.message).toMatch(/does not satisfy/);
     expect(result.errors[0]?.path).toMatch(/base\/pack\.json$/);
-    expect(result.errors[0]?.hint).toContain("warrant sync");
+    // base 1.x is below ^2.0: the CLI is older than the pin, the pin stays (SCN-KRN-167).
+    expect(result.errors[0]?.hint).toContain("install the CLI the project pins");
   });
 
   it("reports DUPLICATE_OBJECT_ID when two packs declare the same gate (SCN-KRN-044)", () => {

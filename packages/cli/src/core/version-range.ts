@@ -19,3 +19,23 @@ export function versionSatisfies(version: string, range: string, options: Versio
     return false;
   }
 }
+
+/** Where a version lies against a range it does not satisfy (ADR-0053 п. 2). */
+export type VersionDirection = "above" | "below" | "outside";
+
+/**
+ * `above` — greater than every version the range admits, `below` — less than
+ * every one, `outside` — neither (a gap of `^0.3.0 || ^0.5.0` at `0.4.1`) or
+ * a version or range that does not parse. Coerces like {@link versionSatisfies}.
+ */
+export function versionDirection(version: string, range: string, options: VersionSatisfiesOptions = {}): VersionDirection {
+  const checked = options.coerce === true ? (semver.valid(version) ?? semver.coerce(version)?.version) : version;
+  if (checked === null || checked === undefined) return "outside";
+  try {
+    if (semver.gtr(checked, range, { includePrerelease: true })) return "above";
+    if (semver.ltr(checked, range, { includePrerelease: true })) return "below";
+  } catch {
+    return "outside";
+  }
+  return "outside";
+}

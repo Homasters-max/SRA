@@ -7,9 +7,12 @@
  * A project without `.warrant/warrant.json` is not under WARRANT: `allow`, no
  * event. A path of the event is absolute or relative to its `cwd`; one outside
  * the project is not guarded. `pre` fails closed (F9): an event that does not
- * read, a Run that does not read, a policy that does not load, a lock not
- * taken — `deny` with the reason and a hint. `post` is always `allow`: its
- * failure gives no hints and a line on stderr (ADR-0019 п. 8).
+ * read, a Run that does not read, a lock not taken — `deny` with the reason
+ * and a hint. A policy that does not load is the recovery mode instead
+ * (ADR-0053 п. 2): an event without a path of the project is decided before
+ * the policy is loaded, and where a decision needs the policy the pin and the
+ * recovery commands pass. `post` is always `allow`: its failure gives no hints
+ * and a line on stderr (ADR-0019 п. 8).
  */
 import { existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,21 +31,27 @@ import { readCurrent } from "../run/store.js";
 import type { GuardEventRecord, Run } from "../run/types.js";
 import { runFileChecks, validateRun } from "../validate/registry.js";
 import {
+  CONFIG_FILE,
   editWithoutRun,
   editWithRun,
   guardedChecks,
   pathClasses,
+  recoveryEditAnswer,
+  recoveryShellAnswer,
   reviewEditAnswer,
   reviewShellAnswer,
   RUN_START_HINT,
   shellAnswer,
+  syncHint,
   VALIDATE_HINT,
   type Answer,
   type PathClasses,
+  type RecoveryFailure,
   type ReviewEditPlaces,
   type ReviewShellPlaces
 } from "./decide.js";
 import { parseEvent } from "./event.js";
+import { policyFailure, readPins } from "./recovery.js";
 
 /** At most this many finding lines in `hints[]`, then one «and N more» (ADR-0019 п. 10). */
 export const FINDING_LINES = 10;
@@ -91,13 +100,29 @@ function projectFiles(root: string, event: GuardEvent): string[] {
   return out;
 }
 
-/** The loaded project, or the loader's first error thrown: a policy that does not load (F9). */
-function loadPolicy(root: string): LoadResult {
-  const loaded = loadPacks(root);
-  const first = loaded.errors[0];
-  if (first !== undefined) {
-    throw new WarrantError(first.code, `the policy does not load: ${first.message}`, first.path === undefined ? {} : { path: first.path });
+/** A policy that does not load, thrown by {@link loadPolicy}: `decidePre` answers it by the recovery mode (ADR-0053 п. 2). */
+class PolicyNotLoaded extends Error {
+  constructor(readonly failure: RecoveryFailure) {
+    super(failure.reason);
   }
+}
+
+/** The loaded project; a `warrant.json` or a pack that does not load throws {@link PolicyNotLoaded}. */
+function loadPolicy(root: string): LoadResult {
+  let loaded: LoadResult;
+  try {
+    loaded = loadPacks(root);
+  } catch (thrown) {
+    if (!(thrown instanceof WarrantError)) throw thrown;
+    const error: CliError = {
+      code: thrown.code,
+      message: thrown.message,
+      ...(thrown.path === undefined ? {} : { path: thrown.path }),
+      ...(thrown.hint === undefined ? {} : { hint: thrown.hint })
+    };
+    throw new PolicyNotLoaded(policyFailure(root, undefined, [error]));
+  }
+  if (loaded.errors.length > 0) throw new PolicyNotLoaded(policyFailure(root, loaded, loaded.errors));
   return loaded;
 }
 
@@ -159,11 +184,11 @@ function realPath(file: string): string {
 }
 
 /** Where the outside paths of an edit under a `review` Run land (ADR-0042 п. 4). */
-function reviewPlaces(root: string, event: GuardEvent, env: NodeJS.ProcessEnv): ReviewEditPlaces {
+function reviewPlaces(root: string, event: GuardEvent, env: NodeJS.ProcessEnv, cli: string | undefined): ReviewEditPlaces {
   const tempDir = realPath(tempDirOf(env));
   const tempInProject = projectPath(realPath(root), tempDir) !== undefined;
   const strays = outsidePaths(root, event).filter((file) => projectPath(tempDir, realPath(file)) === undefined).length;
-  return { tempDir, tempInProject, strays };
+  return { tempDir, tempInProject, strays, ...(cli === undefined ? {} : { cli }) };
 }
 
 /**
@@ -171,26 +196,39 @@ function reviewPlaces(root: string, event: GuardEvent, env: NodeJS.ProcessEnv): 
  * of the event after `realpath` (links, 8.3 short names; I-202) — `run finish`
  * and `run submit` act on the Run of the checkout `cd` leads to.
  */
-function reviewShellPlaces(root: string, event: GuardEvent): ReviewShellPlaces {
+function reviewShellPlaces(root: string, event: GuardEvent, cli: string | undefined): ReviewShellPlaces {
   const project = realPath(root);
-  return { cwd: path.resolve(event.cwd), inProject: (dir) => projectPath(project, realPath(dir)) !== undefined };
+  return {
+    cwd: path.resolve(event.cwd),
+    inProject: (dir) => projectPath(project, realPath(dir)) !== undefined,
+    isRoot: (dir) => realPath(dir) === project,
+    ...(cli === undefined ? {} : { cli })
+  };
 }
 
-/** The answer before the action; what fails in it is a refusal (F9). */
+/**
+ * The answer before the action; what fails in it is a refusal (F9), except a
+ * policy that does not load — the recovery mode (ADR-0053 п. 2).
+ */
 function decidePre(ctx: Ctx, event: GuardEvent, files: readonly string[], run: Run | undefined, env: NodeJS.ProcessEnv): Answer {
+  const cli = readPins(ctx.root).cli;
   try {
     const classes = (loaded: LoadResult): PathClasses => pathClasses(loaded, cliWrittenState(ctx.root, env));
-    if (event.action === "edit" && run?.operation === "review") return reviewEditAnswer(run, files, reviewPlaces(ctx.root, event, env));
+    if (event.action === "edit" && run?.operation === "review") return reviewEditAnswer(run, files, reviewPlaces(ctx.root, event, env, cli));
+    if (event.action === "shell" && run?.operation === "review") return reviewShellAnswer(event.argv, run, reviewShellPlaces(ctx.root, event, cli));
+    // An edit outside the project is not guarded: decided before the policy loads (ADR-0053 п. 2).
+    if (event.action === "edit" && files.length === 0) return { decision: "allow", hints: [] };
     if (event.action === "edit" && run !== undefined) return editWithRun(run, files, () => classes(loadPolicy(ctx.root)));
     if (event.action === "edit") {
       const loaded = loadPolicy(ctx.root);
       return editWithoutRun(loaded, files, classes(loaded));
     }
-    if (event.action === "shell" && run?.operation === "review") return reviewShellAnswer(event.argv, run, reviewShellPlaces(ctx.root, event));
     if (event.action === "shell") return shellAnswer(event.argv, guardedChecks(loadPolicy(ctx.root)), run?.change);
     return { decision: "allow", hints: [] };
   } catch (thrown) {
-    return failedClosed(thrown);
+    if (!(thrown instanceof PolicyNotLoaded)) return failedClosed(thrown);
+    if (event.action === "edit") return recoveryEditAnswer(files, run, thrown.failure, cli);
+    return recoveryShellAnswer(event.argv, thrown.failure, reviewShellPlaces(ctx.root, event, cli));
   }
 }
 
@@ -218,11 +256,14 @@ async function post(ctx: Ctx, event: GuardEvent, env: NodeJS.ProcessEnv): Promis
   const loaded = loadPacks(ctx.root);
   const errors = files.length === 0 ? [] : (await runFileChecks(validateRun(ctx, loaded), files)).errors;
   const findingsHints = findingHints(errors);
+  // An edit of the pin is followed by `sync`, not a Run (ADR-0053 п. 2); the hint of `pre` does not reach the agent (I-165).
+  const edit = event.action === "edit";
+  const sync = edit && files.includes(CONFIG_FILE) ? [syncHint(readPins(ctx.root).cli)] : [];
   // Without a Run the hint `run start` of `pre` comes again after the edit: a frontend may deliver the context of
   // `pre` only with the result of the action, or not at all (I-165).
   if (run === undefined) {
-    const runStart = event.action === "edit" && files.length > 0 ? [RUN_START_HINT] : [];
-    return { decision: "allow", hints: [...findingsHints, ...runStart] };
+    const runStart = edit && files.some((file) => file !== CONFIG_FILE) ? [RUN_START_HINT] : [];
+    return { decision: "allow", hints: [...findingsHints, ...sync, ...runStart] };
   }
 
   const codes = [...new Set(errors.map((e) => e.code))];
@@ -238,7 +279,7 @@ async function post(ctx: Ctx, event: GuardEvent, env: NodeJS.ProcessEnv): Promis
     ctx.warn(`guard: the event of this edit is not recorded in the Run ${run.id}: ${(thrown as Error).message}\n`);
     rules = rulesToShow(loaded.rules, files, run);
   }
-  return { decision: "allow", hints: [...findingsHints, ...rules.map(ruleLine)] };
+  return { decision: "allow", hints: [...findingsHints, ...rules.map(ruleLine), ...sync] };
 }
 
 /** A project under WARRANT has `.warrant/warrant.json`; guard allows everything elsewhere (SCN-ENF-016). */

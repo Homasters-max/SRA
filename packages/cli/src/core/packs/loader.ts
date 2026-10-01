@@ -21,8 +21,8 @@ import { readJson, reportPath, walkFiles } from "../fs.js";
 import { isPlainObject, strings } from "../json.js";
 import { validateFile } from "../schemas/semantic.js";
 import { parseSchemaUri } from "../schemas/registry.js";
-import { versionSatisfies } from "../version-range.js";
-import { KERNEL_VERSION } from "../../version.js";
+import { versionDirection, versionSatisfies } from "../version-range.js";
+import { CLI_VERSION, KERNEL_VERSION } from "../../version.js";
 import { weakenings } from "./overrides.js";
 import {
   PROVIDES_LISTS,
@@ -52,6 +52,51 @@ export function bundledPacksDir(): string {
   if (override !== undefined && override !== "") return path.resolve(override);
   const here = path.dirname(fileURLToPath(import.meta.url));
   return path.join(here, "..", "..", "..", "..", "..", "packs");
+}
+
+/**
+ * Id and version of every pack bundled with this CLI, sorted by id (ADR-0053
+ * п. 2): what a refusal of guard names when the policy does not load. A
+ * manifest that does not read is left out.
+ */
+export function bundledPackVersions(): { id: string; version: string }[] {
+  const dir = bundledPacksDir();
+  let entries: string[];
+  try {
+    entries = readdirSync(dir).sort();
+  } catch {
+    return [];
+  }
+  const out: { id: string; version: string }[] = [];
+  for (const id of entries) {
+    const manifest = readJson(path.join(dir, id, "pack.json"), `${id}/pack.json`, []);
+    if (isPlainObject(manifest) && typeof manifest["version"] === "string") out.push({ id, version: manifest["version"] });
+  }
+  return out;
+}
+
+/**
+ * The `PACK_VERSION_RANGE` of a pack (REQ-KRN-021, ADR-0053 п. 2): a bundled
+ * pack names the CLI that carries it, and its hint follows the direction —
+ * above the range the pin is raised, below it the pinned CLI is installed;
+ * a pack of `.warrant/local/` or a version in a gap of the range — the range
+ * is set to hold the version.
+ */
+function rangeError(id: string, version: string, range: string, source: string, reported: string): CliError {
+  const config = CONFIG_REL.split(path.sep).join("/");
+  const bundled = source === "bundled";
+  const direction = bundled ? versionDirection(version, range, { coerce: true }) : "outside";
+  const carrier = bundled ? ` bundled with CLI ${CLI_VERSION}` : "";
+  const hint =
+    direction === "above"
+      ? `set packs.${id}.version of ${config} to a range holding ${version} and kernel to "${KERNEL_VERSION}", then run \`warrant sync\``
+      : direction === "below"
+        ? `this CLI ${CLI_VERSION} is older than the pin: keep ${config} and install the CLI the project pins (the CLI of its tag, or the file of \`cli\`)`
+        : `set packs.${id}.version of ${config} to a range holding ${version}, then run \`warrant sync\``;
+  return cliError("PACK_VERSION_RANGE", `pack ${id} version ${version}${carrier} does not satisfy the configured range "${range}"`, {
+    path: reported,
+    hint
+  });
 }
 
 /** Validates one loaded document and records every violation. */
@@ -495,12 +540,7 @@ export function loadPacks(projectRoot: string): LoadResult {
     const version = typeof obj["version"] === "string" ? obj["version"] : "0.0.0";
     // Its own code, not CONFIG_INVALID: `warrant ci` tells the range of a pack the pull request changes by it (design exit-contract D8).
     if (!satisfies(version, request.range)) {
-      errors.push(
-        cliError("PACK_VERSION_RANGE", `pack ${request.id} version ${version} does not satisfy the configured range "${request.range}"`, {
-          path: reported,
-          hint: `set packs.${request.id}.version of ${CONFIG_REL.split(path.sep).join("/")} to a range holding ${version}, then run \`warrant sync\``
-        })
-      );
+      errors.push(rangeError(request.id, version, request.range, located.source, reported));
     }
     const kernelRange = typeof obj["kernel"] === "string" ? obj["kernel"] : "*";
     if (!satisfies(KERNEL_VERSION, kernelRange)) {

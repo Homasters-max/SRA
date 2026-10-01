@@ -16,16 +16,16 @@
 
 ## 2. guard при policy, которая не грузится (D1, D2, D4)
 
-- [ ] 2.1 `core/packs/loader.ts`: `bundledPackVersions()`. Сообщение `PACK_VERSION_RANGE` встроенного pack называет версию CLI, hint — `kernel`; код и путь прежние. SCN-KRN-167 — `e2e/validate.test.ts` или app-тест `validate`, рядом с SCN-KRN-164.
-- [ ] 2.2 `core/guard/guard.ts`:
+- [x] 2.1 `core/packs/loader.ts`: `bundledPackVersions()`. Сообщение `PACK_VERSION_RANGE` встроенного pack называет версию CLI, hint — `kernel`; код и путь прежние. SCN-KRN-167 — `e2e/validate.test.ts` или app-тест `validate`, рядом с SCN-KRN-164.
+- [x] 2.2 `core/guard/guard.ts`:
   - `PolicyNotLoaded` из `loadPolicy` — первая ошибка, версии CLI и packs, `pins` из терпимого чтения `warrant.json`;
   - `pinnedCli(root)` — тем же чтением;
   - `decidePre` — `edit` без пути проекта до policy, `PolicyNotLoaded` → `recoveryAnswer`.
-- [ ] 2.3 `core/guard/decide.ts`:
+- [x] 2.3 `core/guard/decide.ts`:
   - `recoveryAnswer`, `isRecovery`, `PIN_UP_HINT`, `CLI_OLDER_HINT`, `RECOVERY_HINT`; hints Run `review` — функции формы команды;
   - нормализация `node <cli>` → `warrant` в `reviewShellAnswer` и режиме восстановления;
   - комментарий модуля дополнен.
-- [ ] 2.4 Тесты `app/commands/guard.test.ts`: SCN-ENF-048, SCN-ENF-049, SCN-ENF-050, SCN-ENF-051, SCN-ENF-054. SCN-ENF-011…016, 026, 027, 037…041, 044 — зелёные. Unit `decide`: `recoveryAnswer` и нормализация.
+- [x] 2.4 Тесты `app/commands/guard.test.ts`: SCN-ENF-048, SCN-ENF-049, SCN-ENF-050, SCN-ENF-051, SCN-ENF-054. SCN-ENF-011…016, 026, 027, 037…041, 044 — зелёные. Unit `decide`: `recoveryAnswer` и нормализация.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts guard decide loader`.
 

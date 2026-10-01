@@ -9,7 +9,14 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { projectPath } from "../../../src/core/fs.js";
-import { reviewShellAnswer, SUBMIT_HINT } from "../../../src/core/guard/decide.js";
+import {
+  inCliForm,
+  recoveryEditAnswer,
+  recoveryShellAnswer,
+  reviewShellAnswer,
+  SUBMIT_HINT,
+  type RecoveryFailure
+} from "../../../src/core/guard/decide.js";
 import { defaultPrefix, leafCommands, matchesPrefix, simpleCommands, startsWithPrefix } from "../../../src/core/guard/shell.js";
 import type { Run } from "../../../src/core/run/types.js";
 import { shellWords } from "../../../src/core/shell.js";
@@ -385,5 +392,60 @@ describe("reviewShellAnswer: commands that write nothing and the cancel (SCN-ENF
 
   it("submits alone keep every operator of the tokenizer (I-167)", () => {
     expect(decision("warrant run submit | warrant run submit")).toBe("allow");
+  });
+});
+
+describe("the recovery mode and the pinned CLI (ADR-0053 п. 2–3)", () => {
+  const root = path.resolve("/work/project");
+  const places = {
+    cwd: root,
+    inProject: (dir: string) => projectPath(root, dir) !== undefined,
+    isRoot: (dir: string) => path.resolve(dir) === root,
+    cli: "tools/warrant.js"
+  };
+  const failure: RecoveryFailure = {
+    error: { code: "PACK_VERSION_RANGE", message: "pack core-sdd version 0.4.1 does not satisfy", hint: "set …, then run `warrant sync`" },
+    exit: "pin-up",
+    carries: "core-sdd 0.4.1",
+    reason: "the policy does not load (PACK_VERSION_RANGE): CLI 0.10.0 carries core-sdd 0.4.1; warrant.json pins core-sdd ^0.3.4"
+  };
+  const shell = (line: string, at = places): string => recoveryShellAnswer(shellWords(line), failure, at).decision;
+
+  it("recovery commands and commands that write nothing pass in the strict form; anything else is denied", () => {
+    for (const line of ["warrant sync", "warrant validate --files a.json", "warrant status", "warrant --version", "warrant -V", "git diff", "cd src && warrant sync"]) {
+      expect(shell(line), line).toBe("allow");
+    }
+    for (const line of ["warrant fmt", "warrant run submit", "warrant --version x", "npm ci", "warrant sync | cat", "warrant sync $X", "git -C x log", ""]) {
+      expect(shell(line), line).toBe("deny");
+    }
+    const denied = recoveryShellAnswer(shellWords("npm ci"), failure, places);
+    expect(denied.reason).toContain("`npm ci`");
+    expect(denied.reason).toContain(failure.reason);
+  });
+
+  it("node <cli> is warrant only exactly as written and only at the project root", () => {
+    expect(shell("node tools/warrant.js sync")).toBe("allow");
+    expect(shell("node ./tools/warrant.js sync")).toBe("deny");
+    expect(shell("cd src && node tools/warrant.js sync")).toBe("deny");
+    expect(shell("node tools/warrant.js sync", { ...places, cwd: path.join(root, "src") })).toBe("deny");
+    const { cli: _cli, ...without } = places;
+    expect(shell("node tools/warrant.js sync", without)).toBe("deny");
+  });
+
+  it("the hints name the commands as node <cli>, from the project root", () => {
+    const hints = recoveryShellAnswer(shellWords("npm ci"), failure, places).hints.join("\n");
+    expect(hints).toContain("`node tools/warrant.js sync`");
+    expect(hints).toContain("from the project root");
+    expect(hints).not.toContain("`warrant sync`");
+    expect(inCliForm("run `warrant validate`", undefined)).toBe("run `warrant validate`");
+    expect(inCliForm("no command here", "tools/warrant.js")).toBe("no command here");
+  });
+
+  it("edits: the pin alone passes with the hint sync, any other path is denied", () => {
+    expect(recoveryEditAnswer([".warrant/warrant.json"], undefined, failure)).toEqual({ decision: "allow", hints: [expect.stringContaining("`warrant sync`")] });
+    const denied = recoveryEditAnswer([".warrant/warrant.json", "src/a.ts"], undefined, failure);
+    expect(denied.decision).toBe("deny");
+    expect(denied.reason).toContain("src/a.ts");
+    expect(denied.hints.join("\n")).toContain("pin-Change");
   });
 });

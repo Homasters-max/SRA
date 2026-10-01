@@ -11,9 +11,9 @@ import {
   conditionHolds,
   controllerRules,
   evaluateController,
-  exitCodeOf,
   type ControllerRule
 } from "../../../src/core/controller/evaluate.js";
+import { exitCodeFor } from "../../../src/core/errors.js";
 import { conflictInputs, controllerInputs, type ControllerInputs } from "../../../src/core/controller/inputs.js";
 import type { Finding, Verdict } from "../../../src/core/gates/types.js";
 import type { LoadResult, PackObject } from "../../../src/core/packs/types.js";
@@ -82,7 +82,7 @@ describe("controller rules of core-sdd", () => {
   it("gate FAIL → WAIT by gate-failed, exit 2 (SCN-VER-024)", () => {
     const decision = evaluateController(RULES, inputs({ "tests-passed": "FAIL", "spec-valid": "PASS" }));
     expect(decision).toEqual({ controller_action: "WAIT", rule: "gate-failed" });
-    expect(exitCodeOf(decision.controller_action)).toBe(2);
+    expect(exitCodeFor([], decision.controller_action)).toBe(2);
   });
 
   it("open blocking UNKNOWN without FAIL → WAIT, next clarify (SCN-VER-025)", () => {
@@ -99,13 +99,13 @@ describe("controller rules of core-sdd", () => {
       inputs({ "spec-valid": "PASS", "analyze-clean": "WAIVED", "branch-isolated": "NOT_APPLICABLE" })
     );
     expect(decision).toEqual({ controller_action: "CONTINUE", rule: null });
-    expect(exitCodeOf(decision.controller_action)).toBe(0);
+    expect(exitCodeFor([], decision.controller_action)).toBe(0);
   });
 
   it("only BLOCKED, no pack rule → kernel verify-incomplete, WAIT, exit 2 (SCN-VER-039)", () => {
     const decision = evaluateController(RULES, inputs({ "spec-valid": "BLOCKED", "ids-valid": "PASS" }));
     expect(decision).toEqual({ controller_action: "WAIT", next: "verify", rule: "verify-incomplete" });
-    expect(exitCodeOf(decision.controller_action)).toBe(2);
+    expect(exitCodeFor([], decision.controller_action)).toBe(2);
   });
 
   it("policy conflict → ESCALATE first", () => {
@@ -113,8 +113,8 @@ describe("controller rules of core-sdd", () => {
       controller_action: "ESCALATE",
       rule: "policy-conflict"
     });
-    expect(exitCodeOf("ESCALATE")).toBe(2);
-    expect(exitCodeOf("STOP")).toBe(1);
+    expect(exitCodeFor([], "ESCALATE")).toBe(2);
+    expect(exitCodeFor([], "STOP")).toBe(1);
   });
 });
 
@@ -182,7 +182,7 @@ describe("rule matching and order", () => {
         expect.objectContaining({ code: "CONTROLLER_RULE_IGNORED", rule: "let-anything-through" })
       ]
     });
-    expect(exitCodeOf(blocked.controller_action)).toBe(2);
+    expect(exitCodeFor([], blocked.controller_action)).toBe(2);
 
     // FAIL is caught by gate-failed of core-sdd before the project rules are tried.
     expect(evaluateController(rules, inputs({ "tests-passed": "FAIL" }))).toEqual({ controller_action: "WAIT", rule: "gate-failed" });

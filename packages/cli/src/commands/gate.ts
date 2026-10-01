@@ -15,9 +15,8 @@
  * `archive`, `transition` and `status`: git and OpenSpec are only ever reached
  * through `ctx`, the engine and the controller stay pure.
  */
-import { exitCodeOf } from "../core/controller/evaluate.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT } from "../core/errors.js";
+import { EXIT, exitCodeFor } from "../core/errors.js";
 import { MERGE_TRANSITION } from "../core/gates/types.js";
 import { evaluate } from "../core/transition/evaluate.js";
 import { decisionFields, gateData, hooksFindings } from "../core/transition/gates.js";
@@ -49,6 +48,6 @@ export async function runGate(
 
   const hooks = evaluation.transition === MERGE_TRANSITION ? hooksFindings(ctx, change, evaluation, evaluated.loaded.config, env) : [];
   const data = gateData(evaluation, hooks);
-  const exitCode = exitCodeOf(evaluation.decision.controller_action);
+  const exitCode = exitCodeFor([], evaluation.decision.controller_action);
   return exitCode === EXIT.OK ? success(data, change) : failures([], exitCode, data, change);
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cliError, EXIT, WarrantError } from "../../src/core/errors.js";
-import { emit, failure, success, toEnvelope, type Printer } from "../../src/io/output.js";
+import { emit, failure, failures, success, toEnvelope, type Printer } from "../../src/io/output.js";
 
 function capture(): Printer & { out: string[]; err: string[] } {
   const out: string[] = [];
@@ -48,5 +48,48 @@ describe("envelope", () => {
     expect(entry.hint).toBe("run `warrant sync`");
     expect(Object.keys(cliError("USAGE", "x", { hint: "pass --y" }))).toEqual(["code", "message", "hint"]);
     expect(Object.keys(new WarrantError("USAGE", "x").toCliError())).toEqual(["code", "message"]);
+  });
+});
+
+describe("retryable (REQ-KRN-002, exit-contract D5)", () => {
+  it("a code of class retry gets retryable: true last; others have no key (SCN-KRN-160)", () => {
+    const busy = new WarrantError("BUSY", "lock held", { path: ".git/warrant/check.lock", hint: "wait" });
+    const envelope = toEnvelope("check", failure(busy));
+    expect(Object.keys(envelope.errors[0]!)).toEqual(["code", "message", "path", "hint", "retryable"]);
+    expect(envelope.errors[0]!.retryable).toBe(true);
+    const missing = toEnvelope("validate", failure(new WarrantError("CONFIG_MISSING", "no warrant.json")));
+    expect(missing.errors).toEqual([{ code: "CONFIG_MISSING", message: "no warrant.json" }]);
+  });
+
+  it("literals of any key order and every retry code — CHECK_TIMEOUT, FORGE_UNAVAILABLE", () => {
+    const literal = { hint: "retry", message: "timed out", code: "CHECK_TIMEOUT" } as const;
+    const envelope = toEnvelope("verify", failures([literal, cliError("FORGE_UNAVAILABLE", "down"), cliError("USAGE", "x")], {}));
+    expect(envelope.errors.map((e) => Object.keys(e))).toEqual([
+      ["code", "message", "hint", "retryable"],
+      ["code", "message", "retryable"],
+      ["code", "message"]
+    ]);
+  });
+
+  it("the result keeps the errors as built; only the envelope adds the key", () => {
+    const result = failures([cliError("BUSY", "held")]);
+    expect(result.errors).toEqual([{ code: "BUSY", message: "held" }]);
+  });
+});
+
+describe("exit code of a result (exit-contract D2, D4)", () => {
+  it("failures computes it from errors and outcome", () => {
+    expect(failures([cliError("BUSY", "held")]).exitCode).toBe(EXIT.RETRY);
+    expect(failures([cliError("BUSY", "held"), cliError("CONFIG_INVALID", "bad")]).exitCode).toBe(EXIT.CONFIG);
+    expect(failures([], {}, "add-search", "STOP")).toEqual({ ok: false, change: "add-search", data: {}, errors: [], outcome: "STOP", exitCode: EXIT.FAIL });
+    expect(failures([cliError("CHECK_TIMEOUT", "slow")], { n: 1 }, undefined, "WAIT").exitCode).toBe(EXIT.RETRY);
+  });
+
+  it("success is 0 and carries no outcome", () => {
+    expect(success({})).toEqual({ ok: true, data: {}, errors: [], exitCode: EXIT.OK });
+  });
+
+  it("emit returns the computed code", () => {
+    expect(emit("ci", failures([cliError("SCOPE_VIOLATION", "x"), cliError("BUSY", "y")]), capture())).toBe(EXIT.FAIL);
   });
 });

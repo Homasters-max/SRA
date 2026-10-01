@@ -12,9 +12,8 @@
  * (REQ-VER-009): a signal that changes neither the verdicts nor the exit code.
  */
 import { checksForTransition } from "../core/check/execute.js";
-import { exitCodeOf } from "../core/controller/evaluate.js";
 import type { Ctx } from "../core/ctx.js";
-import { EXIT, type ExitCode } from "../core/errors.js";
+import { EXIT, exitCodeFor, type ExitCode } from "../core/errors.js";
 import { MERGE_TRANSITION } from "../core/gates/types.js";
 import { evaluate } from "../core/transition/evaluate.js";
 import { decisionFields, gateData, hooksFindings } from "../core/transition/gates.js";
@@ -57,7 +56,7 @@ export async function runVerify(ctx: Ctx, change: string, opts: VerifyOptions = 
   };
   if (run.holder !== undefined) data["holder"] = run.holder;
 
-  const exitCode = Math.max(run.exitCode, exitCodeOf(evaluation.decision.controller_action)) as ExitCode;
+  const exitCode = Math.max(run.exitCode, exitCodeFor([], evaluation.decision.controller_action)) as ExitCode;
   if (exitCode === EXIT.OK && run.errors.length === 0) return success(data, change);
   return failures(run.errors, exitCode, data, change);
 }

@@ -3,8 +3,7 @@
  * REQ-VER-008): the gates that keep it out, the refusal, and the entry written
  * when it passed. Shared by `transition` and `archive`.
  */
-import { exitCodeOf } from "../controller/evaluate.js";
-import { EXIT, type CliError, type ExitCode } from "../errors.js";
+import { EXIT, exitCodeFor, type CliError, type ExitCode } from "../errors.js";
 import { PASSING_VERDICTS, type Verdict } from "../gates/types.js";
 import type { TransitionEntry } from "../record/write.js";
 import type { EffectivePolicy } from "../resolve/index.js";
@@ -44,7 +43,7 @@ export function forwardEntry(to: string, policy: EffectivePolicy, evaluation: Ev
  * never 0 — a gate that did not pass always keeps the transition out.
  */
 export function gatesNotPassedRefusal(evaluation: Evaluation, failed: string[]): { error: CliError; exitCode: ExitCode } {
-  let code: ExitCode = exitCodeOf(evaluation.decision.controller_action);
+  let code: ExitCode = exitCodeFor([], evaluation.decision.controller_action);
   if (code === EXIT.OK) code = EXIT.WAIT;
   const message = `${evaluation.transition}: gates not passed: ${failed.map((id) => `${id} ${String(evaluation.engine.gates[id])}`).join(", ")}`;
   return { error: { code: "GATES_NOT_PASSED", message }, exitCode: code };

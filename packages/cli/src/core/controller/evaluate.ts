@@ -16,13 +16,11 @@
  * such as a verdict). An input the CLI does not compute (`open_tasks`,
  * `analyze_findings` of 04 section 4) never matches.
  */
-import { EXIT, type ExitCode } from "../errors.js";
+import type { ControllerAction } from "../errors.js";
 import { NOT_CONTINUABLE_VERDICTS, type Finding } from "../gates/types.js";
 import { isPlainObject } from "../json.js";
 import type { LoadResult } from "../packs/types.js";
 import type { ControllerInputs } from "./inputs.js";
-
-export type ControllerAction = "CONTINUE" | "WAIT" | "STOP" | "ESCALATE";
 
 export interface ControllerRule {
   id: string;
@@ -116,15 +114,3 @@ export function evaluateController(rules: readonly ControllerRule[], inputs: Con
 
 /** Id of the kernel fallback rule: no pack rule matched, and a gate is BLOCKED. */
 export const VERIFY_INCOMPLETE = "verify-incomplete";
-
-/** Exit code of `gate` and `verify` (P-20): CONTINUE 0, STOP 1, WAIT and ESCALATE 2. */
-export function exitCodeOf(action: ControllerAction): ExitCode {
-  switch (action) {
-    case "CONTINUE":
-      return EXIT.OK;
-    case "STOP":
-      return EXIT.FAIL;
-    default:
-      return EXIT.WAIT;
-  }
-}

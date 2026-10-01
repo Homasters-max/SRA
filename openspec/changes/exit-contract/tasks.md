@@ -11,8 +11,8 @@
 
 ## 2. Классы кодов и одна функция (D1, D2, D4, D5)
 
-- [ ] 2.1 `core/errors.ts`: карта «код → класс», коды `FORGE_ACCESS` и `PACK_VERSION_RANGE`, тип действия, `exitCodeFor(errors, outcome?)` с приоритетом `3 > 1 > 4 > 2 > 0`; `WarrantError` без `exitCode`; unit-тест таблицы приоритета и классов (REQ-KRN-003).
-- [ ] 2.2 `io/output.ts`: `CommandResult.outcome?` вместо `exitCode`, код — `exitCodeFor`; `retryable: true` в `toEnvelope` по классу (REQ-KRN-002); `core/controller/evaluate.ts` — без `exitCodeOf`, тип действия из `core/errors.ts`. Тесты SCN-KRN-160 (часть `check`), unit `output`.
+- [x] 2.1 `core/errors.ts`: карта «код → класс», коды `FORGE_ACCESS` и `PACK_VERSION_RANGE`, тип действия, `exitCodeFor(errors, outcome?)` с приоритетом `3 > 1 > 4 > 2 > 0`; `WarrantError` без `exitCode`; unit-тест таблицы приоритета и классов (REQ-KRN-003).
+- [x] 2.2 `io/output.ts`: `CommandResult.outcome?` вместо `exitCode`, код — `exitCodeFor`; `retryable: true` в `toEnvelope` по классу (REQ-KRN-002); `core/controller/evaluate.ts` — без `exitCodeOf`, тип действия из `core/errors.ts`. Тесты SCN-KRN-160 (часть `check`), unit `output`.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts output errors controller`; `npm run typecheck`.
 

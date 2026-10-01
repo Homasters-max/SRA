@@ -1,4 +1,13 @@
-import { EXIT, WarrantError, type CliError, type ExitCode } from "../core/errors.js";
+import {
+  cliError,
+  exitCodeFor,
+  isRetryable,
+  WarrantError,
+  type CliError,
+  type ErrorOptions,
+  type ExitCode,
+  type Outcome
+} from "../core/errors.js";
 
 /** Result returned by every command implementation (design D-8). */
 export interface CommandResult {
@@ -6,8 +15,17 @@ export interface CommandResult {
   change?: string;
   data: Record<string, unknown>;
   errors: CliError[];
+  /** The controller action or verdict that enters the exit code with `errors` (REQ-KRN-003, exit-contract D4). */
+  outcome?: Outcome;
+  /** Set by the builders below — `exitCodeFor(errors, outcome)`, never by the call site (exit-contract D2, D4, I-235). */
   exitCode: ExitCode;
 }
+
+/**
+ * An `errors[]` entry of the envelope: `retryable: true` only for a code of
+ * class `retry`, absent otherwise (REQ-KRN-002, exit-contract D5).
+ */
+export type EnvelopeError = CliError & { retryable?: true };
 
 /** The single JSON object printed to stdout (REQ-KRN-002). */
 export interface Envelope {
@@ -15,38 +33,79 @@ export interface Envelope {
   ok: boolean;
   change?: string;
   data: Record<string, unknown>;
-  errors: CliError[];
+  errors: EnvelopeError[];
+}
+
+/**
+ * The one place `retryable` is added (exit-contract D5) — for `cliError`,
+ * literals and `toCliError` alike; keys in the order `code`, `message`,
+ * `path`, `hint`, `retryable`.
+ */
+function envelopeError(error: CliError): EnvelopeError {
+  if (!isRetryable(error.code)) return error;
+  const options: ErrorOptions = {};
+  if (error.path !== undefined) options.path = error.path;
+  if (error.hint !== undefined) options.hint = error.hint;
+  return { ...cliError(error.code, error.message, options), retryable: true };
 }
 
 /** Key order is part of the contract: command, ok, change?, data, errors. */
 export function toEnvelope(command: string, result: CommandResult): Envelope {
+  const errors = result.errors.map(envelopeError);
   return result.change === undefined
-    ? { command, ok: result.ok, data: result.data, errors: result.errors }
-    : { command, ok: result.ok, change: result.change, data: result.data, errors: result.errors };
+    ? { command, ok: result.ok, data: result.data, errors }
+    : { command, ok: result.ok, change: result.change, data: result.data, errors };
 }
 
 export function formatEnvelope(envelope: Envelope): string {
   return JSON.stringify(envelope, null, 2) + "\n";
 }
 
-/** Builds a failing result from a catalogued error. */
-export function failure(error: WarrantError, change?: string): CommandResult {
-  const result: CommandResult = { ok: false, data: error.data ?? {}, errors: [error.toCliError()], exitCode: error.exitCode };
+/**
+ * The one builder of a result: its exit code is `exitCodeFor(errors, outcome)`
+ * (REQ-KRN-003). `legacy` — transitional, see `failures`.
+ */
+function build(
+  ok: boolean,
+  data: Record<string, unknown>,
+  errors: CliError[],
+  change: string | undefined,
+  outcome: Outcome | undefined,
+  legacy?: ExitCode
+): CommandResult {
+  const result: CommandResult = { ok, data, errors, exitCode: legacy ?? exitCodeFor(errors, outcome) };
   if (change !== undefined) result.change = change;
+  if (outcome !== undefined) result.outcome = outcome;
   return result;
 }
 
-/** Builds a failing result from several collected errors (validate reports everything at once). */
-export function failures(errors: CliError[], exitCode: ExitCode, data: Record<string, unknown> = {}, change?: string): CommandResult {
-  const result: CommandResult = { ok: false, data, errors, exitCode };
-  if (change !== undefined) result.change = change;
-  return result;
+/** Builds a failing result from a catalogued error. */
+export function failure(error: WarrantError, change?: string): CommandResult {
+  // Transitional: `WarrantError.exitCode` until exit-contract group 3 removes it.
+  return build(false, error.data ?? {}, [error.toCliError()], change, undefined, error.exitCode);
+}
+
+/**
+ * Builds a failing result from several collected errors (validate reports
+ * everything at once) and the outcome that enters the exit code (exit-contract D4).
+ */
+export function failures(errors: CliError[], data?: Record<string, unknown>, change?: string, outcome?: Outcome): CommandResult;
+/** @deprecated Transitional (exit-contract group 3 removes it): the exit code chosen by the call site. */
+export function failures(errors: CliError[], exitCode: ExitCode, data?: Record<string, unknown>, change?: string): CommandResult;
+export function failures(
+  errors: CliError[],
+  dataOrCode: Record<string, unknown> | ExitCode = {},
+  changeOrData?: string | Record<string, unknown>,
+  outcomeOrChange?: Outcome | string
+): CommandResult {
+  if (typeof dataOrCode === "number") {
+    return build(false, (changeOrData as Record<string, unknown> | undefined) ?? {}, errors, outcomeOrChange, undefined, dataOrCode);
+  }
+  return build(false, dataOrCode, errors, changeOrData as string | undefined, outcomeOrChange as Outcome | undefined);
 }
 
 export function success(data: Record<string, unknown>, change?: string): CommandResult {
-  const result: CommandResult = { ok: true, data, errors: [], exitCode: EXIT.OK };
-  if (change !== undefined) result.change = change;
-  return result;
+  return build(true, data, [], change, undefined);
 }
 
 /**

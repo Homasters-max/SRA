@@ -1,80 +1,94 @@
 /**
- * Catalogue of error codes emitted in the CLI envelope (`errors[].code`).
- * Phase 1 list comes from design.md D-8; codes are UPPER_SNAKE (REQ-KRN-002).
+ * Class of an error code (REQ-KRN-003, design D1): what kind of failure it is,
+ * which gives its exit code in every command — `rule` 1 (the subject of
+ * judgement breaks a rule), `wait` 2 (the transition waits for an action),
+ * `config` 3 (configuration, an invalid file, usage, a failed tool, `INTERNAL`),
+ * `retry` 4 (an infrastructure failure a retry may get past).
  */
-export const ERROR_CODES = [
-  "USAGE",
-  "CONFIG_MISSING",
-  "CONFIG_INVALID",
-  "SCHEMA_UNKNOWN",
-  "SCHEMA_VIOLATION",
-  "SEMANTIC_INVALID",
-  "ARTIFACT_UNKNOWN",
-  "DUPLICATE_OBJECT_ID",
-  "OVERRIDE_INVALID",
-  "OVERRIDE_WEAKENS",
-  "LOCK_MISMATCH",
-  "GENERATED_DRIFT",
-  "GENERATED_TOO_LARGE",
-  "OPENSPEC_SCHEMA_INVALID",
-  "RULES_ARTIFACT_UNKNOWN",
-  "ID_FORMAT",
-  "ID_PLACEMENT",
-  "ID_DUPLICATE",
-  "ID_TAKEN",
-  "ID_IMMUTABLE",
-  "ID_DANGLING",
-  "AREA_UNKNOWN",
-  "SECRET_LIKE",
-  "NOT_CANONICAL",
-  "ALREADY_INITIALIZED",
-  "CHANGE_NAME_TAKEN",
-  "CHANGE_NOT_FOUND",
-  "PACK_NOT_FOUND",
-  "POLICY_CONFLICT",
-  "OPENSPEC_VERSION",
-  "OPENSPEC_FAILED",
-  "RULE_SCOPE",
-  "LINK_TARGET_INVALID",
-  "WAIVER_INVALID",
-  "PACK_FORM_UNKNOWN",
-  "BUSY",
-  "CHECK_TIMEOUT",
-  "CHECK_NOT_CONFIGURED",
-  "CHECK_LOCAL_FORBIDDEN",
-  "RECORD_FROZEN",
-  "STATE_INVALID",
-  "GATES_NOT_PASSED",
-  "ROLE_REQUIRED",
-  "COMMIT_NOT_MERGED",
-  "REF_MISMATCH",
-  "BELOW_FLOOR",
-  "BASE_BEHIND_UPSTREAM",
-  "RUN_ACTIVE",
-  "RUN_NOT_ACTIVE",
-  "SPEC_UNCOMMITTED",
-  "SKILL_RESULT_INVALID",
-  "FORGE_UNAVAILABLE",
-  "TOPOLOGY_VIOLATION",
-  "RECORD_MISMATCH",
-  "REF_NOT_VERIFIED",
-  "SCOPE_VIOLATION",
-  "GATE_NOT_PASSED",
-  "CHANGE_NOT_VERIFYING",
-  "EVIDENCE_NOT_VERIFIED",
-  "SPECS_NOT_ARCHIVED",
-  "PR_NOT_FOUND",
-  "PR_NOT_MERGED",
-  "PR_NOT_IMPL",
-  "COMMIT_NOT_FOUND",
-  "NO_CI_EVIDENCE",
-  "EVIDENCE_CONFLICT",
-  "UNKNOWN_NOT_FOUND",
-  "UNKNOWN_RESOLVED",
-  "INTERNAL"
-] as const;
+export type ErrorClass = "rule" | "wait" | "config" | "retry";
 
-export type ErrorCode = (typeof ERROR_CODES)[number];
+/**
+ * Catalogue of error codes emitted in the CLI envelope (`errors[].code`), each
+ * with its one class (REQ-KRN-003, design D1). Codes are UPPER_SNAKE
+ * (REQ-KRN-002); a new code has no exit code of its own, only a class.
+ */
+export const ERROR_CODES = {
+  USAGE: "config",
+  CONFIG_MISSING: "config",
+  CONFIG_INVALID: "config",
+  SCHEMA_UNKNOWN: "config",
+  SCHEMA_VIOLATION: "config",
+  SEMANTIC_INVALID: "config",
+  ARTIFACT_UNKNOWN: "config",
+  DUPLICATE_OBJECT_ID: "config",
+  OVERRIDE_INVALID: "config",
+  OVERRIDE_WEAKENS: "config",
+  LOCK_MISMATCH: "config",
+  GENERATED_DRIFT: "config",
+  GENERATED_TOO_LARGE: "config",
+  OPENSPEC_SCHEMA_INVALID: "config",
+  RULES_ARTIFACT_UNKNOWN: "config",
+  ID_FORMAT: "config",
+  ID_PLACEMENT: "config",
+  ID_DUPLICATE: "config",
+  ID_TAKEN: "config",
+  ID_IMMUTABLE: "config",
+  ID_DANGLING: "config",
+  AREA_UNKNOWN: "config",
+  SECRET_LIKE: "config",
+  NOT_CANONICAL: "config",
+  ALREADY_INITIALIZED: "config",
+  CHANGE_NAME_TAKEN: "config",
+  CHANGE_NOT_FOUND: "config",
+  PACK_NOT_FOUND: "config",
+  /** An enabled pack's version outside the range of `warrant.json` (design D8). */
+  PACK_VERSION_RANGE: "config",
+  POLICY_CONFLICT: "wait",
+  OPENSPEC_VERSION: "config",
+  OPENSPEC_FAILED: "config",
+  RULE_SCOPE: "config",
+  LINK_TARGET_INVALID: "config",
+  WAIVER_INVALID: "config",
+  PACK_FORM_UNKNOWN: "config",
+  BUSY: "retry",
+  CHECK_TIMEOUT: "retry",
+  CHECK_NOT_CONFIGURED: "config",
+  CHECK_LOCAL_FORBIDDEN: "config",
+  RECORD_FROZEN: "config",
+  STATE_INVALID: "config",
+  GATES_NOT_PASSED: "wait",
+  ROLE_REQUIRED: "config",
+  COMMIT_NOT_MERGED: "config",
+  REF_MISMATCH: "config",
+  BELOW_FLOOR: "config",
+  BASE_BEHIND_UPSTREAM: "config",
+  RUN_ACTIVE: "config",
+  RUN_NOT_ACTIVE: "config",
+  SPEC_UNCOMMITTED: "config",
+  SKILL_RESULT_INVALID: "config",
+  FORGE_UNAVAILABLE: "retry",
+  /** The forge refuses access: `gh` missing or not logged in, HTTP 401, 403 without a rate limit (design D7). */
+  FORGE_ACCESS: "config",
+  TOPOLOGY_VIOLATION: "rule",
+  RECORD_MISMATCH: "rule",
+  REF_NOT_VERIFIED: "rule",
+  SCOPE_VIOLATION: "rule",
+  GATE_NOT_PASSED: "rule",
+  CHANGE_NOT_VERIFYING: "rule",
+  EVIDENCE_NOT_VERIFIED: "rule",
+  SPECS_NOT_ARCHIVED: "rule",
+  PR_NOT_FOUND: "config",
+  PR_NOT_MERGED: "config",
+  PR_NOT_IMPL: "config",
+  COMMIT_NOT_FOUND: "config",
+  NO_CI_EVIDENCE: "config",
+  EVIDENCE_CONFLICT: "config",
+  UNKNOWN_NOT_FOUND: "config",
+  UNKNOWN_RESOLVED: "config",
+  INTERNAL: "config"
+} as const satisfies Record<string, ErrorClass>;
+
+export type ErrorCode = keyof typeof ERROR_CODES;
 
 /**
  * One entry of `errors[]` in the envelope. `path` is a file path or a JSON Pointer;
@@ -114,15 +128,71 @@ export function cliError(code: ErrorCode, message: string, options: ErrorOptions
   return error;
 }
 
-/** Exit codes per REQ-KRN-003. */
+/** Exit codes per REQ-KRN-003; a command's code is chosen only by `exitCodeFor`. */
 export const EXIT = {
   OK: 0,
   FAIL: 1,
   WAIT: 2,
-  CONFIG: 3
+  CONFIG: 3,
+  RETRY: 4
 } as const;
 
 export type ExitCode = (typeof EXIT)[keyof typeof EXIT];
+
+/** Exit code of each class (REQ-KRN-003). */
+const CLASS_EXIT = {
+  rule: EXIT.FAIL,
+  wait: EXIT.WAIT,
+  config: EXIT.CONFIG,
+  retry: EXIT.RETRY
+} as const satisfies Record<ErrorClass, ExitCode>;
+
+/** True for a code of class `retry`: its `errors[]` entry carries `retryable: true` (REQ-KRN-002, design D5). */
+export function isRetryable(code: ErrorCode): boolean {
+  return ERROR_CODES[code] === "retry";
+}
+
+/**
+ * Action of the controller (04 section 4, REQ-VER-005). Declared here, not in
+ * `core/controller`: rank 0 does not import the controller, which reuses the
+ * type (design D2).
+ */
+export type ControllerAction = "CONTINUE" | "WAIT" | "STOP" | "ESCALATE";
+
+/**
+ * What enters the exit code besides `errors[]` (design D2): the controller
+ * action of `gate`, `verify`, `transition`, `archive`, or the verdict `FAIL`
+ * of `analyze` (findings).
+ */
+export type Outcome = ControllerAction | "FAIL";
+
+/** Exit code of an outcome (REQ-KRN-003): CONTINUE 0, STOP and FAIL 1, WAIT and ESCALATE 2. */
+const OUTCOME_EXIT = {
+  CONTINUE: EXIT.OK,
+  STOP: EXIT.FAIL,
+  FAIL: EXIT.FAIL,
+  WAIT: EXIT.WAIT,
+  ESCALATE: EXIT.WAIT
+} as const satisfies Record<Outcome, ExitCode>;
+
+/**
+ * Exit codes from the eldest down (REQ-KRN-003): an error a retry cannot fix
+ * (3, then 1) is elder than a retryable one (4), and that is elder than a wait
+ * (2) computed on data a failure left incomplete.
+ */
+const PRIORITY = [EXIT.CONFIG, EXIT.FAIL, EXIT.RETRY, EXIT.WAIT] as const;
+
+/**
+ * The one choice of a command's exit code (REQ-KRN-003, design D2): the eldest,
+ * by `3 > 1 > 4 > 2 > 0`, of the classes of `errors` and the code of
+ * `outcome`. No errors and no outcome, or `CONTINUE` — 0. A code outside the
+ * catalogue (never typed so, but read from outside) counts as `config`.
+ */
+export function exitCodeFor(errors: readonly Pick<CliError, "code">[], outcome?: Outcome): ExitCode {
+  const present = new Set<ExitCode>(errors.map((error) => CLASS_EXIT[ERROR_CODES[error.code] ?? "config"]));
+  if (outcome !== undefined) present.add(OUTCOME_EXIT[outcome]);
+  return PRIORITY.find((code) => present.has(code)) ?? EXIT.OK;
+}
 
 /**
  * Exception carrying a catalogued code. Core modules throw it; the command
@@ -132,6 +202,11 @@ export class WarrantError extends Error {
   readonly code: ErrorCode;
   readonly path: string | undefined;
   readonly hint: string | undefined;
+  /**
+   * @deprecated Transitional (exit-contract group 3 removes it with the option
+   * `exitCode`): the code a throwing site chose itself, 3 when it chose none.
+   * The code of an error is the class of `code` (`exitCodeFor`, design D4).
+   */
   readonly exitCode: ExitCode;
   /** What the failing command puts in `data` (`{}` without it), e.g. `received` of `SKILL_RESULT_INVALID` (I-199). */
   readonly data: Record<string, unknown> | undefined;
@@ -163,5 +238,5 @@ export function forgeUnavailable(message: string, hint: string = FORGE_HINT): Wa
 }
 
 export function isErrorCode(value: string): value is ErrorCode {
-  return (ERROR_CODES as readonly string[]).includes(value);
+  return Object.prototype.hasOwnProperty.call(ERROR_CODES, value);
 }

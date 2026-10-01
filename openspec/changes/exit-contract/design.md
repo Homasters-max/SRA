@@ -100,3 +100,4 @@
 
 | # | Решение | Где |
 |---|---|---|
+| I-235 | D4 «`outcome?` вместо `exitCode`» — уточнение: `CommandResult` несёт `outcome?` и поле `exitCode`, которое ставят только построители `io/output.ts` (`success`, `failure`, `failures`) значением `exitCodeFor(errors, outcome)`; место вызова кода не передаёт. Поле остаётся: около 470 утверждений тестов читают `result.exitCode`, а код выхода — свойство результата, которое `emit` и `emitToProcess` выводят без повторного вычисления. `retryable` добавляет только `toEnvelope`: в `CommandResult.errors` ключа нет | `io/output.ts`, задача 2.2 |

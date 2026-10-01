@@ -1,0 +1,139 @@
+# Design: judge-law
+
+## Context
+
+База — `main` после archive-PR `exit-contract` (`dcec61e`): CLI 0.10.0 не выпущен, pack `core-sdd` 0.4.1, `kernel` 0.10. Норма — [ADR-0052](../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 3–4. Факты кода собраны 2026-10-01 на `dcec61e`; пути — от `packages/cli/src`.
+
+**Закон перехода сейчас:**
+- hash effective policy считает `resolve` (`core/resolve/merge.ts:127-219`, `canonicalHash(content)`, `:213`). В hash входят `risk_level`, `artifacts`, `gates` переходов, `capabilities.forbidden`, `approvals`, `evidence.required`; не входят `sources` и `explain`.
+- Судья сверяет hash только у нового `MERGED`: функция `mergedRules` (`core/ci/record.ts:123-169`) сравнивает его с `basePolicy`, то есть с законом HEAD^1 archive-PR для классификации HEAD. Ключи `gates` проверяются только при совпавшем hash. Ошибка в обоих случаях — `RECORD_MISMATCH` с причиной `policy`.
+- У остальных переходов вперёд проверяется только наличие строки hash (`record.ts:383-385`).
+- `withBase(ctx, commit, use)` (`core/ci/base.ts:44-57`) уже работает для любого коммита: worktree, `loadPacks`, `acceptChangedLaw`. Сбой `worktreeAt` бросает `USAGE`.
+- `mergeLaw` (`core/ci/merge.ts:144-165`) — образец «закона на коммите» для M^1. Он закрывается fail-closed `law(reason)`, если:
+  - packs M^1 дают ошибки;
+  - `changedBundledPacks` непуст;
+  - record или diff не найден;
+  - `resolveRecord` не составился.
+- Встроенный pack берётся из установленного CLI. Коммит узнаёт его только по `hash` в своём lock (`changedBundledPacks`, `base.ts:120-132`).
+- Порт `GitPort` (`core/ports/git.ts`) даёт `mergeBase`, `firstParents` (без фильтра путей), `parents`, `diffNameStatus`, `worktreeAt`. Списка boundary-коммитов диапазона в порту нет.
+- Policy-пути — `match.paths` профиля `factory-change` (`policyPaths`, `core/packs/objects.ts:102-106`). В SRA к ним относится и `packages/cli/src/**`: любой слитый impl-PR меняет policy-пути.
+- CI checkout полный (`fetch-depth: 0`, `.github/workflows/warrant.yml:77`).
+
+**R-45:**
+- `loadPacks` собирает ошибки packs в `errors[]`, а `loadConfig` бросает `CONFIG_MISSING` или `CONFIG_INVALID` (`core/config.ts:137-156`).
+- `mergeLaw` и `mergedByLaw` (`core/ci/refs.ts:135-153`) это исключение не ловят. Весь `warrant ci` завершается кодом 3 через `resultFromThrown`.
+- Тесты D3 `agent-merge` — `test/app/commands/ci.test.ts:1172-1270`. Сломанного `warrant.json` M^1 среди них нет.
+
+**A-45, основание `NOT_APPLICABLE` по evidence:**
+- Движок, `evidencePart` (`core/gates/verdict.ts:166-235`), по каждому требованию: кандидаты `satisfies`, затем принятые по `attestationAccepted` (`:94-101`), затем `freshest` (`:110-122`). `NOT_APPLICABLE` — если все выбранные записи `NOT_APPLICABLE` и `fromCheck`.
+- Судья, `verdictsRule` (`core/ci/record.ts:276-346`): `some` по любой записи `evidence[]` перехода, `byCheck` (`:259-262`) — копия приватной `fromCheck`. У `MERGED` он требует `attestation.type: "ci"` и `subject.commit` M^2, а `accepts_attestation` не читает.
+- `producerOf` (A-43) в коде нет.
+
+**A-47, ref перехода:** «PR этого репозитория по ref» разобран в пяти местах:
+- `judgeRefs` (`refs.ts:179-193`);
+- `mergedPullOf` (`refs.ts:89-96`);
+- `judgeDecisions` (`core/ci/decisions.ts:70-81`);
+- `pullOf` (`core/ci/fetch.ts:53-68`);
+- `defaultBranch` (`core/ci/archive.ts:120-125`), без сверки репозитория.
+
+Ещё `approvedPr` (`core/ci/judge.ts:95-100`) разбирает номер PR. Кэша нет: `ForgeGh.pullRequest` ходит в API на каждый вызов. M одного `MERGED` ищут `judgeRefs` и `mergeOfMerged` (`refs.ts:103-113`) — с разными предусловиями.
+
+**A-34, разбор `requires_evidence`:**
+- `requirementsOf` (`verdict.ts:67-78`) — проверяет `status`;
+- `checksForTransition` (`core/check/execute.ts:42-67`);
+- `requiresKind` (`core/gates/l0/evidence-complete.ts:17-20`);
+- `gateKinds` (`core/resolve/index.ts:41-55`);
+- `weakenings` (`core/packs/overrides.ts:87-120`) — проверяет `status`;
+- `transitionFed` (`core/ci/impl.ts:51-55`);
+- `gateCheckErrors` (`core/packs/objects.ts:40-69`).
+
+`produces` читают:
+- `execute.ts:65`, `:127`, `:338`;
+- `impl.ts:96`;
+- `record.ts:117-119` (`checkKinds`);
+- `gateCheckErrors`.
+
+Схема `gate/1` требует у элемента `kind` и `status` (`schemas/gate.1.schema.json:48-70`).
+
+**A-40, «нужен человек»:**
+- `requiresHuman(policy, transition)` (`core/roles.ts:58-60`) — по id gate. Его зовут `humanAcceptance` (`base.ts:103-108`) и `mergedByLaw` (`refs.ts:142`).
+- Копия того же выражения — `forward` (`commands/transition.ts:197`).
+- По kind спрашивают `transitionFed` (`every`, `impl.ts:51-55`) и `controllerInputs` (`some`, `core/controller/inputs.ts:76-77`).
+
+**R-46:**
+- `bin/warrant.ts:597-609`: action `guard` без `--frontend` зовёт `run`. Исключение runner'а `run` ловит сам (`:102-113`, `resultFromThrown`): наружу выходит `INTERNAL`, код 3.
+- `runGuardCrash` (`commands/guard.ts:26-28`) зовёт только `onCrash` (`bin/crash.ts`) — на `uncaughtException`.
+
+**Архитектура** (`test/unit/meta/architecture.json`):
+- ранги: `core/packs` — 1, `core/roles` — 2, `core/gates` — 3, `core/ci` — 4;
+- импорт `core/ci` → `core/gates/predicates.ts` разрешён и уже есть (`record.ts:22`);
+- реестр `helpers` (`:49-90`) — `{ name, owner }`; правило сверяет только имена (`byCheck` и `fromCheck` не ловит).
+
+## Goals / Non-Goals
+
+**Goals:**
+- Закон каждого нового перехода вперёд проверяем: hash и состав gates — закон `main` или HEAD.
+- Основание записанного `NOT_APPLICABLE` вычисляет один предикат для движка и судьи. Evidence судья по-прежнему не пересчитывает (N44).
+- Ref, M, M^1 и diff M судья вычисляет один раз; каждый PR форж отдаёт один раз за прогон.
+- Сломанная конфигурация M^1 закрывает исключение agent-merge, а не роняет прогон.
+- Требования gate, виды check и признак «нужен человек» имеют по одному владельцу.
+
+**Non-Goals:** — proposal.
+
+## Decisions
+
+### 1. Решения
+
+| # | Решение |
+|---|---|
+| D1 | **Закон на коммите — одна функция.** Новый модуль `core/ci/law.ts`, функция `lawAt(ctx, commit, classifications)`.<br>• Строит законы коммита через `withBase` для каждой классификации, профили которой известны packs коммита.<br>• Возвращает `{ computed: true, laws[] }` (каждый закон — `{ hash, gates }`) или `{ computed: false, reason }`.<br>• Не вычислен, если: `loaded.errors` непусты; `changedBundledPacks` непуст; `loadPacks` или `loadConfig` бросили `CONFIG_MISSING` или `CONFIG_INVALID`.<br>• `POLICY_CONFLICT` и профиль, которого нет в packs, закона не дают и причиной «не вычислен» не считаются: переход на таком коммите не записывается.<br>• Сбой `worktreeAt` (`USAGE`, коммита нет в checkout) остаётся ошибкой окружения, код 3, как у базы.<br>• `mergeLaw` строится на `lawAt` |
+| D2 | **Окно законов** — `lawWindow(ctx, subject, base)` в `core/ci/law.ts`.<br>• Точка ответвления — самый ранний коммит first-parent линии HEAD^1 среди родителей коммитов PR. Новый метод порта `GitPort.boundary(base, head)` (`git rev-list --boundary base..head`, только boundary-строки), адаптер `adapters/git.ts`. Пересечения с first-parent линией нет — `mergeBase(HEAD^1, HEAD^2)`.<br>• Коммиты окна — first-parent линия HEAD^1 после точки ответвления, чей `diffNameStatus(c^1, c)` задевает `basePolicyPaths(base)`; плюс сама точка ответвления и HEAD.<br>• Законы вычисляются лениво, от новых к старым: HEAD, затем коммиты окна от HEAD^1 к точке ответвления. Обход останавливается, когда hash каждого нового перехода найден.<br>• Классификации — `classification` record базы (если он есть) и HEAD; одинаковые считаются один раз |
+| D3 | **Правило закона перехода** — в `judgeRecord`, для каждого нового перехода вперёд, кроме `PROPOSED`.<br>• Hash найден — ключи `gates` перехода (сортировка) сравниваются с `gates[<from>-><to>]` этого закона. Расхождение — `RECORD_MISMATCH`, причина `policy`, pointer `#/transitions/<i>/gates`.<br>• Не найден, и все законы окна вычислены — `RECORD_MISMATCH`, причина `policy`, pointer `#/transitions/<i>/effective_policy_hash`.<br>• Не найден, а хотя бы один закон не вычислен — находка `LAW_NOT_COMPUTED` в `data.findings[]`. В `message` — переход и коммиты невычисленных законов с причинами; одна находка на переход. Код находки — в каталоге информационных находок рядом с `AGENT_MERGE_CLOSED`.<br>• Из `mergedRules` уходят сверка hash и ключей `gates` с `basePolicy`; правило `ci_evidence` остаётся по базе |
+| D4 | **R-45.** `mergeLaw` через `lawAt` (D1) получает «не вычислен» с причиной «`warrant.json` M^1 нет или непригоден» вместо исключения. `MergeLaw.config` становится необязательным. Без него `mergedByLaw` берёт `roles.maintainer` и `identities.agents` базы требований (HEAD^1), исключение закрыто, находка `AGENT_MERGE_CLOSED` несёт причину. Код ref — как у прочих fail-closed причин |
+| D5 | **Предикаты основания по evidence** (A-45) — в `core/gates/predicates.ts`:<br>• `fromCheck(record)`;<br>• `satisfies(requirement, record)`, `freshest(records)` и `attestationAccepted(definition, transition)` — переносятся из `verdict.ts`;<br>• `chosenRecord(requirement, records, accepts)` → `{ record?, candidates }`;<br>• `notApplicableByEvidence(requirements, records, accepts)` — требования непусты, у каждого есть выбранная запись, и все они `NOT_APPLICABLE` и `fromCheck`.<br>`evidencePart` зовёт `chosenRecord` и `notApplicableByEvidence`.<br>`verdictsRule` зовёт `notApplicableByEvidence` с `accepts` = `attestationAccepted(definition, to)`, а у `MERGED` — ещё `attestation.type: "ci"` и `subject.commit` M^2 (если M найден). `byCheck` удаляется.<br>Имена — в реестр `helpers` с владельцем `core/gates/predicates.ts` |
+| D6 | **Ref перехода — один шаг** (A-47).<br>• `pullOfRef(ctx, ref)` в `core/ci/refs.ts` принимает URL PR или номер. Делает разбор, `forge.pullRequest` и сверку `owner/repo`; возвращает `{ pull }` или `{ reason: "repository" }`.<br>• Запросы PR одного прогона мемоизирует обёртка порта форжа: `memoForge(forge)` ставит `judgePullRequest` и `ci fetch`.<br>• `transitionRefs(ctx, subject, transitions)` до правил строит для каждого нового `APPROVED` и `MERGED` `{ index, pull? , reason?, merge?, mergeDiff? }`, у `MERGED` — M по правилу ref.<br>• Результат получают `judgeRefs`, `verdictsRule` (M и diff M), `verifyCiEvidence` (ветка по умолчанию) и `judgeDecisions` (PR перехода `APPROVED`, вместо `approvedPr`).<br>• `fetch.ts` и разбор URL комментария в `decisions.ts` зовут `pullOfRef`.<br>• `mergedPullOf`, `mergeOfMerged`, `approvedPr` и замыкание `defaultBranch` удаляются.<br>• Вердикт не меняется: ветка по умолчанию берётся у PR этого репозитория, а ref чужого репозитория уже даёт `REF_NOT_VERIFIED` |
+| D7 | **Один разбор видов** (A-34) — в `core/packs/objects.ts`:<br>• `requirementsOf(gate)` и тип `Requirement` — переносятся из `verdict.ts`;<br>• `producedKinds(check)` — новая.<br>Их зовут все места разбора: `checksForTransition`, `requiresKind`, `gateKinds`, `weakenings`, `transitionFed`, `gateCheckErrors`, `checkKinds`, `judgeImpl` и три места `execute.ts`.<br>Строки `helpers` с владельцем `core/packs/objects.ts`. Ранг 1 ниже всех потребителей |
+| D8 | **«Нужен человек»** (A-40) — это два понятия, у каждого один предикат в `core/roles.ts`:<br>• `requiresHuman(policy, transition)` — нужен ли переходу акт человека (id gate). Его зовёт и `forward` в `commands/transition.ts`;<br>• `humanEvidence(requirement)` — пишет ли эту запись акт человека через `warrant transition` (kind `human-approval`). `transitionFed` спрашивает `every`, `controllerInputs` — `some`.<br>Строка `helpers` для `humanEvidence` |
+| D9 | **`warrant guard`** (R-46). `run` в `bin/warrant.ts` получает необязательный перевод исключения в результат; по умолчанию — `resultFromThrown`. Action `guard` без `--frontend` передаёт `(thrown) => runGuardCrash(crash.guardInput, thrown)`: решение `deny` (или `allow` в фазе `post`, I-236), код 0. Перевод — экспортируемая функция `commands/guard.ts`, тест зовёт её и `run` напрямую |
+| D10 | **`run submit`** (BL-105). Код ошибки уже выбирает класс (`exit-contract`); меняются текст REQ-ENF-007 и тест SCN-ENF-047 с `BUSY` атомарной записи |
+| D11 | **Версии и CHANGELOG.** Версии не поднимаются: CLI 0.10.0, pack `core-sdd` 0.4.1 и `kernel` 0.10 уже подняты после `v0.9.0`; pack и схемы не меняются. В `CHANGELOG.md`, `## 0.10.0 — не выпущена`, дополняется раздел «Вердикт»: окно законов, `LAW_NOT_COMPUTED`, `NOT_APPLICABLE` по самой свежей записи, M^1 без `warrant.json`, `guard`. «Миграция для потребителя»: record, записанный не по закону `main`, теперь красит CI — повтор перехода после merge `main` в ветку |
+
+### 2. Альтернативы
+
+- **Опорный коммит на переход** (`SPECIFIED` — точка ответвления, `APPROVED` — M spec-PR). Отвергнуто в ADR-0052: сдвиг `main` между merge spec-PR и ответвлением impl-PR даёт отказ честному record.
+- **Окно от `merge-base(HEAD^1, HEAD^2)`.** Отвергнуто: после merge `main` в ветку merge-base сдвигается вперёд, и законы переходов, записанных до этого merge, выпадают из окна.
+- **Только закон HEAD^1 для всех переходов.** Отвергнуто: ломается сдвигом `main`, как опорный коммит.
+- **Невычисленный закон — нарушение.** Отвергнуто: каждый PR, поднимающий встроенный pack, получал бы отказ по переходам, записанным старым CLI. Правка pack — путь класса приёмки, PR сливает maintainer.
+- **Все законы окна сразу.** Отвергнуто: в SRA каждый слитый impl-PR меняет policy-пути (`packages/cli/src/**`), и окно долгого PR — десятки worktree. Ленивый обход обычно останавливается на HEAD или HEAD^1.
+- **Отбор коммитов окна по входам закона** (`.warrant/**`, `packs/**`) вместо policy-путей. Отвергнуто: ADR-0052 п. 4 задаёт policy-пути. Ленивый обход снимает цену.
+- **Основание `applies_when` у переходов, кроме `MERGED`, по diff всего PR.** Отвергнуто: diff растёт после перехода, и `APPROVED`, записанный в начале impl-PR, получил бы ложный отказ. Остаётся остаточный риск (proposal, Non-Goals).
+- **Судья исполняет `evaluateGates`.** Отвергнуто ADR-0052 п. 3: снимает N44.
+- **Судья читает `accepts_attestation` у `MERGED` без требования `ci`.** Отвергнуто: запись `human-review` или `signature` прошла бы как evidence run impl-PR, а правило `ci_evidence` требует `ci`.
+- **`producerOf` (A-43) вместо `fromCheck`.** Отвергнуто: функции нет, а `fromCheck` — ровно нужный вопрос.
+- **Кэш PR в адаптере `forge-gh`.** Отвергнуто: адаптер живёт дольше прогона в тестах, а мемоизация на прогон — свойство судьи.
+- **`try/catch` внутри runner'а `guard`.** Отвергнуто: исключения `productionCtx` и `projectRoot` случаются до runner'а.
+
+### 3. Порядок
+
+- Группа 1 — рефакторинг без смены вердикта: разбор видов (D7) и «нужен человек» (D8). Существующие тесты держат поведение.
+- Группа 2 — предикаты A-45 (D5), SCN-VER-144.
+- Группа 3 — ref одним шагом (D6). Нужен до группы 4: окну и R-45 нужен M.
+- Группа 4 — `lawAt` и R-45 (D1, D4), SCN-VER-145.
+- Группа 5 — окно и правило закона (D2, D3), SCN-VER-140…143.
+- Группа 6 — `guard` (D9) и `run submit` (D10).
+- Группа 7 — документы (D11).
+
+impl-PR сливает maintainer: пути CLI — класс приёмки (ADR-0051 п. 2).
+
+### 4. Риски
+
+- **Закон ветки, а не `main`.** Если impl-PR меняет закон (pack, `.warrant/local/**`), а `main` после точки ответвления тоже его менял, закон переходов ветки — «точка ответвления + PR». Он не равен ни одному закону окна. Восстановление: merge `main` в ветку и повтор перехода (`VERIFYING->IMPLEMENTING->VERIFYING`). Случай редкий: оба изменения — пути класса приёмки.
+- **`LAW_NOT_COMPUTED` прячет подложный hash**, пока в окне есть закон с другим встроенным pack. Окно смены pack короткое (до merge PR, поднявшего pack), и правку pack сливает maintainer.
+- **Цена прогона.** Каждый вычисленный закон — worktree и `loadPacks`. Ленивый обход (D2) обычно ограничен HEAD и одним-двумя коммитами. Худший случай — честный record с законом точки ответвления после долгого PR.
+- **`requirementsOf` в `gateCheckErrors`** отбрасывает элемент без строкового `status`, а прежний разбор его видел. Объекты packs проходят схему `gate/1` при загрузке, и такой элемент даёт ошибку схемы раньше.
+- **Переходы, записанные до 0.10.0 по закону, которого нет в окне**, например после ручной правки record. Этот record теперь красит CI. Так и задумано — это и есть закрытая дыра WS-03; миграция — в CHANGELOG.
+
+## Решения по ходу реализации
+
+| # | Решение | Где |
+|---|---|---|

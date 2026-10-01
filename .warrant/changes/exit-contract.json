@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://change-record/1",
   "change": "exit-contract",
-  "change_state": "PROPOSED",
+  "change_state": "SPECIFIED",
   "classification": {
     "profiles": [
       "chore",
@@ -20,6 +20,20 @@
       "to": "PROPOSED",
       "at": "2026-10-01T01:12:14.368Z",
       "by": "cli:local"
+    },
+    {
+      "to": "SPECIFIED",
+      "at": "2026-10-01T01:37:19.618Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+      "gates": {
+        "ids-valid": "PASS",
+        "required-artifacts-present": "PASS",
+        "spec-valid": "PASS"
+      },
+      "evidence": [
+        "EVID-01M3THQ9565XMKFJGF3GWR6AFS"
+      ]
     }
   ]
 }

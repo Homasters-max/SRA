@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3VV1MJZ5YA1C6NDZHC8876F",
+  "claim": {
+    "text": "specification/adversarial-review@0.2.0 reviewed the spec of guard-recovery: 0 BLOCKER, 3 MAJOR, 6 MINOR, 1 INFO",
+    "targets": []
+  },
+  "kind": "review",
+  "level": "L2",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "b7b06a28728e7351f62a8ae1d9d262930249c154",
+    "spec_revision": "openspec/changes/guard-recovery@b7b06a28728e7351f62a8ae1d9d262930249c154",
+    "spec_tree": "sha256:09a70dd53d105e1e6e2c8566a41306ed0ced9d19419f9465479b76e2d500571b",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "skill",
+    "id": "specification/adversarial-review",
+    "version": "0.2.0",
+    "run": "RUN-01M3VTP1J2H8B9C58P2PAYBMNX"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:3b617a66f884883e6f424d1b6885d5a60b18a9f664e938e230fd5700ff18a9f3",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-10-01T13:39:15.680Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/runs/RUN-01M3VTP1J2H8B9C58P2PAYBMNX.result.json",
+      "sha256": "sha256:70231b9eceaa98fb13e62226962fe91112e0799f4f90d0186b09f06fabc98923"
+    }
+  ],
+  "limitations": [
+    "produced locally, unattested",
+    "same model family as author"
+  ],
+  "metrics": {
+    "BLOCKER": 0,
+    "INFO": 1,
+    "MAJOR": 3,
+    "MINOR": 6
+  }
+}

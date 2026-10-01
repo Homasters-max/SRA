@@ -177,8 +177,10 @@ Controller SHALL быть чистой функцией входов. Код в�
 ровно с двумя родителями: первый — tip базы, второй — head PR ([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 3);
 иначе `USAGE` с `hint`, код 3. `warrant ci` SHALL работать с состоянием в `.warrant`: заданный `WARRANT_STATE_DIR` — `USAGE`,
 код 3. Diff — `HEAD^1..HEAD`. Репозиторий форжа — `GITHUB_REPOSITORY`, иначе из URL remote `origin`
-([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 6); `GITHUB_REPOSITORY` не вида `<owner>/<repo>`, а без него — `origin`,
-не указывающий на репозиторий форжа, — `USAGE` с `hint`, код 3: это ошибка окружения, а не недоступный форж.
+([ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 6). Репозиторий SHALL определяться при первом обращении к форжу; вызов,
+который к форжу не обращается (`--dry-run`, вид без проверки ref и run), его не проверяет. `GITHUB_REPOSITORY` не вида
+`<owner>/<repo>`, а без него — `origin` нет или он не указывает на репозиторий форжа, — `USAGE` с `hint`, код 3: это ошибка
+окружения, а не недоступный форж.
 
 **База требований.** Всё, из чего `warrant ci` выводит требования к PR, SHALL читаться из packs и `warrant.json` дерева HEAD^1
 (базы), а не из PR ([ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md) п. 1): policy-пути (`match.paths`
@@ -307,9 +309,11 @@ archive (ниже), иначе `SCOPE_VIOLATION` (R-16). Правила путе
     информационная находка `ROLES_CHANGED`;
   - `change_state` не `VERIFYING` — нарушение `CHANGE_NOT_VERIFYING`;
   - ошибки checks (`CHECK_TIMEOUT`, `BUSY`, `CHECK_NOT_CONFIGURED`, `CHECK_LOCAL_FORBIDDEN`) — в `errors[]` с кодом выхода их класса
-    ([REQ-KRN-003](../kernel/spec.md): `CHECK_TIMEOUT` и `BUSY` — 4, остальные — 3); `GATE_NOT_PASSED` gate с verdict `BLOCKED` при
-    ошибке check перехода остаётся в `errors[]`, но код выхода не выбирает — его выбирают ошибка check и остальные нарушения, как
-    в [REQ-VER-006](#requirement-команда-verify);
+    ([REQ-KRN-003](../kernel/spec.md): `CHECK_TIMEOUT` и `BUSY` — 4, остальные — 3), как в [REQ-VER-006](#requirement-команда-verify);
+    gate с verdict `BLOCKED`, хотя бы один элемент `requires_evidence` которого требует kind, производимый check перехода,
+    завершившимся такой ошибкой, SHALL NOT давать `GATE_NOT_PASSED`: его verdict — в `data.gates`, причина — ошибка check в
+    `errors[]`; остальные gates `FAIL` и `BLOCKED` (например, `BLOCKED` с `ATTESTATION_REQUIRED` по kind другого check) дают
+    `GATE_NOT_PASSED` по общему правилу;
   - `FRONTEND_HOOKS_INACTIVE` ([REQ-VER-009](#requirement-живость-hooks)) — в `data.findings[]` без влияния на код выхода.
 - **archive**:
   - пути — как у spec-PR, плюс `openspec/specs/**` по общему правилу и каталог архива `openspec/changes/archive/<date>-<change>/**`;
@@ -338,11 +342,15 @@ artifact?, dry_run?, would_write[]? }`; `transitions[]` — новые пере�
 **Код выхода:**
 - 0 — нарушений нет;
 - 1 — хотя бы одно нарушение PR: коды выше, включая `TOPOLOGY_VIOLATION`, в `errors[]` с `hint`;
+- 2 — `POLICY_CONFLICT` effective policy (класс ожидания, [REQ-KRN-003](../kernel/spec.md));
 - 3 — ошибка конфигурации, `USAGE`, ошибка check `CHECK_NOT_CONFIGURED` или `CHECK_LOCAL_FORBIDDEN`, ошибка `openspec`, отказ
-  доступа к форжу — `gh` не найден, не авторизован или без прав на репозиторий (`FORGE_ACCESS` с `hint` про `gh auth login` или
-  `GH_TOKEN`);
-- 4 — сбой инфраструктуры, повтор может пройти (`retryable: true`): форж недоступен — сеть, таймаут, ответ 5xx, лимит запросов,
-  ответ, который не удалось разобрать (`FORGE_UNAVAILABLE`), `CHECK_TIMEOUT`, `BUSY`;
+  доступа к форжу — `gh` не найден, не авторизован (HTTP 401) или получил HTTP 403 не из-за лимита запросов (`FORGE_ACCESS` с
+  `hint` про `gh auth login` или `GH_TOKEN`). Репозиторий, невидимый токену, форж GitHub отдаёт как HTTP 404 — его не отличить от
+  отсутствующего объекта, и он даёт ту же ошибку, что отсутствующий PR, run или комментарий;
+- 4 — сбой инфраструктуры, повтор может пройти (`retryable: true`): форж недоступен (`FORGE_UNAVAILABLE`) — сеть, таймаут, ответ
+  5xx, HTTP 429 или 403 лимита запросов, ответ, который не удалось разобрать (обрезанный или чужой — прокси), сбой загрузки
+  неистёкшего artifact, а также любой другой сбой `gh`, не названный в коде 3; `CHECK_TIMEOUT`, `BUSY`. Artifact, который форж
+  называет истёкшим, — не сбой форжа: `EVIDENCE_NOT_VERIFIED` (archive-PR) или запись в `data.skipped[]` (`ci fetch`);
 - старший из кодов — по приоритету [REQ-KRN-003](../kernel/spec.md): нарушение PR (1) старше сбоя (4), и повтор его не снимет.
 Исключение — проверка решений UNKNOWN в PR без нового перехода `APPROVED`: недоступный форж и отказ доступа там — находка
 `DECISION_NOT_VERIFIED` (REQ-VER-013).
@@ -443,7 +451,7 @@ checks и `data.would_write[]` без запуска checks и без обращ
 #### Scenario: Check не уложился в timeout
 <!-- id: SCN-VER-095 -->
 - **WHEN** на impl-PR check `tests-passed` прерван по `execution.timeout_s`
-- **THEN** `errors[]` содержит `CHECK_TIMEOUT` с `retryable: true`, `gates["tests-passed"]` равен `BLOCKED`, код 4; тот же PR с ещё и `SCOPE_VIOLATION` — код 1
+- **THEN** `errors[]` содержит `CHECK_TIMEOUT` с `retryable: true` и не содержит `GATE_NOT_PASSED` с `tests-passed`, `gates["tests-passed"]` равен `BLOCKED`, код 4; тот же PR с ещё и `SCOPE_VIOLATION` — код 1
 
 #### Scenario: Чужой run в impl-PR не засчитывается
 <!-- id: SCN-VER-098 -->
@@ -543,12 +551,12 @@ checks и `data.would_write[]` без запуска checks и без обращ
 #### Scenario: Замок check занят в ci
 <!-- id: SCN-VER-137 -->
 - **WHEN** на impl-PR check перехода `VERIFYING->MERGED` с `exclusive: true` не запущен: `<git-common-dir>/warrant/check.lock` держит другой процесс
-- **THEN** `errors[]` содержит `BUSY` с `retryable: true`, gate этого check — `BLOCKED`, код 4
+- **THEN** `errors[]` содержит `BUSY` с `retryable: true` и не содержит `GATE_NOT_PASSED`, gate этого check — `BLOCKED` в `data.gates`, код 4
 
 #### Scenario: Неверный GITHUB_REPOSITORY
 <!-- id: SCN-VER-138 -->
 - **WHEN** archive-PR требует проверки run, а `GITHUB_REPOSITORY` равен `not-a-repo`
-- **THEN** `errors[0].code` равен `USAGE` с `hint` про форму `<owner>/<repo>`, без `retryable`, код 3; к форжу не было обращений
+- **THEN** `errors[0].code` равен `USAGE` с `hint` про форму `<owner>/<repo>`, без `retryable`, код 3; к форжу не было обращений; тот же `GITHUB_REPOSITORY` у spec-PR без нового перехода `APPROVED` и без решений UNKNOWN — код 0
 
 #### Scenario: Изменённый PR pack вне диапазона базы
 <!-- id: SCN-VER-139 -->
@@ -562,10 +570,10 @@ checks и `data.would_write[]` без запуска checks и без обращ
 ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 14, [ADR-0037](../../../../docs/adr/WARRANT-ADR-0037-phase-4c-ci.md) п. 4).
 `<pr>` — номер или URL pull request этого репозитория.
 
-**Ошибки входа** (код 3, недоступный форж — 4; ничего не записано):
+**Ошибки** (ничего не записано; код — по классу кода, [REQ-KRN-003](../kernel/spec.md): 3, если не назван другой):
 - URL другого репозитория — `USAGE`;
 - заданный `WARRANT_STATE_DIR` — `USAGE`: записи едут в archive-PR, состояние — в `.warrant`, как у `warrant ci`;
-- PR не найден — `PR_NOT_FOUND`;
+- PR не найден (в том числе репозиторий, невидимый токену: HTTP 404) — `PR_NOT_FOUND`;
 - отказ доступа к форжу — `FORGE_ACCESS` с `hint`; форж недоступен — `FORGE_UNAVAILABLE` с `retryable: true`, код 4;
 - PR не слит или слит не merge-коммитом (squash, rebase) — `PR_NOT_MERGED`;
 - merge-коммита M нет в локальном репозитории — `COMMIT_NOT_FOUND` с `hint` `git fetch`;

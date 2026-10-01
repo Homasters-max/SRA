@@ -3,7 +3,7 @@
 ### Requirement: Состав pack core-sdd 0.1
 <!-- id: REQ-SDD-001 -->
 
-Pack `core-sdd` версии `0.4.x` (`kernel: ">=0.1 <0.11"`; patch поднимается первым изменением поставляемого после релиза и
+Pack `core-sdd` версии `0.4.x` начиная с `0.4.1` (`kernel: ">=0.1 <0.11"`; patch поднимается первым изменением поставляемого после релиза и
 проверяется `npm run versions:check`, R-14) SHALL объявлять в `provides`: overlays `core-default`, `risk-low`, `risk-medium`, `risk-high`;
 profiles `feature`, `chore`, `factory-change`; gates `spec-valid`, `required-artifacts-present`, `blocking-unknowns-resolved`, `ids-valid`,
 `branch-isolated`, `tests-passed`, `scope-valid`, `analyze-clean`, `evidence-complete`, `human-approval`, `adversarial-review`,

@@ -12,7 +12,9 @@
 модели только после результата инструмента — зонд Claude Code 2.1.263, design I-165).
 Код выхода SHALL быть 0; вход, который нельзя разобрать, SHALL давать код 2 и причину в stderr (Claude Code отменяет действие
 `PreToolUse`). Коды этого адаптера — ответ протоколу хуков Claude Code, а не коды [REQ-KRN-003](../kernel/spec.md): код 2 здесь
-не `WAIT`, и таблица классов ошибок его не меняет ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2). Имя frontend SHALL встречаться только в адаптере, генераторе `sync` и значении `--frontend`
+не `WAIT`, и таблица классов ошибок его не меняет ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2). Исключение,
+не перехваченное адаптером, SHALL давать код 2, причину в stderr и пустой stdout — как неразборчивый вход (fail-closed: Claude Code
+отменяет действие), а не `INTERNAL` с кодом 3, который Claude Code считает неблокирующей ошибкой. Имя frontend SHALL встречаться только в адаптере, генераторе `sync` и значении `--frontend`
 ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 2); неизвестное значение `--frontend` — `USAGE`, код 3.
 
 #### Scenario: Отказ Edit

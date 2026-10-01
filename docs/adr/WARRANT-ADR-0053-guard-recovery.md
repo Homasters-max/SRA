@@ -5,6 +5,7 @@ adr_state: ACCEPTED
 date: 2026-10-01
 supersedes: []
 amends: [WARRANT-ADR-0052]
+amended_by: [WARRANT-ADR-0055]
 ---
 
 ## Context

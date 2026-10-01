@@ -18,12 +18,16 @@
 profile `factory-change`), `paths.src`, `paths.tests`, `roles`, `approvals[]`, effective policy и классификация по путям diff.
 PR предъявляет только предмет суждения. Исключение — закон записанного перехода (`effective_policy_hash` и ключи `gates`): его
 судит окно законов, в которое входит и HEAD (ниже, «Record»; [ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 4). Встроенный pack (`source: bundled`) приходит с CLI: pack базы — тот, чей `hash`
-записан в `warrant.lock.json` HEAD^1. Встроенный pack, которого lock базы не содержит с этим `hash`, — закон, изменённый самим
-PR: в виде impl `classification.profiles` на HEAD SHALL содержать `factory-change` (`RECORD_MISMATCH`, причина `classification`),
+записан в `warrant.lock.json` HEAD^1. Встроенный pack, которого lock базы не содержит с этим `hash`, при diff PR с `.warrant/warrant.lock.json` — закон,
+изменённый самим PR: в виде impl `classification.profiles` на HEAD SHALL содержать `factory-change` (`RECORD_MISMATCH`, причина `classification`),
 в остальных видах — `SCOPE_VIOLATION` с путём `.warrant/warrant.lock.json`. Ошибка загрузки базы `PACK_VERSION_RANGE` у такого pack
 (его версия вне диапазона `warrant.json` базы) — следствие изменённого закона, а не сломанная база: `warrant ci` её не сообщает и
 судит PR дальше; `PACK_VERSION_RANGE` у pack, совпадающего с lock базы, — код 3. Различие SHALL держаться на коде ошибки, а не на
-тексте её `message` ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2).
+тексте её `message` ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2). Lock базы, который не содержит
+встроенный pack с `hash` встроенного pack этого CLI или несёт `kernel` (major.minor) не этого CLI, при diff PR без
+`.warrant/warrant.lock.json` — не закон, изменённый PR, а CLI, не совпадающий с законом `main`: `LOCK_MISMATCH` с путём lock и
+`hint` (версия CLI в workflow или `warrant sync` в `main`), код 3; иначе законы `main` окна (ниже) стали бы невычисленными
+без ограничения срока.
 
 **Change и вид PR.** Change SHALL выводиться из records `.warrant/changes/*.json`, изменённых или удалённых в diff, а не из имени
 ветки ([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 13):
@@ -61,15 +65,16 @@ PR: в виде impl `classification.profiles` на HEAD SHALL содержат�
   разбирается (`CONFIG_MISSING`, `CONFIG_INVALID`) или lock коммита не содержит встроенный pack с `hash` встроенного pack этого CLI.
   Если hash перехода не совпал ни с одним вычисленным законом, а закон хотя бы одного такого коммита не вычислен, нарушения нет:
   вывод SHALL содержать информационную находку `{ code: "LAW_NOT_COMPUTED", message }` в `data.findings[]` с переходом и
-  коммитами невычисленных законов. Закон HEAD, который текущий CLI не вычисляет, находки не даёт и нарушение не снимает: HEAD
+  коммитами невычисленных законов. Закон HEAD не вычисляется по тем же условиям; закон HEAD, который текущий CLI не вычисляет, находки не даёт и нарушение не снимает: HEAD
   предъявляет сам PR. Коммит окна, которого нет в checkout, — `USAGE` с `hint`, код 3, как у базы.
 
-  Определения gates и checks, по которым судятся основания `WAIVED`, `NOT_APPLICABLE` и правило `ci_evidence` перехода (ниже),
-  SHALL браться из коммита `main`, закон которого совпал с hash перехода; совпал закон HEAD или совпадения нет — из базы, а gate
-  или check, которого в базе нет, — из HEAD (его добавил сам PR). Тогда gate, изменённый или удалённый в `main` после перехода,
-  судится по определению своего закона.
+  Определения для оснований — определения gates и checks, по которым судятся основания `WAIVED`, `NOT_APPLICABLE` и правило
+  `ci_evidence` (ниже), — SHALL браться из базы; gate или check, которого в базе нет, — из HEAD (его добавил сам PR); gate, которого
+  нет ни в базе, ни в HEAD (`main` удалил его после перехода), основания не требует. Hash закона покрывает id gates переходов, но
+  не их определения: определение, ужесточённое в `main` после перехода (например, `waivable: false`), судит основание записанного
+  verdict ([ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md) п. 1).
 
-  Сдвиг `main` между переходом и прогоном `warrant ci` честный record не ломает. Переход, записанный по закону, которого в окне
+  Сдвиг `main` между переходом и прогоном `warrant ci` закон честного record (hash и ключи `gates`) не ломает. Переход, записанный по закону, которого в окне
   нет, — нарушение `policy`: по промежуточной классификации Change, по промежуточному закону ветки PR, до переписывания истории
   ветки (rebase сдвигает точку ответвления; ветку обновляет merge `main`). Восстановление — до merge PR: откат коммита перехода
   (`git revert`) и повтор `warrant transition` по закону окна;
@@ -87,14 +92,14 @@ PR: в виде impl `classification.profiles` на HEAD SHALL содержат�
 - gate с вердиктом `WAIVED` нового перехода SHALL иметь хотя бы один waiver этого Change на этот gate (версия — по файлу, id WAV) — файл `.warrant/waivers/<WAV>.json`
   базы, а если в базе такого файла нет, то HEAD (новый waiver лежит на пути класса приёмки человеком, [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 2) —
   засчитываемый по правилу waiver [REQ-VER-003](#requirement-команда-gate-и-алгоритм-verdict) на дату прогона `warrant ci` (UTC):
-  `ACTIVE`, срок не истёк, `approved_by` в `roles` базы, gate `waivable` по определению закона перехода (выше), без `targets[]` (причина
+  `ACTIVE`, срок не истёк, `approved_by` в `roles` базы, gate `waivable` по определению для оснований (выше), без `targets[]` (причина
   `waiver`; [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 5);
 - gate с вердиктом `NOT_APPLICABLE` нового перехода SHALL иметь основание, как у REQ-VER-003, — одно из двух (иначе причина
   `not_applicable`):
-  - в определении закона перехода есть `applies_when`; у `MERGED` он SHALL быть не выполнен на diff `merge-base(M^1, M^2)..M^2` (M — из
+  - в определении для оснований есть `applies_when`; у `MERGED` он SHALL быть не выполнен на diff `merge-base(M^1, M^2)..M^2` (M — из
     правила ref ниже; M не найден — diff не проверяется, нарушение даёт правило ref `merge_commit`); у остальных переходов diff их
     вычисления судье недоступен — достаточно наличия `applies_when` (остаточный риск, [ADR-0051](../../../../docs/adr/WARRANT-ADR-0051-agent-merge-first.md) п. 5);
-  - `requires_evidence` определения закона перехода непуст, и для каждого его элемента выбранная запись имеет
+  - `requires_evidence` определения для оснований непуст, и для каждого его элемента выбранная запись имеет
     `evidence_status: "NOT_APPLICABLE"` и `produced_by.type: "check"` ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md)
     п. 3: тот же выбор, что у движка gates). Выбранная запись — самая свежая (по `created_at`, при равенстве — больший id) из
     записей `evidence[]` перехода, которые удовлетворяют элементу (kind, а у элемента с `check` — `produced_by.type: "check"` и
@@ -104,8 +109,7 @@ PR: в виде impl `classification.profiles` на HEAD SHALL содержат�
     `NOT_APPLICABLE` рядом с более свежей записью того же элемента в другом статусе основанием не служит. Элемент без выбранной
     записи, как и gate без `requires_evidence`, основания по evidence не даёт;
 - у нового перехода `MERGED` для каждого gate `PASS`, чьи `requires_evidence` содержат kind, который производят checks перехода
-  `VERIFYING->MERGED` в законе перехода `MERGED` (определения checks — как выше; совпадения нет — effective policy базы для
-  `classification` на HEAD), `evidence[]` содержит запись этого kind с
+  `VERIFYING->MERGED` effective policy базы для `classification` на HEAD (определения checks — для оснований), `evidence[]` содержит запись этого kind с
   `attestation.type: "ci"`, а у элемента с `check` — запись этого check (`produced_by.id`;
   [ADR-0044](../../../../docs/adr/WARRANT-ADR-0044-lattice-issues.md) п. 6) (причина `ci_evidence`,
   [ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md) п. 2); нужная здесь effective policy базы, которая не
@@ -135,7 +139,7 @@ SHALL NOT вычислять; проверка основания записан
   `roles.maintainer` конфигурации M^1, а без разобранного `warrant.json` M^1 — `roles.maintainer` и `identities.agents` базы
   требований; непригодная конфигурация M^1 SHALL NOT прерывать `warrant ci` ошибкой конфигурации: это причина закрытого исключения,
   а не сломанная база PR ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 1, R-45). Когда исключение
-  закрыто не gate `human-approval`, а одной из двух других причин, вывод SHALL содержать информационную находку
+  закрыто не gate `human-approval`, а одной из других причин, вывод SHALL содержать информационную находку
   `{ code: "AGENT_MERGE_CLOSED", message }` с причиной — при любом исходе ref. Impl-PR, слитый не членом нужной роли,
   восстанавливается повтором impl-PR без правок кода (`VERIFYING->IMPLEMENTING->VERIFYING`), который сливает член роли одобрения;
 - для `APPROVED` — merge-коммит PR лежит на first-parent линии HEAD^1 и вносит в record этого Change переход `SPECIFIED`;
@@ -477,3 +481,13 @@ checks и `data.would_write[]` без запуска checks и без обращ
 <!-- id: SCN-VER-147 -->
 - **WHEN** ветка impl-PR ответвлена от коммита `main` A и записала `APPROVED` по его закону, затем в ветку влит `main` с коммитом B, меняющим `.warrant/local/gates/*.json`, и `merge-base(HEAD^1, HEAD^2)` — B
 - **THEN** точка ответвления — A, hash `APPROVED` совпал с законом A, нарушения `policy` нет
+
+#### Scenario: Определение gate ужесточено в main
+<!-- id: SCN-VER-148 -->
+- **WHEN** impl-PR записал `APPROVED` с gate `WAIVED` по засчитываемому waiver, а до прогона CI `main` поставил этому gate `waivable: false` без смены набора gates
+- **THEN** hash `APPROVED` совпал с законом окна, а `errors[]` содержит `RECORD_MISMATCH` с id gate и причиной `waiver` по определению базы, код 1
+
+#### Scenario: CLI не совпадает с lock базы
+<!-- id: SCN-VER-149 -->
+- **WHEN** lock базы несёт `hash` встроенного pack `core-sdd`, отличный от pack текущего CLI, а diff PR не содержит `.warrant/warrant.lock.json`
+- **THEN** `errors[]` содержит `LOCK_MISMATCH` с путём `.warrant/warrant.lock.json` и `hint`, код 3; находок `LAW_NOT_COMPUTED` нет

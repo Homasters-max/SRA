@@ -31,8 +31,8 @@
 
 ## 3. Адаптер `claude` и R-46 (D6)
 
-- [ ] 3.1 `commands/guard.ts`: `runGuardRead(ctx, read)`. `bin/warrant.ts`: action `guard` зовёт его, `crash.guardInput` заполняется.
-- [ ] 3.2 Тесты:
+- [x] 3.1 `commands/guard.ts`: `runGuardRead(ctx, read)`. `bin/warrant.ts`: action `guard` зовёт его, `crash.guardInput` заполняется.
+- [x] 3.2 Тесты:
   - SCN-ENF-052 — `app/commands/guard.test.ts`, `read`, который бросает;
   - SCN-ENF-053 — `contract/frontend-claude.contract.test.ts`, записанные входы `PreToolUse` при policy, которая не грузится;
   - строка R-46 в `docs/backlog.md` удалена (закрыт).

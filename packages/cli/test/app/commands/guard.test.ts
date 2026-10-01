@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { runGuard } from "../../../src/commands/guard.js";
+import { runGuard, runGuardRead } from "../../../src/commands/guard.js";
 import type { CommandResult } from "../../../src/io/output.js";
 import { CLI_VERSION } from "../../../src/version.js";
 import { CORE_SDD_RANGE, CORE_SDD_VERSION } from "../../helpers/cli.js";
@@ -681,6 +681,26 @@ describe("warrant guard: a policy that does not load — the recovery mode (ADR-
     const missing = await guard(q, { phase: "pre", action: "edit", paths: ["src/app.ts"] });
     expect(missing.data["reason"]).toContain("PACK_NOT_FOUND");
     expect((missing.data["hints"] as string[]).join("\n")).toContain("updates tools/warrant.js");
+  });
+});
+
+describe("warrant guard: an exception of the runner (R-46)", () => {
+  it("stdin that fails to read: deny with the hint warrant validate, the reason on stderr, exit 0 (SCN-ENF-052)", async () => {
+    const p = await repo("IMPLEMENTING");
+    const result = await invoke(() =>
+      runGuardRead(p.ctx, () => Promise.reject(new Error("EPIPE: stdin broke")), ENV)
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.ok).toBe(true);
+    expect(result.data["decision"]).toBe("deny");
+    expect(result.data["hints"]).toEqual([expect.stringContaining("warrant validate")]);
+    expect(p.warnings.join("")).toContain("EPIPE: stdin broke");
+
+    // The text read reaches the crash handler of bin before the decision (crash.guardInput).
+    const pre = JSON.stringify({ phase: "pre", action: "other", cwd: p.root });
+    let seen: string | undefined;
+    await invoke(() => runGuardRead(p.ctx, () => Promise.resolve(pre), ENV, (input) => (seen = input)));
+    expect(seen).toBe(pre);
   });
 });
 

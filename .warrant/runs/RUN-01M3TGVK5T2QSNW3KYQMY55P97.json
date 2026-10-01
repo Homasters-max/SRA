@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01M3TGVK5T2QSNW3KYQMY55P97",
+  "change": "exit-contract",
+  "operation": "review",
+  "skill": "specification/adversarial-review@0.2.0",
+  "model": "claude-opus-5-5",
+  "write_scope": [],
+  "scope": [],
+  "branch": "spec/exit-contract",
+  "started_at": "2026-10-01T01:21:57.483Z",
+  "finished_at": "2026-10-01T01:27:54.997Z",
+  "run_state": "SUCCEEDED",
+  "context_hash": "sha256:e3abece5017e5d43f5fffe45bf6b5fece7f5cf35785ab2622ba72f408cdd3897",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "spec_tree": "sha256:b40f0538f76acc191d731bad663d86c6fd2126fb1fd1263e3974a250b08627a6",
+  "evidence": [
+    "EVID-01M3TH6GBGGZK7V683Q0AM8SY1"
+  ],
+  "guard_events": []
+}

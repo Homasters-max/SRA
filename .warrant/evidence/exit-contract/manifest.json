@@ -1,0 +1,22 @@
+{
+  "$schema": "warrant://evidence-manifest/1",
+  "change": "exit-contract",
+  "commit": "29d441f5bc63a7b44f10f708f3245d615bad0c91",
+  "versions": {
+    "warrant": "0.9.0",
+    "openspec": "1.13.1",
+    "lock_hash": "sha256:07973bcdce29422b1053c32dd347a2d7ab3bef10d3b095f98cdeca4762602378",
+    "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829"
+  },
+  "evidence": [
+    "EVID-01M3TGPHKYPR833XQWVQ9SKGVG",
+    "EVID-01M3TH6GBGGZK7V683Q0AM8SY1",
+    "EVID-01M3THP620ZZZ82YXJYB2E8G47",
+    "EVID-01M3THQ9565XMKFJGF3GWR6AFS"
+  ],
+  "gates": {
+    "ids-valid": "PASS",
+    "required-artifacts-present": "PASS",
+    "spec-valid": "PASS"
+  }
+}

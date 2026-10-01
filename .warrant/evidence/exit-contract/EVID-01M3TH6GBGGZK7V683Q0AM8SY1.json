@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3TH6GBGGZK7V683Q0AM8SY1",
+  "claim": {
+    "text": "specification/adversarial-review@0.2.0 reviewed the spec of exit-contract: 0 BLOCKER, 2 MAJOR, 7 MINOR, 1 INFO",
+    "targets": []
+  },
+  "kind": "review",
+  "level": "L2",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "629d6a24b5e8aeb40daf363dd8f87635abb0757d",
+    "spec_revision": "openspec/changes/exit-contract@629d6a24b5e8aeb40daf363dd8f87635abb0757d",
+    "spec_tree": "sha256:b40f0538f76acc191d731bad663d86c6fd2126fb1fd1263e3974a250b08627a6",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "skill",
+    "id": "specification/adversarial-review",
+    "version": "0.2.0",
+    "run": "RUN-01M3TGVK5T2QSNW3KYQMY55P97"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:e3abece5017e5d43f5fffe45bf6b5fece7f5cf35785ab2622ba72f408cdd3897",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-10-01T01:27:54.992Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/runs/RUN-01M3TGVK5T2QSNW3KYQMY55P97.result.json",
+      "sha256": "sha256:e320f2c2f1f24f7a28ee4358967235dd74f25dcab1e464aa3b58c2551a7d86f1"
+    }
+  ],
+  "limitations": [
+    "produced locally, unattested",
+    "same model family as author"
+  ],
+  "metrics": {
+    "BLOCKER": 0,
+    "INFO": 1,
+    "MAJOR": 2,
+    "MINOR": 7
+  }
+}

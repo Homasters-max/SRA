@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://change-record/1",
   "change": "guard-recovery",
-  "change_state": "MERGED",
+  "change_state": "ARCHIVED",
   "classification": {
     "profiles": [
       "chore",
@@ -93,6 +93,21 @@
         "EVID-01M3W0925C04JEAJWGN2FNBX2Q"
       ],
       "ref": "https://github.com/Homasters-max/SRA/pull/136"
+    },
+    {
+      "to": "ARCHIVED",
+      "at": "2026-10-01T15:10:59.056Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+      "gates": {
+        "analyze-clean": "PASS",
+        "ids-valid": "PASS",
+        "required-artifacts-present": "PASS",
+        "spec-valid": "PASS"
+      },
+      "evidence": [
+        "EVID-01M3W09FRPCPRR7NS33Z2NCF5H"
+      ]
     }
   ]
 }

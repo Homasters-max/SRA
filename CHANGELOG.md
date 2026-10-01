@@ -2,7 +2,7 @@
 
 Релизы CLI WARRANT: тег `v<версия>` репозитория `Homasters-max/SRA`. Раздел — на каждую поднятую версию CLI; рост major или minor CLI или pack требует подразделов «Вердикт» и «Миграция для потребителя» ([ADR-0048](docs/adr/WARRANT-ADR-0048-stabilization.md) п. 3). Держит `npm run versions:check`. История до 0.8.3 — теги и `openspec/changes/archive/`.
 
-## 0.10.0 — не выпущена
+## 0.10.0 — 2026-10-01
 
 Minor: версия для LATTICE — `exit-contract` и `guard-recovery` ([ADR-0052](docs/adr/WARRANT-ADR-0052-cycle-1-close.md), [ADR-0053](docs/adr/WARRANT-ADR-0053-guard-recovery.md), [ADR-0055](docs/adr/WARRANT-ADR-0055-release-for-lattice.md)); тег — archive-PR `guard-recovery`, `judge-law` и `code-floor` — 0.11.0. `exit-contract`: класс у каждого кода ошибки, код выхода 4 и `retryable` (WS-06, A-42, A-48). `guard-recovery`: guard не запирает сессию, когда policy не грузится; хуки и субагент исполняют CLI, который закрепил проект (ADR-0053 п. 2–3). Pack `core-sdd` 0.4.1.
 

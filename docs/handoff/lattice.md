@@ -8,8 +8,8 @@ LATTICE (`D:\project\LATTICE`, `Homasters-max/LATTICE`) закреплён на 
 
 ```text
 Сессия LATTICE: pin-Change на WARRANT v0.10.0 — навык warrant-upgrade. Начинать только после тега v0.10.0 в Homasters-max/SRA.
-1) CLI на машине — из тега (ADR-0053 п. 4): npm pack github:Homasters-max/SRA#v0.10.0 вне checkout, npm i -g ./<tgz>; не npm link.
-2) Закрепление: .warrant/warrant.json — kernel "0.10", core-sdd ^0.4.1; warrant sync; перезапустить сессию Claude Code.
+1) Закрепление первым (ADR-0053 п. 5): .warrant/warrant.json — kernel "0.10", core-sdd ^0.4.1 (caret ^0.3 не пускает 0.4); warrant sync.
+2) CLI на машине — из тега (ADR-0053 п. 4), ставит maintainer вне сессии агента: npm pack github:Homasters-max/SRA#v0.10.0 вне checkout, npm i -g ./warrant-0.10.0.tgz; не npm link. Перезапустить сессию Claude Code. Поле cli (локальный CLI тега в node_modules) — по желанию, навык warrant-upgrade.
 3) Job warrant — reusable workflow вместо копии (SRA docs/06-verification.md §8): jobs.warrant.uses: Homasters-max/SRA/.github/workflows/warrant.yml@v0.10.0, with: warrant: v0.10.0, setup: <установка зависимостей>, merge_commit: ${{ inputs.merge_commit || '' }}; права contents / actions / pull-requests / issues: read; on.workflow_dispatch с входом merge_commit. Имя проверки — `warrant / warrant`: branch protection. Копию job и «форму B» теста пина удалить; WAV-2026-002 истекает неиспользованным.
 4) Миграция — разделы CHANGELOG SRA 0.8.3, 0.9.0 (профиль приёмки human-acceptance, CODEOWNERS, paths.src и paths.tests), 0.10.0 (коды выхода 0…4 и retryable, guard, CLI из тега). Сбой перехода — в SRA, поток stabilization: patch v0.10.1 первым.
 ```
@@ -20,7 +20,7 @@ LATTICE (`D:\project\LATTICE`, `Homasters-max/LATTICE`) закреплён на 
 
 ## Не забыть
 
-- Сейчас глобальный `warrant` — `npm link` на dev-checkout SRA (0.10.0-dev), и guard запирает LATTICE при `^0.3.4`. Снять запирание до тега: в `.warrant/warrant.json` LATTICE заменить `^0.3.4` на `^0.4.0`, не коммитить — правка войдёт в pin-Change.
+- Глобальный `warrant` до перехода — `npm link` на dev-checkout SRA (уже с `guard-recovery`): при `^0.3.4` guard не запирает сессию, а разрешает правку `.warrant/warrant.json`, `warrant sync|validate|status|--version` и чтение — это и есть шаг 1.
 - Просьбы `PRIORITIES.md` LATTICE сведены в backlog: ISS-013 → WS-14, ISS-019 → WS-26, ISS-025 → WS-19, ISS-018 → BL-94, ISS-021 → BL-95, ISS-026 → BL-96, S-10 → BL-97.
 - Флейк WS-30 (бывший BL-89) — Re-run всего run проходит.
 - Контракты стыка `docs/integrations/01, 02, 05` остаются в SRA.

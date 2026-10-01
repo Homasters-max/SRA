@@ -1,0 +1,175 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3VB2A0E55B22CSMQM86BFN6",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "The fix for round 2 F-3 assumes that the law matching a transition's hash is unique. It is not. The hash covers only gate ids per transition (`content.gates` = `Record<transition, string[]>`, core/resolve/merge.ts:173-208; design Context: hash covers `gates` переходов). It does not cover gate or check definitions (`waivable`, `applies_when`, `requires_evidence`, `accepts_attestation`, `produces`). So when `main` changes a definition without changing the gate set, the fork-point law, every later window commit and HEAD all carry the same hash. «Record» says definitions SHALL come from \"коммита main, закон которого совпал с hash перехода; совпал закон HEAD или совпадения нет — из базы\". When both a main commit and HEAD match, the text gives two outcomes. Design D2 computes HEAD first and stops at the first match, so the HEAD outcome wins and base definitions apply. Example: SPECIFIED is recorded with gate X `WAIVED` under the fork-point law (`waivable: true`), and `main` then sets X to `waivable: false` in `.warrant/local/gates/x.json`. The hash is unchanged, HEAD matches, the base definition applies, and the result is RECORD_MISMATCH `waiver`. This contradicts the requirement's own sentences \"gate, изменённый или удалённый в main после перехода, судится по определению своего закона\" and \"Сдвиг main между переходом и прогоном warrant ci честный record не ломает\". The text also does not say which definitions apply when several main commits match the hash with different definitions. Only a removed or renamed gate changes the hash, and only that case behaves as promised (tasks 5.3 tests only the removed gate). No scenario covers the definitions rule.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-141",
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "Define the matched law for definitions without relying on the hash alone (see D-1). For example: if the hash matches at least one main-commit law, a ground (waiver, NOT_APPLICABLE, ci_evidence) holds when it holds under the definitions of some matched main commit, and HEAD or base definitions are used only when no main commit matches. Change the lazy order of D2 so the walk does not stop at HEAD. Alternatively, narrow the claim to gate sets and name the definition-change break and its recovery. Add a scenario: main changes `waivable` (or `applies_when`) of a gate after the transition, and the gate set stays the same."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "A main-commit law is \"not computed\" when the `kernel` of that commit's lock (major.minor) is not the kernel of this CLI. `warrant ci` never requires the lock kernel of the base to match: `checkLock` (core/packs/hash.ts:96-105) is called only from `validate` (core/validate/registry.ts). Take a consumer that upgrades the CLI in CI (kernel 0.9 to 0.10) and has not run `warrant sync`. Every main commit of every window, including HEAD^1, is then \"not computed\". Any hash that matches no computed law gives LAW_NOT_COMPUTED instead of a violation, and this lasts until the lock on main is resynced. The window rule fails open for all transitions. That includes MERGED, which is checked strictly against the base law today. Design Risks names only the short window of a bundled-pack change (\"до merge PR, поднявшего pack\"), not this kernel lag, which has no bound.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-142",
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "Choose and state one of two options. First option: a base (HEAD^1) whose lock kernel differs from the CLI kernel is LOCK_MISMATCH with a sync hint (code 3), because the base is the law the PR is judged by. Second option: name the kernel lag as residual risk in Risks and in the CHANGELOG migration step (run `warrant sync` with the upgrade), and add a scenario that shows LAW_NOT_COMPUTED for a stale lock kernel on HEAD^1."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "After POLICY_CONFLICT was added (round 2 F-5), «Ref» lists four conditions that close the exception: `human-approval`, policy not computed, POLICY_CONFLICT, and a record on M^1 beyond SPECIFIED. The next sentence still reads \"Когда исключение закрыто не gate human-approval, а одной из двух других причин, вывод SHALL содержать ... AGENT_MERGE_CLOSED\". That leaves three other reasons, so the text does not say which two emit the finding, and whether POLICY_CONFLICT does.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Replace it with \"любой другой причиной (не вычисляется, POLICY_CONFLICT, record M^1 дальше SPECIFIED)\"."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "Round 2 F-2 is only partly closed. The write plan is now stated (\"результат, запись evidence, manifest.json, файл Run, затем удаление current\"), but the failure clause covers only \"Сбой записи любого из них\", which means the files. A failure to remove `current` after the Run file has been written as finished (rmSync in core/run/lifecycle.ts:118) is not described. In that state the Run file is no longer RUNNING, so \"Run остаётся активным\" is false, and a repeat submit meets RUN_NOT_ACTIVE (lifecycle.ts:111), not the promised reuse path.",
+      "targets": [
+        "REQ-ENF-007",
+        "SCN-ENF-047"
+      ],
+      "recommendation": "State the outcome when removing `current` fails after the Run is finished. For example: the command succeeds, or it returns an error code with a hint, and a stale `current` that names a finished Run is ignored or cleared by `warrant run start` or `validate`."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "«База требований» names the single exception to \"всё ... SHALL читаться из ... HEAD^1\" as \"закон записанного перехода (effective_policy_hash и ключи gates)\". The new paragraph in «Record» also reads gate and check definitions (for WAIVED, NOT_APPLICABLE and ci_evidence) from a main commit of the window, and from HEAD for a gate or check missing in the base. Those are two more exceptions that the base rule does not mention.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Extend the exception in «База требований»: definitions of gates and checks of the matched law, and from HEAD for objects that the PR itself added."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "The not-computed conditions are written only for \"Закон коммита main из окна (кроме HEAD)\". The text then refers to \"Закон HEAD, который текущий CLI не вычисляет\" without defining when that happens. SCN-VER-146 uses one condition, the lock hash of the bundled pack, but the text does not say whether the lock kernel, `loaded.errors` or the config errors also make the HEAD law not computed. The verdict is the same either way, but whether a HEAD law exists to match an honest hash depends on the reading.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-146"
+      ],
+      "recommendation": "State that the same conditions apply to HEAD, or list the HEAD conditions separately."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "The claim \"форма hash effective policy — часть kernel: её правка поднимает minor CLI\" assumes the form changes at most once per minor. Within an unreleased minor, the kernel is already raised (0.10 since v0.9.0, R-14). A second change of the form in the same cycle keeps the same kernel. Then main commits, and transitions recorded with the earlier dev CLI, carry the old form under the same kernel: every law counts as computed, and honest records get a false `policy` violation. The D1 test hint \"поднять minor\" cannot be followed inside the cycle.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "Name the case as residual risk with its recovery (repeat the transition), or let the hash-form test require a new kernel value even within an unreleased minor."
+    },
+    {
+      "id": "F-8",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "contradiction",
+      "statement": "Design D3 still says \"правило ci_evidence остаётся по базе\". D3a and the spec take the checks of ci_evidence from the matched law. This is context only, and the spec is consistent.",
+      "targets": [
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "Align the D3 bullet with D3a."
+    },
+    {
+      "id": "F-9",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "contradiction",
+      "statement": "Closure of round 2 (RUN-01M3VACYVJNZZQXZ1ZXTS7C9V3, I-243), checked against the text. F-1 is closed: BUSY gives code 4 and another write error gives code 3. F-4 is closed: the lock kernel (major.minor) is named. F-5 is closed: POLICY_CONFLICT is in «Ref», but see F-3. F-6 is closed: both sentences carry the base fallback. F-7 is closed: both pointers are in the requirement. F-8 (SCN-VER-108), F-9 (SCN-VER-144 on VERIFYING with `none`) and F-10 (SCN-VER-147 branched at A) are closed. F-11 is moved to backlog (tasks 7.2). F-2 is partly closed, see F-4. F-3 is closed in form (D3a), but the matched law is not unique, see F-1. The selection rule of NOT_APPLICABLE matches `evidencePart` and `attestationAccepted` in the code (core/gates/verdict.ts:94-101, 166-235).",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-ENF-007"
+      ],
+      "recommendation": "None beyond F-1, F-3 and F-4."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/judge-law/specs/verification/spec.md",
+      "change": "«Record», the definitions paragraph. If the hash matches at least one main-commit law of the window, the grounds of WAIVED and NOT_APPLICABLE and the ci_evidence rule are judged by the definitions of a matched main commit (a ground holds if it holds under some matched main commit). The definitions of the base, and of HEAD for objects missing in the base, apply only when no main commit matches. Add a scenario: main changes `waivable` of a gate after the transition, and the gate set stays the same. Update the lazy order of design D2 to match."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/judge-law/specs/verification/spec.md",
+      "change": "«Ref»: write \"любой другой причиной\" instead of \"одной из двух других причин\". «База требований»: add the definitions of the matched law to the exception. «Record»: state the not-computed conditions for HEAD. State the base outcome for a stale lock kernel, or name it as residual risk (F-2)."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/judge-law/specs/enforcement/spec.md",
+      "change": "REQ-ENF-007: state the outcome when removing `current` fails after the Run file has been written as finished."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Is a consumer expected to run `warrant validate` (LOCK_MISMATCH on the lock kernel) in CI next to `warrant ci`, so that a stale lock kernel cannot stay on main (F-2)?",
+      "blocking": false,
+      "impact": [
+        "REQ-VER-011",
+        "design Risks",
+        "CHANGELOG migration"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "I checked the code facts by range reads of core/resolve/merge.ts:125-220, core/gates/verdict.ts:60-239, core/packs/hash.ts:80-119 and core/run/lifecycle.ts:90-121, and the callers of checkLock with `cs callers` (validate registry and a unit test only). I did not re-verify the other line references of design.md."
+    },
+    {
+      "id": "A-2",
+      "statement": "As in round 2, `evidence[]` of a transition holds only the records chosen by the engine, so the judge's freshest choice inside `evidence[]` equals the engine's."
+    },
+    {
+      "id": "A-3",
+      "statement": "A bundled pack's definitions at a main commit are those of the current CLI. A commit is identified only by the lock hash, and a different hash means the law is not computed. So D3a can differ from base definitions only through `.warrant/local/**` or through a non-bundled pack."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Which definitions judge WAIVED, NOT_APPLICABLE and ci_evidence when the hash of a transition matches several window laws (main commits and/or HEAD) whose gate definitions differ (F-1)?",
+      "options": [
+        "Main commits take precedence over HEAD. A ground holds if it holds under the definitions of some matched main commit, and base or HEAD definitions apply only without a main match. The lazy walk cannot stop at HEAD.",
+        "A law is identified by its hash plus a digest of the definitions of its gates and checks, and a transition must match both. This needs the digest to be recorded or recomputable, and it is a change of the hash form (kernel).",
+        "Keep base definitions when HEAD matches. Narrow the claim \"изменённый ... судится по определению своего закона\" to removed or renamed gates, and name the definition-change break and its recovery (repeat the transition)."
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:c7acc2ddf969deaafeb211e82b220e88138b5b4e5c4d28f28a90b7e8a2e8fc0a",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T14:00:00Z",
+    "finished_at": "2026-10-01T14:40:00Z"
+  }
+}

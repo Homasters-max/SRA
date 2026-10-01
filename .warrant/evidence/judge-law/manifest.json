@@ -1,0 +1,28 @@
+{
+  "$schema": "warrant://evidence-manifest/1",
+  "change": "judge-law",
+  "commit": "3d19e1bbd92d4486a7c786e4685c14259c173356",
+  "versions": {
+    "warrant": "0.10.0",
+    "openspec": "1.13.1",
+    "lock_hash": "sha256:4129af00197743d332954216c9b46289cae50c7c9a10ba35c7cf9ff5c0384660",
+    "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b"
+  },
+  "evidence": [
+    "EVID-01M3VA32MWDZ1JHRKM83CEF0DM",
+    "EVID-01M3VAWMZG2JJQTDA3E61HTZ0X",
+    "EVID-01M3VBE4ZJ1S8M68XWTBW53RPE",
+    "EVID-01M3VC7A5WN9HYKXDA0J0PP5JS",
+    "EVID-01M3VCVYFFNDNRQEYATF5K36F0",
+    "EVID-01M3VDPQYASYV5HXQYRWDH308W",
+    "EVID-01M3VDQWY6J897TQZHFAPJFQW3"
+  ],
+  "gates": {
+    "adversarial-review": "PASS",
+    "blocking-unknowns-resolved": "PASS",
+    "human-approval": "BLOCKED",
+    "ids-valid": "PASS",
+    "required-artifacts-present": "PASS",
+    "spec-valid": "PASS"
+  }
+}

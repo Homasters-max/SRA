@@ -1,0 +1,200 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3VACYVJNZZQXZ1ZXTS7C9V3",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "REQ-ENF-007 (delta) says: \"Сбой атомарной записи любого из этих файлов (REQ-KRN-036) — BUSY с hint, код 4, retryable: true\". Main REQ-KRN-036 gives BUSY only in one case: a rename rejected with EPERM, EBUSY or EACCES five times on Windows. SCN-KRN-158 says \"иной сбой — ошибка записи\". Read literally, the delta turns every write failure (ENOSPC, EACCES while creating the temp file on Linux) into a retryable code 4, which REQ-KRN-003 forbids for errors of class 3. The delta also does not say what state a non-BUSY write failure leaves (partial files, an active Run, the repeat path). Round 1 F-1 is closed for BUSY only.",
+      "targets": [
+        "REQ-ENF-007",
+        "REQ-KRN-036",
+        "SCN-KRN-158",
+        "REQ-KRN-003"
+      ],
+      "recommendation": "Write \"BUSY of an atomic write (REQ-KRN-036)\" instead of \"any write failure\". Say that any other write failure keeps the class of its code (REQ-KRN-003). Say that it leaves the same state as BUSY: earlier files stay, the Run stays active, and a repeat goes through the reuse path."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "The delta lists what remains after a BUSY as \"файлы, записанные раньше по порядку REQ-KRN-036\". That order is \"evidence → manifest.json → record или Run\", and it does not place the result file <RUN>.result.json, which submit writes first (finishRun calls also.write() before writeRunFile, core/run/lifecycle.ts:105-114). It also does not cover removing `current`. Removal is not an atomic write, and it runs after the Run file has been rewritten as finished (lifecycle.ts:118). If the removal fails, `current` names a Run that is no longer RUNNING, and a repeat submit gets RUN_NOT_ACTIVE (lifecycle.ts:111) rather than the reuse path the delta promises.",
+      "targets": [
+        "REQ-ENF-007",
+        "SCN-ENF-047",
+        "REQ-KRN-036"
+      ],
+      "recommendation": "State the full write plan of submit in order: result, evidence, manifest, Run, then removing current. State the outcome when removing `current` fails after the Run is finished, for example that it is ignored or that `warrant run start` or `validate` clears a stale `current`."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "The window admits an older law of main for the hash and the gate keys. But «База требований» and the bullets on WAIVED, NOT_APPLICABLE and ci_evidence still read each gate definition from the base: `waivable`, `applies_when`, `requires_evidence`, `accepts_attestation` (\"Требования к переходам, кроме закона перехода (окно выше), выводятся из базы\"). Suppose main changes or removes a gate definition after an honest transition recorded under the fork-point law (renamed gate, `waivable: false`, changed `requires_evidence`, removed `applies_when`). The record then gets RECORD_MISMATCH `waiver` or `not_applicable`. That contradicts the requirement's own claim \"Сдвиг main между переходом и прогоном warrant ci честный record не ломает\" and SCN-VER-141. A gate key of the matched law that has no definition in the base at all is not defined: for NOT_APPLICABLE, WAIVED and the ci_evidence loop over PASS gates, there is no \"определение базы\" to read.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-141"
+      ],
+      "recommendation": "Choose a side and write it down (see D-1). Option one: keep base definitions (this is safe, because the window includes HEAD), narrow the claim to hash and gate keys, name the break caused by a definition change on main together with its recovery (repeat the transition), and state the outcome for a gate missing from the base (for example, the reason of its rule, or `policy`). Option two: read the definitions from the matched law when that law is a main commit."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "To close round 1 F-5, the delta lists a not-computed law \"если packs коммита не загружаются (в том числе kernel коммита — не версия kernel этого CLI: форма hash effective policy — часть kernel)\". Design D1 implements this as \"loaded.errors непусты\". loadPacks compares only the `kernel` range of each pack.json with the CLI kernel (core/packs/loader.ts:505-514). It does not compare `kernel` of warrant.json (major.minor) or `kernel` of the lock (exact). For a bundled pack, pack.json comes from the CLI itself, and core-sdd declares \"kernel\": \">=0.1 <0.11\". So a main commit whose warrant.json or lock says kernel 0.9 still loads under a 0.10 CLI. Its law is then computed with the current hash form, and an honest hash can be reported as a false mismatch. The text does not say which field \"kernel коммита\" means. The premise that a change of the hash form bumps kernel is a process rule that no check enforces.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "Name the field, for example \"`kernel` of the commit's lock (or warrant.json) differs from KERNEL_VERSION of this CLI\", and make it an explicit not-computed condition of lawAt, separate from loaded.errors. Add a scenario. Either hold the rule \"a change of resolve/canonicalHash bumps kernel\" by a check, or name it as residual risk."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "«Ref» closes the agent-merge exception when the policy of M^1 \"не вычисляется текущим CLI (packs, lock, kernel, профиль classification, которого нет в packs M^1, warrant.json ...)\". POLICY_CONFLICT of the effective policy at M^1 is not listed. Design D1 makes lawAt return \"no law, not 'not computed'\" for POLICY_CONFLICT and for an unknown profile, and builds mergeLaw on lawAt. Once it does, the agent-merge exception can open or close depending on how an empty `laws[]` is read: \"no human-approval\" or \"fail-closed\". Today's mergeLaw closes it (\"resolveRecord не составился\" gives law(reason), design Context). An unknown profile is listed as a closing reason in «Ref» yet gives \"no law\" in D1, so the design and the spec already diverge on this point.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "Add POLICY_CONFLICT at M^1 to the fail-closed reasons in «Ref», with AGENT_MERGE_CLOSED carrying the reason. State that a classification without a law at M^1 (unknown profile, POLICY_CONFLICT) closes the exception, separate from the window rule, where it only gives no law."
+    },
+    {
+      "id": "F-6",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "R-45 adds \"без разобранного warrant.json M^1 — roles.maintainer и identities.agents базы требований\". Two unchanged sentences of «Ref» still state M^1 without that exception: \"Идентичности агентов — логины identities.agents[].login базы требований, для ref MERGED — M^1\" and \"входящий в identities.agents (для ref MERGED — M^1)\". When M^1 has no warrant.json, the text holds two sources for one list.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-145"
+      ],
+      "recommendation": "Qualify both sentences: \"для ref MERGED — M^1, а без разобранного warrant.json M^1 — базы требований\"."
+    },
+    {
+      "id": "F-7",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-143 expects RECORD_MISMATCH with \"path #/transitions/<i>/gates\". The requirement does not define the pointer of the `policy` reason: neither `#/transitions/<i>/gates` for a key mismatch nor `#/transitions/<i>/effective_policy_hash` for a hash not found (design D3). The pointer also lacks the file part that other paths of the spec carry (`.warrant/changes/<change>.json#/...`).",
+      "targets": [
+        "SCN-VER-143",
+        "REQ-VER-011"
+      ],
+      "recommendation": "State both pointers in the Record bullet, with the file of the record, or drop `path` from the THEN of SCN-VER-143."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-108 (unchanged) expects reason `policy` for MERGED with empty `gates`. Under the window, `policy` follows only when the hash matches a computed law (keys mismatch) or all main laws of the window are computed. If the hash matches none and one main law is not computed, the outcome is LAW_NOT_COMPUTED and no violation. The scenario does not state which case it means.",
+      "targets": [
+        "SCN-VER-108"
+      ],
+      "recommendation": "Add the precondition: \"effective_policy_hash равен закону окна\" (or \"все законы окна вычислены\")."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-144 does not name the transition or the attestation of its two records, and tasks 2.2 places it in describe D4 `agent-merge`, an archive-PR with MERGED. At MERGED the judge accepts only records with `attestation.type: \"ci\"` and `subject.commit` M^2. If the NOT_APPLICABLE record is not such a record, the half \"без записи PROVEN — нарушения нет\" fails: no record is chosen, so there is no ground.",
+      "targets": [
+        "SCN-VER-144"
+      ],
+      "recommendation": "Name the transition. For MERGED, say that both records are CI records on M^2."
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-147 concludes \"точка ответвления — A\" but does not say that the branch was forked at A, that is, that the parent of the first PR commit is A. If APPROVED was recorded under the law of a main commit A that is later than the fork point, the fork point is not A, and A is in the window only if it touches policy paths or law inputs.",
+      "targets": [
+        "SCN-VER-147"
+      ],
+      "recommendation": "Write \"impl-PR ответвлён от коммита main A и записал APPROVED по его закону\"."
+    },
+    {
+      "id": "F-11",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "contradiction",
+      "statement": "Closure of round 1, RUN-01M3V9HN13E8EJ5JJ7WVZJEP5F (I-242), checked against the text. F-1 is closed for BUSY; see F-1 and F-2 of this round for what remains. F-2 through F-10, F-12 through F-15 and U-1 are closed: the exception is in «База требований»; the merger clause is gone; PROVEN; kernel, though see F-4; rebase and intermediate laws with their recovery; the HEAD law with SCN-VER-146; the policy of ci_evidence; `.warrant/local/**`; SCN-VER-145 with its codes; git failure gives code 3; law inputs with tree dedup. F-11 is closed by an explicit description in the delta. Main REQ-VER-003 still lacks the id tie-break and the restriction by a declared `accepts_attestation`, so \"как у REQ-VER-003\" points to a weaker text than the delta.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-003",
+        "REQ-ENF-007"
+      ],
+      "recommendation": "Optional: align REQ-VER-003 with the stated selection in a later Change."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/judge-law/specs/enforcement/spec.md",
+      "change": "REQ-ENF-007: \"BUSY атомарной записи (REQ-KRN-036) — код 4, retryable: true; иной сбой записи — код по классу (REQ-KRN-003); в обоих случаях файлы, записанные раньше по плану «результат → evidence → manifest → Run → удаление current», остаются, Run активен, повтор того же envelope завершает Run путём повтора\". Add the outcome when removing `current` fails after the Run is finished."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/judge-law/specs/verification/spec.md",
+      "change": "«Record»: state the source of gate definitions (waivable, applies_when, requires_evidence, accepts_attestation) when the hash matched a window law other than the base. State the outcome for a gate key missing from the base, and narrow the claim \"сдвиг main ... не ломает\" to hash and gate keys, with recovery. Name the field of \"kernel коммита\". State the pointers of reason `policy`. «Ref»: add POLICY_CONFLICT at M^1 to the fail-closed reasons, and qualify the two \"для ref MERGED — M^1\" sentences with the base fallback."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/judge-law/specs/verification/spec.md",
+      "change": "Scenario preconditions. SCN-VER-108: the hash matches a window law. SCN-VER-144: name the transition, and for MERGED, CI records on M^2. SCN-VER-147: the branch was forked at A."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Which field is \"kernel коммита\" in the not-computed conditions: `kernel` of the lock (exact), `kernel` of warrant.json (major.minor), or only the `kernel` range of pack.json that loadPacks already checks?",
+      "blocking": false,
+      "impact": [
+        "REQ-VER-011",
+        "design D1",
+        "core/ci/law.ts"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "`evidence[]` of a transition holds only the records the engine chose (GateOutcome.evidence in core/gates/verdict.ts), so the judge's freshest choice within `evidence[]` equals the engine's. Not re-checked in commands/transition.ts."
+    },
+    {
+      "id": "A-2",
+      "statement": "Main specs were read in the worktree D:/project/SRA-judge-law (branch spec/judge-law, main after dcec61e). Code facts were checked by range reads of core/packs/loader.ts:468-580, core/gates/verdict.ts:60-235, core/run/lifecycle.ts:90-121, core/run/store.ts:185-207 and core/ports/git.ts:1-80. Other line references of design.md were not re-verified."
+    },
+    {
+      "id": "A-3",
+      "statement": "Every pack source is either bundled or under `.warrant/local/` (the PACK_NOT_FOUND message in loader.ts). The law inputs of the window (warrant.json, lock, `.warrant/local/**`, plus the bundled pack identified by its lock hash) are therefore complete, and tree dedup is sound."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "When the hash of a new transition matches a window law other than the base, which gate definitions judge its WAIVED, NOT_APPLICABLE and ci_evidence grounds (F-3)?",
+      "options": [
+        "Base definitions, as the text says now. Narrow the claim \"сдвиг main не ломает\" to hash and keys, name the break caused by a definition change on main and its recovery (repeat the transition), and state the outcome for a gate missing from the base.",
+        "Definitions of the matched law when it is a main commit, and of the base when it is HEAD. An honest record survives a definition change on main, and a PR cannot weaken definitions through the HEAD law."
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:c2f1893d2da4ae6482f5111f00a586e4488226d81a6ec2dac7e86dda53a9f32e",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T13:00:00Z",
+    "finished_at": "2026-10-01T13:45:00Z"
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3VCBZE93S8WX2KR834TTZFS",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "SCN-VER-146 contradicts the requirement as amended in round 4 (closure of round 4 F-2). «База требований» now says without condition: \"Lock на HEAD, который с CLI не совпадает ... — LOCK_MISMATCH с путём lock и hint ..., код 3\". It defines a match as holding \"каждый встроенный pack с hash встроенного pack этого CLI и kernel\". The WHEN of SCN-VER-146 is exactly that mismatch: \"lock на HEAD не содержит встроенный pack с hash pack текущего CLI\". Its THEN, however, is \"RECORD_MISMATCH с переходом VERIFYING и причиной policy, код 1; находки LAW_NOT_COMPUTED нет\". By the priority of REQ-KRN-003 (3 > 1), LOCK_MISMATCH gives code 3 even if RECORD_MISMATCH is also reported. So the scenario cannot pass against an implementation that follows the requirement. tasks.md 5.3 lists both cases: \"SCN-VER-146…SCN-VER-151\" (code 1) and \"случаи без lock и с lock HEAD другого CLI — код 3 (D3b)\". These are two tests with the same precondition and different exit codes. A side effect: the sentence \"Закон HEAD не вычисляется по тем же условиям\" can now be reached only when the packs of HEAD do not load or its warrant.json is missing or unparseable. The lock conditions of HEAD are always caught first as LOCK_MISMATCH.",
+      "targets": [
+        "SCN-VER-146",
+        "REQ-VER-011",
+        "openspec/changes/judge-law/tasks.md"
+      ],
+      "recommendation": "Rewrite the WHEN of SCN-VER-146 so that it uses a condition for an uncomputed HEAD law that is still reachable after D3b. For example: \"lock на HEAD совпадает с CLI, а packs HEAD не загружаются (невалидный .warrant/local/gates/*.json на HEAD)\". Keep the outcome: RECORD_MISMATCH `policy`, code 1, no LAW_NOT_COMPUTED. Alternatively, keep the lock precondition and change the THEN to LOCK_MISMATCH, code 3, then move the \"нарушение не снимает\" case into another scenario. In «Record», state which conditions remain for HEAD: packs do not load, warrant.json is missing or unparseable."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "The spec does not say whether LOCK_MISMATCH ends the run of `warrant ci` or is only an element of `errors[]`, with the PR still judged under the other rules. PACK_VERSION_RANGE has an explicit \"судит PR дальше\", but LOCK_MISMATCH has nothing like it. SCN-VER-149 (\"находок LAW_NOT_COMPUTED нет\") suggests that the record is not judged at all. A reader could also take it to mean that the record is judged, just without findings. The two readings differ in what `errors[]` and `data.findings[]` contain, and in whether checks run in an impl-PR and write evidence. `--dry-run` is not covered either: it is unclear whether it reports LOCK_MISMATCH.",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-149"
+      ],
+      "recommendation": "Add to «База требований»: \"LOCK_MISMATCH прерывает суждение: правила PR и checks не выполняются, errors[] содержит только его\". Or choose the other option and say so. Mention `--dry-run`."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-139 has the same gap that SCN-VER-142 had in round 4 F-3, which round 4 fixed only in SCN-VER-142. Its WHEN (\"impl-PR поднимает встроенный pack core-sdd ... и диапазон в warrant.json\") does not say whether the diff contains `.warrant/warrant.lock.json`, or whether the lock on HEAD holds the hash of the CLI's pack. Without the lock in the diff, D3b gives LOCK_MISMATCH with code 3 (the base lock does not hold the CLI's hash). That contradicts the THEN: \"PR судится по остальным правилам\". With the lock in the diff but unsynced, the lock on HEAD also gives LOCK_MISMATCH. Only a lock in the diff that is synced to the CLI gives the stated outcome.",
+      "targets": [
+        "SCN-VER-139"
+      ],
+      "recommendation": "Add to the WHEN: \"diff PR содержит .warrant/warrant.lock.json, синхронизированный CLI, которым судит CI\"."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "Round 4 F-2 is only partly closed. The unsynced lock on HEAD is now LOCK_MISMATCH. A base lock that does not match the CLI while the lock is in the diff is still not named as a risk. This includes the kernel-only case, where the base lock `kernel` differs and no bundled hash changes, which happens on every CLI minor bump with `warrant sync`. In that case the law of every main commit of the window is \"не вычислен\", because every main commit carries the old hash or kernel. Every transition whose hash is not the HEAD law then gives LAW_NOT_COMPUTED, forged or not. Design Risks says otherwise: \"Окно короткое: lock базы совпадает с CLI (D3b), так что невычисленными бывают только коммиты main до смены lock в main\". The requirement also says D3b prevents laws becoming uncomputed \"без ограничения срока\". Both statements hold only when the lock is not in the diff. The exposure is bounded: the lock is a policy path, so an impl-PR needs `factory-change` and a maintainer merge, and a spec-PR or none-PR gets SCOPE_VIOLATION.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "Correct the risk in design: with the lock in the diff and a base lock that does not match the CLI (a changed bundled pack or kernel), the whole main window is uncomputed for that PR, and only the HEAD law is checked. Name the bound: a policy path and a maintainer merge. Optionally narrow the requirement sentence to \"при diff без lock\"."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "The predicate \"lock совпадает с CLI\" has a loose scope. The spec says \"содержать каждый встроенный pack с hash встроенного pack этого CLI и kernel\". It does not say whether this means every bundled pack the CLI ships or every bundled pack that warrant.json enables, and the lock holds only enabled packs. Design D3b says \"проверка checkLock\", but `checkLock` (core/packs/hash.ts:75-150) checks more than hash and kernel. It also checks `version`, the configured range, the hash of `.warrant/local` packs, and packs removed from warrant.json. If an implementer reuses `checkLock`, then lock drift of `.warrant/local/**` (an impl-PR that edits a local gate without `warrant sync`) or of a range becomes LOCK_MISMATCH with code 3. The spec does not provide for that.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "In the requirement: \"каждый встроенный pack, включённый warrant.json\". In D3b: only the bundled hash and `kernel` major.minor are compared, not all of `checkLock`. Alternatively, name the extra checks in the spec."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "Round 4 F-5 is closed in its code: a failure to remove `current` is code 3, not BUSY. The output of that error is still undefined. The text says \"сдача уже состоялась: Run завершён, evidence записано\", but it does not say whether `data` carries `evidence`, `evidence_status` and `findings`. This is the only `ok: false` of `run submit` after which the Run is finished. The review skill shipped with the pack (generated into .claude/agents/warrant-reviewer.md) says: \"Ответ ok: false — Run остаётся активным: исправь файл ... и сдай снова\". A reviewer following it gets RUN_NOT_ACTIVE and never learns the evidence id.",
+      "targets": [
+        "REQ-ENF-007"
+      ],
+      "recommendation": "State that this error's output carries `data{ run, change, evidence, evidence_status, findings, reused }`, as on success. Note in design or tasks that the skill text (step 4 of «Сдача результата») is updated for this case, or record it as a backlog line."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "For MERGED, the order of selection and the judge's extra filter is ambiguous. The text has \"самая свежая ... из записей, которые ... приняты по attestation: у MERGED — тип из accepts_attestation ...; судья у MERGED принимает из них только записи с attestation.type: ci и subject.commit M^2\". Design D5 puts the extra filter into `accepts`, so the judge filters before choosing the freshest. Take an older `ci` NOT_APPLICABLE on M^2 and a fresher record of another accepted type (for example `signature` in accepts_attestation) with PROVEN. The engine chose the PROVEN. The judge drops it and picks the older NOT_APPLICABLE as the basis. That contradicts the next sentence: \"Более старая запись NOT_APPLICABLE рядом с более свежей записью того же элемента в другом статусе основанием не служит\". It also contradicts \"тот же выбор, что у движка gates\". The other reading chooses the freshest by the engine's rule first and then requires that record to be `ci` on M^2. It gives the opposite verdict.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/judge-law/design.md"
+      ],
+      "recommendation": "Choose one order and write it down. For example: \"выбранная запись — по правилу движка (accepts_attestation определения); у MERGED судья дополнительно требует, чтобы выбранная запись несла attestation.type: ci и subject.commit M^2\". Update D5 to match: `accepts` = `attestationAccepted`, and the `ci`/M^2 check applies to the chosen record."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "The fallback for the fork point (round 4 F-1) has no case for when it finds nothing. If no commit of the first-parent line of HEAD^1 is an ancestor of HEAD^2 (a merge with `--allow-unrelated-histories`, or a PR from an orphan branch), there is no fork point. The window \"после точки ответвления\" is then undefined: it could be the whole first-parent line, only HEAD^1 and HEAD, or USAGE.",
+      "targets": [
+        "REQ-VER-011"
+      ],
+      "recommendation": "Add: \"без такого коммита окно — HEAD^1 и HEAD\" (or USAGE with `hint`)."
+    },
+    {
+      "id": "F-9",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "contradiction",
+      "statement": "Closure of round 4 (RUN-01M3VBN1ZKNH6DYKTH33TENCXJ, I-245), checked against the text. F-1 is closed: the fallback is \"последний коммит first-parent линии HEAD^1, который является предком HEAD^2\", D2 uses `isAncestor`, which the port has (core/ports/git.ts:53), and SCN-VER-150 is added. F-2 is closed for the HEAD lock, which caused the contradiction in F-1, and stays open for the base lock with the lock in the diff (F-4). F-3 is closed (SCN-VER-142 sets the locks of the base and HEAD), but the same gap remains in SCN-VER-139 (F-3). F-4 is closed (the second exception in «База требований», SCN-VER-151 in tasks 5.3). F-5 is closed on the code; its output is F-6. F-6 is closed (hint \"warrant sync тем CLI, которым судит CI\"). F-7 is closed (proposal «What Changes» and «Capabilities», migration in D11). F-9 is closed (04-lifecycle removed from Impact). The selection of NOT_APPLICABLE for transitions other than MERGED still matches `attestationAccepted` (core/gates/verdict.ts:94-101): there, attestation is not limited except on VERIFYING->MERGED.",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-ENF-007"
+      ],
+      "recommendation": "None beyond F-1 through F-8."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/judge-law/specs/verification/spec.md",
+      "change": "SCN-VER-146: replace the lock precondition with packs of HEAD that do not load (an invalid `.warrant/local/gates/*.json` on HEAD) while the lock of HEAD matches the CLI. Keep RECORD_MISMATCH `policy`, code 1, no LAW_NOT_COMPUTED. In «Record», name the conditions for an uncomputed HEAD law that remain after LOCK_MISMATCH."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/judge-law/specs/verification/spec.md",
+      "change": "«База требований»: LOCK_MISMATCH ends the judgement (or not), including under `--dry-run`. A match is defined only by the hash of each bundled pack enabled in warrant.json and by `kernel` major.minor. SCN-VER-139: the diff holds a lock synced to the judging CLI. «Record»: without a fork point, the window is HEAD^1 and HEAD."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/judge-law/specs/verification/spec.md",
+      "change": "«Record», NOT_APPLICABLE for MERGED: the chosen record follows the engine rule (accepts_attestation); the judge then requires the chosen record to be `ci` on M^2. Update design D5 to match."
+    },
+    {
+      "id": "P-4",
+      "target": "openspec/changes/judge-law/specs/enforcement/spec.md",
+      "change": "REQ-ENF-007: a failure to remove `current` carries `data{ run, change, evidence, evidence_status, findings, reused }`. Design or tasks: update the review skill's text on `ok: false`."
+    },
+    {
+      "id": "P-5",
+      "target": "openspec/changes/judge-law/design.md",
+      "change": "Risks: with the lock in the diff and a base lock that does not match the CLI (bundled pack or kernel), the whole main window is uncomputed and only the HEAD law is checked; the bound is the policy path and the maintainer merge. D3b: compare only the bundled hash and kernel, not all of `checkLock`."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "LOCK_MISMATCH is class 3 by REQ-KRN-003 (\"все остальные коды: конфигурация\"), and the exit code takes the senior code by the priority 3 > 1 > 4 > 2 > 0. So LOCK_MISMATCH alongside RECORD_MISMATCH gives code 3 (F-1)."
+    },
+    {
+      "id": "A-2",
+      "statement": "Code facts were checked by range reads in D:/project/SRA-judge-law: core/packs/hash.ts:75-153, core/ci/base.ts:36-133, core/ci/record.ts:350-409, core/gates/verdict.ts:88-123, core/run/lifecycle.ts:85-121, core/ports/git.ts:33-98, core/record/lifecycle.ts:1-40. Other design line references were not re-verified."
+    },
+    {
+      "id": "A-3",
+      "statement": "The only bundled pack is `core-sdd` (packs/), and lock sources are `bundled` or `.warrant/local` (lock.1.schema.json). So the deduplication of window commits by the tree of law inputs (`.warrant/warrant.json`, lock, `.warrant/local/**`) covers every input of the law."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:1b6efc97a7c3f3a560347f356b44030c5bb314ef3e61bef1192aad74d3bb68d0",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T16:00:00Z",
+    "finished_at": "2026-10-01T16:40:00Z"
+  }
+}

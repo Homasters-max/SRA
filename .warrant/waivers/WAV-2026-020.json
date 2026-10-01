@@ -9,6 +9,7 @@
     "Правки delta только сужают и уточняют hints режима восстановления; каждая — тестом SCN; ревью реализации агентом reviewer; Approve maintainer'а impl-PR"
   ],
   "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
   "expires_at": "2026-10-15",
-  "waiver_state": "PROPOSED"
+  "waiver_state": "ACTIVE"
 }

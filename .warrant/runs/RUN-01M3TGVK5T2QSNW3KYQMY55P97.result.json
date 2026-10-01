@@ -1,0 +1,170 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3TGVK5T2QSNW3KYQMY55P97",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "Main REQ-VER-007 (не в delta): отказ transition — «ok: false, errors[0].code: GATES_NOT_PASSED, data.gates, код выхода по controller». REQ-VER-005: худший verdict FAIL без совпавшего правила pack — CONTINUE. Для такого отказа REQ-VER-007 даёт 0 (CONTINUE), а delta REQ-KRN-003 — 2 (старший из GATES_NOT_PASSED класса ожидания и CONTINUE). Design D2 («0 → 2 даёт класс wait у GATES_NOT_PASSED») подразумевает 2, но REQ-VER-007 в delta не включён и его текст остаётся прежним.",
+      "targets": [
+        "REQ-KRN-003",
+        "REQ-VER-007",
+        "REQ-VER-005"
+      ],
+      "recommendation": "Добавить REQ-VER-007 в delta verification: «код выхода — по REQ-KRN-003 (GATES_NOT_PASSED — класс ожидания)» вместо «по controller», и сценарий: отказ при FAIL без совпавшего правила pack (CONTINUE) — код 2. Добавить его в список Modified Capabilities proposal."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "REQ-KRN-003 выводит из таблицы только `guard --frontend`. Для `warrant guard` без `--frontend` main REQ-ENF-004 требует «код выхода 0 при любом решении», а при внутреннем сбое — deny. Но delta REQ-KRN-036 даёт `BUSY`, код 4, при сбое переименования любого файла Run (guard дописывает guard_events в файл Run), а REQ-KRN-003 даёт `INTERNAL`, код 3, при неперехваченном исключении. Вместо deny frontend получает не-0 без `data.decision`. Proposal (Non-Goals) говорит, что `BUSY` в guard остаётся deny с кодом 0, но ни одно требование не выводит нормализованный guard из этих двух правил.",
+      "targets": [
+        "REQ-KRN-003",
+        "REQ-KRN-036",
+        "REQ-ENF-004"
+      ],
+      "recommendation": "В REQ-KRN-003 назвать и `warrant guard` без `--frontend`: ошибки и исключения при решении — `deny` с reason, код 0 (REQ-ENF-004), как в Non-Goals; либо добавить REQ-ENF-004 в delta с этим правилом и сценарием «rename Run-файла даёт EBUSY во время pre → deny, код 0»."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-KRN-003: «`ok: true` — код `0`» без оговорок. Там же: «Если JSON-объект команды уже выведен, второй SHALL NOT печататься: стек — в stderr, код `3`». Если выведенный объект был `ok: true`, утверждения несовместимы. Из контекста понятно, что задумано 3.",
+      "targets": [
+        "REQ-KRN-003",
+        "SCN-KRN-163"
+      ],
+      "recommendation": "«`ok: true` — код `0`, кроме исключения после вывода объекта (ниже)»; во второй части SCN-KRN-163 указать, что выведенный объект — `ok: true`."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-VER-011 (impl): GATE_NOT_PASSED не даёт BLOCKED gate, «хотя бы один элемент requires_evidence которого требует kind, производимый check перехода, завершившимся такой ошибкой». Элементу с `check` (ADR-0044 п. 6) нужна запись только этого check. Пример: элемент `{kind: test-report, check: dev-check}`, а ошибкой завершился `tests-passed`, который тоже производит `test-report`. Буквально gate исключается (код 4), по смыслу D6 — нет (код 1).",
+      "targets": [
+        "REQ-VER-011",
+        "SCN-VER-137"
+      ],
+      "recommendation": "Уточнить: элемент с `check` относится к check с ошибкой, только если его `check` — этот check; элемент без `check` — если check с ошибкой производит его kind."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Delta REQ-ENF-005 вводит новое поведение: неперехваченное исключение адаптера — код 2, причина в stderr, пустой stdout. Сценария на него нет (round-1 F-4 его просил); tasks 5.1 ссылается на «REQ-ENF-005 (исключение адаптера)» без SCN. Не сказано, что будет, если адаптер уже напечатал ответ (deny) до исключения: «пустой stdout» тогда невыполним.",
+      "targets": [
+        "REQ-ENF-005"
+      ],
+      "recommendation": "Добавить SCN-ENF-…: исключение адаптера на входе PreToolUse — код 2, stderr называет причину, stdout пуст; оговорить исключение после вывода ответа (код 2, второй ответ не печатается)."
+    },
+    {
+      "id": "F-6",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-KRN-160 требует у `BUSY` в `warrant check` и в `warrant ci fetch` элемент `{ code, message, hint, retryable: true }`. Но REQ-VER-002 (замок check) и REQ-VER-012 (lock Change) `hint` для `BUSY` не требуют, а REQ-KRN-002 требует `hint` только у ошибок `run`, `guard` и новых кодов фазы 4. Сценарий строже требования.",
+      "targets": [
+        "SCN-KRN-160",
+        "REQ-VER-002",
+        "REQ-VER-012"
+      ],
+      "recommendation": "Либо добавить в REQ-KRN-003 (класс 4) или в REQ-VER-002 и REQ-VER-012 «`BUSY` несёт `hint` повторить», либо убрать `hint` из SCN-KRN-160."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Неверный `GITHUB_REPOSITORY` в spec-PR, где проверяются решения UNKNOWN (REQ-VER-013, PR без нового `APPROVED`), не описан. REQ-VER-011 даёт `USAGE`, код 3, при первом обращении к форжу. REQ-VER-013 в этом виде переводит в находку `DECISION_NOT_VERIFIED` (деталь `forge`) только недоступный форж и отказ доступа. SCN-VER-138 обходит случай оговоркой «без решений UNKNOWN — код 0». Возможны два прочтения: 3 (`USAGE`) или 0 (находка).",
+      "targets": [
+        "REQ-VER-013",
+        "REQ-VER-011",
+        "SCN-VER-138"
+      ],
+      "recommendation": "Явно указать, что `USAGE` по репозиторию форжа — ошибка окружения и в любом виде PR даёт код 3 (или находку `forge`), и дополнить SCN-VER-138 случаем spec-PR с решением UNKNOWN."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Таблица BREAKING в proposal перечисляет одиночные случаи, но не смены кода, вызванные заменой максимума приоритетом. `verify`: `CHECK_TIMEOUT` или `BUSY` при `STOP` — было 3 (max), стало 1. `warrant ci` impl: нарушение PR вместе с ошибкой check — было 3, стало 1 (SCN-VER-095, вторая часть). Потребитель, который различал коды, этих смен в списке не увидит.",
+      "targets": [
+        "openspec/changes/exit-contract/proposal.md",
+        "REQ-VER-006",
+        "REQ-VER-011"
+      ],
+      "recommendation": "Добавить в таблицу строку «несколько ошибок или ошибка при действии controller: максимум → приоритет 3 > 1 > 4 > 2» с примерами; то же в «Миграцию для потребителя» D12."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-KRN-003: «Действие controller и вердикт команды дают: CONTINUE — 0, … WAIT и ESCALATE — 2» — не сказано, у каких команд действие входит в код выхода. `warrant status` печатает `controller_action` (REQ-KRN-027) и при WAIT может дать 0 или 2. Явно названы только `gate` и `verify` (REQ-VER-005) и `analyze`.",
+      "targets": [
+        "REQ-KRN-003",
+        "REQ-KRN-027"
+      ],
+      "recommendation": "Назвать в REQ-KRN-003 команды, у которых действие входит в код (`gate`, `verify`, `transition`, `archive`, `analyze`), и указать, что `status` действие только печатает (код по `errors[]`)."
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Принято осознанно (D7, REQ-VER-011): токен без доступа к репозиторию даёт HTTP 404 — то же, что отсутствующий объект. В archive-PR это `REF_NOT_VERIFIED` или `EVIDENCE_NOT_VERIFIED`, код 1, то есть ошибку конфигурации CI потребитель увидит как нарушение PR. Риск стоит записать в design «Риски».",
+      "targets": [
+        "REQ-VER-011",
+        "REQ-VER-012"
+      ],
+      "recommendation": "Строка в design §4 «Риски»: 404 при отказе прав — код 1 или `PR_NOT_FOUND`, а не `FORGE_ACCESS`; `hint` этих ошибок может упомянуть права токена."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/exit-contract/specs/verification/spec.md",
+      "change": "REQ-VER-007 в delta: «код выхода — по REQ-KRN-003» вместо «по controller», сценарий отказа при CONTINUE — код 2 (F-1). REQ-VER-011: уточнить отнесение элемента с `check` к check с ошибкой (F-4). REQ-VER-013 / SCN-VER-138: `USAGE` репозитория в spec-PR с решениями (F-7)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/exit-contract/specs/kernel/spec.md",
+      "change": "REQ-KRN-003: вывести `warrant guard` без `--frontend` из таблицы (deny, код 0; F-2); «ok: true — код 0, кроме исключения после вывода» (F-3); назвать команды, у которых действие входит в код (F-9); `hint` у `BUSY` либо убрать его из SCN-KRN-160 (F-6)."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/exit-contract/specs/enforcement/spec.md",
+      "change": "REQ-ENF-005: сценарий неперехваченного исключения адаптера (код 2, stderr, пустой stdout) и случай исключения после вывода (F-5)."
+    },
+    {
+      "id": "P-4",
+      "target": "openspec/changes/exit-contract/proposal.md",
+      "change": "BREAKING: строка о замене максимума приоритетом с примерами verify (CHECK_TIMEOUT + STOP: 3 → 1) и ci impl (нарушение + ошибка check: 3 → 1) (F-8); REQ-VER-007 в Modified Capabilities (F-1)."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Факты кода взяты из design.md Context. Сверены диапазонами только `io/output.ts:1-70` и `commands/verify.ts:40-63` (verify при WAIT даёт `ok: false`). Guard Run review запрещает shell, поэтому `cs.js` и `git show 629d6a2` не запускались: ревизия сверена по тексту дельт с файлом результата round 1."
+    },
+    {
+      "id": "A-2",
+      "statement": "Итог round 1. F-1 снят в D6: GATE_NOT_PASSED не выдаётся, правило REQ-KRN-003 держится без исключения. Сняты также F-3, F-4 (REQ-ENF-005: код 2), F-6, F-7 (лениво, SCN-VER-138), F-9, F-10, F-11, F-12, F-13, F-14 и U-1 (D8). F-2 принят осознанно (D6: gate с двумя причинами — 4, после повтора 1), F-5 — тоже (D7, 404 = не найдено), F-8 внесён в REQ-VER-011 (сбой по умолчанию — 4)."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:e3abece5017e5d43f5fffe45bf6b5fece7f5cf35785ab2622ba72f408cdd3897",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-01T14:00:00Z",
+    "finished_at": "2026-10-01T14:50:00Z"
+  }
+}

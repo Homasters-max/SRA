@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "exit-contract",
-  "commit": "5078b8d737e5aa2fb287daae39334409fcfdc9e1",
+  "commit": "629d6a24b5e8aeb40daf363dd8f87635abb0757d",
   "versions": {
     "warrant": "0.9.0",
     "openspec": "1.13.1",
@@ -9,6 +9,7 @@
     "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829"
   },
   "evidence": [
-    "EVID-01M3TGPHKYPR833XQWVQ9SKGVG"
+    "EVID-01M3TGPHKYPR833XQWVQ9SKGVG",
+    "EVID-01M3TH6GBGGZK7V683Q0AM8SY1"
   ]
 }

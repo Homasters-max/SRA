@@ -2,16 +2,15 @@
 
 ## Цель
 
-Фаза стабилизации ([ADR-0048](../adr/WARRANT-ADR-0048-stabilization.md)): честный судья, поставка, идентичность агента. Остаток цикла 1 — 0.10.0 тремя Change по [ADR-0052](../adr/WARRANT-ADR-0052-cycle-1-close.md): `exit-contract` закрыт, дальше `judge-law` → `code-floor`. Долг — строки `WS-N`, `A-N`, `R-N`, `BL-N` [backlog](../backlog.md).
+Фаза стабилизации ([ADR-0048](../adr/WARRANT-ADR-0048-stabilization.md)): честный судья, поставка, идентичность агента. Остаток цикла 1 — 0.10.0 четырьмя Change ([ADR-0052](../adr/WARRANT-ADR-0052-cycle-1-close.md), [ADR-0053](../adr/WARRANT-ADR-0053-guard-recovery.md)): `exit-contract` закрыт, дальше `guard-recovery` → `judge-law` → `code-floor`. LATTICE ждёт тег `v0.10.0` (waiver WAV-2026-002 LATTICE — до 2026-10-13). Долг — строки `WS-N`, `A-N`, `R-N`, `BL-N` [backlog](../backlog.md).
 
 ## Готовый запрос
 
 ```text
-Поток stabilization, 0.10.0, Change 2 — judge-law. Решения — ADR-0052 п. 3–4 (развилки сняты 2026-10-01), не гриллить. Работай автономно до результата; режим и список шагов — навык progress. Maintainer — только Approve в браузере spec-PR и impl-PR (пути CLI — класс приёмки): полная ссылка, «в браузере на GitHub, не в панели Claude Desktop», в жёлтой полосе «Add your review» → Approve → Submit review, затем auto-merge.
-Объём (ADR-0052 п. 1): остаток WS-03 (п. 4 — hash перехода по окну законов main, MERGED на то же правило), A-45 (п. 3 — общие предикаты gate engine, N44 держится), A-47, R-45 (ошибка загрузки M^1 — классом ошибок exit-contract), A-34, A-40; заодно BL-105 (REQ-ENF-007 «каждая ошибка — код 3» против BUSY 4) и R-46 (guard: исключение runner'а — deny с кодом 0). Delta specs — REQ-VER-011 («Record», «Ref») и REQ-ENF-007.
-Шаги: openspec-propose → change-spec-pr (review warrant-reviewer, verify, SPECIFIED) → maintainer Approve → change-impl-pr → review-impl → maintainer Approve → change-archive-pr. Тег v0.10.0 — только после archive-PR code-floor; CHANGELOG `## 0.10.0 — не выпущена` дополнять, не заводить новый раздел.
-Факты для design — пересобрать сбором Explore по ADR-0052 п. 3–4 на текущем main (src изменён exit-contract: классы кодов, exitCodeFor, starvedBy в gates/verdict.ts). Архитектурный аудит не обязателен (не фаза roadmap).
-Потом — code-floor тем же путём.
+Поток stabilization, 0.10.0, Change 2 — guard-recovery. Решения — ADR-0053 (вопросы maintainer'у сняты 2026-10-01), не гриллить. Работай автономно до результата; режим и список шагов — навык progress. Maintainer — только Approve в браузере spec-PR и impl-PR (пути CLI — класс приёмки): полная ссылка, «в браузере на GitHub, не в панели Claude Desktop», в жёлтой полосе «Add your review» → Approve → Submit review, затем auto-merge.
+Объём (ADR-0053 п. 2–5): guard при policy, которая не грузится, запирает только правку путей проекта (событие вне проекта — до загрузки policy; правка .warrant/warrant.json, warrant sync/validate/status/--version и shell без правки проекта — разрешены), причина называет версии CLI, pack и диапазона и шаги pin-Change; хук .claude/settings.json и агенты sync исполняют закреплённый проектом CLI, а не PATH (форму выбрать в design); docs/process/rules.md «Настройка машины» — CLI потребителя из тега; навык warrant-upgrade — подъём minor pack, порядок «закрепление, затем CLI»; заодно R-46 (исключение runner'а guard — deny с кодом 0). Отчёт — D:\tmp\warrant-inbox\guard-lockout-version-skew-2026-10-01.md. Delta specs — REQ-ENF-004, REQ-ENF-005, REQ-KRN-025 (+ REQ-KRN-004 при новом поле warrant.json).
+Шаги: openspec-propose → change-spec-pr → maintainer Approve → change-impl-pr → review-impl → maintainer Approve → change-archive-pr. Затем judge-law (ADR-0052 п. 3–4: остаток WS-03, A-45, A-47, R-45, A-34, A-40, BL-105), затем code-floor. Тег v0.10.0 — только после archive-PR code-floor; CHANGELOG `## 0.10.0 — не выпущена` дополнять.
+Факты для design — сбором Explore на текущем main (core/guard/guard.ts decidePre/loadPolicy/failedClosed, генератор sync для .claude/**, bin/crash.ts). Архитектурный аудит не обязателен (не фаза roadmap).
 ```
 
 ## Открытые вопросы
@@ -23,5 +22,5 @@
 - Auto-merge без Approve не сливает: ruleset `main` требует ревью владельца CODEOWNERS (`reviewDecision` пуст — Approve нет).
 - `gh pr edit` у бота падает на scope `read:org` — тело PR менять `gh api -X PATCH repos/Homasters-max/SRA/pulls/<N> -F body=@<файл>`.
 - `transition MERGED` Change с `human-acceptance` — `--ref <impl-PR> --by <maintainer>` (gate `human-approval`).
-- Contract-тесты с настоящим `gh`: под `GITHUB_ACTIONS` его тексты другие — проверять с `GITHUB_ACTIONS=true`.
-- Git-автор бота (`GIT_AUTHOR_*`, `docs/process/rules.md` «Настройка машины») не задан: коммиты агента — с автором maintainer'а.
+- Глобальный `warrant` — `npm link` на `D:\project\SRA`: агент `warrant-reviewer` зовёт его из PATH. Переход машины на CLI из тега — только после п. 3 ADR-0053, иначе review spec в SRA пойдёт чужой версией.
+- Contract-тесты с настоящим `gh`: под `GITHUB_ACTIONS` тексты другие — проверять с `GITHUB_ACTIONS=true`.

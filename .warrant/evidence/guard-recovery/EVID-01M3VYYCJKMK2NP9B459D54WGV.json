@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3VYYCJKMK2NP9B459D54WGV",
+  "claim": {
+    "text": "Homasters-max approved guard-recovery for SPECIFIED->APPROVED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "3f5d1e7286cd2aaac41a82cc040a2cafd8bea884",
+    "base_commit": "3f5d1e7286cd2aaac41a82cc040a2cafd8bea884",
+    "spec_revision": "openspec/changes/guard-recovery@3f5d1e7286cd2aaac41a82cc040a2cafd8bea884",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/135"
+  },
+  "context_hash": "sha256:80efe68a6db3ff0d087935d37529a0670eccbb78f25ee106685dfb9e8780b362",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-10-01T14:47:23.475Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

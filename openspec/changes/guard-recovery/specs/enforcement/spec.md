@@ -16,8 +16,9 @@ policy, которая не грузится, его не запрещает ([A
 ([REQ-KRN-033](../kernel/spec.md)), — но только если каждый каталог, в котором строка может оказаться к этой команде (`cwd`
 события и `cd` раньше в строке), после `realpath` — корень проекта: из другого каталога `node <cli>` исполняет другой файл.
 `warrant.json`, которого нет или который не разбирается как JSON-объект, и `cli`, который не строка или не проходит шаблон
-REQ-KRN-004, алиаса не дают; команда без алиаса судится как любая другая не `warrant`. При `cli`, который даёт алиас, команды
-`warrant` в hints Run `review` и режима восстановления SHALL называться в форме `node <cli>`. Решение
+REQ-KRN-004, алиаса не дают; команда без алиаса судится как любая другая не `warrant`. При `cli`, который проходит шаблон,
+команды `warrant` в hints Run `review` и режима восстановления SHALL называться в форме `node <cli>` с оговоркой «из корня
+проекта». Решение
 `pre`:
 - `edit` при активном Run — `deny` для пути вне `write_scope` или вне непустого `scope` (reason называет путь и scope; hint —
   править внутри `write_scope`, а для других путей `warrant run finish`, затем `warrant run start` с операцией, которая их пишет),
@@ -89,13 +90,16 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
     `deny` SHALL строиться по ней. Reason: её код, путь и сообщение, версия CLI, версия каждого встроенного pack, диапазон
     каждого pack и `kernel` из `warrant.json`; `warrant.json`, который не читается, диапазонов и `kernel` не даёт. Hints: `hint`
     ошибки режима, если он есть; затем выход:
-    - `PACK_VERSION_RANGE`, где версия pack выше диапазона (CLI новее закрепления), — pin-Change: поднять `packs.<id>.version`
-      и `kernel` в `.warrant/warrant.json` до версий, которые несёт CLI, затем `warrant sync`;
-    - `PACK_VERSION_RANGE`, где версия pack ниже диапазона (CLI старше закрепления), — `warrant.json` не менять: исполнить CLI,
-      который закрепил проект (`cli`), или поставить на машину CLI тега, который закрепил проект (maintainer, вне сессии
-      агента);
-    - иная ошибка с путём `.warrant/warrant.json` — исправить этот файл (правка разрешена), затем `warrant validate`;
-    - иная ошибка — правку файла, названного путём ошибки, делает человек (maintainer) вне сессии агента, в Change
+    - `PACK_VERSION_RANGE` встроенного pack, чья версия выше каждой версии диапазона (CLI новее закрепления), — pin-Change:
+      поднять `packs.<id>.version` и `kernel` в `.warrant/warrant.json` до версий, которые несёт CLI, затем `warrant sync`;
+    - `PACK_VERSION_RANGE` встроенного pack, чья версия ниже каждой версии диапазона, и `PACK_NOT_FOUND` с путём
+      `.warrant/warrant.json#/packs/<id>` (CLI такого pack не несёт) — CLI старше закрепления, `warrant.json` не менять
+      (у `PACK_NOT_FOUND` — разве что id pack написан неверно): без `cli` — поставить на машину CLI тега, который закрепил
+      проект; при `cli` — обновить файл `cli` (`npm ci`, `npm run build`); это делает maintainer вне сессии агента;
+    - иная ошибка (в том числе `PACK_VERSION_RANGE` pack из `.warrant/local/` и версия, которая ни выше, ни ниже диапазона), чей
+      путь — `.warrant/warrant.json` с фрагментом `#/…` или без него, — исправить этот файл (правка разрешена), затем
+      `warrant validate`;
+    - иная ошибка с другим путём — правку названного файла делает человек (maintainer) вне сессии агента, в Change
       `factory-change`;
 
     и перечень того, что guard разрешает, пока policy не грузится.
@@ -108,8 +112,8 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
 Решение `post` SHALL быть `allow`; `hints[]` — находки [`validate --files`](../kernel/spec.md) по путям события (не больше 10
 строк + «и ещё N») и текст правил `rule/1`, чьи `paths` подходят под путь и чьих id ещё нет в `rules_shown` событий Run
 ([ADR-0022](../../../../docs/adr/WARRANT-ADR-0022-path-rules.md) п. 3); без активного Run вместо текста правил — hint
-`warrant run start` `pre` для правки пути проекта (design I-165), а для правки `.warrant/warrant.json` — hint `warrant sync`
-(форма `node <cli>` при алиасе) вместо `warrant run start`; сбой `post` SHALL давать `allow` без hints и сообщение
+`warrant run start` `pre` для правки пути проекта (design I-165); правка `.warrant/warrant.json` SHALL давать hint
+`warrant sync` (форма `node <cli>`, как выше) — без Run вместо `warrant run start`, при Run рядом с находками и правилами; сбой `post` SHALL давать `allow` без hints и сообщение
 в stderr. При активном Run каждый вызов SHALL дописать событие в `guard_events[]` под замком Run; замок не взят за ~2 с —
 `pre` даёт `deny` с reason `BUSY`, `post` теряет событие с сообщением в stderr.
 
@@ -195,18 +199,18 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
 
 #### Scenario: Policy, которая не грузится, при активном Run
 <!-- id: SCN-ENF-050 -->
-- **WHEN** policy не грузится, активен Run `implement` с `write_scope` `src/**`, а guard получает `pre` `edit` пути `src/app.ts`, затем `docs/notes.md`, затем `.warrant/warrant.json`, затем `pre` `shell` с `argv: ["bash", "-c", "pytest -q"]`
-- **THEN** первое и третье — `allow`, второе и четвёртое — `deny` с `reason` о policy, которая не грузится; в Run четыре события
+- **WHEN** policy не грузится, активен Run `implement` с `write_scope` `src/**`, а guard получает `pre` `edit` пути `src/app.ts`, затем `docs/notes.md`, затем `.warrant/warrant.json`, затем `post` `edit` пути `.warrant/warrant.json`, затем `pre` `shell` с `argv: ["bash", "-c", "pytest -q"]`
+- **THEN** первое и третье — `allow`, второе и пятое — `deny` с `reason` о policy, которая не грузится (второе называет ещё `docs/notes.md` и `write_scope`); четвёртое — `allow` с hint `warrant sync`; в Run пять событий
 
 #### Scenario: Закреплённый CLI в строгой форме
 <!-- id: SCN-ENF-051 -->
 - **WHEN** `warrant.json` задаёт `cli: "tools/warrant.js"`; при активном Run `review` guard получает `pre` `shell` с `argv: ["bash", "-c", "node tools/warrant.js run submit --file r.json"]`, затем `["bash", "-c", "node other.js run submit --file r.json"]`; без Run при policy, которая не грузится, — `["bash", "-c", "node tools/warrant.js sync"]`, затем `["bash", "-c", "cd docs && node tools/warrant.js sync"]` (`docs` — каталог проекта), затем `pre` `edit` пути `src/app.ts`
-- **THEN** первое и третье — `allow`, второе и четвёртое — `deny`; `hints[]` последнего называют `node tools/warrant.js sync` и не называют `warrant sync` без `node tools/warrant.js`
+- **THEN** первое и третье — `allow`, второе и четвёртое — `deny`; `hints[]` второго называют `node tools/warrant.js run submit`, `hints[]` последнего — `node tools/warrant.js sync` и «из корня проекта» и не называют `warrant sync` без `node tools/warrant.js`
 
 #### Scenario: CLI старше закрепления
 <!-- id: SCN-ENF-054 -->
 - **WHEN** `warrant.json` закрепил `core-sdd` `^0.5.0`, CLI несёт `core-sdd` 0.4.1, активного Run нет, а guard получает `pre` `edit` пути `src/app.ts` при `paths.src: "src"`
-- **THEN** `deny`: `reason` называет `0.4.1` и `^0.5.0`, `hints[]` называет установку CLI тега, который закрепил проект, и не советует менять `packs.core-sdd.version`
+- **THEN** `deny`: `reason` называет `0.4.1` и `^0.5.0`, `hints[]` называет установку CLI тега, который закрепил проект, и не советует менять `packs.core-sdd.version`; при `packs.core-xyz` (pack, которого CLI не несёт) — `PACK_NOT_FOUND`, тот же выход; при `cli` — обновить файл `cli`, а не CLI тега
 
 #### Scenario: Исключение runner'а guard
 <!-- id: SCN-ENF-052 -->

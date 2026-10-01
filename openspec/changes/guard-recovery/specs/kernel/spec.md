@@ -152,8 +152,9 @@ envelope в тексте SHALL проходить схему `skill-result/1` ([
 (кроме сырого вывода checks `.warrant/evidence/**/raw/**` — он не часть записи, [REQ-VER-001](../verification/spec.md), I-76)
 и в подключённых packs имеет `$schema` и валиден; (2) `warrant.json` и lock согласованы — версии packs в диапазонах (версия подключённого pack вне диапазона `warrant.json` —
 `PACK_VERSION_RANGE` с путём его `pack.json`, сообщением с версией pack и диапазоном — у встроенного pack ещё и с версией
-CLI, который его несёт, — и `hint` по направлению: версия выше диапазона — поднять `packs.<id>.version` и `kernel` в
-`warrant.json`, затем `warrant sync`; ниже — `warrant.json` не менять, исполнить CLI, который закрепил проект
+CLI, который его несёт, — и `hint`: у встроенного pack, чья версия выше каждой версии диапазона, — поднять `packs.<id>.version`
+и `kernel` в `warrant.json`, затем `warrant sync`; ниже каждой — `warrant.json` не менять, поставить CLI, который закрепил проект;
+иначе (pack из `.warrant/local/`, версия ни выше, ни ниже) — задать диапазон, который содержит версию pack, затем `warrant sync`
 ([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 2); свой код, а не `CONFIG_INVALID`, отличает эту ошибку от прочих ошибок загрузки, и
 тот же код SHALL давать любая команда, загружающая packs; pack, чей `kernel` не включает версию kernel CLI, — по-прежнему
 `CONFIG_INVALID`),

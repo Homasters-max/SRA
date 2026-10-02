@@ -5,9 +5,10 @@
 
 Схема `warrant://config/1` SHALL принимать необязательный ключ `paths.data` ([REQ-KRN-004](#requirement-схема-config)) — непустой
 список каталогов проекта, элементы которого различны как строки, каждый — `relative_path`. Нормализация элемента — снимать ведущие
-`./` и конечные `/`, пока они есть. Элемент, нормализация которого даёт пустую строку, `.`, `.warrant` или `openspec` или путь под
-`.warrant/` или `openspec/` (регистр букв не различается), SHALL делать файл невалидным с указанием `/paths/data/<i>`: корень проекта,
-состояние WARRANT и spec не данные проекта. Наличие и вид пути схема не проверяет; элемент, который называет файл, не делает кодом
+`./` и конечные `/`, пока они есть. Элемент SHALL делать файл невалидным с указанием `/paths/data/<i>`, если он содержит символ
+шаблона glob (`*`, `?`, `[`, `]`, `{`, `}`, `(`, `)`, `!`, `+`, `@`) или если его нормализация даёт пустую строку, путь с пустым
+сегментом или сегментом `.` (в том числе ведущий `/`), `.`, `.warrant` или `openspec` или путь под `.warrant/` или `openspec/`
+(регистр букв не различается): каталог данных — буквальный путь, а корень проекта, состояние WARRANT и spec не данные проекта. Наличие и вид пути схема не проверяет; элемент, который называет файл, не делает кодом
 ни одного пути. Каталоги `paths.data`, которые совпадают после нормализации друг с другом или с `paths.src` / `paths.tests`, дают
 один корень.
 
@@ -15,13 +16,13 @@
 ([REQ-ENF-002](../enforcement/spec.md)), finding `FRONTEND_HOOKS_INACTIVE` ([REQ-VER-009](../verification/spec.md)). Это
 исключение из текста [REQ-ENF-004](../enforcement/spec.md) и [REQ-VER-011](../verification/spec.md): каждое их упоминание
 `paths.src` и `paths.tests` как кода проекта — классы путей guard и hint `deny` без активного Run, policy-путь вне кода,
-правила путей видов `none`, `spec`, `archive` и impl-PR, условие пропуска проверки кода с записью в `data.skipped[]` — SHALL
-читаться как `paths.src`, `paths.tests` и каталоги `paths.data`; проверка кода пропускается, только когда не задан ни один из
-трёх ключей. `warrant ci` SHALL брать `paths.data`, как `paths.src` и `paths.tests`, из `warrant.json` базы требований
+правила путей видов `none`, `spec`, `archive` и «База требований», условие пропуска проверки кода с записью в `data.skipped[]` — SHALL
+читаться как `paths.src`, `paths.tests` и каталоги `paths.data`; проверка кода пропускается, только когда ни один из трёх
+ключей не даёт корня (не задан или после нормализации называет корень проекта, как `paths.src: "."`). `warrant ci` SHALL брать `paths.data`, как `paths.src` и `paths.tests`, из `warrant.json` базы требований
 (`HEAD^1`, [ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md)).
 
 Требования, где `paths.tests` значит именно тесты — ссылки на ID в файлах тестов ([REQ-KRN-021](#requirement-команда-validate),
-[REQ-KRN-024](#requirement-команда-id)), покрытие SCN тестами ([REQ-VER-004](../verification/spec.md),
+[REQ-KRN-024](#requirement-команда-id), [REQ-KRN-032](#requirement-команда-validate---files)), покрытие SCN тестами ([REQ-VER-004](../verification/spec.md),
 [REQ-VER-010](../verification/spec.md)), — каталогов `paths.data` SHALL NOT касаться. Без `paths.data` поведение CLI SHALL
 оставаться прежним.
 
@@ -48,7 +49,8 @@
 #### Scenario: Недопустимые каталоги данных
 <!-- id: SCN-KRN-174 -->
 - **WHEN** `paths.data` равен `["std"]`, `[".warrant-data"]`, `["std/std.json"]`; `[]`, `["std", "std"]`; `["."]`, `["./"]`,
-  `[".//"]`, `["./.warrant/data"]`, `[".warrant/"]`, `[".Warrant"]`, `["openspec"]`, `["OpenSpec/x"]` или `["../std"]`
+  `[".//"]`, `[".//std"]`, `["std/./x"]`, `["./.warrant/data"]`, `[".warrant/"]`, `[".Warrant"]`, `["openspec"]`, `["OpenSpec/x"]`,
+  `["../std"]`, `["*"]` или `["{.warrant,std}"]`
 - **THEN** первые три файла валидны; четвёртый и пятый невалидны с указанием `/paths/data`; остальные — с указанием `/paths/data/0`
 
 ## MODIFIED Requirements

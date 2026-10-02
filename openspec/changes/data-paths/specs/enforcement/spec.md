@@ -15,7 +15,7 @@ hash набора пар «путь → blob» файлов `proposal.md` и `sp
 `spec-approved`); если эти файлы в рабочем дереве отличаются от HEAD или не закоммичены — `SPEC_UNCOMMITTED` с `hint`
 закоммитить spec. `--scope` (glob через запятую) SHALL только сужать: guard разрешает путь, лишь если он подходит и под
 `write_scope`, и под `scope` (пустой `scope` — без сужения). Состояние Change не допускает операцию → `STATE_INVALID`;
-`implement` без `paths.src`, `paths.tests` и `paths.data` → `CONFIG_INVALID`; активный Run уже есть → `RUN_ACTIVE`; каждая из этих ошибок SHALL
+`implement`, когда ни `paths.src`, ни `paths.tests`, ни `paths.data` не дают корня ([REQ-KRN-037](../kernel/spec.md)), → `CONFIG_INVALID`; активный Run уже есть → `RUN_ACTIVE`; каждая из этих ошибок SHALL
 нести `hint`, код выхода 3, ничего не записано. Для `specify` и `implement` файлы внутри `write_scope`, которые отличаются от HEAD
 в индексе или рабочем дереве (в том числе удалённые) или не отслеживаются git и не игнорируются (`.gitignore`), SHALL давать
 находку `{ code: "UNCOMMITTED_IN_SCOPE", paths[], hint }` (`paths` — пути проекта в порядке code units) в

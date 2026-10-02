@@ -9,8 +9,8 @@ CLI SHALL вычислять для Change finding `FRONTEND_HOOKS_INACTIVE`
 не содержит события `phase: "post"` с этим путём в `paths[]`. Finding — `{ code: "FRONTEND_HOOKS_INACTIVE", paths[], more }`:
 не больше 10 путей по порядку, `more` — число остальных. `warrant status` SHALL добавлять его в `verification.findings[]` Change в состоянии
 `IMPLEMENTING` и дальше; `warrant verify` и `warrant gate` — в `data.findings[]` для перехода `VERIFYING->MERGED`. Finding SHALL
-NOT менять verdict, `controller_action` и код выхода: правки человека без hooks легитимны. Без `paths.src`, `paths.tests` и
-`paths.data` finding не вычисляется.
+NOT менять verdict, `controller_action` и код выхода: правки человека без hooks легитимны. Когда ни `paths.src`, ни `paths.tests`, ни
+`paths.data` не дают корня ([REQ-KRN-037](../kernel/spec.md)), finding не вычисляется.
 
 #### Scenario: Правка без hooks
 <!-- id: SCN-VER-053 -->

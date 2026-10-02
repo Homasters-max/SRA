@@ -7,10 +7,10 @@
 
 Коммит — один на группу, в ветке `worktree/data-paths`. Пути — от `packages/cli/src`, тесты — `packages/cli/test`.
 
-## 1. Схема и конфигурация (REQ-KRN-037, D3)
+## 1. Схема и конфигурация (REQ-KRN-004, REQ-KRN-037, D3)
 
-- [ ] 1.1 `schemas/config.1.schema.json`: `paths.data` — массив `relative_path`, `minItems: 1`, `uniqueItems`, элемент с `not` `pattern` (без учёта регистра, классами букв): после ведущих `./` и до конечных `/` — пусто, `.`, `.warrant`, `openspec` или путь под ними; `core/config.ts`: `paths.data` в `WarrantConfig`.
-- [ ] 1.2 Фикстуры `test/fixtures/schemas/config/`: `valid-paths-data.json` и `invalid-paths-data-*.json` с `.expect.json` — SCN-KRN-174.
+- [ ] 1.1 `schemas/config.1.schema.json`: `paths.data` — массив `relative_path`, `minItems: 1`, `uniqueItems`, элемент с `not` `pattern` (без учёта регистра, классами букв): символы glob `*?[]{}()!+@`; после ведущих `./` и до конечных `/` — пусто, пустой сегмент или сегмент `.`, `.`, `.warrant`, `openspec` или путь под ними; `core/config.ts`: `paths.data` в `WarrantConfig`.
+- [ ] 1.2 Фикстуры `test/fixtures/schemas/config/`: `valid-paths-data.json` и `invalid-paths-data-*.json` с `.expect.json` — SCN-KRN-174; SCN-KRN-008 (пример 08 §3 с `paths.data`) — зелёный.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts schemas`.
 
@@ -23,6 +23,6 @@
 
 ## 3. Документы и выпуск (D2, D5)
 
-- [ ] 3.1 `docs/08-packs.md` §3 — `paths.data`; `CHANGELOG.md` — `## 0.10.2`, «Вердикт» и «Миграция» (сначала CLI 0.10.2, потом ключ); версия CLI — 0.10.2; `docs/backlog.md` — перенос `paths.data` в тексты REQ-ENF-004 и REQ-VER-011 после archive `judge-law`.
+- [ ] 3.1 `docs/08-packs.md` §3 — `paths.data`; `CHANGELOG.md` — `## 0.10.2`, «Вердикт» и «Миграция» (сначала CLI 0.10.2, потом ключ); версия CLI — 0.10.2; `docs/backlog.md` — перенос `paths.data` в тексты REQ-ENF-004 и REQ-VER-011 после archive `judge-law`; символы glob в `paths.src` / `paths.tests` (review раунда 2, F-1).
 
   Проверка: `node scripts/dev/check.js`; полный `npm test`.

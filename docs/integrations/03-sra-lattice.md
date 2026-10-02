@@ -8,8 +8,7 @@ version: 0.1.0
 
 # 03. SRA над LATTICE
 
-Как SRA читает LATTICE, о чём обязан рассуждать честно и как возвращает результат. Envelope и authority skills
-уже определены в [07](../07-skills.md); здесь — только то, что добавляет LATTICE.
+Как SRA читает LATTICE, о чём обязан рассуждать честно и как возвращает результат. Envelope и authority skills уже определены в [07](../07-skills.md); здесь — только то, что добавляет LATTICE.
 
 ## 1. Граница
 
@@ -21,8 +20,7 @@ SRA may not: MUTATE canonical LATTICE · change LATTICE rules · silently resolv
 
 ## 2. Что SRA получает
 
-Часть Context Pack ([07 §3](../07-skills.md)) — semantic read model ([01 §9](01-lattice-contract.md)):
-objects, relations, identity, classification, grounding, provenance, `epistemic_state`, history window.
+Часть Context Pack ([07 §3](../07-skills.md)) — semantic read model ([01 §9](01-lattice-contract.md)): objects, relations, identity, classification, grounding, provenance, `epistemic_state`, history window.
 
 - Не весь LATTICE, а минимальный достаточный subgraph под задачу. Состав определяет адаптер по operation и effective policy, не skill.
 - Snapshot read model входит в `context_hash` Run (открыто, I4).
@@ -41,9 +39,7 @@ objects, relations, identity, classification, grounding, provenance, `epistemic_
 
 ## 4. Reasoning outcomes → result envelope
 
-Черновики вводили статусы SRA (`UNKNOWN`, `INCONCLUSIVE`, `CONFLICT`, `DECISION_REQUIRED`, `STALE`). Это отклонено:
-единственный статус skill — `run_state` ([ADR-0003](../adr/WARRANT-ADR-0003-vocabulary-axes.md)). Outcomes проецируются
-на массивы envelope [07 §4](../07-skills.md):
+Черновики вводили статусы SRA (`UNKNOWN`, `INCONCLUSIVE`, `CONFLICT`, `DECISION_REQUIRED`, `STALE`). Это отклонено: единственный статус skill — `run_state` ([ADR-0003](../adr/WARRANT-ADR-0003-vocabulary-axes.md)). Outcomes проецируются на массивы envelope [07 §4](../07-skills.md):
 
 | Outcome | Где в envelope | Маркер / поле |
 |---|---|---|
@@ -59,14 +55,11 @@ objects, relations, identity, classification, grounding, provenance, `epistemic_
 
 identity conflict · classification conflict · relation conflict · provenance conflict · semantic contradiction · stale context.
 
-Допустимый результат — finding `conflict` плюс `decisions_required[]` с вариантами. Разрешает субъект с authority
-(`PROPOSAL → DECISION`, [02 §1](../02-vocabulary.md)).
+Допустимый результат — finding `conflict` плюс `decisions_required[]` с вариантами. Разрешает субъект с authority (`PROPOSAL → DECISION`, [02 §1](../02-vocabulary.md)).
 
 ## 6. Proposals
 
-Все изменения semantic state SRA возвращает в `proposals[]` envelope. Адаптер WARRANT переупаковывает каждый элемент
-в envelope [02 §4](02-proposal-contract.md): добавляет `id`, `source.run`, `based_on` из Context Pack. Skill
-не заполняет `based_on` сам: snapshot известен инфраструктуре.
+Все изменения semantic state SRA возвращает в `proposals[]` envelope. Адаптер WARRANT переупаковывает каждый элемент в envelope [02 §4](02-proposal-contract.md): добавляет `id`, `source.run`, `based_on` из Context Pack. Skill не заполняет `based_on` сам: snapshot известен инфраструктуре.
 
 ## 7. Semantic skills (кандидаты, informative)
 

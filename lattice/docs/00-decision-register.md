@@ -8,13 +8,9 @@ version: 0.1.0
 
 # 00. LATTICE — реестр принятых решений
 
-Единый список решений по LATTICE, собранный из трёх источников: [substrate](01-object-substrate.md),
-[Q&A](02-architecture-qa.md) и [06-decisions](03-substrate-decisions.md).
-Назначение — не потерять решения при выделении LATTICE в отдельный проект и не уйти в сторону при реализации.
+Единый список решений по LATTICE, собранный из трёх источников: [substrate](01-object-substrate.md), [Q&A](02-architecture-qa.md) и [06-decisions](03-substrate-decisions.md). Назначение — не потерять решения при выделении LATTICE в отдельный проект и не уйти в сторону при реализации.
 
-Правило: **реализация LATTICE MUST NOT противоречить строке со статусом `ACCEPTED`**. Изменение такой строки — только
-через architecture change procedure (substrate §61, Q&A §57) с новой версией этого реестра. `PROPOSED` — согласовано
-как направление, ждёт подтверждения реальным кейсом.
+Правило: **реализация LATTICE MUST NOT противоречить строке со статусом `ACCEPTED`**. Изменение такой строки — только через architecture change procedure (substrate §61, Q&A §57) с новой версией этого реестра. `PROPOSED` — согласовано как направление, ждёт подтверждения реальным кейсом.
 
 Нумерация `LD-<область>-<NN>` стабильна: строка не удаляется, а получает статус `SUPERSEDED` со ссылкой.
 
@@ -184,8 +180,7 @@ version: 0.1.0
 
 ## 13. Выделение в отдельный проект
 
-Рекомендация: **да**, LATTICE — отдельный репозиторий. Основания: LD-B-01 и LD-B-04 (domain-neutral субстрат),
-Q&A §12 (реализуется и тестируется изолированно), собственный lifecycle invariants (LD-G-09).
+Рекомендация: **да**, LATTICE — отдельный репозиторий. Основания: LD-B-01 и LD-B-04 (domain-neutral субстрат), Q&A §12 (реализуется и тестируется изолированно), собственный lifecycle invariants (LD-G-09).
 
 Что куда:
 
@@ -195,11 +190,6 @@ Q&A §12 (реализуется и тестируется изолирован�
 | [02-proposal-contract](../../docs/integrations/02-proposal-contract.md) — канал proposals | этот реестр (копия; canonical — в LATTICE, здесь ссылка на версию) |
 | [05-warrant-lattice](../../docs/integrations/05-warrant-lattice.md) — адаптер WARRANT | registries, lint, migration engine, storage |
 
-Правило синхронизации: 01 и 02 версионируются semver; LATTICE объявляет, какую версию контракта реализует
-(`"contracts": { "lattice-contract": "^0.1", "proposal-contract": "^0.1" }`), WARRANT фиксирует её в lock pack `lattice`.
-Изменение контракта — `factory-change` с обеих сторон.
+Правило синхронизации: 01 и 02 версионируются semver; LATTICE объявляет, какую версию контракта реализует (`"contracts": { "lattice-contract": "^0.1", "proposal-contract": "^0.1" }`), WARRANT фиксирует её в lock pack `lattice`. Изменение контракта — `factory-change` с обеих сторон.
 
-Структура репозитория LATTICE по образцу WARRANT: `docs/00-readme`, нумерованные kernel-документы по областям
-этого реестра (identity, contexts, classification, axes, relations, provenance, mutation, storage, governance, migration),
-`docs/adr/LATTICE-ADR-*`, `meta/*.json` как данные. Разработка самого LATTICE — через WARRANT с profile `factory-change`,
-как только у WARRANT есть MVP: это первый внешний dogfooding-проект.
+Структура репозитория LATTICE по образцу WARRANT: `docs/00-readme`, нумерованные kernel-документы по областям этого реестра (identity, contexts, classification, axes, relations, provenance, mutation, storage, governance, migration), `docs/adr/LATTICE-ADR-*`, `meta/*.json` как данные. Разработка самого LATTICE — через WARRANT с profile `factory-change`, как только у WARRANT есть MVP: это первый внешний dogfooding-проект.

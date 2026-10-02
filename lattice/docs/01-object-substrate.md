@@ -684,8 +684,7 @@ evidence/plat-4-5
 method/spike-classifier
 ```
 
-Ровно два сегмента. `name` MAY нести конвенциональный префикс (`INV-4`, `REQ-ING-001`); lint MUST NOT выводить
-из него classification (D1).
+Ровно два сегмента. `name` MAY нести конвенциональный префикс (`INV-4`, `REQ-ING-001`); lint MUST NOT выводить из него classification (D1).
 
 ---
 
@@ -697,8 +696,7 @@ method/spike-classifier
 platform/component/dispatcher
 ```
 
-потому что средний сегмент — это classification (`type = component`), а она — отдельная информация.
-Правильно: `platform/dispatcher` + `classification.type = component`.
+потому что средний сегмент — это classification (`type = component`), а она — отдельная информация. Правильно: `platform/dispatcher` + `classification.type = component`.
 
 ---
 
@@ -1386,8 +1384,7 @@ props:
 test --tests--> target
 ```
 
-Правило чтения едино для всех families: edge читается как «source *verb* target»; обратное направление
-(`is_tested_by`) — projection (D4).
+Правило чтения едино для всех families: edge читается как «source *verb* target»; обратное направление (`is_tested_by`) — projection (D4).
 
 Роли:
 
@@ -1618,8 +1615,11 @@ SECTION существует как object, если имеется хотя б�
 Главное различие:
 
 > **SECTION/REF = where we point.**
+>
 > **Edge = who points.**
+>
 > **Provenance = where exactly discovered.**
+>
 > **Git/history = when/from which source state.**
 
 ---
@@ -3270,8 +3270,7 @@ history
 edge
 ```
 
-Уточнение (D8.5): slice ниже уже использует `acceptance` и `grounding`, поэтому они входят в первый шаг.
-Затем:
+Уточнение (D8.5): slice ниже уже использует `acceptance` и `grounding`, поэтому они входят в первый шаг. Затем:
 
 ```
 currency

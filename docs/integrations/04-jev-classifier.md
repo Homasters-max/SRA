@@ -9,6 +9,7 @@ version: 0.1.0
 # 04. JEV — classifier как ProposalSource
 
 JEV (внешняя система классификации; ссылка на исходную идею — https://docs.typesafe.ai/introduction) — источник
+
 **candidate classification**. Authority нет ([ADR-0008](../adr/WARRANT-ADR-0008-naming.md)).
 
 ## 1. Принцип
@@ -31,9 +32,7 @@ JEV опционален — LATTICE и WARRANT самодостаточны.
 
 ## 3. Разделение с классификатором LATTICE
 
-LATTICE имеет **собственный** детерминированный минимум classification ([01 §5](01-lattice-contract.md)):
-`root_kind`, `context`, `type`, `subtype`, `properties`, state axes. JEV поставляет знание: concepts, terminology,
-definitions, semantic relations, rules.
+LATTICE имеет **собственный** детерминированный минимум classification ([01 §5](01-lattice-contract.md)): `root_kind`, `context`, `type`, `subtype`, `properties`, state axes. JEV поставляет знание: concepts, terminology, definitions, semantic relations, rules.
 
 ```text
                 LATTICE
@@ -48,8 +47,7 @@ definitions, semantic relations, rules.
          candidate classification
 ```
 
-Зависимость односторонняя: `JEV → proposal → LATTICE`. LATTICE MUST NOT требовать JEV для валидации инвариантов,
-иначе возникает скрытая петля `LATTICE → JEV → LATTICE` и фундамент перестаёт быть независимым.
+Зависимость односторонняя: `JEV → proposal → LATTICE`. LATTICE MUST NOT требовать JEV для валидации инвариантов, иначе возникает скрытая петля `LATTICE → JEV → LATTICE` и фундамент перестаёт быть независимым.
 
 | Уровень LATTICE | Зависимость от JEV |
 |---|---|
@@ -94,8 +92,7 @@ Envelope [02 §4](02-proposal-contract.md) с `source.system: "jev"`:
   "reads": ["lexicon@snapshot", "meta/root_kind"], "operations": ["RECLASSIFY", "RELATE"], "rationale": "required" }
 ```
 
-Pipeline и результаты — [02 §3, §5](02-proposal-contract.md). Proposal без `based_on` или `rationale` не принимается;
-несовпадение версий → `STALE`. History записывает `proposed_by: jev-v1`.
+Pipeline и результаты — [02 §3, §5](02-proposal-contract.md). Proposal без `based_on` или `rationale` не принимается; несовпадение версий → `STALE`. History записывает `proposed_by: jev-v1`.
 
 ## 6. Proposer classification для WARRANT
 
@@ -129,15 +126,12 @@ Pipeline и результаты — [02 §3, §5](02-proposal-contract.md). Pro
 | JEV «уверен», но противоречит floor | Floor побеждает; расхождение записывается для метрик proposer |
 | Устаревший snapshot | `STALE`; JEV перечитывает |
 
-**Предлагаемое ограничение (не доказано, пока открыт I5):** наружу JEV получает только snapshot read model (подмножество),
-пути diff, текст proposal Change; никогда — код целиком, данные, секреты, evidence. Security boundary считается
-завершённым только после фиксации точного input envelope и границ локальности запуска JEV.
+**Предлагаемое ограничение (не доказано, пока открыт I5):** наружу JEV получает только snapshot read model (подмножество), пути diff, текст proposal Change; никогда — код целиком, данные, секреты, evidence. Security boundary считается завершённым только после фиксации точного input envelope и границ локальности запуска JEV.
 
 ## 8. Versioning
 
 - `source.version` JEV фиксируется в каждом proposal и в Change record; смена MAJOR — `factory-change` для pack `jev`.
-- Метрики источника ([12 §4](../12-evolution.md)): доля принятых proposals, доля `REJECTED` по инварианту, расхождение с human.
-  Деградация — основание отключить источник в policy, не трогая LATTICE.
+- Метрики источника ([12 §4](../12-evolution.md)): доля принятых proposals, доля `REJECTED` по инварианту, расхождение с human. Деградация — основание отключить источник в policy, не трогая LATTICE.
 
 ## 9. Открытые вопросы
 

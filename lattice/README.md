@@ -8,12 +8,9 @@ version: 0.1.0
 
 # LATTICE — Object Substrate
 
-**LATTICE** — семантический субстрат SEF: identity, classification, оси состояния, relations, provenance, history
-durable-объектов. Отвечает на вопрос «что это за объект и как он связан». Не сервис, не агент, domain-neutral.
+**LATTICE** — семантический субстрат SEF: identity, classification, оси состояния, relations, provenance, history durable-объектов. Отвечает на вопрос «что это за объект и как он связан». Не сервис, не агент, domain-neutral.
 
-Эта папка — **самодостаточная заготовка отдельного проекта**. Решение (2026-09-22): выделяется в собственный
-репозиторий **после** первого vertical slice на объектах OpenSpec. До этого живёт здесь, чтобы разрез
-интерфейсных контрактов прошёл проверку реальным кейсом.
+Эта папка — **самодостаточная заготовка отдельного проекта**. Решение (2026-09-22): выделяется в собственный репозиторий **после** первого vertical slice на объектах OpenSpec. До этого живёт здесь, чтобы разрез интерфейсных контрактов прошёл проверку реальным кейсом.
 
 ## Читать в этом порядке
 
@@ -32,8 +29,7 @@ durable-объектов. Отвечает на вопрос «что это з�
 | [integrations/02-proposal-contract](../docs/integrations/02-proposal-contract.md) | Единый канал proposals: envelope, pipeline, результаты |
 | [integrations/05-warrant-lattice](../docs/integrations/05-warrant-lattice.md) | Адаптер WARRANT: какие объекты уходят, проекция маркеров, authorization |
 
-При выделении в репозиторий LATTICE объявляет реализуемую версию контрактов
-(`"contracts": { "lattice-contract": "^0.1", "proposal-contract": "^0.1" }`); WARRANT фиксирует её в lock pack `lattice`.
+При выделении в репозиторий LATTICE объявляет реализуемую версию контрактов (`"contracts": { "lattice-contract": "^0.1", "proposal-contract": "^0.1" }`); WARRANT фиксирует её в lock pack `lattice`.
 
 ## Что зафиксировано (сводка реестра)
 
@@ -72,8 +68,7 @@ OpenSpec Change → объект spec/CHG-… → requirement spec/REQ-… (part
 → mutation через engine → provenance / history → projection → lint PASS → double-build identical
 ```
 
-Минимум механизмов для slice (substrate D8.5): identity, classification, provenance, edge, history,
-`acceptance`, `grounding`. `currency` и `epistemic_state` — после.
+Минимум механизмов для slice (substrate D8.5): identity, classification, provenance, edge, history, `acceptance`, `grounding`. `currency` и `epistemic_state` — после.
 
 ## Целевая структура репозитория
 
@@ -98,10 +93,8 @@ lattice/
 └── src/, tests/, golden/         реализация, тесты, golden cases
 ```
 
-Разработка LATTICE ведётся **через WARRANT** (profile `factory-change`), как только у WARRANT есть MVP.
-Это первый внешний dogfooding обоих компонентов.
+Разработка LATTICE ведётся **через WARRANT** (profile `factory-change`), как только у WARRANT есть MVP. Это первый внешний dogfooding обоих компонентов.
 
 ## Конвенции
 
-Те же, что в WARRANT ([00-readme](../docs/00-readme.md)): документы RU с EN-терминами; JSON с `$schema` для
-машинных файлов; маркеры RFC 2119 заглавными; status / maturity во frontmatter; один объект — один файл.
+Те же, что в WARRANT ([00-readme](../docs/00-readme.md)): документы RU с EN-терминами; JSON с `$schema` для машинных файлов; маркеры RFC 2119 заглавными; status / maturity во frontmatter; один объект — один файл.

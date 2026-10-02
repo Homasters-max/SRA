@@ -8,9 +8,7 @@ version: 0.1.0
 
 # Контракты компонентов SEF
 
-Каталог описывает контракты между компонентами SEF, лежащие **вне** kernel WARRANT: LATTICE, канал proposals,
-SRA поверх LATTICE, JEV. Это **идеи, которые предстоит доработать**: статус `proposed`, maturity `deferred`.
-Они не обязывают реализацию, но фиксируют границы, чтобы MVP WARRANT их не нарушил.
+Каталог описывает контракты между компонентами SEF, лежащие **вне** kernel WARRANT: LATTICE, канал proposals, SRA поверх LATTICE, JEV. Это **идеи, которые предстоит доработать**: статус `proposed`, maturity `deferred`. Они не обязывают реализацию, но фиксируют границы, чтобы MVP WARRANT их не нарушил.
 
 Форма любой интеграции с WARRANT — [11-integrations](../11-integrations.md). Словарь и инварианты — [01](../01-principles.md), [02](../02-vocabulary.md).
 
@@ -24,8 +22,7 @@ SRA поверх LATTICE, JEV. Это **идеи, которые предсто�
 | [04-jev-classifier](04-jev-classifier.md) | JEV как ProposalSource для LATTICE и proposer classification для WARRANT | JEV, LATTICE, WARRANT |
 | [05-warrant-lattice](05-warrant-lattice.md) | WARRANT ↔ LATTICE: какие объекты уходят, проекция маркеров, роль authorizer | WARRANT |
 
-Внутреннее устройство LATTICE (объектная модель, Q&A, реестр решений `LD-*`) живёт в отдельной заготовке проекта
-[lattice/](../../lattice/README.md); здесь — только интерфейс.
+Внутреннее устройство LATTICE (объектная модель, Q&A, реестр решений `LD-*`) живёт в отдельной заготовке проекта [lattice/](../../lattice/README.md); здесь — только интерфейс.
 
 **Порядок чтения:** 01 → 02, далее по компоненту.
 
@@ -61,8 +58,7 @@ Evidence фиксирует результат.
 
 - Три разных описания proposal (addendum, JEV ProposalSource, `proposals[]` в envelope skill) сведены к одному контракту (02).
 - Неоднозначное «LATTICE / governing layer» заменено явной цепочкой: источник → WARRANT authorization → LATTICE validation → mutation.
-- Reasoning outcomes SRA (`UNKNOWN`, `INCONCLUSIVE`, `CONFLICT`, `DECISION_REQUIRED`, `STALE`) не стали статусами:
-  они спроецированы на result envelope [07 §4](../07-skills.md), где единственный статус — `run_state` ([ADR-0003](../adr/WARRANT-ADR-0003-vocabulary-axes.md)).
+- Reasoning outcomes SRA (`UNKNOWN`, `INCONCLUSIVE`, `CONFLICT`, `DECISION_REQUIRED`, `STALE`) не стали статусами: они спроецированы на result envelope [07 §4](../07-skills.md), где единственный статус — `run_state` ([ADR-0003](../adr/WARRANT-ADR-0003-vocabulary-axes.md)).
 - JEV получил вторую, симметричную роль: proposer classification Change для WARRANT ([05 §4](../05-policy.md)) с тем же envelope.
 - YAML заменён на JSON; добавлены разделы failure modes, security boundary, versioning, открытые вопросы.
 

@@ -1,0 +1,230 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3YBHGQ62WJGRSP8AZS4RTC3",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "REQ-VER-012 (delta) and SCN-VER-156 deliberately leave a state where the evidence directory holds EVID-S while manifest.evidence[] is [\"EVID-A\",\"EVID-B\"]. Main spec REQ-KRN-021 item (12) requires that manifest.evidence[] list exactly the records of the directory, and any finding gives ok:false, exit 3. So after a successful ci fetch, `warrant validate` (and scripts/dev/check.js) fails in the worktree. REQ-KRN-036 also defines a record outside manifest.evidence[] as the remnant of an interrupted write that the next evidence write restores into the manifest, and its validate hint says so. The delta gives that same state a new meaning, a foreign leftover that must stay unlisted, without changing either kernel requirement.",
+      "targets": [
+        "REQ-VER-012",
+        "SCN-VER-156",
+        "REQ-KRN-021",
+        "REQ-KRN-036"
+      ],
+      "recommendation": "Resolve in this Change (see D-1). Either (a) add a kernel delta: MODIFIED REQ-KRN-021 (12) and REQ-KRN-036, saying how validate treats an uncommitted record outside the manifest (a warning, or a distinct code with a hint to remove it); or (b) make ci fetch report such records (a finding or skipped[] entry with paths and a hint to delete them) and keep the validate rule; or (c) make ci fetch fail on them with a hint. Then extend SCN-VER-156 with the expected `warrant validate` outcome."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "ambiguity",
+      "statement": "SCN-VER-154 requires that `data` (without no_record), `errors[]` and the exit code equal the output of `warrant ci` on the same copy. Every run allocates fresh EVID-<ULID> ids (core/check/execute.ts allocateUlid). Those ids appear in data.evidence[], in the per-check entries (`evidence`, and `path` with the id) and in record-derived values, so two invocations can never produce equal `data`. Read literally, the scenario cannot pass for any implementation. Read loosely, the spec does not say which fields are excluded from the comparison.",
+      "targets": [
+        "SCN-VER-154",
+        "REQ-VER-017"
+      ],
+      "recommendation": "Name the comparison: equal after replacing EVID ids (and the record paths that contain them) with placeholders, or compare data.kind, data.gates, data.transitions, data.deferred, data.findings, data.skipped, the error codes and the exit code. State the same rule in REQ-VER-017 (\"the same verdict\" = these fields)."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-017 does not say what happens when another WARRANT writer (`warrant check`, `verify`, `transition`, `run submit`) writes the same evidence directory between the first write of `ci --no-record` and its restore. Restore puts back the pre-call manifest.json and raw/<check-id>, so the other process's record ends up outside the manifest and its artifacts are lost. design.md Risks says `ci --no-record` runs under the checks lock. In the code, the lock exists only for checks with execution.exclusive: true, and it is released before storeRecord and long before restore (core/check/execute.ts lines 183-211). The spec has no lock rule at all.",
+      "targets": [
+        "REQ-VER-017",
+        "openspec/changes/ci-local/design.md"
+      ],
+      "recommendation": "Add to REQ-VER-017: `ci --no-record` holds the Change lock (as `ci fetch` does, REQ-VER-012) from the first write until restore ends; a concurrent writer gets BUSY, retryable, exit 4. Alternatively, name the rollback of concurrent writes as accepted behavior. Fix the design claim either way."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "It is unclear what \"every file and directory the command wrote, created or deleted\" covers. The check commands that `warrant ci` spawns (test runners, builds) write outside {out}: coverage/, build output, tool caches. One reading restores only what WARRANT writes through ctx.writes (records, manifest, raw/). The other restores every project file, which matches SCN-VER-154's \"every project file byte for byte the same, no new files\". The two readings give different observable results for any check with side effects.",
+      "targets": [
+        "REQ-VER-017",
+        "SCN-VER-154"
+      ],
+      "recommendation": "Bound the guarantee explicitly: files WARRANT writes in <state>/evidence/<change>/ (records, manifest.json, raw/<check-id>/). Side effects of check commands outside {out} are not restored, as with plain `warrant ci`. Word SCN-VER-154's THEN with that bound."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "A failed restore is reported only as a stderr line. The verdict, JSON and exit code stay unchanged, so a machine consumer (an agent following the LATTICE rule) gets ok:true / exit 0 while leftover files remain. That leftover is exactly the failure #143 is about, and an agent reading JSON cannot detect it. No scenario covers a failed restore.",
+      "targets": [
+        "REQ-VER-017"
+      ],
+      "recommendation": "On a failed restore, add a machine-readable signal: for example `data.not_restored[]` with paths, or an informational finding code in data.findings[]. Keep the verdict and exit code if that is the intent, and add a scenario (for example, a file locked by another process on Windows)."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "The spec does not cover `warrant ci --no-record` under GitHub Actions (GITHUB_ACTIONS=true). Restore empties the directory that data.artifact.path names, so the workflow uploads no evidence artifact, and a later `ci fetch` ends with NO_CI_EVIDENCE. The flag is meant for local runs only, but nothing forbids it in CI or says what data.artifact is then.",
+      "targets": [
+        "REQ-VER-017"
+      ],
+      "recommendation": "Either make `--no-record` with GITHUB_ACTIONS=true a USAGE error (exit 3, with a hint) and add a scenario, or allow it explicitly and state that data.artifact is absent or that its path does not exist after the call."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "The REQ-VER-012 fix assumes that no evidence write follows `ci fetch` before the archive-PR commit. In the archive-PR flow, `warrant transition MERGED` (human-approval via storeRecord) and `warrant archive` (it runs checks, core/check/execute.ts: \"Shared by check, verify and archive\") both rebuild manifest.evidence[] from the directory (core/evidence/write.ts writeManifest, REQ-KRN-036, I-203). That rebuild lists EVID-S again. The EVID-S file also stays untracked in .warrant/evidence/<change>/, where `git add` commits it. design.md Risks admits the rebuild. The proposal's claim \"a leftover of a local run does not get into the manifest\" (the LATTICE #109 failure) therefore does not hold for the archive-PR as a whole.",
+      "targets": [
+        "REQ-VER-012",
+        "openspec/changes/ci-local/proposal.md",
+        "REQ-KRN-036"
+      ],
+      "recommendation": "Either narrow the proposal's claim to the manifest right after `ci fetch` and record the residual risk, or make the rule hold for the archive-PR: for example, ci fetch (and/or transition/archive) reports uncommitted records outside HEAD's manifest with paths and a hint to delete them. Decide together with F-1 (D-1)."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "manifest.evidence[] is defined as HEAD's evidence[] plus \"ids of the imported records\", while the same requirement says a record with the same id and content \"is skipped\". If skipped records do not count as imported, a repeated fetch (SCN-VER-097) rewrites the manifest down to HEAD's list, so files change. A fetch that resumes an interrupted import (records written, manifest not) then never lists them, which breaks \"an interrupted import is completed by a repeated ci fetch\". The code's ImportResult.ids includes records already present, but the spec does not fix that.",
+      "targets": [
+        "REQ-VER-012",
+        "SCN-VER-097",
+        "SCN-VER-156"
+      ],
+      "recommendation": "Write: \"ids of all records of the selected attempt, including those already present in the directory with the same content\"."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "No behavior is defined when the Change's manifest in HEAD is malformed or fails `evidence-manifest/1`, or when it lists an id whose file is missing from the worktree. The new manifest would then list a non-existent record, or silently start from an empty base. The current on-disk readManifest treats a malformed manifest as absent.",
+      "targets": [
+        "REQ-VER-012"
+      ],
+      "recommendation": "Specify the outcome: for example, a malformed manifest in HEAD is SCHEMA_VIOLATION with its path, exit 3, nothing written; and a HEAD id without a file is kept in the manifest, or is an error."
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Under --no-record, data.evidence[], the per-check `path` and data.artifact.path name files and a directory that, by the same requirement, no longer exist when the command returns. The spec does not say whether these fields are still emitted, as SCN-VER-154's equality implies, or what they mean.",
+      "targets": [
+        "REQ-VER-017",
+        "SCN-VER-154"
+      ],
+      "recommendation": "State that these fields are reported as by `warrant ci` but refer to files removed at the end of the call, or omit data.artifact under --no-record and exclude it from the SCN-VER-154 comparison."
+    },
+    {
+      "id": "F-11",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "It is not said whether data.no_record: true is present on outputs that end before judging: USAGE for WARRANT_STATE_DIR, HEAD not a merge, TOPOLOGY_VIOLATION, POLICY_CONFLICT, and the USAGE for --no-record with --dry-run itself.",
+      "targets": [
+        "REQ-VER-017",
+        "SCN-VER-155"
+      ],
+      "recommendation": "Say that data.no_record: true accompanies every output of `ci --no-record`, including errors, or only judged outputs; extend SCN-VER-155 accordingly."
+    },
+    {
+      "id": "F-12",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-VER-011, which this Change does not modify, keeps the synopsis `warrant ci [--dry-run]`, the output shape `data{ kind, ..., dry_run?, would_write[]? }` without no_record, and the impl rule \"SHALL ... write evidence to <state>/evidence/<change>/ of the working copy\". REQ-VER-017 adds a flag and output key and reverses that write. After archive, the main spec will hold two statements about the same command without a cross-reference.",
+      "targets": [
+        "REQ-VER-017",
+        "REQ-VER-011"
+      ],
+      "recommendation": "In REQ-VER-017, state explicitly that it is the exception to REQ-VER-011's write rule and output shape. Record a follow-up, for example in judge-law or a backlog item, to add `--no-record` and `no_record?` to REQ-VER-011's synopsis and output."
+    },
+    {
+      "id": "F-13",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "By REQ-VER-011, a local impl-PR verdict outside GitHub Actions always gives BLOCKED with ATTESTATION_REQUIRED for L1 gates, exit 1. The motivating use case (the owner judges the merge result locally before a PR) therefore always yields exit 1 for impl-PRs. Neither the proposal nor REQ-VER-017 says what signal the owner should read.",
+      "targets": [
+        "REQ-VER-017",
+        "openspec/changes/ci-local/proposal.md"
+      ],
+      "recommendation": "In docs/06-verification.md §8 (task 3.1), say which outcome counts as a pass for a local run: for example, no errors other than GATE_NOT_PASSED with ATTESTATION_REQUIRED."
+    },
+    {
+      "id": "F-14",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Restore on a signal assumes the check's child process tree has stopped writing raw/<check-id> before restore runs. Restore is registered first and so runs last (signals.ts: latest first), but killing the tree on Windows may be asynchronous, and a late write can follow the restore.",
+      "targets": [
+        "REQ-VER-017"
+      ],
+      "recommendation": "Note the residual risk alongside SIGKILL in the design, or require restore to run after the child tree has exited."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/ci-local/specs/verification/spec.md",
+      "change": "SCN-VER-154 THEN: 'data (without no_record), with EVID ids and the record paths containing them replaced by placeholders, errors[] and the exit code equal the output of warrant ci on the same copy; after the call every file under .warrant/evidence/add-search/ is byte for byte the same and no new files or directories exist there'."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/ci-local/specs/verification/spec.md",
+      "change": "REQ-VER-017: add 'ci --no-record holds the Change lock from its first write until restore ends; a held lock is BUSY, retryable: true, exit 4'; and 'a path that could not be restored is listed in data.not_restored[] and in stderr'."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/ci-local/specs/verification/spec.md",
+      "change": "REQ-VER-012 Record: replace 'id of the imported records' with 'id of all records of the selected attempt, including those already present with the same content'; add the outcome for a malformed manifest in HEAD."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Is `warrant ci --no-record` allowed under GitHub Actions? If it is, what does the workflow upload as the evidence artifact?",
+      "blocking": false,
+      "impact": [
+        "REQ-VER-017"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "The code at D:/project/SRA-ci-local (base 20fa6d3, CLI 0.10.0) matches what design.md describes; the lock and manifest-rebuild facts are taken from core/check/execute.ts, core/evidence/write.ts and core/evidence/store.ts there."
+    },
+    {
+      "id": "A-2",
+      "statement": "Change judge-law does not alter the REQ-VER-011 rules that the local impl verdict gives ATTESTATION_REQUIRED and that the impl kind writes evidence into the working copy (checked by reading its delta)."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "How should an uncommitted record left in .warrant/evidence/<change>/ outside the HEAD manifest be treated, given REQ-KRN-021 (12) and REQ-KRN-036 (F-1, F-7)?",
+      "options": [
+        "Modify REQ-KRN-021 (12)/REQ-KRN-036 in this Change: such a record is a validate warning, not an error, and later writes do not re-list it",
+        "Keep the kernel rules; ci fetch reports the leftover paths (a finding with a hint to delete them) and the owner deletes them before commit",
+        "ci fetch refuses (exit 3) while uncommitted records outside the HEAD manifest exist, with a hint naming them"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:de80e3bb562960e66e3f449094063f7ee296e47d8b54ba0b66fea2e53b3cab3e",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T10:00:00Z",
+    "finished_at": "2026-10-02T10:35:00Z"
+  }
+}

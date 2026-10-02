@@ -5,8 +5,8 @@
  * task 5.1); the parse of argv and the exit code of the binary stay in
  * `e2e/waive.test.ts`.
  *
- * The id counts per UTC year of `ctx.clock`: the fake clock fixes it, so the
- * seeded waivers and the expected id use its year.
+ * A new waiver is `WAV-<ULID>` (ADR-0056 п. 2); the seeded ones keep the former
+ * form `WAV-<year>-NNN` of the fake clock's year, valid and activatable.
  */
 import { copyFileSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -128,9 +128,16 @@ describe("warrant waive", () => {
   it("activates as a maintainer: ACTIVE, approved_by human:kat, gate WAIVED; bob is ROLE_REQUIRED; the id in lower case is WAIVER_INVALID (SCN-KRN-122, SCN-KRN-171)", async () => {
     const p = await repo();
     const id = await proposed(p);
+    const untouched = p.tree();
     const lower = await waive(p, [], { activate: id.toLowerCase(), by: "kat" });
     expect(lower.errors[0]?.code).toBe("WAIVER_INVALID");
     expect(lower.exitCode).toBe(3);
+    expect(p.tree()).toEqual(untouched);
+
+    // A PROPOSED waiver of the former form activates as before.
+    const formerForm = await waive(p, [], { activate: wav(4), by: "kat" });
+    expect(formerForm.errors).toEqual([]);
+    expect(readWaiver(p, wav(4))).toMatchObject({ waiver_state: "ACTIVE", approved_by: "human:kat" });
     const before = readFileSync(waiverFile(p, id), "utf8");
 
     const bob = await waive(p, [], { activate: id, by: "bob" });

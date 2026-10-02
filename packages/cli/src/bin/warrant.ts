@@ -292,7 +292,7 @@ register(
         "after",
         examples([
           'warrant waive add-search spec-approved --reason "clarified in I-12" --risk LOW --control "review of the spec diff" --owner human:kat --expires 2026-12-31 --dry-run',
-          "warrant waive --activate WAV-2026-001 --by kat"
+          "warrant waive --activate WAV-01M3YC8FP9SYPK438EKXFQS4TX --by kat"
         ])
       )
 );

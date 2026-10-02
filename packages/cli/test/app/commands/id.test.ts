@@ -90,12 +90,14 @@ describe("warrant id", () => {
 
   it("gives WAV-<ULID>, new on every call, with prefix and year (SCN-KRN-170)", async () => {
     const p = project().write(".warrant/waivers/WAV-2026-004.json", "{}\n");
+    const before = p.tree();
     const first = await id(p, ["WAV"]);
     const second = await id(p, ["WAV"]);
     expect(first.exitCode).toBe(0);
     expect(first.data["id"]).toMatch(/^WAV-[0-9A-HJKMNP-TV-Z]{26}$/);
     expect(second.data["id"]).not.toBe(first.data["id"]);
     expect(first.data).toMatchObject({ prefix: "WAV", year: new Date().getUTCFullYear() });
+    expect(p.tree()).toEqual(before);
   });
 
   it("renumbers inside the change only (SCN-KRN-059)", async () => {

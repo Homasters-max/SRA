@@ -5,7 +5,9 @@
  * 1. `warrant waive <change> <gate> --reason <text> --risk <LOW|MEDIUM|HIGH>
  *    --control <text>… --owner human:<login> --expires <YYYY-MM-DD>` proposes
  *    a waiver: `PROPOSED`, no `approved_by`, never `targets[]` (phase 5), id
- *    `WAV-<UTC year>-NNN` next after the highest of that year. The Change must
+ *    `WAV-<ULID>`, new on every call and not derived from `.warrant/waivers/`
+ *    (ADR-0056 п. 2); an existing file of that name is never overwritten. `--activate`
+ *    and `--revoke` take either form, the former `WAV-<year>-NNN` too. The Change must
  *    have a live record, the gate must be declared by a loaded pack (or
  *    `.warrant/local/`) with `waivable: true`. An agent may do this.
  * 2. `warrant waive --activate <WAV> --by <login>`: `PROPOSED -> ACTIVE`,

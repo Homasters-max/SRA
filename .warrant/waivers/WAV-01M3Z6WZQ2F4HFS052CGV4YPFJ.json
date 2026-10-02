@@ -1,0 +1,15 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-01M3Z6WZQ2F4HFS052CGV4YPFJ",
+  "change": "data-paths",
+  "gate": "spec-approved",
+  "reason": "I-1: REQ-KRN-037 после APPROVED — элемент paths.data, который называет файл, делает кодом только этот файл (как paths.src), SCN-KRN-175; поведение кода не менялось",
+  "risk": "LOW",
+  "compensating_controls": [
+    "SCN-KRN-175 в guard.test.ts; ревью реализации; merge maintainer'а"
+  ],
+  "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
+  "expires_at": "2026-10-31",
+  "waiver_state": "ACTIVE"
+}

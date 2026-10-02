@@ -77,13 +77,16 @@ KERNEL (меняется редко)                PACKS (подключают�
   "paths": {
     "adr": "docs/adr",
     "glossary": "docs/glossary.md",
-    "tests": "tests"
+    "tests": "tests",
+    "data": ["reference"]
   },
   "roles": {
     "data-owner": ["<login>"]
   }
 }
 ```
+
+`paths.src` и `paths.tests` — код и тесты проекта. Необязательный `paths.data` — список каталогов данных проекта (файлы установки, справочники): каждый — корень кода наравне с `paths.src` и `paths.tests` — его пишет Run `implement`, меняет только impl-PR Change, — но тестовые правила (ссылки на ID, покрытие SCN) его не касаются. Элемент — буквальный путь каталога: без символов glob, без пустого сегмента и сегмента `.`, не корень проекта, не `.warrant` и не `openspec` (REQ-KRN-037).
 
 Необязательное `cli` — файл входа CLI, который закрепил проект, путём от корня (например `node_modules/warrant/packages/cli/dist/bin/warrant.js` или, в репозитории WARRANT, `packages/cli/dist/bin/warrant.js`). С ним `warrant sync` пишет в хуки frontend и субагента review команду `node "${CLAUDE_PROJECT_DIR:-.}/<cli>"` вместо первого `warrant` в PATH ([ADR-0053](adr/WARRANT-ADR-0053-guard-recovery.md) п. 3).
 

@@ -38,7 +38,7 @@ type Result = CommandResult & { data: Data };
  * The synced project with `paths.*`, the files `base` and `add-search` in
  * `IMPLEMENTING` on `main`, a Run started on a branch.
  */
-async function implementing(paths: Record<string, string> = { src: "src", tests: "tests" }, base: string[] = []): Promise<ProjectBuilder> {
+async function implementing(paths: Record<string, unknown> = { src: "src", tests: "tests" }, base: string[] = []): Promise<ProjectBuilder> {
   const code = Object.keys(paths).length > 0;
   const p = project()
     .write(".warrant/warrant.json", {
@@ -56,7 +56,7 @@ async function implementing(paths: Record<string, string> = { src: "src", tests:
   await p.synced();
   p.commit("base");
   p.branch("worktree/add-search");
-  // `run start --operation implement` needs paths.src or paths.tests.
+  // `run start --operation implement` needs paths.src, paths.tests or paths.data.
   if (code) {
     const started = await invoke(() => runStart(p.ctx, "add-search", { operation: "implement" }, LOCAL));
     expect(started.errors).toEqual([]);
@@ -117,6 +117,18 @@ describe("FRONTEND_HOOKS_INACTIVE", () => {
     expect(hooksFinding(with_.data["findings"])).toBeUndefined();
     expect(outcome(without)).toEqual(outcome(with_));
     expect(without.data["findings"].filter((f: Data) => f["code"] !== CODE)).toEqual(with_.data["findings"]);
+  });
+
+  it("only paths.data: verify names a data path edited without a post event, not docs; verdicts and exit code are those without it (SCN-VER-160)", async () => {
+    const p = await implementing({ data: ["std"] });
+    implemented(p, ["std/std.json", "docs/notes.md"]);
+    const without = await verify(p);
+    expect(hooksFinding(without.data["findings"])).toEqual({ code: CODE, paths: ["std/std.json"], more: 0, message: expect.stringContaining("std/std.json") });
+
+    await posted(p, ["std/std.json"]);
+    const with_ = await verify(p);
+    expect(hooksFinding(with_.data["findings"])).toBeUndefined();
+    expect(outcome(without)).toEqual(outcome(with_));
   });
 
   it("gate names it on VERIFYING->MERGED only, with the same verdicts and exit code", async () => {

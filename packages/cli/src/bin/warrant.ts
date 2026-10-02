@@ -449,7 +449,7 @@ register(
       .argument("[change]", "the change the Run works on")
       .option(
         "--operation <specify|implement|review>",
-        "specify: the artifacts of a PROPOSED change; implement: paths.src, paths.tests and tasks.md of an IMPLEMENTING one; review: reads the committed spec of a PROPOSED one, writes nothing"
+        "specify: the artifacts of a PROPOSED change; implement: paths.src, paths.tests, paths.data and tasks.md of an IMPLEMENTING one; review: reads the committed spec of a PROPOSED one, writes nothing"
       )
       .option("--scope <globs>", "comma-separated globs that narrow write_scope: a path must match both")
       .option("--task <label>", "label of the task, kept in the Run unchecked")

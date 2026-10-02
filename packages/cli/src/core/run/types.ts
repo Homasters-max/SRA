@@ -13,7 +13,7 @@ export type RunState = (typeof RUN_STATES)[number];
 /** `run finish --state`: the states a Run ends in. */
 export const FINAL_RUN_STATES: readonly RunState[] = RUN_STATES.slice(2);
 
-/** Operation of a Run (04 §3): the artifacts of the Change, its code and tests, or a review of its spec. */
+/** Operation of a Run (04 §3): the artifacts of the Change, its code, tests and data, or a review of its spec. */
 export const RUN_OPERATIONS = ["specify", "implement", "review"] as const;
 export type RunOperation = (typeof RUN_OPERATIONS)[number];
 

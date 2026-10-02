@@ -19,10 +19,10 @@ function directory(value: string | undefined): string | undefined {
 
 /**
  * `write_scope` of `operation` on `change`: `specify` — the Change directory;
- * `implement` — `<paths.src>/**`, `<paths.tests>/**`, `tasks.md`, `design.md`
- * and `specs/**` of the Change, not `proposal.md` (a spec edit after approval is
+ * `implement` — `<paths.src>/**`, `<paths.tests>/**`, `<dir>/**` of each
+ * `paths.data` directory (REQ-KRN-037), `tasks.md`, `design.md` and `specs/**` of the Change, not `proposal.md` (a spec edit after approval is
  * judged by gate `spec-approved`, ADR-0040 п. 4); `review` — nothing, a review
- * only reads (REQ-ENF-002). `implement` without either path is `CONFIG_INVALID`.
+ * only reads (REQ-ENF-002). `implement` when no code root is set is `CONFIG_INVALID`.
  */
 export function writeScopeOf(operation: RunOperation, change: string, config: WarrantConfig): string[] {
   const dir = `openspec/changes/${change}`;
@@ -30,17 +30,23 @@ export function writeScopeOf(operation: RunOperation, change: string, config: Wa
   if (operation === "specify") return [`${dir}/**`];
   const code = codeScope(config);
   if (code.length === 0) {
-    throw new WarrantError("CONFIG_INVALID", "--operation implement needs paths.src or paths.tests in .warrant/warrant.json", {
+    throw new WarrantError("CONFIG_INVALID", "--operation implement needs paths.src, paths.tests or paths.data in .warrant/warrant.json", {
       path: ".warrant/warrant.json#/paths",
-      hint: 'set "paths": { "src": "<dir>", "tests": "<dir>" } in .warrant/warrant.json, then `warrant validate`'
+      hint: 'set "paths": { "src": "<dir>", "tests": "<dir>" } or "data": ["<dir>"] in .warrant/warrant.json, then `warrant validate`'
     });
   }
   return code.concat(`${dir}/tasks.md`, `${dir}/design.md`, `${dir}/specs/**`);
 }
 
-/** `<paths.src>/**` and `<paths.tests>/**` of `warrant.json`, those that are set: the code and tests of the project. */
+/**
+ * `<paths.src>/**`, `<paths.tests>/**` and `<dir>/**` of each `paths.data` directory of
+ * `warrant.json`, in that order, those that give a root: the code, tests and data of the
+ * project (REQ-KRN-037); a root repeated after normalization once.
+ */
 export function codeScope(config: WarrantConfig): string[] {
-  const roots = [directory(config.paths.src), directory(config.paths.tests)].filter((d): d is string => d !== undefined);
+  const roots = [config.paths.src, config.paths.tests, ...(config.paths.data ?? [])]
+    .map(directory)
+    .filter((d): d is string => d !== undefined);
   return [...new Set(roots)].map((root) => `${root}/**`);
 }
 

@@ -80,6 +80,21 @@
         "src": {
           "description": "Root directory of the project sources.",
           "$ref": "warrant://common/1#/$defs/relative_path"
+        },
+        "data": {
+          "description": "Directories of project data that count as code roots like `src` and `tests` (REQ-KRN-037): written by an `implement` Run, changed only in a Change's impl-PR. A literal path: no glob characters, no empty or `.` segment, not the project root, `.warrant` or `openspec` (any letter case).",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "allOf": [
+              { "$ref": "warrant://common/1#/$defs/relative_path" },
+              {
+                "type": "string",
+                "pattern": "^(?:\\./)*(?!(?:\\.[Ww][Aa][Rr][Rr][Aa][Nn][Tt]|[Oo][Pp][Ee][Nn][Ss][Pp][Ee][Cc])(?:/|$))(?!\\.(?:/|$))[^/*?\\[\\]{}()!+@]+(?:/(?!\\.(?:/|$))[^/*?\\[\\]{}()!+@]+)*/*$"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false

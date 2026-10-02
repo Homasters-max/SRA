@@ -22,7 +22,8 @@
   "paths": {
     "adr": "docs/adr",
     "glossary": "docs/glossary.md",
-    "tests": "tests"
+    "tests": "tests",
+    "data": ["reference"]
   },
   "roles": {
     "data-owner": [

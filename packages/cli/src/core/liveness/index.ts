@@ -1,6 +1,6 @@
 /**
  * Liveness of the frontend hooks (REQ-VER-009, ADR-0018 п. 5, D-14, F10): a
- * path of the Change's diff, removals aside, under `paths.src` ∪ `paths.tests`
+ * path of the Change's diff, removals aside, under `paths.src` ∪ `paths.tests` ∪ `paths.data`
  * that no `post` event of the Change's Runs names was changed without the hooks — the
  * finding `FRONTEND_HOOKS_INACTIVE`. A signal, never a verdict: an edit by a
  * human without hooks is legitimate, so the finding changes no verdict, no
@@ -29,9 +29,9 @@ export interface HooksInactiveFinding {
 
 /**
  * `FRONTEND_HOOKS_INACTIVE` for the paths of `diff` (in its order) under
- * `paths.src` ∪ `paths.tests` of `config` without a `post` event naming them
+ * `paths.src` ∪ `paths.tests` ∪ `paths.data` of `config` without a `post` event naming them
  * in any of `runs`; undefined when there are none, or when `config` sets
- * neither `paths.src` nor `paths.tests`. A removed path is not judged: a
+ * no code root (`paths.src`, `paths.tests`, `paths.data`). A removed path is not judged: a
  * removal goes through the shell, no `post` event could name it; a rename is
  * judged by its target.
  */

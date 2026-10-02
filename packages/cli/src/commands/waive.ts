@@ -5,7 +5,9 @@
  * 1. `warrant waive <change> <gate> --reason <text> --risk <LOW|MEDIUM|HIGH>
  *    --control <text>… --owner human:<login> --expires <YYYY-MM-DD>` proposes
  *    a waiver: `PROPOSED`, no `approved_by`, never `targets[]` (phase 5), id
- *    `WAV-<UTC year>-NNN` next after the highest of that year. The Change must
+ *    `WAV-<ULID>`, new on every call and not derived from `.warrant/waivers/`
+ *    (ADR-0056 п. 2); an existing file of that name is never overwritten. `--activate`
+ *    and `--revoke` take either form, the former `WAV-<year>-NNN` too. The Change must
  *    have a live record, the gate must be declared by a loaded pack (or
  *    `.warrant/local/`) with `waivable: true`. An agent may do this.
  * 2. `warrant waive --activate <WAV> --by <login>`: `PROPOSED -> ACTIVE`,
@@ -25,7 +27,7 @@ import path from "node:path";
 import { writeJsonFile } from "../core/canon/format-json.js";
 import type { Ctx } from "../core/ctx.js";
 import { WarrantError, type CliError } from "../core/errors.js";
-import { allocateWaiver } from "../core/ids/allocate.js";
+import { allocateWaiver, WAIVER_ID_RE } from "../core/ids/allocate.js";
 import { isPlainObject } from "../core/json.js";
 import { loadPacks } from "../core/packs/loader.js";
 import { packObjects } from "../core/packs/objects.js";
@@ -53,7 +55,6 @@ export interface WaiveOptions {
 
 const LOGIN_RE = /^[A-Za-z0-9._-]+$/;
 const OWNER_RE = /^human:[A-Za-z0-9._-]+$/;
-const WAIVER_ID_RE = /^WAV-[0-9]{4}-[0-9]{3}$/;
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 const CREATE_FLAGS = ["reason", "risk", "control", "owner", "expires"] as const;
@@ -146,7 +147,11 @@ function create(ctx: Ctx, args: string[], opts: WaiveOptions): CommandResult {
     throw new WarrantError("WAIVER_INVALID", `gate "${gateId}" is not waivable (${gate.path})`, { path: gate.path });
   }
 
-  const id = allocateWaiver(root, Number.parseInt(today.slice(0, 4), 10));
+  const id = allocateWaiver();
+  // A ULID never repeats in practice; a file of that name is still never overwritten (REQ-KRN-031).
+  if (existsSync(path.join(root, WAIVERS_DIR, `${id}.json`))) {
+    throw new WarrantError("INTERNAL", `the new waiver id ${id} names an existing file; nothing was written`, { path: waiverRel(id) });
+  }
   const waiver: Record<string, unknown> = {
     $schema: "warrant://waiver/1",
     id,

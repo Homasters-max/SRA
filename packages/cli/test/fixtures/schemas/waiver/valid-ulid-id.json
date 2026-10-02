@@ -1,6 +1,6 @@
 {
   "$schema": "warrant://waiver/1",
-  "id": "WAV-2026-004",
+  "id": "WAV-01M3YC8FP9SYPK438EKXFQS4TX",
   "change": "orders-currency-migration",
   "gate": "reconciliation-passed",
   "reason": "Historical source snapshot unavailable.",
@@ -10,16 +10,6 @@
     "post-release-monitoring"
   ],
   "owner": "data-platform-owner",
-  "approved_by": "human:kat",
   "expires_at": "2026-10-15",
-  "waiver_state": "ACTIVE",
-  "targets": [
-    {
-      "file": "src/orders/total.py",
-      "mutator": "EqualityOperator",
-      "replacement": ">=",
-      "source_sha256": "…",
-      "symbol": "apply_discount"
-    }
-  ]
+  "waiver_state": "PROPOSED"
 }

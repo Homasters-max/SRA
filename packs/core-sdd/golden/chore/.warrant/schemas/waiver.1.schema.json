@@ -10,9 +10,9 @@
       "const": "warrant://waiver/1"
     },
     "id": {
-      "description": "Waiver id `WAV-<year>-NNN` (02 section 3).",
+      "description": "Waiver id `WAV-<ULID>`, or the former `WAV-<year>-NNN`, which stays valid (02 section 3, ADR-0056 p. 2).",
       "type": "string",
-      "pattern": "^WAV-[0-9]{4}-[0-9]{3}$"
+      "pattern": "^WAV-([0-9]{4}-[0-9]{3}|[0-9A-HJKMNP-TV-Z]{26})$"
     },
     "change": {
       "description": "Change this waiver applies to.",

@@ -48,7 +48,7 @@ describe("warrant waive (argv)", () => {
     expect(proposed.status, said(proposed)).toBe(0);
     expect(proposed.json?.errors).toEqual([]);
     const id = proposed.json.data.waiver.id as string;
-    expect(id).toMatch(new RegExp(`^WAV-${YEAR}-\\d{3}$`));
+    expect(id).toMatch(/^WAV-[0-9A-HJKMNP-TV-Z]{26}$/);
     const file = path.join(root, ".warrant", "waivers", `${id}.json`);
     expect(JSON.parse(readFileSync(file, "utf8"))).toMatchObject({
       change: "add-search",

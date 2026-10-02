@@ -43,8 +43,8 @@ export function runId(ctx: Ctx, args: string[], opts: { change?: string } = {}):
 
   if (head === "WAV") {
     if (args.length > 1) throw new WarrantError("USAGE", USAGE);
-    const year = new Date().getUTCFullYear();
-    return success({ id: allocateWaiver(root, year), prefix: "WAV", year });
+    // `year` stays in the output of 0.10.0 (REQ-KRN-024): the id itself no longer carries it.
+    return success({ id: allocateWaiver(), prefix: "WAV", year: new Date().getUTCFullYear() });
   }
 
   throw new WarrantError("USAGE", `unknown id kind "${head}". ${USAGE}`);

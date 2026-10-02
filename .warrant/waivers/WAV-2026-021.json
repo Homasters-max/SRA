@@ -1,0 +1,15 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-2026-021",
+  "change": "guard-worktree",
+  "gate": "spec-approved",
+  "reason": "I-4: MAJOR review spec раунда 4 (R-58) закрыты правкой delta REQ-ENF-004 (deny пути другого checkout-а при любом Run, в том числе review, и при битом current того checkout-а; «не под WARRANT» одним смыслом), SCN-ENF-016, SCN-ENF-058 по ADR-0024 п. 4",
+  "risk": "LOW",
+  "compensating_controls": [
+    "Правки delta только ужесточают отказ guard и уточняют условие; каждая — тестом SCN-ENF-058 и SCN-ENF-016; ревью реализации агентом reviewer; Approve maintainer-а impl-PR"
+  ],
+  "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
+  "expires_at": "2026-10-16",
+  "waiver_state": "ACTIVE"
+}

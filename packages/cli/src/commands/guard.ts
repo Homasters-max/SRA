@@ -7,7 +7,7 @@
  * `core/ports/frontend.ts` translates the native hook input and the answer.
  */
 import type { Ctx } from "../core/ctx.js";
-import { crashDecision, guard, guardFrontend } from "../core/guard/guard.js";
+import { crashDecision, guard, guardFrontend, type CtxAt } from "../core/guard/guard.js";
 import type { FrontendAdapter, FrontendResponse, GuardResult } from "../core/ports/frontend.js";
 import { success, type CommandResult } from "../io/output.js";
 
@@ -15,8 +15,8 @@ function decision(answer: GuardResult): CommandResult {
   return success({ decision: answer.decision, ...(answer.reason === undefined ? {} : { reason: answer.reason }), hints: answer.hints });
 }
 
-export async function runGuard(ctx: Ctx, input: string, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
-  return decision(await guard(ctx, input, env));
+export async function runGuard(ctx: Ctx, input: string, env: NodeJS.ProcessEnv = process.env, at?: CtxAt): Promise<CommandResult> {
+  return decision(await guard(ctx, input, env, at));
 }
 
 /**
@@ -29,13 +29,14 @@ export async function runGuardRead(
   ctx: Ctx,
   read: () => Promise<string>,
   env: NodeJS.ProcessEnv = process.env,
-  onInput: (input: string) => void = () => undefined
+  onInput: (input: string) => void = () => undefined,
+  at?: CtxAt
 ): Promise<CommandResult> {
   let input: string | undefined;
   try {
     input = await read();
     onInput(input);
-    return await runGuard(ctx, input, env);
+    return await runGuard(ctx, input, env, at);
   } catch (thrown) {
     ctx.warn(`warrant guard: ${thrown instanceof Error ? thrown.message : String(thrown)}\n`);
     return runGuardCrash(input, thrown);
@@ -55,7 +56,8 @@ export async function runGuardFrontend(
   ctx: Ctx,
   adapter: FrontendAdapter,
   input: string,
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  at?: CtxAt
 ): Promise<FrontendResponse> {
-  return guardFrontend(ctx, adapter, input, env);
+  return guardFrontend(ctx, adapter, input, env, at);
 }

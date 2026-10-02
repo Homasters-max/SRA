@@ -5,10 +5,10 @@
  * task 5.1); the parse of argv and the exit code of the binary stay in
  * `e2e/waive.test.ts`.
  *
- * The id counts per UTC year of `ctx.clock`: the fake clock fixes it, so the
- * seeded waivers and the expected id use its year.
+ * A new waiver is `WAV-<ULID>` (ADR-0056 п. 2); the seeded ones keep the former
+ * form `WAV-<year>-NNN` of the fake clock's year, valid and activatable.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -26,9 +26,17 @@ const project = useProjectBuilder();
 const YEAR = FAKE_TODAY.slice(0, 4);
 const EXPIRES = `${YEAR}-12-31`;
 const wav = (n: number): string => `WAV-${YEAR}-${String(n).padStart(3, "0")}`;
+const ULID_WAV = /^WAV-[0-9A-HJKMNP-TV-Z]{26}$/;
 
 function waiverFile(p: ProjectBuilder, id: string): string {
   return path.join(p.root, ".warrant", "waivers", `${id}.json`);
+}
+
+/** `warrant waive` of TARGET with PROPOSE; the id of the new waiver. */
+async function proposed(p: ProjectBuilder): Promise<string> {
+  const run = await waive(p, TARGET, PROPOSE);
+  expect(run.exitCode).toBe(0);
+  return (run.data["waiver"] as { id: string }).id;
 }
 
 function readWaiver(p: ProjectBuilder, id: string): Record<string, unknown> {
@@ -88,12 +96,13 @@ const PROPOSE: WaiveOptions = {
 };
 
 describe("warrant waive", () => {
-  it("proposes WAV-<year>-005 after 001 and 004: PROPOSED, no approved_by, gate still BLOCKED (SCN-KRN-121)", async () => {
+  it("proposes WAV-<ULID> beside 001 and 004: PROPOSED, no approved_by, gate still BLOCKED (SCN-KRN-121)", async () => {
     const p = await repo();
     const run = await waive(p, TARGET, PROPOSE);
     expect(run.errors).toEqual([]);
     expect(run.exitCode).toBe(0);
-    const id = wav(5);
+    const id = (run.data["waiver"] as { id: string }).id;
+    expect(id).toMatch(ULID_WAV);
     expect(run.data["path"]).toBe(`.warrant/waivers/${id}.json`);
     const stored = readWaiver(p, id);
     expect(run.data["waiver"]).toEqual(stored);
@@ -116,10 +125,19 @@ describe("warrant waive", () => {
     expect(await analyzeClean(p)).toBe("BLOCKED");
   });
 
-  it("activates as a maintainer: ACTIVE, approved_by human:kat, gate WAIVED; bob is ROLE_REQUIRED (SCN-KRN-122)", async () => {
+  it("activates as a maintainer: ACTIVE, approved_by human:kat, gate WAIVED; bob is ROLE_REQUIRED; the id in lower case is WAIVER_INVALID (SCN-KRN-122, SCN-KRN-171)", async () => {
     const p = await repo();
-    expect((await waive(p, TARGET, PROPOSE)).exitCode).toBe(0);
-    const id = wav(5);
+    const id = await proposed(p);
+    const untouched = p.tree();
+    const lower = await waive(p, [], { activate: id.toLowerCase(), by: "kat" });
+    expect(lower.errors[0]?.code).toBe("WAIVER_INVALID");
+    expect(lower.exitCode).toBe(3);
+    expect(p.tree()).toEqual(untouched);
+
+    // A PROPOSED waiver of the former form activates as before.
+    const formerForm = await waive(p, [], { activate: wav(4), by: "kat" });
+    expect(formerForm.errors).toEqual([]);
+    expect(readWaiver(p, wav(4))).toMatchObject({ waiver_state: "ACTIVE", approved_by: "human:kat" });
     const before = readFileSync(waiverFile(p, id), "utf8");
 
     const bob = await waive(p, [], { activate: id, by: "bob" });
@@ -136,6 +154,17 @@ describe("warrant waive", () => {
     expect(await analyzeClean(p)).toBe("WAIVED");
   });
 
+  it("two copies of one project propose waivers of distinct names; brought together they validate, WAV-<year>-004 still valid (SCN-KRN-168)", async () => {
+    const p = await repo();
+    const q = await repo();
+    const ours = await proposed(p);
+    const theirs = await proposed(q);
+    expect(theirs).not.toBe(ours);
+    copyFileSync(waiverFile(q, theirs), waiverFile(p, theirs));
+    expect(readdirSync(path.join(p.root, ".warrant", "waivers")).sort()).toEqual([`${ours}.json`, `${theirs}.json`, `${wav(1)}.json`, `${wav(4)}.json`].sort());
+    expect(await validateErrors(p)).toEqual([]);
+  });
+
   it("refuses a gate that is not waivable with WAIVER_INVALID and writes no file (SCN-KRN-123)", async () => {
     const p = await repo();
     const before = readdirSync(path.join(p.root, ".warrant", "waivers")).sort();
@@ -147,10 +176,9 @@ describe("warrant waive", () => {
     expect(readdirSync(path.join(p.root, ".warrant", "waivers")).sort()).toEqual(before);
   });
 
-  it("revokes an ACTIVE waiver: REVOKED, gate BLOCKED again, a second --activate is STATE_INVALID (SCN-KRN-124)", async () => {
+  it("revokes an ACTIVE waiver: REVOKED, gate BLOCKED again, a second --activate is STATE_INVALID (SCN-KRN-124, SCN-KRN-171)", async () => {
     const p = await repo();
-    const id = wav(5);
-    expect((await waive(p, TARGET, PROPOSE)).exitCode).toBe(0);
+    const id = await proposed(p);
     expect((await waive(p, [], { activate: id, by: "kat" })).exitCode).toBe(0);
 
     const run = await waive(p, [], { revoke: id, by: "kat" });
@@ -167,8 +195,8 @@ describe("warrant waive", () => {
     expect(revokeAgain.errors[0]?.code).toBe("STATE_INVALID");
 
     // A PROPOSED waiver may be revoked too; the maintainer who closed it is its approved_by.
-    const proposed = await waive(p, [], { revoke: wav(4), by: "kat" });
-    expect(proposed.exitCode).toBe(0);
+    const formerForm = await waive(p, [], { revoke: wav(4), by: "kat" });
+    expect(formerForm.exitCode).toBe(0);
     expect(readWaiver(p, wav(4))).toMatchObject({ waiver_state: "REVOKED", approved_by: "human:kat" });
     expect(await validateErrors(p)).toEqual([]);
   });
@@ -210,24 +238,27 @@ describe("warrant waive --dry-run (REQ-KRN-034)", () => {
   it("proposes and activates on paper: the same JSON, the waiver in would_write[], no file written", async () => {
     const p = await repo();
     const before = p.tree();
-    const proposed = await dry(p, TARGET, PROPOSE);
-    expect(proposed.errors).toEqual([]);
-    expect(proposed.exitCode).toBe(0);
-    expect(proposed.data["would_write"]).toEqual([`.warrant/waivers/${wav(5)}.json`]);
+    const onPaper = await dry(p, TARGET, PROPOSE);
+    expect(onPaper.errors).toEqual([]);
+    expect(onPaper.exitCode).toBe(0);
+    const paperId = (onPaper.data["waiver"] as { id: string }).id;
+    expect(onPaper.data["would_write"]).toEqual([`.warrant/waivers/${paperId}.json`]);
     expect(p.tree()).toEqual(before);
 
+    // The id of a dry run is illustrative: a ULID is new on every call (ADR-0056 п. 2, backlog R-60).
     const real = await waive(p, TARGET, PROPOSE);
-    expect(withoutDryRun(proposed.data)).toEqual(withoutDryRun(real.data));
-    expect(writtenBeyond(before, p.tree(), proposed.data["would_write"] as string[])).toEqual([]);
+    const id = (real.data["waiver"] as { id: string }).id;
+    expect(withoutDryRun(onPaper.data)).toEqual(JSON.parse(JSON.stringify(withoutDryRun(real.data)).split(id).join(paperId)));
+    expect(writtenBeyond(before, p.tree(), [`.warrant/waivers/${id}.json`])).toEqual([]);
 
     const proposedTree = p.tree();
-    const activated = await dry(p, [], { activate: wav(5), by: "kat" });
-    expect(activated.data).toMatchObject({ dry_run: true, would_write: [`.warrant/waivers/${wav(5)}.json`] });
+    const activated = await dry(p, [], { activate: id, by: "kat" });
+    expect(activated.data).toMatchObject({ dry_run: true, would_write: [`.warrant/waivers/${id}.json`] });
     expect(activated.data["waiver"]).toMatchObject({ waiver_state: "ACTIVE", approved_by: "human:kat" });
     expect(p.tree()).toEqual(proposedTree);
     expect(await analyzeClean(p)).toBe("BLOCKED");
 
-    const bob = await dry(p, [], { activate: wav(5), by: "bob" });
+    const bob = await dry(p, [], { activate: id, by: "bob" });
     expect(bob.errors[0]?.code).toBe("ROLE_REQUIRED");
     expect(bob.exitCode).toBe(3);
     expect(bob.data).toEqual({ dry_run: true, would_write: [] });

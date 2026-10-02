@@ -257,7 +257,7 @@ Waiver — явное временное исключение из конкре�
 ```json
 {
   "$schema": "warrant://waiver/1",
-  "id": "WAV-2026-004",
+  "id": "WAV-01M3YC8FP9SYPK438EKXFQS4TX",
   "change": "orders-currency-migration",
   "gate": "reconciliation-passed",
   "reason": "Historical source snapshot unavailable.",

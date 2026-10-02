@@ -1,0 +1,41 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3YH07J6G0SD0A4ZQZ766M1V",
+  "claim": {
+    "text": "tests-passed passed for guard-worktree",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "743ff326864424a847ce19d6c86f7b82abb57751",
+    "base_commit": "2f39849864a1cd43a78bc3bbadb078ae9465a0df",
+    "spec_revision": "openspec/changes/guard-worktree@743ff326864424a847ce19d6c86f7b82abb57751",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:44f44fa46ba24c6041f177e5c63921ac448fc784428defaa12e1afc0f2578d69",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-02T14:41:27.113Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/guard-worktree/raw/tests-passed/junit.xml",
+      "sha256": "sha256:3d1e2fe4d12537ccf4bb393aac8f8858cf91a9980c20f299986a76a60eb4d2a3"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 1720
+  }
+}

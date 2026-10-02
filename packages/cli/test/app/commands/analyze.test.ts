@@ -4,6 +4,7 @@
  * exit code 1 (SCN-VER-062), a consistent Change with 0 (SCN-VER-066), `ORPHAN`
  * of the changed test only (SCN-VER-065), `ORPHAN` skipped without git
  * (SCN-VER-067), an archived Change in its archive directory (SCN-VER-072),
+ * no `ORPHAN` for an SCN of another open Change (SCN-VER-152),
  * `CHANGE_NOT_FOUND` with a `hint`; the tree of the project is the same bytes
  * after every call — the command writes nothing.
  */
@@ -99,6 +100,23 @@ describe("warrant analyze", () => {
     expect(head.exitCode).toBe(0);
     expect(head.data["findings"]).toEqual([]);
     expect((await analyze(p, { base: base })).data["findings"]).toEqual(run.data["findings"]);
+  });
+
+  it("an SCN declared by the delta of another open Change is no ORPHAN; one of an archived Change only is (SCN-VER-152)", async () => {
+    const p = repo("- [ ] 1.1 REQ-SRC-004\n");
+    p.write("tests/test_search.py", "# SCN-SRC-010\n");
+    p.write("openspec/changes/add-store/specs/store/spec.md", "## ADDED Requirements\n\n### Requirement: Store\n<!-- id: REQ-STO-001 -->\n\nThe store SHALL keep items.\n\n#### Scenario: Keep\n<!-- id: SCN-STO-001 -->\n- **WHEN** an item is put\n- **THEN** it is kept\n");
+    p.write("openspec/changes/archive/2026-09-01-old-store/specs/store/spec.md", "## ADDED Requirements\n\n### Requirement: Store\n<!-- id: REQ-STO-009 -->\n\nThe store SHALL keep items.\n\n#### Scenario: Keep\n<!-- id: SCN-STO-009 -->\n- **WHEN** an item is put\n- **THEN** it is kept\n");
+    p.write("openspec/changes/notes.md", "# not a Change\n");
+    p.commit("base");
+    p.branch("archive/add-search");
+    p.write("tests/test_store.py", "# SCN-STO-001 SCN-STO-009\n");
+    p.commit("tests of add-store");
+
+    const run = await analyze(p);
+    expect(run.exitCode).toBe(1);
+    expect(run.data["findings"]).toEqual([{ code: "ORPHAN", id: "SCN-STO-009", path: "tests/test_store.py" }]);
+    expect(run.data["counts"]).toEqual({ UNSATISFIED: 0, CONFLICT: 0, ORPHAN: 1 });
   });
 
   it("without git ORPHAN is skipped with the reason, UNSATISFIED and CONFLICT computed (SCN-VER-067)", async () => {

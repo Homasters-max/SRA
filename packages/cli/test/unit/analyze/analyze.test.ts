@@ -16,6 +16,7 @@ function input(extra: Partial<AnalyzeInput> = {}): AnalyzeInput {
   return {
     delta: [],
     mainIds: new Set(),
+    openIds: new Set(),
     tasksText: "",
     tasksPath: TASKS,
     testFiles: { ok: true, value: [] },
@@ -118,6 +119,18 @@ describe("analyze", () => {
       { code: "CONFLICT", id: "REQ-SRC-002", path: TASKS },
       { code: "CONFLICT", id: "SCN-SRC-777", path: TASKS }
     ]);
+  });
+
+  it("ORPHAN: an SCN declared in the delta of another open Change is none, even one this Change removes (SCN-VER-152)", () => {
+    const result = analyze(
+      input({
+        delta: [{ section: "REMOVED", req: "REQ-STO-002", scenarios: ["SCN-STO-002"] }],
+        openIds: new Set(["REQ-STO-001", "SCN-STO-001", "SCN-STO-002"]),
+        testFiles: tests({ path: "tests/test_store.py", text: "SCN-STO-001 SCN-STO-002 SCN-STO-009" }),
+        changedTests: changed("tests/test_store.py")
+      })
+    );
+    expect(result.findings).toEqual([{ code: "ORPHAN", id: "SCN-STO-009", path: "tests/test_store.py" }]);
   });
 
   it("ORPHAN: only changed test files, only undefined SCN (SCN-VER-065)", () => {

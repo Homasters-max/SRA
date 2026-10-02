@@ -16,7 +16,7 @@
 ## What Changes
 
 - **Третий переход назад `SPECIFIED -> PROPOSED`** (REQ-VER-007, [04 §2](../../../docs/04-lifecycle.md)) — только у Change, ни разу не одобренного (`APPROVED` нет в `transitions[]`), без gates, без `--by`. Record, переходы, `unknowns[]` и evidence сохраняются. Одобренный Change — `STATE_INVALID`.
-- **Переделка — spec-PR заново** (REQ-VER-018, новое требование): Run `specify`, review, `verify`, `transition SPECIFIED`. Вид PR — по HEAD, как прежде (`spec`); переделка в PR другого вида — `RECORD_MISMATCH` (`chain`).
+- **Переделка — spec-PR заново** (REQ-VER-018, новое требование): Run `specify`, review, `verify`, `transition SPECIFIED`. Вид PR — по HEAD, как прежде (`spec`); переделка в PR вида `impl` или `archive` — `RECORD_MISMATCH` (`chain`), abandon-PR может её нести.
 - **Монотонность `unknowns[]`** после переделки — как при базе в `SPECIFIED` (критерий — переход `SPECIFIED` в record базы).
 - **`APPROVED --ref` после переделки — spec-PR последнего `SPECIFIED`.** Ref на spec-PR более раннего `SPECIFIED` судья отвергает (`REF_NOT_VERIFIED`, причина `change`); без этого одобрение обходило бы переделку. Record без переделки судится, как прежде: вердикт на входах 0.10.0 не меняется.
 

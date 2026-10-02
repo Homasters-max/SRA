@@ -24,7 +24,7 @@ import { PASSING_VERDICTS, MERGE_TRANSITION, type Verdict } from "../gates/types
 import { requirementsOf, satisfies } from "../gates/verdict.js";
 import type { DiffEntry } from "../ports/git.js";
 import { effectiveCheck, FACTORY_PROFILE, gateDefinitions } from "../packs/objects.js";
-import { isFrozen, isMergeKind, transitionKind, UNKNOWNS_HELD_STATES } from "../record/lifecycle.js";
+import { isFrozen, isMergeKind, REWORK, transitionKind, UNKNOWNS_HELD_STATES, wasApproved, wasReworked } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
 import { recordPath } from "../record/write.js";
 import { RISK_LEVELS } from "../resolve/index.js";
@@ -213,7 +213,9 @@ function classificationRule(
  */
 function unknownsRule(change: string, head: ChangeRecord, base: ChangeRecord | undefined): CliError[] {
   const state = base?.["change_state"];
-  if (base === undefined || typeof state !== "string" || !UNKNOWNS_HELD_STATES.has(state)) return [];
+  // After a rework (REQ-VER-018) the base may be PROPOSED again: a SPECIFIED in its history holds the UNKNOWNs all the same.
+  const held = typeof state === "string" && (UNKNOWNS_HELD_STATES.has(state) || transitionsOf(base).some((t) => t["to"] === "SPECIFIED"));
+  if (base === undefined || typeof state !== "string" || !held) return [];
   const after = unknownsOf(head);
   const errors: CliError[] = [];
   for (const [i, before] of unknownsOf(base).entries()) {
@@ -378,6 +380,13 @@ export async function judgeRecord(
     if (kind === null) {
       errors.push(mismatch(change, label(t), "chain", `${t.from ?? "a new record"} -> ${t.to} is not a transition of 04 §2${t.from === undefined ? " (a new record starts with PROPOSED)" : ""}`, `#/transitions/${t.index}`));
       continue;
+    }
+    // A rework of the spec (REQ-VER-018): never after APPROVED; its PROPOSED and the SPECIFIED after it only in a spec-PR (or abandon-PR).
+    const all = transitionsOf(head);
+    if (`${String(t.from)}->${t.to}` === REWORK && wasApproved(all, t.index)) {
+      errors.push(mismatch(change, label(t), "chain", `SPECIFIED -> PROPOSED after APPROVED: a rework after approval goes through spec-approved (ADR-0024)`, `#/transitions/${t.index}`));
+    } else if ((subject.kind === "impl" || subject.kind === "archive") && (`${String(t.from)}->${t.to}` === REWORK || (t.from === "PROPOSED" && t.to === "SPECIFIED" && wasReworked(all, t.index)))) {
+      errors.push(mismatch(change, label(t), "chain", `${String(t.from)} -> ${t.to} of a rework of the spec belongs to a spec-PR merged by the maintainer, not to a pull request of kind ${subject.kind}`, `#/transitions/${t.index}`));
     }
     if (kind === "forward" && t.to !== "PROPOSED") {
       if (typeof t.entry["effective_policy_hash"] !== "string") {

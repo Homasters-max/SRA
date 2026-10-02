@@ -647,6 +647,100 @@ describe("warrant ci: decisions of UNKNOWNs through the forge (REQ-VER-013)", ()
   });
 });
 
+describe("warrant ci: a rework of the spec before APPROVED (REQ-VER-018)", () => {
+  const REWORK_PR = `https://github.com/${FAKE_REPOSITORY}/pull/7`;
+
+  /** The spec-PR (pull 5) brings SPECIFIED; the rework PR (pull 7) — PROPOSED and SPECIFIED again; both merged by kat. */
+  async function reworked(): Promise<{ p: ProjectBuilder; rework: Result }> {
+    const p = await changeRepo("PROPOSED", CHORE);
+    const spec = pullRequest(p, "spec/add-search", (b) => advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } }));
+    const again = pullRequest(p, "spec/add-search-rework", (b) => {
+      advance(b, "PROPOSED");
+      advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } });
+    });
+    p.withForge({
+      pulls: [
+        fakePull(5, { mergeCommit: spec.merge, headSha: spec.head, mergedBy: "kat", author: "kat" }),
+        fakePull(7, { mergeCommit: again.merge, headSha: again.head, mergedBy: "kat", author: "kat" })
+      ]
+    });
+    return { p, rework: await ci(p) };
+  }
+
+  /** The first commit of an impl-PR over a reworked Change: APPROVED with `ref`, IMPLEMENTING. */
+  function implOf(p: ProjectBuilder, ref: string): void {
+    pullRequest(p, "worktree/add-search", (b) => {
+      advance(b, "APPROVED", { gates: { "human-approval": "PASS" }, ref });
+      advance(b, "IMPLEMENTING", { gates: { "branch-isolated": "PASS" } });
+    });
+  }
+
+  const refErrors = (r: Result): string[] => r.errors.filter((e) => e.code === "REF_NOT_VERIFIED").map((e) => e.message);
+  const chain = (r: Result): string[] => mismatches(r).filter((m) => m.includes(": chain: "));
+
+  it("the rework PR is a spec-PR; APPROVED names its spec-PR, not the one of an earlier SPECIFIED (SCN-VER-158)", async () => {
+    const { p, rework } = await reworked();
+    expect(rework.data["kind"]).toBe("spec");
+    expect(chain(rework)).toEqual([]);
+
+    const fresh = await reworked();
+    implOf(fresh.p, SPEC_PR);
+    const old = await ci(fresh.p);
+    expect(refErrors(old)).toEqual([expect.stringContaining("change")]);
+    expect(refErrors(old)[0]).toContain("rework");
+
+    implOf(p, REWORK_PR);
+    expect(refErrors(await ci(p))).toEqual([]);
+  });
+
+  it("a rework inside an impl-PR, or its SPECIFIED after a rework PR of PROPOSED alone: RECORD_MISMATCH chain; an abandon-PR may carry it (SCN-VER-158)", async () => {
+    const p = await changeRepo("PROPOSED", CHORE);
+    const spec = pullRequest(p, "spec/add-search", (b) => advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } }));
+    p.withForge({ pulls: [fakePull(5, { mergeCommit: spec.merge, headSha: spec.head, mergedBy: "kat", author: "kat" })] });
+    pullRequest(p, "worktree/add-search", (b) => {
+      advance(b, "PROPOSED");
+      advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } });
+      advance(b, "APPROVED", { gates: { "human-approval": "PASS" }, ref: SPEC_PR });
+    });
+    const inside = await ci(p);
+    expect(inside.data["kind"]).toBe("impl");
+    expect(chain(inside)).toHaveLength(2);
+    expect(inside.exitCode).toBe(1);
+
+    const split = await changeRepo("PROPOSED", CHORE);
+    pullRequest(split, "spec/add-search", (b) => advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } }));
+    pullRequest(split, "spec/add-search-back", (b) => advance(b, "PROPOSED"));
+    pullRequest(split, "worktree/add-search", (b) => {
+      advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } });
+      advance(b, "APPROVED", { gates: { "human-approval": "PASS" }, ref: SPEC_PR });
+    });
+    expect(chain(await ci(split))).toHaveLength(1);
+
+    const abandoned = await changeRepo("PROPOSED", CHORE);
+    pullRequest(abandoned, "spec/add-search", (b) => advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } }));
+    pullRequest(abandoned, "abandon/add-search", (b) => {
+      advance(b, "PROPOSED");
+      advance(b, "ABANDONED");
+    });
+    const abandon = await ci(abandoned);
+    expect(abandon.data["kind"]).toBe("abandon");
+    expect(chain(abandon)).toEqual([]);
+  });
+
+  it("the base PROPOSED after a rework holds a decided UNKNOWN: removing it is RECORD_MISMATCH unknowns (SCN-VER-159)", async () => {
+    const p = await changeRepo("PROPOSED", CHORE);
+    pullRequest(p, "spec/add-search", (b) => {
+      advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } });
+      withUnknowns(b, [decided(UNK, DECISION_REF)]);
+    });
+    pullRequest(p, "spec/add-search-back", (b) => advance(b, "PROPOSED"));
+    pullRequest(p, "spec/add-search-rework", (b) => withUnknowns(b, []));
+    const removed = await ci(p);
+    expect(mismatches(removed)).toEqual([expect.stringMatching(new RegExp(`^unknowns/0 \\(${UNK}\\): unknowns: ${UNK} is removed`))]);
+    expect(removed.exitCode).toBe(1);
+  });
+});
+
 /**
  * The whole way to an archive-PR: `main` with the record in `IMPLEMENTING`; the
  * impl-PR records `VERIFYING` and is merged by M; `warrant ci` on M writes the

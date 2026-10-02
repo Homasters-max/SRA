@@ -1,0 +1,149 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3Y4AW7JNPPECVWVRGFC3HM0",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "proposal (What Changes) утверждает: «Так ни `cd`, ни абсолютный путь не уводят правку из-под `write_scope`», design D2 — что `deny` закрывает F-4 раунда 1 (`cd` в основной checkout). Норма этого не даёт. По REQ-ENF-004 правка пути другого checkout'а — `deny` только при активном Run проекта события, «без Run — `allow` без hints» (SCN-ENF-058). Пример: в worktree W активен Run `implement` с `write_scope` `src/**`, в основном checkout M Run нет. Агент делает `cd <M>`, затем правит `<W>/docs/x.md` по абсолютному пути. Проект события — M, путь лежит в другом checkout'е (W), Run у M нет — `allow`, в `guard_events[]` Run W'а ничего не попадает. Так же работает `cd` вне всех checkout'ов: фолбэк — каталог процесса, а в worktree-сессии Claude Code это не worktree (design, Context; по-видимому, M). D1 («`cwd`, ушедший из всех checkout'ов, не выключает guard проекта процесса») защищает M, а не W. Hint D2 «или сначала `warrant run finish`» сам ведёт к этой правке без суда: Run закрыт, и правка чужого checkout'а — `allow` без проверки его Run. F-4 раунда 1 закрыт только для случая, когда у проекта события есть Run. Регрессии нет (до Change было то же), но цель Change и обоснование D2 расходятся с нормой.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-057",
+        "SCN-ENF-058",
+        "openspec/changes/guard-worktree/proposal.md",
+        "openspec/changes/guard-worktree/design.md"
+      ],
+      "recommendation": "Решить D-1. (a) Закрыть: правка пути другого checkout'а — `deny` и тогда, когда активный Run есть у того checkout'а. Это одно чтение его `<state>/runs/current`, а не суд его Run (D2 этого не отвергает). reason и hint — как в D2, в hint — только «из сессии того checkout'а». Добавить в SCN-ENF-058 случай: Run у worktree'а, `cwd` события — основной checkout без Run, правка пути worktree'а — `deny`. (b) Принять предел: убрать из proposal фразу про `cd`, а в D2 написать, что `cd` в checkout без Run (и `cd` вне checkout'ов в worktree-сессии) уводит правку из-под `write_scope` — предел, как INV-07. Добавить сценарий, который это фиксирует."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "Для `cwd` норма задаёт способ подъёма: «по тексту пути, без `realpath`, … проходит каталоги, которых нет». Для пути события («другой checkout … ближе всех к пути среди его предков и не является проектом события») способа нет. Не сказано ни как идти вверх (по тексту или после `realpath`), ни как сравнивать найденный checkout с проектом события (строкой или как `projectPath` — `path.relative`, на Windows без учёта регистра). Рядом стоят правила review (I-198, I-202) и `cd`, которые требуют `realpath`. Это провоцирует реализацию через `realPath`, а тогда два прочтения расходятся. Пример: `os.tmpdir()` на Windows — короткое имя (`C:\\Users\\RUNNER~1\\…`), на macOS — `/var/folders/…` → `/private/var/…`, `cwd` и файл — в регистрах `d:` и `D:`. При таком расхождении корень от `cwd` (по тексту) не равен checkout'у от пути (`realpath`). Правка своего пути внутри `write_scope` становится «путём другого checkout'а» — `deny` с ложной причиной. Под Run `review` она уходит в правило временного каталога. Для Write нового файла в новом каталоге предков пути ещё нет.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-058"
+      ],
+      "recommendation": "Записать в REQ-ENF-004 одно правило для `cwd` и для путей: подъём по тексту пути, через каталоги, которых нет. Checkout пути равен проекту события, если `projectPath(root, checkout) === \"\"` — то же сравнение, что и для принадлежности проекту. Для `cd` под `review` назвать, в какой форме сравниваются цель после `realpath` и checkout'ы (оба после `realpath`). Добавить в тесты SCN-ENF-056 или SCN-ENF-058 проект в `os.tmpdir()` и путь в другой форме того же каталога (регистр диска)."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "В REQ-ENF-004 (и в proposal) сказано: «каталог только с `.warrant/warrant.json` … — часть объемлющего проекта» и «если такого [checkout'а у `cwd`] нет — каталог процесса guard». Эти утверждения расходятся, когда каталог процесса сам такой каталог внутри checkout'а. Пример: процесс guard запущен в `packs/core-sdd/golden/feature` (`warrant.json` без `.git`), а `cwd` события вне всех checkout'ов. По фолбэку проект — golden-каталог G, его Run и policy. По второй фразе проект — объемлющий checkout M. При прочтении «проект — G» правило D2 ломает и собственные пути G: ближайший к пути `G/src/a.ts` checkout — M ≠ G, значит это «путь другого checkout'а», вне проекта; при активном Run — `deny`, без Run — `allow` без hints. Все пути проекта оказываются чужими.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-059",
+        "openspec/changes/guard-worktree/proposal.md"
+      ],
+      "recommendation": "Фолбэк — то же правило подъёма от каталога процесса: ближайший checkout под WARRANT от каталога процесса вверх, иначе сам каталог процесса. Тогда golden-каталог всегда часть объемлющего checkout'а, а проект без `.git` (каталог процесса) остаётся проектом. Либо явно сказать, что D2 не применяется, когда проект события — не checkout."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "Признак checkout'а (`.warrant/warrant.json` и `.git` в одном каталоге) молча предполагает, что корень проекта WARRANT — корень git checkout'а. Два случая под это не подпадают. Проект без git: main spec его допускает («без git находки нет»), но по `cwd` он не находится никогда — только как каталог процесса. Проект в подкаталоге git-репозитория (monorepo, `.git` выше `.warrant/`): в его worktree-сессии подъём от `cwd` checkout'а не находит, фолбэк — каталог процесса, и #138 остаётся без ошибки и без сообщения. Первая фраза нормы — «проект и активный Run SHALL определяться по `cwd` события, а не по каталогу, в котором запущен процесс guard» — для этих проектов не выполняется.",
+      "targets": [
+        "REQ-ENF-004",
+        "openspec/changes/guard-worktree/proposal.md"
+      ],
+      "recommendation": "Назвать предел в норме: проект, корень которого не checkout (нет `.git` рядом с `.warrant/warrant.json`), определяется каталогом процесса. Либо добавить признак: `.warrant/warrant.json`, у которого среди предков (включая сам каталог) есть `.git`, и ближайший такой каталог. Указать в Non-Goals или Risks, что Change не чинит такие раскладки."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Нормализованное событие несёт `paths[]`, но приоритет D2 перед другими правилами для событий с несколькими путями не описан. (1) При активном Run пути — один внутри `write_scope` и один из другого checkout'а: «иначе `allow`» правила `write_scope` против `deny` D2. И какой reason: тот, что называет путь и scope, или тот, что пути не называет? (2) В режиме восстановления «`edit`, чьи пути проекта — только `.warrant/warrant.json`, — `allow` …, в том числе вне `write_scope` активного Run» плюс путь другого checkout'а: `allow` или `deny`? Фраза «Fail-closed остаётся только для правки путей проекта» читается как `allow` для путей вне проекта. Разумное поведение одно (`deny`), но тест может его не закрепить.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-058"
+      ],
+      "recommendation": "Сказать, что `deny` D2 действует при любом другом пути события и в режиме восстановления, а reason смешанного события пути другого checkout'а не называет. Добавить в SCN-ENF-058 событие с двумя путями (внутри `write_scope` и в другом checkout'е) — `deny`."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Условие SCN-ENF-016 «guard вызван в каталоге без `.warrant/warrant.json`, и у `cwd` события и его предков нет checkout'а под WARRANT, или вход не разбирается как событие» читается двумя способами: «(A и B) или C» и «A и (B или C)». При первом прочтении вход, который не разбирается, в каталоге процесса под WARRANT даёт `allow`. Это противоречит норме (внутренний сбой `pre` — `deny`) и SCN-ENF-021 (код 2).",
+      "targets": [
+        "SCN-ENF-016"
+      ],
+      "recommendation": "Переписать WHEN без двусмысленности: «guard вызван в каталоге без `.warrant/warrant.json`, и либо у `cwd` события и его предков нет checkout'а под WARRANT, либо вход не разбирается как событие»."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-ENF-057 не называет операцию Run («проект с Run `RUNNING`»), а от неё зависит THEN. Под Run `review` правка пути, заданного относительно `cwd` вне проектов, даёт `allow`, только если путь во временном каталоге, иначе `deny`. Утверждение «правка вне `write_scope` — `deny`» под `review` верно для любого пути. Тест с Run `review` и `cwd` вне временного каталога противоречит THEN.",
+      "targets": [
+        "SCN-ENF-057"
+      ],
+      "recommendation": "Указать в WHEN Run `implement` (как в SCN-ENF-058) с непустым `write_scope`."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "D1 и D2 предполагают, что у каждого checkout'а свой `<state>`. При абсолютном `WARRANT_STATE_DIR` в окружении сессии (`core/fs.ts` `stateDir`) основной checkout и worktree делят `runs/current`, то есть один Run. Тогда в D2 «Run судит только свой» и в SCN-ENF-056 «в каталоге процесса Run и событий нет» больше нет смысла: `write_scope` одного Run применяется к тому checkout'у, где лежит `cwd`.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-056",
+        "openspec/changes/guard-worktree/design.md"
+      ],
+      "recommendation": "Назвать в Risks design: абсолютный `WARRANT_STATE_DIR` общий для checkout'ов, D2 при нём не различает Run. Либо сказать, что `WARRANT_STATE_DIR` для нескольких checkout'ов одной машины не поддерживается."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Попадает ли каталог после `cd` в Bash сессии Claude Code в поле `cwd` следующих `PreToolUse`/`PostToolUse`, в том числе после `cd` за пределы worktree'а (в основной checkout, в `/tmp`), или Claude Code возвращает каталог в worktree? От этого зависит, достижим ли обход из F-1 одной командой.",
+      "blocking": false,
+      "impact": [
+        "REQ-ENF-004",
+        "SCN-ENF-057",
+        "SCN-ENF-058"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Код читался диапазонами через Read: `core/guard/guard.ts` (`projectFiles`, `outsidePaths`, `reviewShellPlaces`, `realPath`, `guard`, `guardFrontend`) и `core/fs.ts` (`projectPath` через `path.relative`, `stateDir` с `WARRANT_STATE_DIR`). `decide.ts`, `commands/guard.ts` и `bin/warrant.ts` не сверялись."
+    },
+    {
+      "id": "A-2",
+      "statement": "Каталог процесса хука в worktree-сессии Claude Code — основной checkout (design Context выводит «не worktree» из #138; что это именно основной checkout — допущение F-1)."
+    },
+    {
+      "id": "A-3",
+      "statement": "Находки раундов 1 и 2 сверены с текущей spec. Раунд 2 закрыт целиком: F-1 — признак `.warrant/warrant.json` и `.git`, SCN-ENF-059; F-2, F-3 — D2 и SCN-ENF-058; F-4 — REQ-ENF-005 и SCN-ENF-021 в delta; F-5 — SCN-ENF-056; F-6 — SCN-ENF-057; F-7 — Context и зонд `git-hook.js`. Раунд 1: F-1, F-3, F-5, F-6, F-8 и F-9 закрыты. F-4 закрыт только при Run у проекта события — см. F-1. F-7 закрыт для `cwd`; для путей способ подъёма не задан — см. F-2. F-2 закрыт по `cwd` входа, каталог процесса — допущение A-2."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Как судить правку пути другого checkout'а, если активный Run есть у того checkout'а, а у проекта события Run нет (`cd` в основной checkout, `cd` вне checkout'ов в worktree-сессии, сессия основного checkout'а правит worktree с Run)?",
+      "options": [
+        "`deny` с reason D2 и hint «из сессии того checkout'а»: читается только `current` того checkout'а, его Run не судит",
+        "`allow` без hints, как сейчас: принять предел (INV-07) и убрать из proposal и D2 утверждение, что `cd` не уводит правку из-под `write_scope`"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:14ebcb697dab9051eb011e17f552e32f46be80eb561deae9ac5a9dcaad285a31",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T12:00:00Z",
+    "finished_at": "2026-10-02T12:40:00Z"
+  }
+}

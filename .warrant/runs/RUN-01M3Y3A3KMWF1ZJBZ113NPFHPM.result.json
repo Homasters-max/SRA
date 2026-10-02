@@ -1,0 +1,158 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3Y3A3KMWF1ZJBZ113NPFHPM",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "Признак вложенного checkout'а в REQ-ENF-004 — любой каталог с `.warrant/warrant.json` между корнем и путём («между корнем проекта и путём есть каталог с `.warrant/warrant.json`»), а не checkout. В репозитории такие каталоги уже есть: `packs/core-sdd/golden/{chore,factory-change,feature}/.warrant/warrant.json` (у них нет `.git`). По формальному критерию их пути — вне проекта: без Run правка `packs/core-sdd/golden/feature/**` даёт `allow` без hints и события, при Run `implement` — `allow` вне `write_scope`. Но `packs/**` — policy-путь профиля `factory-change` (`match.paths`), и то же требование даёт ему `deny` с hint «правку делает человек». Прочтение «вложенный checkout» (git worktree) и прочтение по признаку `.warrant/warrant.json` дают разное наблюдаемое поведение на существующих путях. Кроме того, признак может создать сам агент: при Run не `review` shell не ограничен, и `mkdir -p docs/.warrant && echo {} > docs/.warrant/warrant.json` выводит `docs/**` из-под `write_scope` и `guard_events[]`.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-057",
+        "openspec/changes/guard-worktree/design.md"
+      ],
+      "recommendation": "Сузить признак вложенного checkout'а до наблюдаемого свойства checkout'а: например, каталог с `.warrant/warrant.json` и файлом или каталогом `.git` (у git worktree `.git` — файл). Явно сказать, что каталог только с `.warrant/warrant.json` (golden, fixtures) остаётся частью проекта. Добавить сценарий: правка `packs/core-sdd/golden/feature/x` без Run — `deny` policy-пути, как раньше; при Run `implement` — `deny` вне `write_scope`."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Весь Change опирается на то, что `cwd` родного входа хука Claude Code в worktree-сессии — каталог worktree'а. design (Context) это утверждает, но не доказывает: хук `SessionStart` (`brief.js`, корень — `CLAUDE_PROJECT_DIR` или `cwd`) назвал основной checkout, и это объясняется уже `CLAUDE_PROJECT_DIR`, а не каталогом процесса. Ручной прогон из #138 задаёт `cwd` сам. Если Claude Code передаёт в `cwd` основной checkout (или исходный каталог проекта сессии), D1 ничего не меняет, а SCN-ENF-056 проходит только на синтетическом входе.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-056",
+        "openspec/changes/guard-worktree/design.md"
+      ],
+      "recommendation": "Записать зонд с версией Claude Code (как I-165): поля `cwd` и каталог процесса хука `PreToolUse` и `PostToolUse` в worktree-сессии. Для SCN-ENF-056 через адаптер `claude` использовать записанный реальный вход. Если `cwd` — не worktree, пересмотреть D1."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "Команда хука `node \"${CLAUDE_PROJECT_DIR:-.}/packages/cli/dist/bin/warrant.js\"` в worktree-сессии исполняет файл CLI основного checkout'а (Non-Goals: `CLAUDE_PROJECT_DIR` не меняется). После D1 этот CLI судит `warrant.json` и Run worktree'а, хотя закрепление worktree'а может от него отличаться: pin-Change в worktree, ветка с новым `kernel`, старый `dist` основного checkout'а. Тогда в worktree включается режим восстановления (`PACK_VERSION_RANGE` / CLI старше закрепления), и правка любого пути проекта получает `deny`. До Change такого режима не было: судилось закрепление основного checkout'а. spec и design этот отказ не описывают.",
+      "targets": [
+        "REQ-ENF-004",
+        "openspec/changes/guard-worktree/proposal.md"
+      ],
+      "recommendation": "Назвать этот режим в proposal/design (Risks) и описать ожидаемое поведение: режим восстановления REQ-ENF-004 с выходом «CLI старше закрепления» либо явная рекомендация, какой файл CLI исполняет хук worktree-сессии. При желании — сценарий: основной checkout с CLI 0.10.0, worktree закрепил более новый pack, правка `src/**` в worktree — `deny` по режиму восстановления с hint установки CLI."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "Проект теперь определяется по `cwd` события, а `cwd` меняет сам агент: при Run не `review` `cd` не ограничен, и в Claude Code каталог Bash сохраняется между вызовами. Агент worktree'а с Run `implement` делает `cd` в основной checkout или в каталог вне всех проектов (фолбэк D1 — каталог процесса, то есть основной checkout). После этого правка абсолютного пути worktree'а — путь вложенного checkout'а, то есть вне проекта: `allow` без проверки `write_scope` Run worktree'а и без события. Класс A, ради которого Change и делается, остаётся достижимым одной командой; spec молча предполагает, что `cwd` остаётся в checkout'е Run.",
+      "targets": [
+        "REQ-ENF-004",
+        "openspec/changes/guard-worktree/design.md"
+      ],
+      "recommendation": "Либо явно принять это как предел (рядом с INV-07 и design Risks «`cwd` вне всех проектов») со сценарием, фиксирующим поведение, либо закрыть: например, путь вложенного checkout'а с активным Run судить его Run, или давать `deny` правке пути вложенного checkout'а, у которого активен Run. Решение — в `decisions_required`."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Не описана правка пути вложенного checkout'а при активном Run основного checkout'а, который не `review` (например, `implement` с `write_scope` `packages/cli/src/**`). До Change путь `.claude/worktrees/<имя>/packages/cli/src/a.ts` был путём проекта вне `write_scope` — `deny`. По новой норме он вне проекта — `allow`. Это ослабление `write_scope`, а SCN-ENF-057 покрывает только «без Run» и `review`. Кроме того, формулировки расходятся: proposal говорит, что такая правка «в `guard_events[]` не пишется», SCN-ENF-057 — «событие не записывается», а REQ-ENF-004 — «при активном Run каждый вызов SHALL дописать событие» (вне проекта не пишется только `paths`).",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-057",
+        "openspec/changes/guard-worktree/proposal.md"
+      ],
+      "recommendation": "Добавить в SCN-ENF-057 случай активного Run `implement` основного checkout'а: решение (`allow` или `deny`) и запись события с пустым `paths`. Привести proposal к норме: «путь не пишется в `guard_events[].paths`», а событие при активном Run пишется."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Delta spec не говорит, в каком порядке проверяются корень и вход, когда событие не разобралось или в нём нет `cwd`: корня по `cwd` нет. Это правило есть только в proposal и design D1 («вход, который не читается, при каталоге процесса не под WARRANT по-прежнему не читается»). Новый SCN-ENF-016 требует известного `cwd` («ни у `cwd` события, ни у его предков»), поэтому этот случай сценарием не покрыт. Для `--frontend claude` (REQ-ENF-005: неразборчивый вход — код 2) неясно, что важнее при каталоге процесса не под WARRANT: код 2 или `allow`. Неясно и событие, которое разобралось, но не проходит схему (нет `cwd`): внутренний сбой `deny` или `allow`.",
+      "targets": [
+        "REQ-ENF-004",
+        "SCN-ENF-016",
+        "REQ-ENF-005"
+      ],
+      "recommendation": "Внести в REQ-ENF-004 правило D1: вход, который не разобрался или не прошёл схему, судится по каталогу процесса — не под WARRANT `allow`, иначе прежний внутренний сбой. Добавить в SCN-ENF-016 случай «каталог процесса не под WARRANT, вход — не JSON» (и для `--frontend claude` — какой код выхода)."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Не описаны границы `cwd` для поиска корня. (1) `cwd` не существует, например worktree удалён при живой сессии: подъём от `<main>/.claude/worktrees/<имя>` находит основной checkout, и путь бывшего worktree'а судится Run основного checkout'а. (2) Относительный `cwd`: design разрешает его от каталога процесса (`path.resolve(fallback, cwd)`), норма об этом молчит. (3) Подъём и проверка «между корнем и путём» идут лексически или после `realpath` (I-198 для временного каталога требует `realpath`; на Windows — короткие имена и junction).",
+      "targets": [
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Указать в REQ-ENF-004, что `cwd` разрешается от каталога процесса, а подъём и признак вложенного checkout'а сравниваются после `realpath`, как в I-198. Для несуществующего `cwd` назвать решение: внутренний сбой или подъём от ближайшего существующего предка."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "proposal называет `cd` во вложенный checkout под Run `review` выходом из проекта, но сценария на это нет. SCN-ENF-044 проверяет только `cd ../other`. В SCN-ENF-056 не сказано, где лежит worktree: внутри основного checkout'а (`.claude/worktrees`, где действует D2) или рядом с ним. Не проверяется и то, что Run и `guard_events[]` основного checkout'а не меняются.",
+      "targets": [
+        "SCN-ENF-056",
+        "SCN-ENF-057",
+        "SCN-ENF-044"
+      ],
+      "recommendation": "Добавить в SCN-ENF-057 `[\"bash\", \"-c\", \"cd .claude/worktrees/<имя> && warrant status\"]` под Run `review` основного checkout'а — `deny`. В SCN-ENF-056 зафиксировать вложенное расположение worktree'а и то, что у основного checkout'а событий нет."
+    },
+    {
+      "id": "F-9",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "implementation-leakage",
+      "statement": "Нормативный текст ядра REQ-ENF-004 называет конкретный frontend и его поведение: «Claude Code в git worktree исполняет хуки из основного checkout». Это пример-обоснование, а не требование; к тому же оно не проверено (F-2). REQ-ENF-005 держит имя frontend в адаптере.",
+      "targets": [
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Оставить в норме общее правило «хук, исполняемый из другого каталога, судится по `cwd` события», а пример с Claude Code перенести в design или proposal."
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U-1",
+      "question": "Что Claude Code передаёт в поле `cwd` входа `PreToolUse`/`PostToolUse` в worktree-сессии и в каком каталоге запускает процесс хука? Сохраняется ли `cd` Bash в `cwd` следующих событий?",
+      "blocking": true,
+      "impact": [
+        "design",
+        "REQ-ENF-004",
+        "SCN-ENF-056"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Код guard (`core/guard/guard.ts`, `commands/guard.ts`, `bin/warrant.ts`) не сверялся: в Run `review` shell ограничен, а `cs` недоступен. Текущее поведение кода взято из design (Context)."
+    },
+    {
+      "id": "A-2",
+      "statement": "Считается, что hook input Claude Code несёт текущий каталог Bash сессии, а он сохраняется между вызовами (основа F-4)."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Как судить правку пути вложенного checkout'а (git worktree), у которого есть активный Run, если `cwd` события — не этот checkout (сессия основного checkout'а или агент worktree'а после `cd`)?",
+      "options": [
+        "Вне проекта, `allow` (текущий D2): принять предел явно в норме и сценарии",
+        "`deny` правки пути вложенного checkout'а с активным Run, с hint работать из его каталога",
+        "Судить Run вложенного checkout'а (отвергнутая альтернатива D2)"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:adcb4e72d5567c632490199c178222dadf737ba3805ef325aa14a390d20fbe8c",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T10:00:00Z",
+    "finished_at": "2026-10-02T10:25:00Z"
+  }
+}

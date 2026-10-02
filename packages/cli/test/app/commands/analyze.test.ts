@@ -117,6 +117,8 @@ describe("warrant analyze", () => {
     expect(run.exitCode).toBe(1);
     expect(run.data["findings"]).toEqual([{ code: "ORPHAN", id: "SCN-STO-009", path: "tests/test_store.py" }]);
     expect(run.data["counts"]).toEqual({ UNSATISFIED: 0, CONFLICT: 0, ORPHAN: 1 });
+    // A file directly under openspec/changes/ gives no id and no skip.
+    expect(run.data["skipped"]).toEqual([]);
   });
 
   it("without git ORPHAN is skipped with the reason, UNSATISFIED and CONFLICT computed (SCN-VER-067)", async () => {

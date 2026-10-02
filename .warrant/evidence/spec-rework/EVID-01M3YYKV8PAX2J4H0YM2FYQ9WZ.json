@@ -1,0 +1,43 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3YYKV8PAX2J4H0YM2FYQ9WZ",
+  "claim": {
+    "text": "tests-passed passed for spec-rework",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "ad7e60b6dec0f3eae480e9e50d2420f76187b7c3",
+    "base_commit": "eab1a52ace71ec2b68367bff8386c4148924f074",
+    "spec_revision": "openspec/changes/spec-rework@ad7e60b6dec0f3eae480e9e50d2420f76187b7c3",
+    "tree": "02ddec6ad8e582efa58250bc1455274a80f366cd",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "ci",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/37048600386/attempts/1"
+  },
+  "context_hash": "sha256:6a35624f108833b6d4e8688122899849f5a968d325105ecac6429a7c8459b649",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-02T18:39:21.367Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/spec-rework/raw/tests-passed/junit.xml",
+      "sha256": "sha256:cc431e2b77fbd91687191dde62b861a3c3ad4608e95d888fb78761b0767eb667"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 1,
+    "tests": 1733
+  }
+}

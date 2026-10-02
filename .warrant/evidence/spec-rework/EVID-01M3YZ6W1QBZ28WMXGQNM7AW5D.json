@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3YZ6W1QBZ28WMXGQNM7AW5D",
+  "claim": {
+    "text": "Homasters-max approved spec-rework for VERIFYING->MERGED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "ad7e60b6dec0f3eae480e9e50d2420f76187b7c3",
+    "base_commit": "1e232365cbbd151b0272627a2586513ab8505f37",
+    "spec_revision": "openspec/changes/spec-rework@ad7e60b6dec0f3eae480e9e50d2420f76187b7c3",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/156"
+  },
+  "context_hash": "sha256:e615f3ba2477f4c4c6c5e7bfda028c376efbcfb1401a538ba88e9366b199c7dc",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-02T18:49:44.760Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

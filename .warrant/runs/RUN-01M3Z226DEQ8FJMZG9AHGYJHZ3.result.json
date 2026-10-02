@@ -1,0 +1,81 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3Z226DEQ8FJMZG9AHGYJHZ3",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "missing-boundary",
+      "statement": "REQ-KRN-037 отвергает .warrant и openspec без учёта регистра, потому что Windows и macOS не различают .Warrant и .warrant (design D3). Но Windows так же снимает конечные точки и пробелы сегмента: элементы [\".warrant.\"] и [\"openspec \"] валидны, их корень .warrant./** в write_scope Run implement, и правка пути .warrant./runs/current проходит guard как allow, а на диске это .warrant/runs/current. Без paths.data тот же путь без Run тоже получает allow, и в ci (Linux, пути git) такой корень ничего не покрывает. Поэтому вред ограничен, но довод D3 этот случай не закрывает.",
+      "targets": [
+        "REQ-KRN-037",
+        "SCN-KRN-174",
+        "openspec/changes/data-paths/design.md"
+      ],
+      "recommendation": "Отвергать сегмент, который оканчивается на точку или пробел. Либо записать это ограничение в «Риски» design рядом с доводом о регистре."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "missing-error-behavior",
+      "statement": "Задача 2.1 меняет только текст и hint CONFIG_INVALID. Другие тексты codeScope по-прежнему называют только paths.src и paths.tests: сообщение SCOPE_VIOLATION в ci/paths.ts judgePaths («code and tests change only in the impl-PR ... (paths.src, paths.tests of the base)»), причина skipped («paths.src and paths.tests are not set in warrant.json of the base») и справка --operation в bin/warrant.ts («implement: paths.src, paths.tests and tasks.md»). После Change SCOPE_VIOLATION для std/std.json (SCN-KRN-173) объяснит нарушение ключами, которые путь не задают. Spec тексты сообщений не фиксирует, это пробел задач, а не контракта.",
+      "targets": [
+        "REQ-KRN-037",
+        "openspec/changes/data-paths/tasks.md"
+      ],
+      "recommendation": "В задачу 2.1 добавить: сообщения SCOPE_VIOLATION и причину skipped в core/ci/paths.ts, справку --operation в bin/warrant.ts и doc-комментарии codeScope и liveness — с paths.data."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "ambiguity",
+      "statement": "Proposal (What Changes) перечисляет невалидные значения как «Корень проекта, .warrant/** и openspec/**». Запрет символов glob и пустых сегментов и сегментов «.», добавленный в REQ-KRN-037 по раунду 2, там не назван. Это не противоречие (слова «только» нет), но сводка контракта стала неполной.",
+      "targets": [
+        "openspec/changes/data-paths/proposal.md",
+        "REQ-KRN-037"
+      ],
+      "recommendation": "Дописать в proposal: «а также пути с символами glob и с пустым сегментом или сегментом «.» — каталог данных задаётся буквальным путём»."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/data-paths/tasks.md",
+      "change": "В задачу 2.1 добавить тексты SCOPE_VIOLATION и skipped в core/ci/paths.ts и справку --operation в bin/warrant.ts с paths.data (F-2)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/data-paths/design.md",
+      "change": "В «Риски» добавить: Windows снимает конечные точки и пробелы сегмента (.warrant.), правило их не отвергает, вред ограничен (F-1). Либо отвергать такие сегменты в REQ-KRN-037."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Находки раунда 2 закрыты. F-1: символы glob в правиле, [\"*\"] и [\"{.warrant,std}\"] в SCN-KRN-174, строка backlog в 3.1. F-2: условие «не даёт корня» стоит в REQ-KRN-037, REQ-ENF-002 и REQ-VER-009 одинаково. F-3: пустой сегмент и сегмент «.» — правило, [\".//std\"] и [\"std/./x\"]. F-4: REQ-KRN-004 в группе 1, SCN-KRN-008 в 1.2. F-5: «База требований» вместо impl-PR. F-6: REQ-KRN-032 в перечне."
+    },
+    {
+      "id": "A-2",
+      "statement": "Вердикты SCN-KRN-174 сверены с правилом и с relative_path из common.1 (запрещает ведущий /, сегмент .. и обратную косую черту). [\"std\"], [\".warrant-data\"] и [\"std/std.json\"] валидны. [] (minItems) и [\"std\",\"std\"] (uniqueItems) дают /paths/data. Остальные дают /paths/data/0, каждый по своему пункту: «.» — точка; \"./\" и \".//\" — пустая строка; \".//std\" — ведущий /; \"std/./x\" — сегмент «.»; \".Warrant\" и \"OpenSpec/x\" — регистр не различается; \"../std\" — relative_path; \"*\" и \"{.warrant,std}\" — символы glob."
+    },
+    {
+      "id": "A-3",
+      "statement": "Нормализация «до неподвижной точки» совпадает с directory() в core/run/scope.ts (регулярные выражения ^(\\./)+ и /+$): прочтения не расходятся ни на одном входе, потому что снятие конечных / не создаёт новый ведущий ./. Все четыре читателя (writeScopeOf, guard pathClasses и guardedWithoutRun, liveness hooksInactive, ci judgePaths) идут через codeScope. Тестовые правила (validate dangling и registry, analyze input, ids renumber) читают paths.tests отдельно."
+    },
+    {
+      "id": "A-4",
+      "statement": "Перечень исключения в REQ-KRN-037 покрывает каждое упоминание paths.src и paths.tests в REQ-ENF-004 (строки hint deny без Run и policy-путь вне кода) и в REQ-VER-011 (База требований, вид spec с пропуском, вид archive как spec, вид none с пропуском). В delta REQ-VER-011 Change judge-law те же места, новых упоминаний нет. Delta-копии REQ-KRN-004, REQ-ENF-002 и REQ-VER-009 отличаются от main только намеренными правками."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:fcf16daee35b0d940441af4375f3c82134a3cdceaf9292ae72535f8345edb3af",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T19:50:00Z",
+    "finished_at": "2026-10-02T20:25:00Z"
+  }
+}

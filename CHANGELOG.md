@@ -4,18 +4,25 @@
 
 ## 0.10.1
 
-Patch для LATTICE ([ADR-0056](docs/adr/WARRANT-ADR-0056-lattice-fixes-0-10-1.md)): пять исправлений одним тегом, `kernel` 0.10 и диапазоны packs прежние. Каждое изменение обратно совместимо на входах 0.10.0.
+Patch для LATTICE ([ADR-0056](docs/adr/WARRANT-ADR-0056-lattice-fixes-0-10-1.md)): пять исправлений одним тегом, `kernel` 0.10 и диапазоны packs прежние. Каждое изменение обратно совместимо на входах 0.10.0: старые файлы валидны, новых кодов выхода нет, новый переход и флаг необязательны.
 
 ### Вердикт
 
 - **guard** (#138, Change `guard-worktree`) — не судья: вердикт `warrant ci` он не меняет.
   - Проект и активный Run события берутся по `cwd` события: ближайший checkout под WARRANT (`.warrant/warrant.json` и `.git`), иначе каталог процесса. Раньше — каталог процесса, и в git worktree, чьи хуки исполняются из основного checkout'а, `write_scope` не защищался.
   - Правка пути другого checkout'а под WARRANT (вложенного worktree, объемлющего основного, соседнего) — вне проекта. При активном Run у проекта события или у того checkout'а — `deny`, путь в reason не называется.
+- **`analyze-clean` мягче в одном случае** (#141, Change `analyze-open`): `ORPHAN` не даёт SCN, объявленный в `ADDED` / `MODIFIED` delta другого открытого Change (`openspec/changes/<другой>/`, не архив). Gate на commit читает и `openspec/changes`.
+- **Id waiver** (#139, Change `waiver-ulid`): `warrant waive` и `warrant id WAV` выдают `WAV-<ULID>`; `WAV-YYYY-NNN` валиден в схеме, `--activate` и `--revoke`.
+- **`warrant ci --no-record`** (#143, Change `ci-local`): тот же вердикт, ничего не записано в состоянии WARRANT; `ci fetch` называет остатки каталога evidence (`data.untracked[]`, находка `EVIDENCE_UNTRACKED`) и переписывает manifest, если он расходится с каталогом.
+- **`SPECIFIED -> PROPOSED`** (#142, Change `spec-rework`) — переход назад для Change, ни разу не одобренного. После переделки ref `APPROVED` — spec-PR последнего `SPECIFIED`; record без переделки судится, как прежде.
 
 ### Миграция для потребителя
 
-- Pin-Change: `warrant` на машине — CLI тега `v0.10.1` (`npm pack github:Homasters-max/SRA#v0.10.1` вне checkout, `npm i -g`), reusable workflow — `@v0.10.1` с `warrant: v0.10.1`. `kernel` в `warrant.json` остаётся `"0.10"`.
+- Pin-Change: `warrant` на машине — CLI тега `v0.10.1` (`npm pack github:Homasters-max/SRA#v0.10.1` вне checkout, `npm i -g`), reusable workflow — `@v0.10.1` с `warrant: v0.10.1`. `kernel` в `warrant.json` остаётся `"0.10"`. После установки — `warrant sync`: копия схемы `waiver/1` в `.warrant/schemas/` и lock обновляются.
 - guard в worktree-сессии теперь отказывает правке вне `write_scope` и правке файлов основного checkout'а, пока в worktree активен Run. Править основной checkout — из его сессии.
+- Новые waivers — `WAV-<ULID>` (слово активации копирует id из тела PR). CLI 0.10.0 такой файл не читает: не смешивать версии.
+- Локальный судья перед PR — `warrant ci --no-record`. Записи из `data.untracked[]` `ci fetch` не коммитить: удалить и повторить `ci fetch`.
+- Переделка spec до `APPROVED` — `warrant transition <change> PROPOSED`, затем путь spec-PR заново; `APPROVED --ref` — spec-PR переделки.
 
 ## 0.10.0 — 2026-10-01
 

@@ -1,0 +1,43 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3YFE894Z7F1Y6M9ZYB3GW6J",
+  "claim": {
+    "text": "tests-passed passed for analyze-open",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "102988ebb1753fe1d4324df66acb531f4d5fd1d3",
+    "base_commit": "2f39849864a1cd43a78bc3bbadb078ae9465a0df",
+    "spec_revision": "openspec/changes/analyze-open@102988ebb1753fe1d4324df66acb531f4d5fd1d3",
+    "tree": "d2de4fc0c09bf4d678b9ed20b5782684f9fc0f10",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "ci",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/37018119956/attempts/1"
+  },
+  "context_hash": "sha256:97741059c185ceb7ab11bad6a4791514c6c64aceb6d0bc6ba1517b6accefa4b7",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-02T14:14:09.445Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/analyze-open/raw/tests-passed/junit.xml",
+      "sha256": "sha256:ad5a030fb5c2f3334bd96e94a387ed07c6a1198a39927e7171ea69514e85f026"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 1,
+    "tests": 1718
+  }
+}

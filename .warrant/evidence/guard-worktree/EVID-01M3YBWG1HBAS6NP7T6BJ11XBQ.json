@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3YBWG1HBAS6NP7T6BJ11XBQ",
+  "claim": {
+    "text": "openspec-validate passed for guard-worktree",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "d3fe081d9ef9d8a4876aa91e4573e4ed793c988c",
+    "base_commit": "20fa6d3d0e8ab8021e62d85df9ad18e3479036f9",
+    "spec_revision": "openspec/changes/guard-worktree@d3fe081d9ef9d8a4876aa91e4573e4ed793c988c",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:2cde96454e26a44065dfc51783be1fe9ef2eeb0ef0210223c982f4ea16ca2ff5",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-02T13:12:01.842Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/guard-worktree/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:fbadd263b602f0e5e11a6cd7a9d5f6d6808864164fa2f3eb6d757559d668e191"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

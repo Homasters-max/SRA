@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "guard-worktree",
-  "commit": "256dae262e57eb7eaa30dc0c0b63c535590c67a5",
+  "commit": "d3fe081d9ef9d8a4876aa91e4573e4ed793c988c",
   "versions": {
     "warrant": "0.10.0",
     "openspec": "1.13.1",
@@ -12,6 +12,12 @@
     "EVID-01M3Y3KRF6ZG0GWW6DRZ2HR33B",
     "EVID-01M3Y42ZT4X40DJYN56P9YXC4H",
     "EVID-01M3YBD723XT4SX64PARMNZTPT",
-    "EVID-01M3YBTQ04CBVPZ9QRE183E16V"
-  ]
+    "EVID-01M3YBTQ04CBVPZ9QRE183E16V",
+    "EVID-01M3YBWG1HBAS6NP7T6BJ11XBQ"
+  ],
+  "gates": {
+    "ids-valid": "PASS",
+    "required-artifacts-present": "PASS",
+    "spec-valid": "BLOCKED"
+  }
 }

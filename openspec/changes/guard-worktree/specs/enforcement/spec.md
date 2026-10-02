@@ -6,12 +6,12 @@
 `warrant guard` без `--frontend` SHALL читать из stdin нормализованное событие `{ phase: pre|post, action: edit|shell|other,
 paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-frontend-adapters.md) п. 2) и печатать
 `data{ decision: allow|deny, reason?, hints[] }`, код выхода 0 при любом решении. Пути события SHALL переводиться в пути проекта
-от `cwd`; проект и активный Run SHALL определяться по `cwd` события, а не по каталогу процесса guard: проект — ближайший к `cwd`
-каталог-предок (включая сам `cwd`) с `.warrant/warrant.json`, а если такого нет — каталог процесса guard; хук, который
-агент запускает из другого каталога (Claude Code в git worktree исполняет хуки из основного checkout), судится состоянием
-checkout'а `cwd`. Вызов, чей `cwd` лежит в другом checkout, судится состоянием того checkout'а (предел, как INV-07); путь,
-лежащий во вложенном checkout'е под WARRANT (между корнем проекта и путём есть каталог с `.warrant/warrant.json`, например
-git worktree в `<проект>/.claude/worktrees/<имя>`), — путь вне проекта. Путь вне проекта SHALL давать `allow`, кроме правки при активном Run `review`
+от `cwd`; проект и активный Run SHALL определяться по `cwd` события, а не по каталогу, в котором запущен процесс guard: проект —
+ближайший к `cwd` каталог-предок (включая сам `cwd`) с `.warrant/warrant.json`, а если такого нет — каталог процесса guard.
+Относительный `cwd` берётся от каталога процесса; подъём идёт по тексту пути, без `realpath`, и проходит каталоги, которых
+нет. Вход, который не разбирается как событие, судится в каталоге процесса. Вызов, чей `cwd` лежит в другом checkout, судится
+состоянием того checkout'а (предел, как INV-07): путь другого checkout'а, лежащий в каталоге проекта (git worktree внутри
+него), — путь этого проекта. Путь вне проекта SHALL давать `allow`, кроме правки при активном Run `review`
 (ниже), и SHALL NOT записываться в `guard_events[].paths`; событие `edit` без пути проекта SHALL решаться до загрузки policy —
 policy, которая не грузится, его не запрещает ([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 2);
 проект без `.warrant/warrant.json` SHALL давать `allow`. Если `warrant.json` задаёт `cli` ([REQ-KRN-004](../kernel/spec.md)),
@@ -151,7 +151,8 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
 
 #### Scenario: Проект не под WARRANT
 <!-- id: SCN-ENF-016 -->
-- **WHEN** guard вызван в каталоге без `.warrant/warrant.json`, и ни у `cwd` события, ни у его предков его нет
+- **WHEN** guard вызван в каталоге без `.warrant/warrant.json`, и ни у `cwd` события, ни у его предков его нет, или вход не
+  разбирается как событие
 - **THEN** `decision` равен `allow` для любой фазы и действия, событий не пишется
 
 #### Scenario: Правка под review
@@ -231,14 +232,12 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
 
 #### Scenario: Хук из другого каталога
 <!-- id: SCN-ENF-056 -->
-- **WHEN** guard запущен в каталоге основного checkout'а без активного Run, а событие несёт `cwd` git worktree (или его
-  подкаталога) с Run `RUNNING` и абсолютный путь в этом worktree
-- **THEN** `pre` правки вне `write_scope` этого Run — `deny`, внутри — `allow`; событие записано в `guard_events[]` Run
-  worktree'а; `post` правки внутри `write_scope` не даёт hint `warrant run start`
+- **WHEN** guard запущен в каталоге проекта без активного Run, а событие несёт `cwd` другого checkout'а (или его
+  подкаталога), где Run `RUNNING`, и путь в этом checkout'е
+- **THEN** `pre` правки вне `write_scope` этого Run — `deny`, внутри — `allow`; события записаны в `guard_events[]` Run
+  того checkout'а, в каталоге процесса Run и событий нет; `post` правки внутри `write_scope` не даёт hint `warrant run start`
 
-#### Scenario: Правка во вложенном checkout'е
+#### Scenario: cwd вне проектов
 <!-- id: SCN-ENF-057 -->
-- **WHEN** событие с `cwd` основного checkout'а без Run правит путь git worktree `.claude/worktrees/<имя>/…`, у которого
-  свой `.warrant/warrant.json`
-- **THEN** путь — вне проекта: `pre` и `post` — `allow` без hints, событие не записывается; при активном Run `review`
-  основного checkout'а такая правка — `deny`, как любой путь вне проекта вне временного каталога
+- **WHEN** `cwd` события и его предки без `.warrant/warrant.json`, а каталог процесса guard — проект с Run `RUNNING`
+- **THEN** событие судится в каталоге процесса: правка его пути вне `write_scope` — `deny`, событие записано в его Run

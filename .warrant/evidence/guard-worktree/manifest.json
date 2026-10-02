@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "guard-worktree",
-  "commit": "03fa00a24c1ec0ddeb70daf2ce30d23745835420",
+  "commit": "e00dab7e5162c53a9e4eb941c60610eeb311a2f3",
   "versions": {
     "warrant": "0.10.0",
     "openspec": "1.13.1",
@@ -10,6 +10,7 @@
   },
   "evidence": [
     "EVID-01M3Y3KRF6ZG0GWW6DRZ2HR33B",
-    "EVID-01M3Y42ZT4X40DJYN56P9YXC4H"
+    "EVID-01M3Y42ZT4X40DJYN56P9YXC4H",
+    "EVID-01M3YBD723XT4SX64PARMNZTPT"
   ]
 }

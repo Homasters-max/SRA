@@ -1,6 +1,7 @@
 # Class of paths with human acceptance (ADR-0050 p. 3, ADR-0051 p. 2-3): the maintainer owns
 # every path whose change alters the check itself. With "Require review from Code Owners"
-# on main, the agent bot cannot merge a PR touching them; the maintainer merges it himself.
+# on main (ruleset main-code-owners, bypass: admin role on PRs; ADR-0057), the agent bot cannot
+# merge a PR touching them; the maintainer merges it himself, one merge, no Approve.
 # Same paths as .warrant/local/profiles/human-acceptance.json — held by packages/cli/test/unit/meta/codeowners.test.ts (R-46).
 
 # The CLI — it is the judge

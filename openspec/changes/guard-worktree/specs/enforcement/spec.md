@@ -6,12 +6,17 @@
 `warrant guard` без `--frontend` SHALL читать из stdin нормализованное событие `{ phase: pre|post, action: edit|shell|other,
 paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-frontend-adapters.md) п. 2) и печатать
 `data{ decision: allow|deny, reason?, hints[] }`, код выхода 0 при любом решении. Пути события SHALL переводиться в пути проекта
-от `cwd`; проект и активный Run SHALL определяться по `cwd` события, а не по каталогу, в котором запущен процесс guard: проект —
-ближайший к `cwd` каталог-предок (включая сам `cwd`) с `.warrant/warrant.json`, а если такого нет — каталог процесса guard.
-Относительный `cwd` берётся от каталога процесса; подъём идёт по тексту пути, без `realpath`, и проходит каталоги, которых
-нет. Вход, который не разбирается как событие, судится в каталоге процесса. Вызов, чей `cwd` лежит в другом checkout, судится
-состоянием того checkout'а (предел, как INV-07): путь другого checkout'а, лежащий в каталоге проекта (git worktree внутри
-него), — путь этого проекта. Путь вне проекта SHALL давать `allow`, кроме правки при активном Run `review`
+от `cwd`; проект и активный Run SHALL определяться по `cwd` события, а не по каталогу, в котором запущен процесс guard. Checkout под
+WARRANT — каталог, в котором есть и `.warrant/warrant.json`, и `.git` (каталог или файл git worktree); каталог только с
+`.warrant/warrant.json` (например, проект golden pack) — часть объемлющего проекта. Проект события — ближайший к `cwd`
+checkout под WARRANT, включая сам `cwd`; если такого нет — каталог процесса guard. Относительный `cwd` берётся от каталога
+процесса; подъём идёт по тексту пути, без `realpath`, и проходит каталоги, которых нет. Вход, который не разбирается как
+событие, судится в каталоге процесса. Вызов, чей `cwd` лежит в другом checkout, судится состоянием того checkout'а (предел,
+как INV-07). Путь другого checkout'а под WARRANT — того, что ближе всех к пути среди его предков и не является проектом
+события, в том числе вложенного в каталог проекта (git worktree внутри него) или объемлющего проект, — путь вне проекта. При
+активном Run, кроме `review` (ниже), правка такого пути SHALL давать `deny`: reason — путь лежит в другом checkout'е под
+WARRANT, а Run судит только свой; hint — править из сессии того checkout'а или сначала `warrant run finish`; ни reason, ни
+hint путь не называют. Путь вне проекта SHALL давать `allow`, кроме правки при активном Run `review`
 (ниже), и SHALL NOT записываться в `guard_events[].paths`; событие `edit` без пути проекта SHALL решаться до загрузки policy —
 policy, которая не грузится, его не запрещает ([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 2);
 проект без `.warrant/warrant.json` SHALL давать `allow`. Если `warrant.json` задаёт `cli` ([REQ-KRN-004](../kernel/spec.md)),
@@ -151,8 +156,8 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
 
 #### Scenario: Проект не под WARRANT
 <!-- id: SCN-ENF-016 -->
-- **WHEN** guard вызван в каталоге без `.warrant/warrant.json`, и ни у `cwd` события, ни у его предков его нет, или вход не
-  разбирается как событие
+- **WHEN** guard вызван в каталоге без `.warrant/warrant.json`, и у `cwd` события и его предков нет checkout'а под WARRANT,
+  или вход не разбирается как событие
 - **THEN** `decision` равен `allow` для любой фазы и действия, событий не пишется
 
 #### Scenario: Правка под review
@@ -232,12 +237,86 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
 
 #### Scenario: Хук из другого каталога
 <!-- id: SCN-ENF-056 -->
-- **WHEN** guard запущен в каталоге проекта без активного Run, а событие несёт `cwd` другого checkout'а (или его
-  подкаталога), где Run `RUNNING`, и путь в этом checkout'е
+- **WHEN** каталог процесса guard — проект без активного Run или каталог не под WARRANT, а событие несёт `cwd` другого
+  checkout'а под WARRANT (или его подкаталога), где Run `RUNNING`, и абсолютный путь в этом checkout'е; так же через
+  `warrant guard --frontend claude`
 - **THEN** `pre` правки вне `write_scope` этого Run — `deny`, внутри — `allow`; события записаны в `guard_events[]` Run
   того checkout'а, в каталоге процесса Run и событий нет; `post` правки внутри `write_scope` не даёт hint `warrant run start`
 
-#### Scenario: cwd вне проектов
+#### Scenario: cwd вне checkout'ов
 <!-- id: SCN-ENF-057 -->
-- **WHEN** `cwd` события и его предки без `.warrant/warrant.json`, а каталог процесса guard — проект с Run `RUNNING`
-- **THEN** событие судится в каталоге процесса: правка его пути вне `write_scope` — `deny`, событие записано в его Run
+- **WHEN** у `cwd` события и его предков нет checkout'а под WARRANT, а каталог процесса guard — проект с Run `RUNNING`
+- **THEN** событие судится в каталоге процесса: правка его пути, заданного абсолютно, вне `write_scope` — `deny`, событие
+  записано в его Run; путь, заданный от такого `cwd` относительно, лежит вне проекта — `allow`
+
+#### Scenario: Путь другого checkout'а
+<!-- id: SCN-ENF-058 -->
+- **WHEN** событие с `cwd` git worktree'а, где Run `implement` `RUNNING`, правит путь основного checkout'а, объемлющего этот
+  worktree; событие с `cwd` основного checkout'а, где Run `implement` `RUNNING`, правит путь git worktree'а
+  `.claude/worktrees/<имя>/…`; то же без активного Run; под активным Run `review` основного checkout'а — строка
+  `cd .claude/worktrees/<имя> && git status`
+- **THEN** при Run `implement` обе правки — `deny`, reason и hint пути не называют, события записаны в Run проекта события без
+  этих путей; без Run — `allow` без hints, событий нет; строка с `cd` под Run `review` — `deny`
+
+#### Scenario: Каталог только с warrant.json
+<!-- id: SCN-ENF-059 -->
+- **WHEN** `cwd` события — каталог проекта с `.warrant/warrant.json` без `.git` (`packs/core-sdd/golden/feature`), у
+  проекта Run `implement` `RUNNING`, а событие правит абсолютный путь проекта вне `write_scope`
+- **THEN** проект события — объемлющий checkout: `deny`, событие записано в его Run
+
+### Requirement: Адаптер claude
+<!-- id: REQ-ENF-005 -->
+
+`warrant guard --frontend claude` SHALL читать из stdin родной вход хука Claude Code (`hook_event_name` `PreToolUse` |
+`PostToolUse`, `tool_name`, `tool_input`, `cwd`), переводить его в нормализованное событие — `Edit`, `Write` (`file_path`) и
+`NotebookEdit` (`notebook_path`) → `edit`, `Bash` (`command`) → `shell`, иначе `other` — и печатать родной ответ: `deny` →
+`hookSpecificOutput.permissionDecision: "deny"` с `permissionDecisionReason` из reason и hints; `allow` — без
+`permissionDecision` (решает обычный механизм разрешений Claude Code), hints `PostToolUse` — в
+`hookSpecificOutput.additionalContext`; `allow` `PreToolUse` — пустой stdout (`additionalContext` `PreToolUse` доходит до
+модели только после результата инструмента — зонд Claude Code 2.1.263, design I-165). При policy, которая не грузится,
+адаптер SHALL отвечать по режиму восстановления REQ-ENF-004: разрешённое — пустой stdout, отказ — `permissionDecision: "deny"`,
+чей `permissionDecisionReason` несёт reason с версиями и все hints, включая шаги pin-Change
+([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 2).
+Проект — по `cwd` родного входа, как в REQ-ENF-004. Код выхода SHALL быть 0; вход, который нельзя разобрать, SHALL давать
+код 2 и причину в stderr (Claude Code отменяет действие `PreToolUse`), а если каталог процесса guard не под WARRANT — пустой
+stdout и код 0, как событие проекта не под WARRANT (SCN-ENF-016). Коды этого адаптера — ответ протоколу хуков Claude Code, а не коды [REQ-KRN-003](../kernel/spec.md): код 2 здесь
+не `WAIT`, и таблица классов ошибок его не меняет ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2). Исключение,
+не перехваченное адаптером, SHALL давать код 2, причину в stderr и пустой stdout — как неразборчивый вход (fail-closed: Claude Code
+отменяет действие), а не `INTERNAL` с кодом 3, который Claude Code считает неблокирующей ошибкой; исключение после выведенного
+ответа — тоже код 2, причина в stderr, второго ответа нет. Имя frontend SHALL встречаться только в адаптере, генераторе `sync` и значении `--frontend`
+([ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 2); неизвестное значение `--frontend` — `USAGE`, код 3.
+
+#### Scenario: Отказ Edit
+<!-- id: SCN-ENF-017 -->
+- **WHEN** записанный вход `PreToolUse` с `tool_name: "Edit"` и `file_path` вне `write_scope` активного Run подан в `warrant guard --frontend claude`
+- **THEN** stdout — JSON с `hookSpecificOutput.permissionDecision: "deny"` и причиной, называющей путь; код 0
+
+#### Scenario: Подсказка после NotebookEdit
+<!-- id: SCN-ENF-018 -->
+- **WHEN** записанный вход `PostToolUse` с `tool_name: "NotebookEdit"` и `notebook_path` файла под правилом `rule/1`, ещё не показанным в Run
+- **THEN** `hookSpecificOutput.additionalContext` содержит текст правила, `permissionDecision` отсутствует
+
+#### Scenario: Разрешение не обходит механизм Claude Code
+<!-- id: SCN-ENF-019 -->
+- **WHEN** записанный вход `PreToolUse` `Write` пути внутри `write_scope`
+- **THEN** ответ не содержит `permissionDecision: "allow"`
+
+#### Scenario: Нейтральность Run
+<!-- id: SCN-ENF-020 -->
+- **WHEN** после событий через `--frontend claude` читается файл Run
+- **THEN** файл не содержит строки `claude`, а те же события в нормализованной форме дают те же решения
+
+#### Scenario: Неразборчивый вход
+<!-- id: SCN-ENF-021 -->
+- **WHEN** в `warrant guard --frontend claude` в каталоге проекта под WARRANT подан не-JSON; тот же вход — в каталоге не под WARRANT
+- **THEN** первый — код выхода 2, stderr называет причину, stdout пуст; второй — stdout пуст, код 0
+
+#### Scenario: Исключение адаптера
+<!-- id: SCN-ENF-046 -->
+- **WHEN** обработка разобранного входа `PreToolUse` в `warrant guard --frontend claude` завершается исключением, которое адаптер не перехватил
+- **THEN** код выхода 2, stderr называет причину, stdout пуст (нет `INTERNAL`); исключение после выведенного ответа — код 2, stdout содержит только первый ответ
+
+#### Scenario: Восстановление через адаптер
+<!-- id: SCN-ENF-053 -->
+- **WHEN** policy не грузится, как в SCN-ENF-048, а в `warrant guard --frontend claude` поданы записанные входы `PreToolUse` `Bash` с `command: "git status"`, `Write` с `file_path` `.warrant/warrant.json`, `Edit` с `file_path` `src/app.ts`, затем `PostToolUse` `Write` с `file_path` `.warrant/warrant.json`
+- **THEN** первые два — пустой stdout, код 0; третий — `permissionDecision: "deny"`, `permissionDecisionReason` содержит версию CLI, `^0.3.4` и `warrant sync`, код 0; четвёртый — `hookSpecificOutput.additionalContext` содержит `warrant sync` и не содержит `warrant run start`, `permissionDecision` нет

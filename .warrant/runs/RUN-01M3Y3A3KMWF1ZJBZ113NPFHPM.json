@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01M3Y3A3KMWF1ZJBZ113NPFHPM",
+  "change": "guard-worktree",
+  "operation": "review",
+  "skill": "specification/adversarial-review@0.2.0",
+  "model": "claude-opus-5-5",
+  "write_scope": [],
+  "scope": [],
+  "branch": "spec/guard-worktree",
+  "started_at": "2026-10-02T10:42:10.719Z",
+  "finished_at": "2026-10-02T10:47:26.954Z",
+  "run_state": "SUCCEEDED",
+  "context_hash": "sha256:adcb4e72d5567c632490199c178222dadf737ba3805ef325aa14a390d20fbe8c",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "spec_tree": "sha256:ddf234b4c63552b1833f0264bb0d91f7357234ede6a79ad146b90bc4b87c5dff",
+  "evidence": [
+    "EVID-01M3Y3KRF6ZG0GWW6DRZ2HR33B"
+  ],
+  "guard_events": []
+}

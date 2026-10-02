@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "ci-local",
-  "commit": "60b0920a18522182eb4b09364d67642586cdfd86",
+  "commit": "647d07847c3392e2db6cefdf2219fe8b67c8180b",
   "versions": {
     "warrant": "0.10.0",
     "openspec": "1.13.1",
@@ -11,6 +11,7 @@
   "evidence": [
     "EVID-01M3YBTH4A6Q3VDT9STQA4421V",
     "EVID-01M3YCFYKQRN23PN7AWQ7FDXQ8",
-    "EVID-01M3YD2P11H3VEYT9CS807VSAM"
+    "EVID-01M3YD2P11H3VEYT9CS807VSAM",
+    "EVID-01M3YDDPVPZF2C86R800B02W1K"
   ]
 }

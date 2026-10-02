@@ -1,6 +1,6 @@
 {
   "$schema": "warrant://lock/1",
-  "kernel": "0.10.1",
+  "kernel": "0.10.2",
   "openspec": "1.13.1",
   "packs": {
     "core-sdd": {
@@ -21,7 +21,7 @@
     ".warrant/schemas/change-record.1.schema.json": "sha256:01d1c260c093ffefd8406a7c73514a9094d89ac925bfa1180aa736fb1d7478dc",
     ".warrant/schemas/check.1.schema.json": "sha256:efce67f07adbcf41d37ea8a0940f3f988a1833e40864acd78e2cea5e33713676",
     ".warrant/schemas/common.1.schema.json": "sha256:207c36e2472cb1465ebe3c43c77dabdcc59ee895ebf76cffdaf097b596e05041",
-    ".warrant/schemas/config.1.schema.json": "sha256:7fc5805ad3f6c16387f40e857fd2218a2977e4c04f45298d9d1373dca7f8bd50",
+    ".warrant/schemas/config.1.schema.json": "sha256:d324022512db636251bbc5fe9770fd5949a321f87ca0407252837f10a286e703",
     ".warrant/schemas/controller-rules.1.schema.json": "sha256:6493b5f1f8f483c02157427c4bfe3a28ef5bd9a95c8259095cadeab261b6d765",
     ".warrant/schemas/evidence-manifest.1.schema.json": "sha256:25b416314d9759c0e0d854a47758dae7843f3dc48c743012e03478817bd9ffdb",
     ".warrant/schemas/evidence.1.schema.json": "sha256:2ff0f8deadd769ab09878a2b134d65da4f958e9d2414a417b8cec58caffd771e",

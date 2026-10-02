@@ -32,7 +32,14 @@ export interface WarrantConfig {
   /** Enabled packs sorted by id, without `$comment`. */
   readonly packs: readonly PackEntry[];
   readonly defaults: { readonly checkTimeoutS: number | undefined };
-  readonly paths: { readonly adr?: string; readonly glossary?: string; readonly tests?: string; readonly src?: string };
+  /** `paths` of `warrant.json`; `data` — directories of project data, code roots like `src` and `tests` (REQ-KRN-037). */
+  readonly paths: {
+    readonly adr?: string;
+    readonly glossary?: string;
+    readonly tests?: string;
+    readonly src?: string;
+    readonly data?: readonly string[];
+  };
   /** Role → logins, without `$comment`. */
   readonly roles: ReadonlyMap<string, readonly string[]>;
   /** Frontends `warrant sync` generates files for (ADR-0034 п. 1); empty when absent. */
@@ -98,12 +105,14 @@ function agentLogins(identities: unknown): string[] {
 }
 
 function pathEntries(paths: unknown): WarrantConfig["paths"] {
-  const out: { adr?: string; glossary?: string; tests?: string; src?: string } = {};
+  const out: { adr?: string; glossary?: string; tests?: string; src?: string; data?: string[] } = {};
   if (!isPlainObject(paths)) return out;
   for (const key of PATH_KEYS) {
     const value = paths[key];
     if (typeof value === "string") out[key] = value;
   }
+  const data = paths["data"];
+  if (Array.isArray(data)) out.data = data.filter((d): d is string => typeof d === "string");
   return out;
 }
 

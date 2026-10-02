@@ -9,8 +9,8 @@
 
 ## 1. Схема и конфигурация (REQ-KRN-004, REQ-KRN-037, D3)
 
-- [ ] 1.1 `schemas/config.1.schema.json`: `paths.data` — массив `relative_path`, `minItems: 1`, `uniqueItems`, элемент с `not` `pattern` (без учёта регистра, классами букв): символы glob `*?[]{}()!+@`; после ведущих `./` и до конечных `/` — пусто, пустой сегмент или сегмент `.`, `.`, `.warrant`, `openspec` или путь под ними; `core/config.ts`: `paths.data` в `WarrantConfig`.
-- [ ] 1.2 Фикстуры `test/fixtures/schemas/config/`: `valid-paths-data.json` и `invalid-paths-data-*.json` с `.expect.json` — SCN-KRN-174; SCN-KRN-008 (пример 08 §3 с `paths.data`) — зелёный.
+- [x] 1.1 `schemas/config.1.schema.json`: `paths.data` — массив `relative_path`, `minItems: 1`, `uniqueItems`, элемент с `not` `pattern` (без учёта регистра, классами букв): символы glob `*?[]{}()!+@`; после ведущих `./` и до конечных `/` — пусто, пустой сегмент или сегмент `.`, `.`, `.warrant`, `openspec` или путь под ними; `core/config.ts`: `paths.data` в `WarrantConfig`.
+- [x] 1.2 Фикстуры `test/fixtures/schemas/config/`: `valid-paths-data.json` и `invalid-paths-data-*.json` с `.expect.json` — SCN-KRN-174; SCN-KRN-008 (пример 08 §3 с `paths.data`) — зелёный.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts schemas`.
 

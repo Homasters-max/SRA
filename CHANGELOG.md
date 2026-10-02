@@ -2,6 +2,25 @@
 
 Релизы CLI WARRANT: тег `v<версия>` репозитория `Homasters-max/SRA`. Раздел — на каждую поднятую версию CLI; рост major или minor CLI или pack требует подразделов «Вердикт» и «Миграция для потребителя» ([ADR-0048](docs/adr/WARRANT-ADR-0048-stabilization.md) п. 3). Держит `npm run versions:check`. История до 0.8.3 — теги и `openspec/changes/archive/`.
 
+## 0.10.2
+
+Patch для LATTICE ([#160](https://github.com/Homasters-max/SRA/issues/160) п. 13, Change `data-paths`): каталоги данных проекта в `paths.data`. `kernel` 0.10 и диапазоны packs прежние; без `paths.data` поведение то же, что у 0.10.1.
+
+### Вердикт
+
+- **`paths.data`** (REQ-KRN-037) — необязательный список каталогов в `warrant.json`. Каждый — корень кода наравне с `paths.src` и `paths.tests`:
+  - его пишет Run `implement` (`write_scope`), а guard без активного Run отказывает в его правке;
+  - `FRONTEND_HOOKS_INACTIVE` считает и его пути;
+  - правило путей `warrant ci` пускает его только в impl-PR Change; `paths.data` берётся из `warrant.json` базы (`HEAD^1`).
+- Тестовые правила (ссылки на ID в файлах тестов, покрытие SCN) каталогов данных не касаются.
+- Схема `config/1` отвергает элемент с символом glob, пустым сегментом или сегментом `.`, корень проекта, `.warrant` и `openspec` и пути под ними (без учёта регистра).
+
+### Миграция для потребителя
+
+- Pin-Change: CLI тега `v0.10.2`, reusable workflow `@v0.10.2` с `warrant: v0.10.2`, `kernel` — `"0.10"`. После установки — `warrant sync` (копия схемы `config/1` и lock).
+- Сначала CLI 0.10.2, потом ключ: CLI 0.10.1 и раньше отвергает `warrant.json` с `paths.data` (`additionalProperties: false`).
+- `paths.data` — правка policy-пути `.warrant/warrant.json`: её PR сливает maintainer.
+
 ## 0.10.1
 
 Patch для LATTICE ([ADR-0056](docs/adr/WARRANT-ADR-0056-lattice-fixes-0-10-1.md)): пять исправлений одним тегом, `kernel` 0.10 и диапазоны packs прежние. Каждое изменение обратно совместимо на входах 0.10.0: старые файлы валидны, новых кодов выхода нет, новый переход и флаг необязательны.

@@ -1,0 +1,12 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "spec-rework",
+  "change_state": "PROPOSED",
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-10-02T13:19:22.676Z",
+      "by": "cli:local"
+    }
+  ]
+}

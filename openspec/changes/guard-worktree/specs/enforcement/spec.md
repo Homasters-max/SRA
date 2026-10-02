@@ -18,10 +18,12 @@ Windows). Проект SHALL совпадать с корнем git checkout'а:
 процесса. Вызов, чей `cwd` лежит в другом checkout, судится состоянием того checkout'а (предел, как INV-07). Путь другого
 checkout'а под WARRANT — того, что ближе всех к пути среди его предков и не является проектом события, в том числе вложенного
 в каталог проекта (git worktree внутри него) или объемлющего проект, — путь вне проекта. Правка такого пути SHALL давать `deny`,
-если активен Run, кроме `review` (ниже), у проекта события или у того checkout'а (его `current` читается, Run того checkout'а
-события не получает), — при любых других путях события и до загрузки policy, в том числе в режиме восстановления: reason — путь
-лежит в другом checkout'е под WARRANT; hint — править из сессии того checkout'а, а при Run проекта события — сначала
-`warrant run finish`; ни reason, ни hint путь не называют. Путь вне проекта SHALL давать `allow`, кроме правки при активном Run `review`
+если активен любой Run, в том числе `review`, у проекта события или у того checkout'а (его `current` читается, Run того checkout'а
+события не получает; `current`, который не читается, — тоже `deny`), — при любых других путях события, до загрузки policy, в том
+числе в режиме восстановления, и раньше правила временного каталога Run `review`: reason — путь лежит в другом checkout'е под
+WARRANT; hint — править из сессии того checkout'а, а при Run проекта события — сначала `warrant run finish`; ни reason, ни hint
+путь не называют. Каталог процесса «не под WARRANT» — в нём нет `.warrant/warrant.json`, а у него и его предков нет checkout'а
+под WARRANT. Путь вне проекта SHALL давать `allow`, кроме правки при активном Run `review`
 (ниже), и SHALL NOT записываться в `guard_events[].paths`; событие `edit` без пути проекта SHALL решаться до загрузки policy —
 policy, которая не грузится, его не запрещает ([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 2);
 проект без `.warrant/warrant.json` SHALL давать `allow`. Если `warrant.json` задаёт `cli` ([REQ-KRN-004](../kernel/spec.md)),
@@ -161,8 +163,8 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
 
 #### Scenario: Проект не под WARRANT
 <!-- id: SCN-ENF-016 -->
-- **WHEN** guard вызван в каталоге без `.warrant/warrant.json` и либо у `cwd` события и его предков нет checkout'а под
-  WARRANT, либо вход не разбирается как событие
+- **WHEN** каталог процесса guard не под WARRANT и либо у `cwd` события и его предков нет checkout'а под WARRANT, либо вход не
+  разбирается как событие
 - **THEN** `decision` равен `allow` для любой фазы и действия, событий не пишется
 
 #### Scenario: Правка под review
@@ -258,12 +260,14 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
 <!-- id: SCN-ENF-058 -->
 - **WHEN** событие с `cwd` git worktree'а, где Run `implement` `RUNNING`, правит путь основного checkout'а, объемлющего этот
   worktree; событие с `cwd` основного checkout'а, где Run `implement` `RUNNING`, правит путь git worktree'а
-  `.claude/worktrees/<имя>/…`, одна и вместе с путём внутри `write_scope`; то же без активного Run ни у одного из них; событие
+  `.claude/worktrees/<имя>/…`, одна и вместе с путём внутри `write_scope`; одна правка того же пути без активного Run ни у одного из них; событие
   с `cwd` основного checkout'а без Run, где у worktree'а Run `implement` `RUNNING`, правит путь worktree'а; под активным Run
-  `review` основного checkout'а — строка `cd .claude/worktrees/<имя> && git status`
+  `review` основного checkout'а — строка `cd .claude/worktrees/<имя> && git status`; под Run `review` worktree'а событие с `cwd`
+  основного checkout'а без Run правит путь worktree'а; у worktree'а `current` называет Run, который не читается
 - **THEN** при Run `implement` проекта события правки — `deny`, reason и hint пути не называют, события записаны в Run проекта
   события без этих путей; без Run ни у одного — `allow` без hints, событий нет; при Run только у worktree'а — `deny`, событий
-  нет ни в одном Run; строка с `cd` под Run `review` — `deny`
+  нет ни в одном Run; строка с `cd` под Run `review` — `deny`; правка пути worktree'а с Run `review` и с битым `current` — `deny`,
+  reason пути не называет
 
 #### Scenario: Каталог только с warrant.json
 <!-- id: SCN-ENF-059 -->

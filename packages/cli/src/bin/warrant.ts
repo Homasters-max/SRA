@@ -71,10 +71,10 @@ export type Runner = (ctx: Ctx, args: string[], opts: Record<string, unknown>) =
 
 /**
  * The production `ctx` (ADR-0025 п. 2): the adapters over `openspec`, `git`,
- * the check runner and `gh` (the forge), rooted at the cwd; `--dry-run` makes `writes` collect instead of write.
+ * the check runner and `gh` (the forge), rooted at the cwd — or at `root`, the project of a guard event (#138);
+ * `--dry-run` makes `writes` collect instead of write.
  */
-function productionCtx(dryRun: boolean): Ctx {
-  const root = projectRoot();
+function productionCtx(dryRun: boolean, root: string = projectRoot()): Ctx {
   return {
     root,
     openspec: new OpenSpecCli(root),
@@ -573,12 +573,15 @@ async function guardFrontend(name: string): Promise<void> {
     return;
   }
   try {
-    await emitNative(await runGuardFrontend(productionCtx(false), adapter, await readStdin()));
+    await emitNative(await runGuardFrontend(productionCtx(false), adapter, await readStdin(), process.env, guardCtxAt));
   } catch (thrown) {
     process.stderr.write(`warrant guard --frontend ${adapter.name}: ${thrown instanceof Error ? thrown.message : String(thrown)}\n`);
     process.exitCode = UNREADABLE_EXIT;
   }
 }
+
+/** The `ctx` of the project of a guard event, when it is not the cwd (REQ-ENF-004, #138). */
+const guardCtxAt = (root: string): Ctx => productionCtx(false, root);
 
 // Not `register`: with `--frontend` the answer is the adapter's, not the envelope.
 program
@@ -606,7 +609,7 @@ program
       (ctx) =>
         runGuardRead(ctx, readStdin, process.env, (input) => {
           crash.guardInput = input;
-        }),
+        }, guardCtxAt),
       [],
       opts
     );

@@ -94,6 +94,26 @@ export const CLI_STATE_HINT =
 export const HUMAN_ONLY_HINT =
   "no Run operation writes this path: the edit is made by a human (maintainer) outside the agent session, in a Change with the profile `factory-change` (ADR-0040 п. 7)";
 
+/** `hint` of an edit of another checkout under WARRANT under an active Run (#138). */
+export const OTHER_CHECKOUT_HINT = "edit it from a session whose working directory is that checkout";
+
+/** The part of the hint when the project of the event has the active Run. */
+const OTHER_CHECKOUT_FINISH = ", or end the Run of this checkout first: `warrant run finish`";
+
+/**
+ * `pre` `edit` of a path in another checkout under WARRANT while the project
+ * of the event (`run`) or that checkout has an active Run (REQ-ENF-004, #138):
+ * `deny`; neither the reason nor the hint names the path — it lies outside
+ * the project and the reason goes to `guard_events[]`.
+ */
+export function otherCheckoutAnswer(run: Run | undefined): Answer {
+  return {
+    decision: "deny",
+    reason: "the edit is in another checkout under WARRANT, where a Run is active or this session runs one: a Run guards only the checkout of its session",
+    hints: [OTHER_CHECKOUT_HINT + (run === undefined ? "" : OTHER_CHECKOUT_FINISH)]
+  };
+}
+
 /** `hint` of an edit outside the `write_scope` of the active Run. */
 export const RUN_SWITCH_HINT =
   "edit only inside the write_scope of the Run; for other paths `warrant run finish`, then `warrant run start` with the operation that writes them";

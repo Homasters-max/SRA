@@ -1,6 +1,6 @@
 /**
  * `warrant guard` without `--frontend` in the test process (REQ-ENF-004,
- * SCN-ENF-011…016, SCN-ENF-037…041, F8, F9, F16, F18): the normalised event, `pre` of an edit
+ * SCN-ENF-011…016, SCN-ENF-037…041, SCN-ENF-056…059, F8, F9, F16, F18): the normalised event, `pre` of an edit
  * with and without a Run, `pre` of a shell command against `guard_prefixes`,
  * the hints of `post`, the failures that close `pre` and open `post`, the
  * events in `guard_events[]` and the lock of the Run. Exit 0 whatever the
@@ -740,6 +740,146 @@ describe("warrant guard: an exception of the runner (R-46)", () => {
     let seen: string | undefined;
     await invoke(() => runGuardRead(p.ctx, () => Promise.resolve(pre), ENV, (input) => (seen = input)));
     expect(seen).toBe(pre);
+  });
+});
+
+describe("warrant guard: the project of the event's cwd, not of the process (REQ-ENF-004, #138)", () => {
+  /** `p` as a checkout: `.git` next to `.warrant/warrant.json`. */
+  function checkout(p: ProjectBuilder): ProjectBuilder {
+    mkdirSync(path.join(p.root, ".git"), { recursive: true });
+    return p;
+  }
+
+  /** A git worktree under WARRANT nested in `p`: `.warrant/warrant.json` and the file `.git`. */
+  function nestedWorktree(p: ProjectBuilder): string {
+    const nested = path.join(p.root, ".claude", "worktrees", "w");
+    mkdirSync(path.join(nested, ".warrant"), { recursive: true });
+    writeFileSync(path.join(nested, ".warrant", "warrant.json"), p.read(".warrant/warrant.json"));
+    writeFileSync(path.join(nested, ".git"), "gitdir: ../../../.git/worktrees/w\n");
+    return nested;
+  }
+
+  /** `warrant guard` in the process directory of `ctx`, the event as given. */
+  async function guardIn(ctx: ProjectBuilder["ctx"], event: Record<string, unknown>): Promise<Result> {
+    const result = await invoke(() => runGuard(ctx, JSON.stringify({ paths: [], ...event }), ENV));
+    expect(result.exitCode).toBe(0);
+    return result as Result;
+  }
+
+  it("a hook run in a project without a Run or outside WARRANT judges the checkout of cwd: its Run, its write_scope, no hint run start (SCN-ENF-056)", async () => {
+    const main = checkout(await repo("IMPLEMENTING"));
+    const worktree = checkout(await repo("IMPLEMENTING"));
+    const id = await started(worktree);
+    const nowhere = { ...main.ctx, root: mkdtempSync(path.join(tmpdir(), "warrant-nowhere-")) };
+
+    for (const ctx of [main.ctx, nowhere]) {
+      const outside = await guardIn(ctx, { phase: "pre", action: "edit", paths: [path.join(worktree.root, "docs", "readme.md")], cwd: worktree.root });
+      expect(outside.data["decision"]).toBe("deny");
+      expect(outside.data["reason"]).toContain("write_scope");
+      const inside = await guardIn(ctx, { phase: "pre", action: "edit", paths: [path.join(worktree.root, "src", "app.py")], cwd: path.join(worktree.root, "src") });
+      expect(inside.data).toEqual({ decision: "allow", hints: [] });
+      const post = await guardIn(ctx, { phase: "post", action: "edit", paths: ["app.py"], cwd: path.join(worktree.root, "src") });
+      expect(post.data).toEqual({ decision: "allow", hints: [] });
+    }
+
+    expect(events(worktree, id).map((e) => [e["phase"], e["paths"], e["decision"]])).toEqual([
+      ["pre", ["docs/readme.md"], "deny"],
+      ["pre", ["src/app.py"], "allow"],
+      ["post", ["src/app.py"], "allow"],
+      ["pre", ["docs/readme.md"], "deny"],
+      ["pre", ["src/app.py"], "allow"],
+      ["post", ["src/app.py"], "allow"]
+    ]);
+    expect(existsSync(path.join(main.root, RUNS))).toBe(false);
+  });
+
+  it("a cwd outside every checkout is judged in the directory of the process: an absolute path is its path, a relative one is outside (SCN-ENF-057)", async () => {
+    const p = checkout(await repo("IMPLEMENTING"));
+    const id = await started(p);
+    const elsewhere = mkdtempSync(path.join(tmpdir(), "warrant-elsewhere-"));
+    const absolute = await guard(p, { phase: "pre", action: "edit", paths: [path.join(p.root, "docs", "readme.md")], cwd: elsewhere });
+    expect(absolute.data["decision"]).toBe("deny");
+    const relative = await guard(p, { phase: "pre", action: "edit", paths: [path.join("docs", "readme.md")], cwd: elsewhere });
+    expect(relative.data).toEqual({ decision: "allow", hints: [] });
+    expect(events(p, id).map((e) => [e["paths"], e["decision"]])).toEqual([
+      [["docs/readme.md"], "deny"],
+      [[], "allow"]
+    ]);
+  });
+
+  it("a path of another checkout under WARRANT is outside the project: deny under a Run without naming it, allow without one, cd into it under review denied (SCN-ENF-058)", async () => {
+    // From a worktree with a Run: a path of the checkout beside or around it.
+    const main = checkout(await repo("IMPLEMENTING"));
+    const worktree = checkout(await repo("IMPLEMENTING"));
+    const worktreeRun = await started(worktree);
+    const around = await guardIn(main.ctx, { phase: "pre", action: "edit", paths: [path.join(main.root, "src", "app.py")], cwd: worktree.root });
+    expect(around.data["decision"]).toBe("deny");
+    expect(around.data["reason"]).toContain("another checkout");
+    expect(around.data["reason"]).not.toContain(path.basename(main.root));
+    expect(around.data["hints"].join(" ")).not.toContain(path.basename(main.root));
+    expect(events(worktree, worktreeRun).map((e) => [e["paths"], e["decision"]])).toEqual([[[], "deny"]]);
+
+    // From the main checkout with a Run: a path of a git worktree nested in it.
+    const p = checkout(await repo("IMPLEMENTING"));
+    const file = path.join(nestedWorktree(p), "src", "app.py");
+    expect((await guard(p, { phase: "pre", action: "edit", paths: [file] })).data).toEqual({ decision: "allow", hints: [] });
+    expect((await guard(p, { phase: "post", action: "edit", paths: [file] })).data).toEqual({ decision: "allow", hints: [] });
+    const id = await started(p);
+    const nested = await guard(p, { phase: "pre", action: "edit", paths: [file] });
+    expect(nested.data["decision"]).toBe("deny");
+    expect(nested.data["reason"]).not.toContain(".claude");
+    expect(nested.data["hints"].join(" ")).toContain("warrant run finish");
+    // With a path inside write_scope too: still denied.
+    const both = await guard(p, { phase: "pre", action: "edit", paths: ["src/app.py", file] });
+    expect(both.data["decision"]).toBe("deny");
+    expect(events(p, id).map((e) => [e["paths"], e["decision"]])).toEqual([
+      [[], "deny"],
+      [["src/app.py"], "deny"]
+    ]);
+
+    // From a checkout without a Run: a path of a checkout whose Run is active is denied, no event anywhere.
+    const quiet = checkout(await repo("IMPLEMENTING"));
+    const busy = checkout(await repo("IMPLEMENTING"));
+    const busyRun = await started(busy);
+    const fromQuiet = await guard(quiet, { phase: "pre", action: "edit", paths: [path.join(busy.root, "src", "app.py")] });
+    expect(fromQuiet.data["decision"]).toBe("deny");
+    expect(fromQuiet.data["hints"].join(" ")).not.toContain("warrant run finish");
+    expect(events(busy, busyRun)).toEqual([]);
+    expect(existsSync(path.join(quiet.root, RUNS))).toBe(false);
+
+    // A review Run of that checkout guards its paths too; a current of it that does not read — deny without the path (R-58).
+    const reviewed = checkout(await repo("PROPOSED"));
+    reviewed.commit("spec");
+    await started(reviewed, "add-search", { operation: "review" });
+    const fromOutside = await guard(quiet, { phase: "pre", action: "edit", paths: [path.join(reviewed.root, "src", "app.py")] });
+    expect(fromOutside.data["decision"]).toBe("deny");
+    const broken = checkout(await repo("IMPLEMENTING"));
+    mkdirSync(path.join(broken.root, RUNS), { recursive: true });
+    writeFileSync(path.join(broken.root, RUNS, "current"), "RUN-01M3YC8FP9SYPK438EKXFQS4TX\n");
+    const toBroken = await guard(quiet, { phase: "pre", action: "edit", paths: [path.join(broken.root, "src", "app.py")] });
+    expect(toBroken.data["decision"]).toBe("deny");
+    expect(toBroken.data["reason"]).not.toContain(path.basename(broken.root));
+
+    // Under a review Run: cd into the nested worktree leaves the project.
+    const r = checkout(await repo("PROPOSED"));
+    nestedWorktree(r);
+    r.commit("spec");
+    await started(r, "add-search", { operation: "review" });
+    const cd = await guard(r, { phase: "pre", action: "shell", argv: ["bash", "-c", "cd .claude/worktrees/w && git status"] });
+    expect(cd.data["decision"]).toBe("deny");
+    expect((await guard(r, { phase: "pre", action: "shell", argv: ["bash", "-c", "cd src && git status"] })).data["decision"]).toBe("allow");
+  });
+
+  it("a directory with warrant.json and no .git is part of the project around it (SCN-ENF-059)", async () => {
+    const p = checkout(await repo("IMPLEMENTING"));
+    const golden = path.join(p.root, "packs", "core-sdd", "golden", "feature");
+    mkdirSync(path.join(golden, ".warrant"), { recursive: true });
+    writeFileSync(path.join(golden, ".warrant", "warrant.json"), "{}\n");
+    const id = await started(p);
+    const result = await guard(p, { phase: "pre", action: "edit", paths: [path.join(p.root, "docs", "readme.md")], cwd: golden });
+    expect(result.data["decision"]).toBe("deny");
+    expect(result.data["reason"]).toContain("write_scope");
+    expect(events(p, id).map((e) => [e["paths"], e["decision"]])).toEqual([[["docs/readme.md"], "deny"]]);
   });
 });
 

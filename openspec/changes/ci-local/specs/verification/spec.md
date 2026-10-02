@@ -6,7 +6,8 @@
 `warrant ci --no-record` SHALL выносить вердикт `warrant ci` ([REQ-VER-011](#requirement-команда-ci); это исключение из её
 синопсиса `ci [--dry-run]` и безусловной записи evidence) на тех же входах — те же checks, gates, обращения к форжу, `kind`,
 `gates`, `deferred[]`, `findings[]`, коды и пути `errors[]`, код выхода — и SHALL NOT оставлять записанного в состоянии
-WARRANT. Каждая цель `ctx.writes` команды — записи evidence, `manifest.json`, каталоги `raw/` checks в
+WARRANT. Снимок цели, который не удалось снять до её первой записи, SHALL останавливать команду до этой записи: `INTERNAL`, код 3,
+с путём цели, уже записанное — возвращено. Каждая цель `ctx.writes` команды — записи evidence, `manifest.json`, каталоги `raw/` checks в
 `<state>/evidence/<change>/`, вместе с тем, что в них пишут запущенные командой checks, — после конца последнего check и до
 вывода SHALL вернуться в состояние до первой записи этой командой: созданная — удалена вместе с созданными пустыми каталогами,
 изменённая или удалённая — восстановлена побайтно, файл — атомарной записью ([REQ-KRN-036](../kernel/spec.md)); так же при
@@ -15,8 +16,8 @@ WARRANT. Каждая цель `ctx.writes` команды — записи evid
 checkout'а), не поддерживается: его запись в цели этой команды откатывается вместе с ней. Файлы, которые команды checks пишут
 вне `{out}` (покрытие, сборка, кэши), — не цели `ctx.writes`, требование их не касается. Цель, которую вернуть не удалось,
 SHALL попадать в `data.not_restored[]` путём проекта (при сигнале, когда вывода нет, — строкой в stderr на каждую); остальной
-вывод от этого не меняется. Записи этого прогона — новые `EVID-<ULID>` на каждый вызов, а `data.evidence[]`, пути записей и
-`data.artifact` называют файлы, которых после команды уже нет. Каждый вывод с `--no-record`, включая ошибки, SHALL нести
+вывод от этого не меняется. Записи этого прогона — новые `EVID-<ULID>` на каждый вызов, а `data.evidence[]` и пути записей называют файлы,
+которых после команды уже нет; каталог `data.artifact.path` после команды такой же, как до неё. Каждый вывод с `--no-record`, включая ошибки, SHALL нести
 `data.no_record: true`. `--no-record` вместе с `--dry-run` — `USAGE`, код 3: `--dry-run` checks не запускает.
 `--no-record` при `GITHUB_ACTIONS=true` — `USAGE`, код 3: CI записывает evidence для artifact и `ci fetch`.
 
@@ -74,16 +75,19 @@ workflow вручную со входом `merge_commit` = M; ничего не 
 `SCHEMA_VIOLATION` с путём; в обоих случаях код 3, ничего не записано.
 
 **Чужие записи каталога.** Запись `<state>/evidence/<change>/EVID-*.json`, которой нет ни в `manifest.evidence[]` этого Change
-в HEAD, ни среди записей выбранной попытки (остаток локального `warrant verify` или `warrant ci`), `ci fetch` SHALL перечислить в
-`data.untracked[]` путями проекта в порядке кодовых единиц и SHALL NOT трогать; при непустом списке вывод SHALL нести `hint`:
-не коммитить эти файлы, а удалить их (человек — guard агента удаление записи запрещает) и повторить `warrant ci fetch`.
-Manifest в HEAD, которого нет или который не разбирается как `evidence-manifest/1`, — пустой список. Записи попытки — все её
+в HEAD, ни среди записей выбранной попытки, ни в `evidence[]` переходов record Change рабочего дерева (так запись
+`human-approval` перехода `MERGED` — не остаток), — остаток локального `warrant verify` или `warrant ci`. `ci fetch` SHALL
+перечислить такие записи в `data.untracked[]` путями проекта в порядке кодовых единиц и SHALL NOT их трогать; при непустом
+списке `data.findings[]` SHALL нести элемент `{ code: "EVIDENCE_UNTRACKED", paths[], hint }` (информационный, код выхода не
+меняет) с `hint`: не коммитить эти файлы, а удалить их (человек — guard агента удаление записи запрещает) и повторить
+`warrant ci fetch`. Manifest в HEAD, которого нет или который не разбирается как `evidence-manifest/1`, считается manifest с
+пустым `evidence[]`. Записи попытки — все её
 записи с `attestation.ref` попытки, в том числе уже лежащие в каталоге с тем же содержимым. Manifest SHALL перечислять ровно
 записи каталога ([REQ-KRN-021](../kernel/spec.md) п. 12) и SHALL переписываться, если записан хоть один файл записи или его
 `evidence[]` отличается от записей каталога: повторный `ci fetch` после удаления остатка убирает его из manifest.
 `data.untracked[]` есть и под `--dry-run`; вывод с ошибкой его не несёт.
 
-Вывод — `data{ pr, change, merge_commit, tree, run, evidence[], untracked[], skipped[] }`. `--dry-run` SHALL выбрать run и вывести
+Вывод — `data{ pr, change, merge_commit, tree, run, evidence[], untracked[], findings[], skipped[] }`. `--dry-run` SHALL выбрать run и вывести
 `data.dry_run: true` и `data.would_write[]` без записи.
 
 #### Scenario: Run на дереве merge
@@ -135,6 +139,7 @@ Manifest в HEAD, которого нет или который не разби�
 <!-- id: SCN-VER-156 -->
 - **WHEN** manifest `add-search` в HEAD перечисляет `EVID-A`; в каталоге лежат `EVID-A`, незакоммиченный `EVID-S` от локального `warrant verify`
   и manifest, перезаписанный тем `verify`; выбранная попытка несёт `EVID-B`; затем `EVID-S` удалён и `warrant ci fetch 9` повторён
-- **THEN** первый вызов пишет `EVID-B`, `data.untracked[]` равен `[".warrant/evidence/add-search/EVID-S.json"]`, `hint` называет
-  удаление и повтор, файл `EVID-S` не изменён, `warrant validate` без находок, код 0; повтор — `data.untracked[]` пуст,
+- **THEN** первый вызов пишет `EVID-B`, `data.untracked[]` равен `[".warrant/evidence/add-search/EVID-S.json"]`, `data.findings[]`
+  содержит `EVIDENCE_UNTRACKED` с тем же путём и `hint` об удалении и повторе; запись `human-approval`, на которую ссылается
+  переход record, в `untracked[]` не попадает; файл `EVID-S` не изменён, `warrant validate` без находок, код 0; повтор — `data.untracked[]` пуст,
   `manifest.evidence[]` равен `["EVID-A", "EVID-B"]`, `warrant validate` без находок, код 0

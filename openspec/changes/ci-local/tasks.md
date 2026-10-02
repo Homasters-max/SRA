@@ -18,12 +18,12 @@
 ## 2. data.untracked[] у ci fetch (D3)
 
 - [ ] 2.1 `core/ci/fetch.ts`: manifest Change в HEAD через `ctx.git.contents`; `core/evidence/store.ts` `importRecords` — записи каталога вне него и вне попытки — `data.untracked[]` и `hint`; manifest переписывается, если отличается от каталога.
-- [ ] 2.2 Тест `app/commands/ci-fetch.test.ts`: SCN-VER-156; SCN-VER-086…089, 096, 103 — зелёные.
+- [ ] 2.2 Тест `app/commands/ci-fetch.test.ts`: SCN-VER-156 (с записью `human-approval` перехода); SCN-VER-086…089, 096, 097, 103, 104 — зелёные.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts ci-fetch`.
 
 ## 3. Документы
 
-- [ ] 3.1 `docs/06-verification.md` §8 — локальный вердикт `warrant ci --no-record` и его ожидаемый исход; `CHANGELOG.md` — строки `## 0.10.1`; `docs/backlog.md` — `--no-record` в синопсисе REQ-VER-011 после `judge-law`.
+- [ ] 3.1 `docs/06-verification.md` §8 — локальный вердикт `warrant ci --no-record` и его ожидаемый исход; `CHANGELOG.md` — `## 0.10.1`, «Вердикт» и «Миграция для потребителя»: `--no-record`, `data.untracked[]`, находка `EVIDENCE_UNTRACKED`, перезапись manifest `ci fetch` при расхождении с каталогом; `docs/backlog.md` — `--no-record` в синопсисе REQ-VER-011 после `judge-law`.
 
   Проверка: `node scripts/dev/check.js`; полный `npm test`.

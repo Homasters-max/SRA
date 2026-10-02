@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3YCFYKQRN23PN7AWQ7FDXQ8",
+  "claim": {
+    "text": "specification/adversarial-review@0.2.0 reviewed the spec of ci-local: 1 BLOCKER, 2 MAJOR, 6 MINOR, 1 INFO",
+    "targets": []
+  },
+  "kind": "review",
+  "level": "L2",
+  "evidence_status": "NOT_PROVEN",
+  "subject": {
+    "commit": "53d9876c6608e846c40e7d8cbaccaf9c45e1e533",
+    "spec_revision": "openspec/changes/ci-local@53d9876c6608e846c40e7d8cbaccaf9c45e1e533",
+    "spec_tree": "sha256:919319fd8d1d6219c408a5228899148b4be151736593aeb2d676252308e8697f",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "skill",
+    "id": "specification/adversarial-review",
+    "version": "0.2.0",
+    "run": "RUN-01M3YC46G97BVNB9QP7H2S4NEZ"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:deb1e76dbf7ad3ddd6bf22004961f1bd58d30c3030f0a52942c9828ae9dcd8f0",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-02T13:22:39.352Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/runs/RUN-01M3YC46G97BVNB9QP7H2S4NEZ.result.json",
+      "sha256": "sha256:26f8ad9afb09e659f1125dac0e482d2846617a7626748a743d25b0aef6cd8954"
+    }
+  ],
+  "limitations": [
+    "produced locally, unattested",
+    "same model family as author"
+  ],
+  "metrics": {
+    "BLOCKER": 1,
+    "INFO": 1,
+    "MAJOR": 2,
+    "MINOR": 6
+  }
+}

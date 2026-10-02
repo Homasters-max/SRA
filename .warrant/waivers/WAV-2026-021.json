@@ -9,6 +9,7 @@
     "Правки delta только ужесточают отказ guard и уточняют условие; каждая — тестом SCN-ENF-058 и SCN-ENF-016; ревью реализации агентом reviewer; Approve maintainer-а impl-PR"
   ],
   "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
   "expires_at": "2026-10-16",
-  "waiver_state": "PROPOSED"
+  "waiver_state": "ACTIVE"
 }

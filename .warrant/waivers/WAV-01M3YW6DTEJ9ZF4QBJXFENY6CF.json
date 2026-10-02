@@ -9,6 +9,7 @@
     "Правка уточняет сценарий под уже принятое правило REQ-VER-012; держится тестом SCN-VER-156 в ci-fetch.test.ts; ревью реализации агентом reviewer; Approve maintainer-а impl-PR"
   ],
   "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
   "expires_at": "2026-10-16",
-  "waiver_state": "PROPOSED"
+  "waiver_state": "ACTIVE"
 }

@@ -1,0 +1,41 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3YY51PNFYDVMHJEDD1F49XD",
+  "claim": {
+    "text": "tests-passed passed for ci-local",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "79a1e96449be8a75178a0ae950662716ad5b7549",
+    "base_commit": "eab1a52ace71ec2b68367bff8386c4148924f074",
+    "spec_revision": "openspec/changes/ci-local@79a1e96449be8a75178a0ae950662716ad5b7549",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:964f4ee155eebd240d99516076473f2d5ad3d19660609cab599750aee29176b9",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-02T18:31:16.440Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/ci-local/raw/tests-passed/junit.xml",
+      "sha256": "sha256:df96014b79230d331621523f0314b32b47607139b35dd252245e18ac86ae9b76"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 1734
+  }
+}

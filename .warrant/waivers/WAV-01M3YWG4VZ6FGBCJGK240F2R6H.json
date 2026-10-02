@@ -9,6 +9,7 @@
     "Правка сужает правило до входов, которых в 0.10.0 не было; держится тестами SCN-VER-158; ревью реализации агентом reviewer; Approve maintainer-а impl-PR"
   ],
   "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
   "expires_at": "2026-10-16",
-  "waiver_state": "PROPOSED"
+  "waiver_state": "ACTIVE"
 }

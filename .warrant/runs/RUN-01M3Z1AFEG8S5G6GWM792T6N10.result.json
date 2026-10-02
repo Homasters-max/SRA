@@ -1,0 +1,192 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3Z1AFEG8S5G6GWM792T6N10",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "REQ-KRN-037 меняет поведение, которое main specs задают дословно, но не правит их текст и не объявляет приоритет. REQ-ENF-002: «implement без paths.src и paths.tests → CONFIG_INVALID», а SCN-KRN-173 при одном paths.data требует Run без CONFIG_INVALID. REQ-VER-009: «Без paths.src и paths.tests finding не вычисляется», а REQ-KRN-037 лишь говорит, что finding «считает и пути» paths.data, и не переносит условие на случай «только paths.data». Здесь два прочтения дают разный data.findings[]. REQ-VER-011 (вид none и spec): «без paths.src и paths.tests — запись в skipped[]», а REQ-KRN-037 при одном paths.data требует проверку. В отличие от образца REQ-VER-017 («это исключение из её синопсиса»), REQ-KRN-037 не называет себя исключением. Довод D2 про ID_DUPLICATE верен только для REQ-VER-011: judge-law несёт delta лишь REQ-ENF-007 и REQ-VER-011. REQ-KRN-004, REQ-ENF-002, REQ-ENF-004 и REQ-VER-009 можно дать MODIFIED в этом Change, а без этого после archive main specs противоречат друг другу.",
+      "targets": [
+        "REQ-KRN-037",
+        "REQ-ENF-002",
+        "REQ-ENF-004",
+        "REQ-VER-009",
+        "REQ-VER-011",
+        "SCN-KRN-173",
+        "openspec/changes/data-paths/design.md"
+      ],
+      "recommendation": "Дать MODIFIED REQ-KRN-004 (ключ paths.data), REQ-ENF-002 (write_scope и условие CONFIG_INVALID), REQ-ENF-004 (классы путей, в том числе исключение policy-путей «не под paths.src, paths.tests») и REQ-VER-009 (пути и условие «без paths.src, paths.tests и paths.data»). Ссылкой оставить только REQ-VER-011, и в REQ-KRN-037 явно написать, что это исключение из её текста: каждое «paths.src, paths.tests» в нём, включая условия пропуска, читается вместе с paths.data. D2 исправить."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-VER-011 «База требований» (ADR-0038 п. 1) читает paths.src и paths.tests из warrant.json HEAD^1, а не из PR. В четырёх пунктах REQ-KRN-037 правило базы не названо, и молча предполагается, что paths.data тоже берётся из базы. SCN-KRN-173 не говорит, в каком дереве задан paths.data. Если читать его из HEAD, PR, который сам добавляет, удаляет или сужает paths.data, судится собственной конфигурацией.",
+      "targets": [
+        "REQ-KRN-037",
+        "REQ-VER-011",
+        "SCN-KRN-173"
+      ],
+      "recommendation": "Явно написать, что для warrant ci paths.data читается из warrant.json базы HEAD^1, как paths.src. В SCN-KRN-173 указать, что paths.data задан в базе, и добавить случай PR, который удаляет paths.data и правит std/std.json."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "SCN-KRN-172: «guard получает pre edit путей std/std.json и docs/notes.md», а THEN даёт решение по каждому пути: «std/std.json — allow, docs/notes.md — deny». У guard (REQ-ENF-004) одно decision на событие. Если это одно событие с двумя путями, его решение — deny, и утверждение «std/std.json — allow» тестом не проверить.",
+      "targets": [
+        "SCN-KRN-172",
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Описать два отдельных события guard: pre edit [std/std.json] → allow; pre edit [docs/notes.md] → deny."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Нормализация «после снятия ведущих ./ и конечных /» не задаёт порядок и число повторов. Для \"./\" и \".//\" снятие ведущего ./ первым даёт пустую строку или \"/\", а не \".\", и элемент проходит проверку. Корень проекта при этом не отвергнут, а directory() «молча снимает .», и весь проект становится кодом. relative_path такие строки пропускает. SCN-KRN-174 этих случаев не содержит.",
+      "targets": [
+        "REQ-KRN-037",
+        "SCN-KRN-174"
+      ],
+      "recommendation": "Определить нормализацию: снимать ведущие ./ и конечные / до неподвижной точки, пустой результат равен \".\". Добавить в SCN-KRN-174 [\"./\"] и [\".warrant/\"] (невалидны /paths/data/0) и [\".warrant-data\"] (валиден), чтобы закрепить границу сегмента."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-KRN-037 говорит лишь, что write_scope «содержит <каталог>/**», а порядок элементов не задан. SCN-ENF-036 сравнивает write_scope как точный массив, а SCN-KRN-172 перечисляет его сокращённо: «design.md», «specs/**» без префикса openspec/changes/add-search/. Положение каталогов данных относительно paths.tests и порядок внутри списка не определены, хотя write_scope записывается в файл Run.",
+      "targets": [
+        "REQ-KRN-037",
+        "SCN-KRN-172",
+        "SCN-KRN-173",
+        "SCN-ENF-036"
+      ],
+      "recommendation": "Задать порядок: paths.src, paths.tests, каталоги paths.data в порядке списка без повторов корней, затем файлы Change. В SCN-KRN-172 и SCN-KRN-173 записать write_scope точным массивом с полными путями."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "«Без повторов» не определено: сравниваются строки (uniqueItems) или пути после нормализации. [\"std\", \"std/\"] и [\"std\", \"./std\"] по строкам различны, а по путям совпадают. Также не сказано, что делать с каталогом, вложенным в другой, или совпадающим с paths.src или paths.tests (design полагается на Set в codeScope).",
+      "targets": [
+        "REQ-KRN-037",
+        "SCN-KRN-174"
+      ],
+      "recommendation": "Написать, что уникальность проверяется по строке, а совпадения после нормализации и с paths.src/paths.tests допустимы и сводятся к одному корню. Либо отвергать их, и тогда добавить случай в SCN-KRN-174."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "Запрет .warrant и openspec задан шаблоном с учётом регистра, то есть предполагается файловая система с учётом регистра. На Windows и macOS [\".WARRANT/runs\"] или [\"OpenSpec\"] проходят схему, а дают тот же каталог. Тогда write_scope Run implement покрывает состояние CLI или spec, которые guard и ci ведут отдельными правилами.",
+      "targets": [
+        "REQ-KRN-037",
+        "SCN-KRN-174"
+      ],
+      "recommendation": "Сравнивать с .warrant и openspec без учёта регистра (или явно записать предел) и добавить [\".Warrant\"] в SCN-KRN-174."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Не описано, что делать с элементом, который называет файл, а не каталог (например \"std/std.json\"), или которого нет. Корень <элемент>/** такой файл не покрывает. Пример proposal («файл установки std/std.json») делает эту ошибку вероятной, а требование молчит, проверяет ли что-то существование или вид пути.",
+      "targets": [
+        "REQ-KRN-037"
+      ],
+      "recommendation": "Явно написать, как у cli в REQ-KRN-004: «наличие и вид каталога схема не проверяет; элемент, равный файлу, ничего не делает кодом». Либо определить диагностику."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Сценарии покрывают write_scope, guard без Run и ci вида none. Для FRONTEND_HOOKS_INACTIVE с paths.data, для spec-PR и archive-PR, которые правят каталог данных, и для подсказки guard по policy-пути, лежащему под paths.data, сценариев нет. Пункт REQ-VER-009 и случай «только paths.data» из F-1 остаются без теста.",
+      "targets": [
+        "REQ-KRN-037",
+        "REQ-VER-009",
+        "REQ-VER-011"
+      ],
+      "recommendation": "Добавить сценарий: Change в VERIFYING меняет std/std.json без события post → FRONTEND_HOOKS_INACTIVE с этим путём, в том числе при одном paths.data. Добавить в SCN-KRN-173 spec-PR, который правит std/std.json → SCOPE_VIOLATION."
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Требование предполагает, что каталог данных правится инструментом edit. «Генерируемый справочник» обычно пишет команда shell, а её запись guard по путям не судит, и события post с этими путями не будет. Тогда FRONTEND_HOOKS_INACTIVE будет срабатывать на каждый сгенерированный файл, а запись генератором вне Run guard не остановит.",
+      "targets": [
+        "REQ-KRN-037",
+        "REQ-VER-009",
+        "openspec/changes/data-paths/proposal.md"
+      ],
+      "recommendation": "Отметить в proposal или design, что генерация данных командой shell не ведётся guard, а FRONTEND_HOOKS_INACTIVE для таких путей ожидаем."
+    },
+    {
+      "id": "F-11",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "missing-boundary",
+      "statement": "Design признаёт, что paths.data может пересечь policy-путь (например .github), и тогда Run implement пишет его. Для paths.data это вероятнее, чем для одиночного paths.src: это список произвольных каталогов. В REQ-ENF-004 hint для policy-пути «не под paths.src, paths.tests» («правку делает человек») сталкивается с правилом «как путь под paths.src».",
+      "targets": [
+        "REQ-KRN-037",
+        "REQ-ENF-004"
+      ],
+      "recommendation": "Либо отвергать каталоги paths.data, которые пересекают policy-пути (при загрузке policy), либо явно задать в REQ-KRN-037, какой hint и какой класс у такого пути."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/data-paths/specs/kernel/spec.md",
+      "change": "Добавить секцию MODIFIED для REQ-KRN-004 (paths: adr, glossary, tests, src, data), а дельты REQ-ENF-002, REQ-ENF-004, REQ-VER-009 вынести в specs/enforcement и specs/verification Change. В REQ-KRN-037 оставить схему, нормализацию и ссылку-исключение только для REQ-VER-011 (F-1, F-2)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/data-paths/specs/kernel/spec.md",
+      "change": "SCN-KRN-172: два события guard и write_scope точным массивом. SCN-KRN-174: добавить [\"./\"], [\".warrant/\"], [\".Warrant\"], [\".warrant-data\"] (F-3, F-4, F-5, F-7)."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Открытый Change judge-law несёт delta только REQ-ENF-007 и REQ-VER-011 (проверено по <!-- id --> в openspec/changes/judge-law/specs/**), поэтому MODIFIED REQ-KRN-004, REQ-ENF-002, REQ-ENF-004, REQ-VER-009 не даёт ID_DUPLICATE."
+    },
+    {
+      "id": "A-2",
+      "statement": "Сравнение путей с write_scope в guard и ci учитывает регистр (не проверено по коду); на этом основана F-7."
+    },
+    {
+      "id": "A-3",
+      "statement": "Policy-пути profile factory-change включают .warrant/warrant.json, поэтому обход правила базы из F-2 ограничен. Не проверено: severity F-2 — MAJOR, а не BLOCKER."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Как привести main specs к REQ-KRN-037 (F-1)?",
+      "options": [
+        "MODIFIED REQ-KRN-004, REQ-ENF-002, REQ-ENF-004, REQ-VER-009 в этом Change; REQ-VER-011 — ссылкой-исключением до archive judge-law",
+        "Всё ссылкой, но REQ-KRN-037 явно объявляет себя исключением из текста всех пяти REQ (как REQ-VER-017), плюс строка backlog",
+        "Подождать archive judge-law и дать MODIFIED всем пяти REQ"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:1afed4be3759572ced638057a568936ac5ac0c437e1d1a82fe9b2923d8fba666",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T10:00:00Z",
+    "finished_at": "2026-10-02T10:45:00Z"
+  }
+}

@@ -860,6 +860,36 @@ describe("warrant guard: the project of the event's cwd, not of the process (REQ
     expect(toBroken.data["decision"]).toBe("deny");
     expect(toBroken.data["reason"]).not.toContain(path.basename(broken.root));
 
+    // A main checkout around the worktree of the event: its path is another checkout's.
+    const around2 = checkout(await repo("IMPLEMENTING"));
+    const inner = nestedWorktree(around2);
+    mkdirSync(path.join(inner, ".warrant", "runs"), { recursive: true });
+    const innerRun = await started(around2);
+    const fromInner = await guardIn(around2.ctx, { phase: "pre", action: "edit", paths: [path.join(around2.root, "src", "app.py")], cwd: inner });
+    expect(fromInner.data["decision"]).toBe("deny");
+    expect(innerRun).toBeDefined();
+
+    // A review Run of the project of the event: deny before the rule of the temporary directory (the repositories lie in it),
+    // the hint names the cancel, in the form node <cli> when the project pins its CLI.
+    const review = checkout(await repo("PROPOSED"));
+    review.write(".warrant/warrant.json", { ...(JSON.parse(review.read(".warrant/warrant.json")) as object), cli: "tools/warrant.js" });
+    review.commit("spec");
+    await started(review, "add-search", { operation: "review" });
+    const temp = path.dirname(quiet.root);
+    const env = { TEMP: temp, TMP: temp, TMPDIR: temp };
+    const underReview = await guard(review, { phase: "pre", action: "edit", paths: [path.join(quiet.root, "src", "app.py")] }, env);
+    expect(underReview.data["decision"]).toBe("deny");
+    expect(underReview.data["reason"]).toContain("another checkout");
+    expect(underReview.data["hints"].join(" ")).toContain("node tools/warrant.js run finish --state CANCELLED");
+
+    // The recovery mode (a policy that does not load) does not lift it.
+    const recovering = checkout(await repo("IMPLEMENTING"));
+    await started(recovering);
+    recovering.write(".warrant/warrant.json", { ...(JSON.parse(recovering.read(".warrant/warrant.json")) as object), packs: { "core-sdd": { version: "^0.0.1" } } });
+    const inRecovery = await guard(recovering, { phase: "pre", action: "edit", paths: [path.join(quiet.root, "src", "app.py")] });
+    expect(inRecovery.data["decision"]).toBe("deny");
+    expect(inRecovery.data["reason"]).toContain("another checkout");
+
     // Under a review Run: cd into the nested worktree leaves the project.
     const r = checkout(await repo("PROPOSED"));
     nestedWorktree(r);

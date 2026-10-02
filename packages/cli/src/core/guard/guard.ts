@@ -271,7 +271,7 @@ function decidePre(ctx: Ctx, event: GuardEvent, files: readonly string[], run: R
   // review rule of the temporary directory and before the policy loads; a `current` of that checkout that does not read is a Run (#138).
   if (event.action === "edit") {
     const others = event.paths.flatMap((given) => otherCheckout(ctx.root, path.resolve(event.cwd, given)) ?? []);
-    if (others.length > 0 && (run !== undefined || others.some((dir) => runningIn(dir, env)))) return otherCheckoutAnswer(run);
+    if (others.length > 0 && (run !== undefined || others.some((dir) => runningIn(dir, env)))) return otherCheckoutAnswer(run, cli);
   }
   try {
     const classes = (loaded: LoadResult): PathClasses => pathClasses(loaded, cliWrittenState(ctx.root, env));

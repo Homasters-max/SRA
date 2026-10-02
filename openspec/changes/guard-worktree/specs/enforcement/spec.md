@@ -21,10 +21,10 @@ checkout'а под WARRANT — того, что ближе всех к пути 
 если активен любой Run, в том числе `review`, у проекта события или у того checkout'а (его `current` читается, Run того checkout'а
 события не получает; `current`, который не читается, — тоже `deny`), — при любых других путях события, до загрузки policy, в том
 числе в режиме восстановления, и раньше правила временного каталога Run `review`: reason — путь лежит в другом checkout'е под
-WARRANT; hint — править из сессии того checkout'а, а при Run проекта события — сначала `warrant run finish`; ни reason, ни hint
-путь не называют. Каталог процесса «не под WARRANT» — в нём нет `.warrant/warrant.json`, а у него и его предков нет checkout'а
+WARRANT; hint — править из сессии того checkout'а, а при Run проекта события — сначала `warrant run finish` (при Run `review` —
+`warrant run finish --state CANCELLED`; при `cli` — в форме `node <cli>`, как ниже); ни reason, ни hint путь не называют. Каталог процесса «не под WARRANT» — в нём нет `.warrant/warrant.json`, а у него и его предков нет checkout'а
 под WARRANT. Путь вне проекта SHALL давать `allow`, кроме правки при активном Run `review`
-(ниже), и SHALL NOT записываться в `guard_events[].paths`; событие `edit` без пути проекта SHALL решаться до загрузки policy —
+(ниже) и правки пути другого checkout'а (выше), и SHALL NOT записываться в `guard_events[].paths`; событие `edit` без пути проекта SHALL решаться до загрузки policy —
 policy, которая не грузится, его не запрещает ([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 2);
 проект без `.warrant/warrant.json` SHALL давать `allow`. Если `warrant.json` задаёт `cli` ([REQ-KRN-004](../kernel/spec.md)),
 простая команда, чьи первые слова — `node` и ровно значение `cli`, SHALL читаться в строгих формах ниже (Run `review` и

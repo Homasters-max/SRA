@@ -97,8 +97,9 @@ export const HUMAN_ONLY_HINT =
 /** `hint` of an edit of another checkout under WARRANT under an active Run (#138). */
 export const OTHER_CHECKOUT_HINT = "edit it from a session whose working directory is that checkout";
 
-/** The part of the hint when the project of the event has the active Run. */
+/** The part of the hint when the project of the event has the active Run; a review Run ends only by its cancel (SCN-ENF-044). */
 const OTHER_CHECKOUT_FINISH = ", or end the Run of this checkout first: `warrant run finish`";
+const OTHER_CHECKOUT_CANCEL = ", or end the review Run of this checkout first: `warrant run finish --state CANCELLED`";
 
 /**
  * `pre` `edit` of a path in another checkout under WARRANT while the project
@@ -106,11 +107,13 @@ const OTHER_CHECKOUT_FINISH = ", or end the Run of this checkout first: `warrant
  * `deny`; neither the reason nor the hint names the path — it lies outside
  * the project and the reason goes to `guard_events[]`.
  */
-export function otherCheckoutAnswer(run: Run | undefined): Answer {
+export function otherCheckoutAnswer(run: Run | undefined, cli?: string): Answer {
+  const finish = run === undefined ? "" : run.operation === "review" ? OTHER_CHECKOUT_CANCEL : OTHER_CHECKOUT_FINISH;
   return {
     decision: "deny",
     reason: "the edit is in another checkout under WARRANT, where a Run is active or this session runs one: a Run guards only the checkout of its session",
-    hints: [OTHER_CHECKOUT_HINT + (run === undefined ? "" : OTHER_CHECKOUT_FINISH)]
+    // The commands in the form `node <cli>` when the project pins its CLI (REQ-ENF-004): the review Run and the recovery mode read only that form.
+    hints: [inCliForm(OTHER_CHECKOUT_HINT + finish, cli)]
   };
 }
 

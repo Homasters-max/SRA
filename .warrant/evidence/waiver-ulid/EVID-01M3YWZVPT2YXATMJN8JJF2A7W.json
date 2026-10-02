@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3YWZVPT2YXATMJN8JJF2A7W",
+  "claim": {
+    "text": "openspec-validate passed for waiver-ulid",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "66ddaa2b352adbbea8ccceac327ba03c6fed4a74",
+    "base_commit": "c4964db95e1caa2c2270e598e095bc1a17d0e6c5",
+    "spec_revision": "openspec/changes/waiver-ulid@66ddaa2b352adbbea8ccceac327ba03c6fed4a74",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:114f1c37fd9ce264ea5a6ef530186b5537a6c48f486ea1fb591de32b6e429f41",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "created_at": "2026-10-02T18:10:57.884Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/waiver-ulid/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:28add1ecde6d574956ddae3a3ef35a2e20dd1a724eb014badf2d7ec1be909ea6"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

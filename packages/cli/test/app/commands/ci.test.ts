@@ -682,6 +682,8 @@ describe("warrant ci: a rework of the spec before APPROVED (REQ-VER-018)", () =>
     const { p, rework } = await reworked();
     expect(rework.data["kind"]).toBe("spec");
     expect(chain(rework)).toEqual([]);
+    expect(codes(rework)).not.toContain("RECORD_MISMATCH");
+    expect(codes(rework)).not.toContain("REF_NOT_VERIFIED");
 
     const fresh = await reworked();
     implOf(fresh.p, SPEC_PR);
@@ -714,7 +716,9 @@ describe("warrant ci: a rework of the spec before APPROVED (REQ-VER-018)", () =>
       advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } });
       advance(b, "APPROVED", { gates: { "human-approval": "PASS" }, ref: SPEC_PR });
     });
-    expect(chain(await ci(split))).toHaveLength(1);
+    const splitResult = await ci(split);
+    expect(chain(splitResult)).toHaveLength(1);
+    expect(splitResult.exitCode).toBe(1);
 
     const abandoned = await changeRepo("PROPOSED", CHORE);
     pullRequest(abandoned, "spec/add-search", (b) => advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } }));
@@ -738,6 +742,36 @@ describe("warrant ci: a rework of the spec before APPROVED (REQ-VER-018)", () =>
     const removed = await ci(p);
     expect(mismatches(removed)).toEqual([expect.stringMatching(new RegExp(`^unknowns/0 \\(${UNK}\\): unknowns: ${UNK} is removed`))]);
     expect(removed.exitCode).toBe(1);
+
+    // The rework PR keeps the UNKNOWN and replaces the ref of its decision by a comment in the rework spec-PR: no violation.
+    const kept = await changeRepo("PROPOSED", CHORE);
+    pullRequest(kept, "spec/add-search", (b) => {
+      advance(b, "SPECIFIED", { gates: { "ids-valid": "PASS" } });
+      withUnknowns(b, [decided(UNK, DECISION_REF)]);
+    });
+    pullRequest(kept, "spec/add-search-back", (b) => advance(b, "PROPOSED"));
+    pullRequest(kept, "spec/add-search-rework", (b) => withUnknowns(b, [decided(UNK, `${REWORK_PR}#issuecomment-21`)]));
+    expect(mismatches(await ci(kept))).toEqual([]);
+  });
+
+  it("I-3: a later APPROVED after IMPLEMENTING->SPECIFIED of a reworked Change is judged as before; a rework after APPROVED — chain in any kind", async () => {
+    const { p } = await reworked();
+    implOf(p, REWORK_PR);
+    pullRequest(p, "worktree/add-search-again", (b) => {
+      advance(b, "SPECIFIED");
+      advance(b, "APPROVED", { gates: { "human-approval": "PASS" }, ref: SPEC_PR });
+    });
+    const again = await ci(p);
+    expect(refErrors(again).filter((m) => m.includes("rework"))).toEqual([]);
+
+    const late = await reworked();
+    implOf(late.p, REWORK_PR);
+    pullRequest(late.p, "spec/add-search-late", (b) => {
+      advance(b, "SPECIFIED");
+      advance(b, "PROPOSED");
+    });
+    const after = await ci(late.p);
+    expect(chain(after)).toEqual([expect.stringContaining("after APPROVED")]);
   });
 });
 

@@ -707,6 +707,8 @@ describe("warrant transition", () => {
     expect(p.warnings.join("")).toContain("--by is ignored");
     expect(p.json(RECORD).change_state).toBe("PROPOSED");
     expect(p.json(RECORD).transitions.slice(0, before.length)).toEqual(before);
+    // The Change keeps its directory and the files of its evidence (nothing is removed by the rework).
+    expect(existsSync(path.join(p.root, "openspec/changes/add-search/design.md"))).toBe(true);
     const run = await invoke(() => runStart(p.ctx, "add-search", { operation: "specify" }, {}));
     expect(run.errors).toEqual([]);
 
@@ -717,8 +719,9 @@ describe("warrant transition", () => {
         // The fixture record holds PROPOSED only: the history of an approved Change.
         const record = q.json(RECORD);
         q.write(RECORD, { ...record, transitions: [...record.transitions, { to: "APPROVED", at: "2026-09-23T09:00:00Z", by: "cli:local" }] });
-        await transition(q, "IMPLEMENTING");
-        await transition(q, "SPECIFIED");
+        expect((await transition(q, "IMPLEMENTING")).exitCode).toBe(0);
+        expect((await transition(q, "SPECIFIED")).exitCode).toBe(0);
+        expect(q.json(RECORD).change_state).toBe("SPECIFIED");
         return q;
       }
     ]) {
@@ -726,6 +729,7 @@ describe("warrant transition", () => {
       const frozen = q.read(RECORD);
       const refused = await transition(q, "PROPOSED");
       expect(refused.errors[0]?.code).toBe("STATE_INVALID");
+      if (q.json(RECORD).change_state === "SPECIFIED") expect(refused.errors[0]?.message).toContain("was APPROVED once");
       expect(refused.exitCode).toBe(3);
       expect(q.read(RECORD)).toBe(frozen);
     }

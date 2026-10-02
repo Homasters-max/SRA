@@ -2,6 +2,13 @@
   "$schema": "warrant://change-record/1",
   "change": "ci-local",
   "change_state": "PROPOSED",
+  "classification": {
+    "profiles": [
+      "chore",
+      "factory-change",
+      "human-acceptance"
+    ]
+  },
   "transitions": [
     {
       "to": "PROPOSED",

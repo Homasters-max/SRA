@@ -27,9 +27,11 @@
 
 ### Modified Capabilities
 
-- `kernel`: REQ-KRN-037 (новый) — `paths.data`, SCN-KRN-172…174.
+- `kernel`: REQ-KRN-037 (новый) — `paths.data`, SCN-KRN-172…174; REQ-KRN-004 — ключ `data` в `paths`.
+- `enforcement`: REQ-ENF-002 — каталоги `paths.data` в `write_scope` `implement` и в условии `CONFIG_INVALID`.
+- `verification`: REQ-VER-009 — `FRONTEND_HOOKS_INACTIVE` по каталогам `paths.data`, SCN-VER-160.
 
-REQ-KRN-004, REQ-ENF-002, REQ-ENF-004, REQ-VER-009 и REQ-VER-011 не меняются текстом: REQ-KRN-037 дополняет их ссылкой, как REQ-VER-017 дополнил REQ-VER-011. REQ-ENF-007 и REQ-VER-011 меняет открытый Change `judge-law`, а две delta одного REQ дают `ID_DUPLICATE` (design D2).
+REQ-ENF-004 и REQ-VER-011 текстом не меняются. REQ-KRN-037 объявляет себя исключением из их текста, как REQ-VER-017 — из REQ-VER-011: каждое их упоминание кода через `paths.src` и `paths.tests` читается вместе с `paths.data`. Причины разные: REQ-VER-011 есть в delta открытого Change `judge-law`, а две delta одного REQ дают `ID_DUPLICATE`; REQ-ENF-004 — 275 строк ради одного понятия (design D2).
 
 ## Non-Goals
 
@@ -42,5 +44,5 @@ REQ-KRN-004, REQ-ENF-002, REQ-ENF-004, REQ-VER-009 и REQ-VER-011 не меня�
 - `packages/cli/schemas/config.1.schema.json` — `paths.data`.
 - `packages/cli/src/core/config.ts` — `WarrantConfig.paths.data`.
 - `packages/cli/src/core/run/scope.ts` — `codeScope` с каталогами `paths.data`, текст и hint `CONFIG_INVALID`.
-- `packages/cli/test/fixtures/schemas/config/**`, `packages/cli/test/app/commands/run.test.ts`, `guard.test.ts`, `ci.test.ts` — SCN-KRN-172…174.
+- `packages/cli/test/fixtures/schemas/config/**`, `packages/cli/test/app/commands/run.test.ts`, `guard.test.ts`, `ci.test.ts`, `liveness.test.ts` — SCN-KRN-172…174, SCN-VER-160.
 - `docs/08-packs.md` §3 — `paths.data`; `CHANGELOG.md` — `## 0.10.2`; версия CLI — 0.10.2.

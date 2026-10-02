@@ -23,6 +23,6 @@
 
 ## 3. Документы и выпуск (D2, D5)
 
-- [ ] 3.1 `docs/08-packs.md` §3 — `paths.data`; `CHANGELOG.md` — `## 0.10.2`, «Вердикт» и «Миграция» (сначала CLI 0.10.2, потом ключ); версия CLI — 0.10.2; `docs/backlog.md` — перенос `paths.data` в тексты REQ-ENF-004 и REQ-VER-011 после archive `judge-law`; символы glob в `paths.src` / `paths.tests` (review раунда 2, F-1).
+- [x] 3.1 `docs/08-packs.md` §3 — `paths.data`; `CHANGELOG.md` — `## 0.10.2`, «Вердикт» и «Миграция» (сначала CLI 0.10.2, потом ключ); версия CLI — 0.10.2; `docs/backlog.md` — перенос `paths.data` в тексты REQ-ENF-004 и REQ-VER-011 после archive `judge-law`; символы glob в `paths.src` / `paths.tests` (review раунда 2, F-1).
 
   Проверка: `node scripts/dev/check.js`; полный `npm test`.

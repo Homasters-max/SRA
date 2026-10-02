@@ -14,7 +14,8 @@
  * - `CONFLICT` `{ id, path }` — `tasks.md` mentions a REQ or SCN that is not
  *   defined;
  * - `ORPHAN` `{ id, path }` — a test file changed in the diff (not removed)
- *   mentions an SCN that is not defined.
+ *   mentions an SCN that is not defined and not declared in the delta of
+ *   another open Change (`openIds`, #141) — even one this Change removes.
  *
  * Without `paths.tests` the test half of `UNSATISFIED` and `ORPHAN` are not
  * computed; without the diff `ORPHAN` is not: each goes to `skipped[]` with
@@ -55,6 +56,8 @@ export interface AnalyzeInput {
   delta: readonly DeltaRequirement[];
   /** REQ and SCN ids declared in `openspec/specs/**`. */
   mainIds: ReadonlySet<string>;
+  /** REQ and SCN of `ADDED` / `MODIFIED` in the delta specs of the other open Changes: no `ORPHAN` (#141). */
+  openIds: ReadonlySet<string>;
   /** Text of `tasks.md` (empty when there is none) and its project-relative path. */
   tasksText: string;
   tasksPath: string;
@@ -125,7 +128,7 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
       const text = texts.get(path);
       if (text === undefined) continue;
       for (const id of referencedIds(text)) {
-        if (id.startsWith("SCN-") && !defined(id)) findings.push({ code: "ORPHAN", id, path });
+        if (id.startsWith("SCN-") && !defined(id) && !input.openIds.has(id)) findings.push({ code: "ORPHAN", id, path });
       }
     }
   }

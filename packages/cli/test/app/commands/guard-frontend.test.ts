@@ -7,6 +7,7 @@
  * input is synthetic, in the form of the Claude Code documentation; the
  * contract on recorded input is task 8.3.
  */
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -157,9 +158,29 @@ describe("warrant guard --frontend claude: input that does not read", () => {
     expect(p.warnings).toEqual([expect.stringContaining("stdin is not a Claude Code hook input: hook_event_name PreToolUse | PostToolUse")]);
   });
 
-  it("outside a project under WARRANT nothing is read: allow, stdout empty, exit 0 (SCN-ENF-016)", async () => {
+  it("outside a project under WARRANT nothing is judged: allow, stdout empty, exit 0 (SCN-ENF-016, SCN-ENF-021)", async () => {
     const p = project().remove(".warrant/warrant.json");
     expect(await runGuardFrontend(p.ctx, claudeFrontend, "not json", ENV)).toEqual({ stdout: "", exit: 0 });
     expect(p.warnings).toEqual([]);
+  });
+});
+
+describe("warrant guard --frontend claude: the project of the hook's cwd (REQ-ENF-004, #138)", () => {
+  it("a hook run in the main checkout judges the worktree of cwd: deny outside write_scope, no hint run start inside (SCN-ENF-056)", async () => {
+    const main = await repo();
+    const worktree = await repo();
+    for (const p of [main, worktree]) mkdirSync(path.join(p.root, ".git"), { recursive: true });
+    const id = await started(worktree);
+    const native = (hook: "PreToolUse" | "PostToolUse", file: string): string =>
+      JSON.stringify({ ...JSON.parse(hookInput(worktree, hook, "Write", { file_path: path.join(worktree.root, file), content: "x\n" })) });
+
+    const deny = await runGuardFrontend(main.ctx, claudeFrontend, native("PreToolUse", path.join("docs", "readme.md")), ENV);
+    expect(deny.exit).toBe(0);
+    expect(JSON.parse(deny.stdout).hookSpecificOutput).toMatchObject({ permissionDecision: "deny" });
+    const allow = await runGuardFrontend(main.ctx, claudeFrontend, native("PreToolUse", path.join("src", "app.py")), ENV);
+    expect(allow).toEqual({ stdout: "", exit: 0 });
+    const post = await runGuardFrontend(main.ctx, claudeFrontend, native("PostToolUse", path.join("src", "app.py")), ENV);
+    expect(post).toEqual({ stdout: "", exit: 0 });
+    expect(eventsOf(worktree, id).map((e) => (e as Record<string, unknown>)["decision"])).toEqual(["deny", "allow", "allow"]);
   });
 });

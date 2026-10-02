@@ -83,7 +83,11 @@ const SCENARIOS: Record<string, string> = {
   "skill-result/invalid-finding-without-marker.json": "SCN-ENF-029",
   "skill-result/invalid-finding-unknown-key.json": "SCN-ENF-029",
   "waiver/valid-doc-example.json": "SCN-KRN-038",
-  "waiver/invalid-missing-expires-at.json": "SCN-KRN-039"
+  "waiver/invalid-missing-expires-at.json": "SCN-KRN-039",
+  "waiver/valid-ulid-id.json": "SCN-KRN-169",
+  "waiver/invalid-id-two-digits.json": "SCN-KRN-169",
+  "waiver/invalid-id-ulid-lowercase.json": "SCN-KRN-169",
+  "waiver/invalid-id-ulid-letter-i.json": "SCN-KRN-169"
 };
 
 /** ` (SCN-…)` for a fixture of the table, empty otherwise. */

@@ -155,15 +155,15 @@ path/line  = provenance only (не является идентичностью)
 | `ASM` | Assumption | `ASM-CUS-004` |
 | `EVID` | Evidence | `EVID-01J8Z3M5K9X7Q2R4T6V8W0Y1A3` |
 | `RUN` | Run | `RUN-01J8Z3KQ2M7N4P6R8T0V2W4X6Y` |
-| `WAV` | Waiver | `WAV-2026-004` |
+| `WAV` | Waiver | `WAV-01M3YC8FP9SYPK438EKXFQS4TX` (прежняя форма — `WAV-2026-004`) |
 
 Два формата ([WARRANT-ADR-0012](adr/WARRANT-ADR-0012-id-allocation.md)):
 
 | Класс | Формат | Объекты | Почему |
 |---|---|---|---|
 | Spec-уровень | `PREFIX-AREA-NNN`, `AREA` — код capability из реестра `.warrant/local/areas.json` (2–5 латинских букв) | `REQ`, `SCN`, `TASK`, `UNK`, `ASM` | Читаемость для людей и LLM |
-| Сквозные | `PREFIX-<ULID>` (26 символов Crockford base32) | `EVID`, `RUN` | Создаются на каждом прогоне; счётчик без координации ломается |
-| Waiver | `WAV-<year>-NNN` | `WAV` | Редки, создаются человеком на `main` |
+| Сквозные | `PREFIX-<ULID>` (26 символов Crockford base32) | `EVID`, `RUN`, `WAV` | `EVID`, `RUN` создаются на каждом прогоне, `WAV` — агентом в ветке каждого Change; счётчик без координации ломается ([ADR-0056](adr/WARRANT-ADR-0056-lattice-fixes-0-10-1.md) п. 2) |
+| Waiver прежней формы | `WAV-<year>-NNN` | `WAV` | Остаётся валидным; новых в этой форме CLI не выдаёт |
 
 Идентификатор Change — имя каталога OpenSpec change **без даты**. При archive OpenSpec добавляет префикс даты к каталогу; идентичность Change от этого не меняется. Имя Change MUST NOT переиспользоваться: создание отказывает, если имя есть в `.warrant/changes/` или `openspec/changes/archive/*-<name>`.
 

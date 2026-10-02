@@ -185,7 +185,7 @@ MVP (фаза 4b, [ADR-0036](adr/WARRANT-ADR-0036-phase-4b-producers.md) п. 2) 
 |---|---|
 | `UNSATISFIED` `{id, missing[]}` | REQ из `ADDED` / `MODIFIED` delta: `tasks.md` не упоминает ни его, ни один его SCN (`missing` ∋ `task`), или ни один его SCN не встречается в файлах `paths.tests` (`missing` ∋ `test`) |
 | `CONFLICT` `{id, path}` | `tasks.md` упоминает неопределённый REQ или SCN (например, `REMOVED`) |
-| `ORPHAN` `{id, path}` | Файл `paths.tests`, изменённый в diff `base...HEAD`, упоминает неопределённый SCN |
+| `ORPHAN` `{id, path}` | Файл `paths.tests`, изменённый в diff `base...HEAD`, упоминает SCN, не определённый ни в main specs и своей delta, ни в delta другого открытого Change (`openspec/changes/<другой>/`, не архив) |
 
 Без `paths.tests` проверка тестов не выполняется, без diff — `ORPHAN`; каждый пропуск — в `data.skipped[]` с причиной. Gate `analyze-clean` вычисляется той же функцией на оцениваемом commit: находка → `FAIL`, иначе `PASS`, нет diff → `BLOCKED` `NO_INPUT` (§4). `MISSING`, `AMBIGUOUS`, `STALE`, связь evidence с REQ через `claim.targets` — после MVP, по failure mode.
 

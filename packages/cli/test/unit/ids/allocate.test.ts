@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 
 import { exitCodeFor, WarrantError } from "../../../src/core/errors.js";
-import { allocateSpecLevel, allocateUlid, allocateWaiver, highestNumber } from "../../../src/core/ids/allocate.js";
+import { allocateSpecLevel, allocateUlid, allocateWaiver, highestNumber, WAIVER_ID_RE } from "../../../src/core/ids/allocate.js";
 import { makeTempDir, removeDir } from "../../helpers/cli.js";
 import { write } from "../../helpers/synced.js";
 
@@ -88,22 +88,25 @@ describe("allocateUlid", () => {
 });
 
 describe("allocateWaiver", () => {
-  it("starts at 001 for a year with no waivers", () => {
-    expect(allocateWaiver(project(), 2026)).toBe("WAV-2026-001");
+  it("gives WAV-<ULID>, new on every call, whatever .warrant/waivers holds (REQ-KRN-031, SCN-KRN-170)", () => {
+    const first = allocateWaiver();
+    const second = allocateWaiver();
+    expect(first).toMatch(/^WAV-[0-9A-HJKMNP-TV-Z]{26}$/);
+    expect(second).not.toBe(first);
   });
 
-  it("continues the counter of the requested year only", () => {
-    const root = project();
-    write(root, ".warrant/waivers/a.json", { id: "WAV-2026-003" });
-    write(root, ".warrant/waivers/b.json", { id: "WAV-2025-009" });
-    expect(allocateWaiver(root, 2026)).toBe("WAV-2026-004");
-    expect(allocateWaiver(root, 2027)).toBe("WAV-2027-001");
+  it("WAIVER_ID_RE takes both forms and nothing else (REQ-KRN-019, SCN-KRN-169)", () => {
+    for (const ok of ["WAV-2026-004", "WAV-01M3YC8FP9SYPK438EKXFQS4TX"]) expect(WAIVER_ID_RE.test(ok)).toBe(true);
+    for (const bad of ["WAV-2026-04", "WAV-01m3yc8fp9sypk438ekxfqs4tx", "WAV-01M3YC8FP9SYPK438EKXFQS4TI", "WAV-1"]) expect(WAIVER_ID_RE.test(bad)).toBe(false);
   });
+});
 
-  it("counts a file name WAV-<year>-NNN.json as taken even when its content says otherwise (REQ-KRN-031)", () => {
-    const root = project();
-    write(root, ".warrant/waivers/WAV-2026-007.json", "not json");
-    write(root, ".warrant/waivers/WAV-2026-002.json", { id: "WAV-2026-002" });
-    expect(allocateWaiver(root, 2026)).toBe("WAV-2026-008");
+describe("one owner of the waiver id form (ADR-0056 п. 2)", () => {
+  it("the pattern of waiver/1 is WAIVER_ID_PATTERN", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { SCHEMAS_DIR } = await import("../../../src/core/schemas/loader.js");
+    const { WAIVER_ID_PATTERN } = await import("../../../src/core/ids/allocate.js");
+    const schema = JSON.parse(readFileSync(`${SCHEMAS_DIR}/waiver.1.schema.json`, "utf8")) as { properties: { id: { pattern: string } } };
+    expect(schema.properties.id.pattern).toBe(WAIVER_ID_PATTERN);
   });
 });

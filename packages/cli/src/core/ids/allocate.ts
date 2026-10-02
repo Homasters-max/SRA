@@ -4,11 +4,8 @@
  * There is no registry file (ADR-0012 point 4): the next spec-level number is
  * derived by scanning the project every time, so two worktrees never fight
  * over a counter file. `EVID` / `RUN` sidestep coordination entirely with a
- * ULID; `WAV` keeps a per-year counter over `.warrant/waivers/`.
+ * ULID; so does `WAV` (ADR-0056 п. 2), whose former `WAV-<year>-NNN` stays valid.
  */
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import path from "node:path";
-
 import { monotonicFactory } from "ulid";
 
 import { WarrantError } from "../errors.js";
@@ -72,42 +69,18 @@ export function allocateUlid(prefix: string): string {
   return `${prefix}-${nextUlid()}`;
 }
 
-const WAIVER_ID_RE = /^WAV-(\d{4})-(\d{3})$/;
+/**
+ * A waiver id of either form (REQ-KRN-019, ADR-0056 п. 2): `WAV-<ULID>`, or
+ * the former `WAV-<year>-NNN`, which stays valid. One owner of the form: the
+ * schema `waiver/1` carries the same pattern (a meta test holds them equal).
+ */
+export const WAIVER_ID_PATTERN = "^WAV-([0-9]{4}-[0-9]{3}|[0-9A-HJKMNP-TV-Z]{26})$";
+export const WAIVER_ID_RE = new RegExp(WAIVER_ID_PATTERN);
 
 /**
- * `WAV-<year>-NNN`, counted per calendar year over `.warrant/waivers/*.json`:
- * the next number after the highest of that year among the ids inside the
- * files and the file names `<WAV>.json` (`warrant waive` writes one file per
- * id under its own name, so a name alone already takes its number).
+ * A new waiver id `WAV-<ULID>` (REQ-KRN-031, ADR-0056 п. 2): not derived
+ * from `.warrant/waivers/`, so two branches from one base do not collide.
  */
-export function allocateWaiver(projectRoot: string, year: number = new Date().getUTCFullYear()): string {
-  const dir = path.join(projectRoot, ".warrant", "waivers");
-  let max = 0;
-  if (existsSync(dir)) {
-    for (const name of readdirSync(dir).sort()) {
-      if (!name.toLowerCase().endsWith(".json")) continue;
-      const byName = WAIVER_ID_RE.exec(name.slice(0, -".json".length));
-      if (byName !== null && Number.parseInt(byName[1] as string, 10) === year) {
-        max = Math.max(max, Number.parseInt(byName[2] as string, 10));
-      }
-      let json: unknown;
-      try {
-        json = JSON.parse(readFileSync(path.join(dir, name), "utf8"));
-      } catch {
-        continue;
-      }
-      if (typeof json !== "object" || json === null) continue;
-      const id = (json as Record<string, unknown>)["id"];
-      if (typeof id !== "string") continue;
-      const m = WAIVER_ID_RE.exec(id);
-      if (m === null || Number.parseInt(m[1] as string, 10) !== year) continue;
-      const nnn = Number.parseInt(m[2] as string, 10);
-      if (nnn > max) max = nnn;
-    }
-  }
-  const next = max + 1;
-  if (next > 999) {
-    throw new WarrantError("ID_FORMAT", `WAV-${year}-999 is already used: no room left in year ${year}`);
-  }
-  return `WAV-${year}-${String(next).padStart(3, "0")}`;
+export function allocateWaiver(): string {
+  return allocateUlid("WAV");
 }

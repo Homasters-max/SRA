@@ -19,6 +19,9 @@ function message(finding: AnalyzeFinding): string {
       "and one of its SCN in a test under paths.tests"
     );
   }
+  if (finding.code === "ORPHAN") {
+    return `${finding.path} mentions ${finding.id}, which is not defined: removed, or declared in no spec nor in the delta of an open Change`;
+  }
   return `${finding.path} mentions ${finding.id}, which is not defined: removed, or declared in no spec`;
 }
 

@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://change-record/1",
   "change": "spec-rework",
-  "change_state": "IMPLEMENTING",
+  "change_state": "VERIFYING",
   "classification": {
     "profiles": [
       "chore",
@@ -57,6 +57,14 @@
       "gates": {
         "branch-isolated": "PASS"
       },
+      "evidence": []
+    },
+    {
+      "to": "VERIFYING",
+      "at": "2026-10-02T14:42:21.251Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+      "gates": {},
       "evidence": []
     }
   ]

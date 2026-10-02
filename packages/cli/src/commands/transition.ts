@@ -43,7 +43,7 @@ import { HUMAN_APPROVAL } from "../core/evidence/approval.js";
 import { mergedCommitFacts, readGitFacts, type GitFacts } from "../core/git/facts.js";
 import { findChangeDir } from "../core/openspec/changes.js";
 import { readChangeRecord, type ChangeRecord } from "../core/record/read.js";
-import { confirmationOf, isChangeState, transitionKind } from "../core/record/lifecycle.js";
+import { confirmationOf, isChangeState, REWORK, transitionKind, wasApproved } from "../core/record/lifecycle.js";
 import { appendTransition, assertNotFrozen, recordPath, stateOfRecord, type TransitionEntry } from "../core/record/write.js";
 import { checkPullRequestRef, checkRef } from "../core/roles.js";
 import { humanApproval } from "../core/transition/approval.js";
@@ -123,8 +123,15 @@ async function recordTransition(
   if (kind === null) {
     throw new WarrantError(
       "STATE_INVALID",
-      `${transition} is not a transition of 04 section 2 (forward to the next state, VERIFYING->IMPLEMENTING, IMPLEMENTING->SPECIFIED, ABANDONED before MERGED)`,
+      `${transition} is not a transition of 04 section 2 (forward to the next state, VERIFYING->IMPLEMENTING, IMPLEMENTING->SPECIFIED, SPECIFIED->PROPOSED before APPROVED, ABANDONED before MERGED)`,
       { path: recordPath(change) }
+    );
+  }
+  if (transition === REWORK && wasApproved(Array.isArray(record["transitions"]) ? record["transitions"] : [])) {
+    throw new WarrantError(
+      "STATE_INVALID",
+      `${transition}: ${change} was APPROVED once; a rework of the spec after approval goes through spec-approved (ADR-0024), not back to PROPOSED`,
+      { path: recordPath(change), hint: "edit the delta in the implement Run, record an I-N row and a waiver on spec-approved (ADR-0024 п. 4)" }
     );
   }
   if (target === "ARCHIVED") throw new WarrantError("USAGE", `ARCHIVED is entered through \`warrant archive ${change}\``);

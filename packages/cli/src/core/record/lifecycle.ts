@@ -19,8 +19,31 @@ export const FORWARD_TRANSITIONS: readonly string[] = FORWARD_CHAIN.slice(1).map
   (to, index) => `${FORWARD_CHAIN[index] as string}->${to}`
 );
 
-/** The two backward moves 04 section 2 allows; they carry no gates. */
-export const BACKWARD_TRANSITIONS: readonly string[] = ["VERIFYING->IMPLEMENTING", "IMPLEMENTING->SPECIFIED"];
+/**
+ * The three backward moves 04 section 2 allows; they carry no gates.
+ * `SPECIFIED->PROPOSED` — a rework of the spec before approval (ADR-0056 п. 3):
+ * only for a Change never `APPROVED`, which `transition` and `warrant ci` check
+ * on the history ({@link wasApproved}).
+ */
+export const BACKWARD_TRANSITIONS: readonly string[] = ["VERIFYING->IMPLEMENTING", "IMPLEMENTING->SPECIFIED", "SPECIFIED->PROPOSED"];
+
+/** The backward move of a rework of the spec (REQ-VER-018). */
+export const REWORK = "SPECIFIED->PROPOSED";
+
+/** Whether `transitions` (of a record, in order) hold an `APPROVED` before `index` (all of them without `index`). */
+export function wasApproved(transitions: readonly unknown[], index = transitions.length): boolean {
+  return transitions.slice(0, index).some((t) => typeof t === "object" && t !== null && (t as Record<string, unknown>)["to"] === "APPROVED");
+}
+
+/**
+ * Whether `transitions` hold a rework (`PROPOSED` after the first entry) before
+ * `index` (REQ-VER-018): the Change went back from `SPECIFIED` to `PROPOSED`.
+ */
+export function wasReworked(transitions: readonly unknown[], index = transitions.length): boolean {
+  return transitions
+    .slice(1, index)
+    .some((t) => typeof t === "object" && t !== null && (t as Record<string, unknown>)["to"] === "PROPOSED");
+}
 
 /** States from which `ABANDONED` may be entered: any before `MERGED`. */
 export const ABANDONABLE: readonly ChangeState[] = ["PROPOSED", "SPECIFIED", "APPROVED", "IMPLEMENTING", "VERIFYING"];
@@ -133,9 +156,9 @@ export function nextForwardTransition(state: string): string | null {
 
 /**
  * How `from -> to` is allowed by 04 section 2, or null when it is not:
- * forward only to the next state of the chain, backward only the two listed
+ * forward only to the next state of the chain, backward only the three listed
  * moves, `ABANDONED` from any state before `MERGED`. Nothing leaves a frozen
- * state and nothing re-enters `PROPOSED`.
+ * state; `PROPOSED` is re-entered only by `SPECIFIED->PROPOSED`.
  */
 export function transitionKind(from: string, to: string): TransitionKind | null {
   if (isFrozen(from)) return null;

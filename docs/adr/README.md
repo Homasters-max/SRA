@@ -59,5 +59,6 @@
 | [0055](WARRANT-ADR-0055-release-for-lattice.md) | Цель 0.10.0 — версия, работающая в LATTICE (слит её pin-Change на `v0.10.0`); 0.10.0 — `exit-contract` и `guard-recovery`, тег — archive-PR `guard-recovery`; `judge-law` и `code-floor` — 0.11.0, impl-PR `judge-law` поднимает CLI и `kernel` до 0.11; запасной путь LATTICE `v0.9.0` снят | ACCEPTED (уточнён 0056) |
 | [0054](WARRANT-ADR-0054-app-test-timeout.md) | Таймаут теста `app` — 15 с (многосценарные тесты на Windows-runner'е до 6,4 с), `unit` — 5 с; параллелизм `threads` в CI не ограничивается | ACCEPTED |
 | [0056](WARRANT-ADR-0056-lattice-fixes-0-10-1.md) | 0.10.1 — пять исправлений для LATTICE одним patch-тегом (#138, #139, #141, #142, #143), `kernel` 0.10 прежний; id waiver — `WAV-<ULID>`, старые валидны; `SPECIFIED -> PROPOSED` до `APPROVED` без gates и `--by`; `judge-law` — 0.11.0 | ACCEPTED |
+| [0057](WARRANT-ADR-0057-merge-is-approval.md) | Акт приёмки PR с путями класса — один merge maintainer'а (Approve не нужен, судья не меняется); защита `main` — два ruleset: проверка `warrant / warrant` без обхода, ревью владельца — с обходом роли admin на PR; бот обхода не получает (SRA#160 п. 11) | ACCEPTED |
 
 Новый ADR: следующий номер, frontmatter как в существующих, строка в этой таблице.

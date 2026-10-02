@@ -50,7 +50,8 @@
 
 `warrant run start <change> --operation <op> [--scope <globs>] [--task <label>] [--dry-run]` SHALL создать Run в
 `RUNNING` и записать его id в `<state>/runs/current`. `write_scope` SHALL определяться операцией: `specify` —
-`openspec/changes/<change>/**`, допустимо при `change_state: PROPOSED`; `implement` — `<paths.src>/**`, `<paths.tests>/**`,
+`openspec/changes/<change>/**`, допустимо при `change_state: PROPOSED`; `implement` — `<paths.src>/**`, `<paths.tests>/**`, `<каталог>/**`
+каждого каталога `paths.data` по порядку списка ([REQ-KRN-037](../kernel/spec.md); корень, повторённый после нормализации, — один раз),
 `openspec/changes/<change>/tasks.md`, `openspec/changes/<change>/design.md` и `openspec/changes/<change>/specs/**`, допустимо при
 `IMPLEMENTING` (`proposal.md` не входит; правку `specs/**` после `APPROVED` судит gate `spec-approved`, расхождение снимает waiver
 maintainer'а — [ADR-0040](../../../../docs/adr/WARRANT-ADR-0040-slice-fixes.md) п. 4); `review` — пустой, допустимо при `PROPOSED`
@@ -59,7 +60,7 @@ hash набора пар «путь → blob» файлов `proposal.md` и `sp
 `spec-approved`); если эти файлы в рабочем дереве отличаются от HEAD или не закоммичены — `SPEC_UNCOMMITTED` с `hint`
 закоммитить spec. `--scope` (glob через запятую) SHALL только сужать: guard разрешает путь, лишь если он подходит и под
 `write_scope`, и под `scope` (пустой `scope` — без сужения). Состояние Change не допускает операцию → `STATE_INVALID`;
-`implement` без `paths.src` и `paths.tests` → `CONFIG_INVALID`; активный Run уже есть → `RUN_ACTIVE`; каждая из этих ошибок SHALL
+`implement`, когда ни `paths.src`, ни `paths.tests`, ни `paths.data` не дают корня ([REQ-KRN-037](../kernel/spec.md)), → `CONFIG_INVALID`; активный Run уже есть → `RUN_ACTIVE`; каждая из этих ошибок SHALL
 нести `hint`, код выхода 3, ничего не записано. Для `specify` и `implement` файлы внутри `write_scope`, которые отличаются от HEAD
 в индексе или рабочем дереве (в том числе удалённые) или не отслеживаются git и не игнорируются (`.gitignore`), SHALL давать
 находку `{ code: "UNCOMMITTED_IN_SCOPE", paths[], hint }` (`paths` — пути проекта в порядке code units) в

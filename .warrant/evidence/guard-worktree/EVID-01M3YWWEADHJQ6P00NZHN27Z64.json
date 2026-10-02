@@ -1,0 +1,32 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3YWWEADHJQ6P00NZHN27Z64",
+  "claim": {
+    "text": "Homasters-max approved guard-worktree for VERIFYING->MERGED",
+    "targets": []
+  },
+  "kind": "human-approval",
+  "level": "L0",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "c3db3c189f3d53824afc02e8ff86e43ea50559b6",
+    "base_commit": "2f39849864a1cd43a78bc3bbadb078ae9465a0df",
+    "spec_revision": "openspec/changes/guard-worktree@c3db3c189f3d53824afc02e8ff86e43ea50559b6",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "human",
+    "id": "Homasters-max"
+  },
+  "attestation": {
+    "type": "human-review",
+    "ref": "https://github.com/Homasters-max/SRA/pull/150"
+  },
+  "context_hash": "sha256:4996c7ba4360d9aef3c0bf4d4e4ff40fbaebb9d2e34eab2b0d06ab1f1e694156",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-02T18:09:05.870Z",
+  "artifacts": [],
+  "limitations": [
+    "ref not verified (phase 4: warrant ci)"
+  ]
+}

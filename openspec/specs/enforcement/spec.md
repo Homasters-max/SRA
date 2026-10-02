@@ -138,9 +138,25 @@ hash набора пар «путь → blob» файлов `proposal.md` и `sp
 `warrant guard` без `--frontend` SHALL читать из stdin нормализованное событие `{ phase: pre|post, action: edit|shell|other,
 paths[], argv?, cwd }` ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-frontend-adapters.md) п. 2) и печатать
 `data{ decision: allow|deny, reason?, hints[] }`, код выхода 0 при любом решении. Пути события SHALL переводиться в пути проекта
-от `cwd`; проект и активный Run SHALL определяться по `cwd` события — вызов, чей `cwd` лежит в другом checkout, судится
-состоянием того checkout'а (предел, как INV-07); путь вне проекта SHALL давать `allow`, кроме правки при активном Run `review`
-(ниже), и SHALL NOT записываться в `guard_events[].paths`; событие `edit` без пути проекта SHALL решаться до загрузки policy —
+от `cwd`; проект и активный Run SHALL определяться по `cwd` события, а не по каталогу, в котором запущен процесс guard. Checkout под
+WARRANT — каталог, в котором есть и `.warrant/warrant.json`, и `.git` (каталог или файл git worktree); каталог только с
+`.warrant/warrant.json` (например, проект golden pack) — часть объемлющего проекта. Проект события — ближайший к `cwd`
+checkout под WARRANT, включая сам `cwd`; если такого нет — ближайший такой checkout к каталогу процесса guard, включая его
+самого; если нет и его — каталог процесса. Относительный `cwd` и относительный путь события берутся от каталога процесса и
+`cwd` соответственно; подъём — и от `cwd`, и от пути события — идёт по тексту пути, без `realpath`, и проходит каталоги,
+которых нет; checkout равен проекту события, если путь одного от другого пуст (сравнение путей ОС — без учёта регистра на
+Windows). Проект SHALL совпадать с корнем git checkout'а: проект WARRANT в подкаталоге git-репозитория по `cwd` не находится и
+судится по каталогу процесса, как до этого требования (предел). Вход, который не разбирается как событие, судится в каталоге
+процесса. Вызов, чей `cwd` лежит в другом checkout, судится состоянием того checkout'а (предел, как INV-07). Путь другого
+checkout'а под WARRANT — того, что ближе всех к пути среди его предков и не является проектом события, в том числе вложенного
+в каталог проекта (git worktree внутри него) или объемлющего проект, — путь вне проекта. Правка такого пути SHALL давать `deny`,
+если активен любой Run, в том числе `review`, у проекта события или у того checkout'а (его `current` читается, Run того checkout'а
+события не получает; `current`, который не читается, — тоже `deny`), — при любых других путях события, до загрузки policy, в том
+числе в режиме восстановления, и раньше правила временного каталога Run `review`: reason — путь лежит в другом checkout'е под
+WARRANT; hint — править из сессии того checkout'а, а при Run проекта события — сначала `warrant run finish` (при Run `review` —
+`warrant run finish --state CANCELLED`; при `cli` — в форме `node <cli>`, как ниже); ни reason, ни hint путь не называют. Каталог процесса «не под WARRANT» — в нём нет `.warrant/warrant.json`, а у него и его предков нет checkout'а
+под WARRANT. Путь вне проекта SHALL давать `allow`, кроме правки при активном Run `review`
+(ниже) и правки пути другого checkout'а (выше), и SHALL NOT записываться в `guard_events[].paths`; событие `edit` без пути проекта SHALL решаться до загрузки policy —
 policy, которая не грузится, его не запрещает ([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 2);
 проект без `.warrant/warrant.json` SHALL давать `allow`. Если `warrant.json` задаёт `cli` ([REQ-KRN-004](../kernel/spec.md)),
 простая команда, чьи первые слова — `node` и ровно значение `cli`, SHALL читаться в строгих формах ниже (Run `review` и
@@ -279,7 +295,8 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
 
 #### Scenario: Проект не под WARRANT
 <!-- id: SCN-ENF-016 -->
-- **WHEN** guard вызван в каталоге без `.warrant/warrant.json`
+- **WHEN** каталог процесса guard не под WARRANT и либо у `cwd` события и его предков нет checkout'а под WARRANT, либо вход не
+  разбирается как событие
 - **THEN** `decision` равен `allow` для любой фазы и действия, событий не пишется
 
 #### Scenario: Правка под review
@@ -357,6 +374,39 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
 - **WHEN** чтение stdin в `warrant guard` без `--frontend` завершается исключением
 - **THEN** stdout — envelope `guard` с `data.decision: "deny"` и hint `warrant validate`, stderr называет причину, код выхода 0
 
+#### Scenario: Хук из другого каталога
+<!-- id: SCN-ENF-056 -->
+- **WHEN** каталог процесса guard — проект без активного Run или каталог не под WARRANT, а событие несёт `cwd` другого
+  checkout'а под WARRANT (или его подкаталога), где Run `RUNNING`, и абсолютный путь в этом checkout'е; так же через
+  `warrant guard --frontend claude`
+- **THEN** `pre` правки вне `write_scope` этого Run — `deny`, внутри — `allow`; события записаны в `guard_events[]` Run
+  того checkout'а, в каталоге процесса Run и событий нет; `post` правки внутри `write_scope` не даёт hint `warrant run start`
+
+#### Scenario: cwd вне checkout'ов
+<!-- id: SCN-ENF-057 -->
+- **WHEN** у `cwd` события и его предков нет checkout'а под WARRANT, а каталог процесса guard — проект с Run `implement` `RUNNING`
+- **THEN** событие судится в каталоге процесса: правка его пути, заданного абсолютно, вне `write_scope` — `deny`, событие
+  записано в его Run; путь, заданный от такого `cwd` относительно, лежит вне проекта — `allow`
+
+#### Scenario: Путь другого checkout'а
+<!-- id: SCN-ENF-058 -->
+- **WHEN** событие с `cwd` git worktree'а, где Run `implement` `RUNNING`, правит путь основного checkout'а, объемлющего этот
+  worktree; событие с `cwd` основного checkout'а, где Run `implement` `RUNNING`, правит путь git worktree'а
+  `.claude/worktrees/<имя>/…`, одна и вместе с путём внутри `write_scope`; одна правка того же пути без активного Run ни у одного из них; событие
+  с `cwd` основного checkout'а без Run, где у worktree'а Run `implement` `RUNNING`, правит путь worktree'а; под активным Run
+  `review` основного checkout'а — строка `cd .claude/worktrees/<имя> && git status`; под Run `review` worktree'а событие с `cwd`
+  основного checkout'а без Run правит путь worktree'а; у worktree'а `current` называет Run, который не читается
+- **THEN** при Run `implement` проекта события правки — `deny`, reason и hint пути не называют, события записаны в Run проекта
+  события без этих путей; без Run ни у одного — `allow` без hints, событий нет; при Run только у worktree'а — `deny`, событий
+  нет ни в одном Run; строка с `cd` под Run `review` — `deny`; правка пути worktree'а с Run `review` и с битым `current` — `deny`,
+  reason пути не называет
+
+#### Scenario: Каталог только с warrant.json
+<!-- id: SCN-ENF-059 -->
+- **WHEN** `cwd` события — каталог проекта с `.warrant/warrant.json` без `.git` (`packs/core-sdd/golden/feature`), у
+  проекта Run `implement` `RUNNING`, а событие правит абсолютный путь проекта вне `write_scope`
+- **THEN** проект события — объемлющий checkout: `deny`, событие записано в его Run
+
 ### Requirement: Адаптер claude
 <!-- id: REQ-ENF-005 -->
 
@@ -370,8 +420,9 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
 адаптер SHALL отвечать по режиму восстановления REQ-ENF-004: разрешённое — пустой stdout, отказ — `permissionDecision: "deny"`,
 чей `permissionDecisionReason` несёт reason с версиями и все hints, включая шаги pin-Change
 ([ADR-0053](../../../../docs/adr/WARRANT-ADR-0053-guard-recovery.md) п. 2).
-Код выхода SHALL быть 0; вход, который нельзя разобрать, SHALL давать код 2 и причину в stderr (Claude Code отменяет действие
-`PreToolUse`). Коды этого адаптера — ответ протоколу хуков Claude Code, а не коды [REQ-KRN-003](../kernel/spec.md): код 2 здесь
+Проект — по `cwd` родного входа, как в REQ-ENF-004. Код выхода SHALL быть 0; вход, который нельзя разобрать, SHALL давать
+код 2 и причину в stderr (Claude Code отменяет действие `PreToolUse`), а если каталог процесса guard не под WARRANT — пустой
+stdout и код 0, как событие проекта не под WARRANT (SCN-ENF-016). Коды этого адаптера — ответ протоколу хуков Claude Code, а не коды [REQ-KRN-003](../kernel/spec.md): код 2 здесь
 не `WAIT`, и таблица классов ошибок его не меняет ([ADR-0052](../../../../docs/adr/WARRANT-ADR-0052-cycle-1-close.md) п. 2). Исключение,
 не перехваченное адаптером, SHALL давать код 2, причину в stderr и пустой stdout — как неразборчивый вход (fail-closed: Claude Code
 отменяет действие), а не `INTERNAL` с кодом 3, который Claude Code считает неблокирующей ошибкой; исключение после выведенного
@@ -400,8 +451,8 @@ REQ-KRN-004, алиаса не дают; команда без алиаса су
 
 #### Scenario: Неразборчивый вход
 <!-- id: SCN-ENF-021 -->
-- **WHEN** в `warrant guard --frontend claude` подан не-JSON
-- **THEN** код выхода 2, stderr называет причину, stdout пуст
+- **WHEN** в `warrant guard --frontend claude` в каталоге проекта под WARRANT подан не-JSON; тот же вход — в каталоге не под WARRANT
+- **THEN** первый — код выхода 2, stderr называет причину, stdout пуст; второй — stdout пуст, код 0
 
 #### Scenario: Исключение адаптера
 <!-- id: SCN-ENF-046 -->

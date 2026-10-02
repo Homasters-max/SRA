@@ -1,0 +1,43 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3YW5NDCGWJWZJYRY7XV5PD9",
+  "claim": {
+    "text": "tests-passed passed for guard-worktree",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "c3db3c189f3d53824afc02e8ff86e43ea50559b6",
+    "base_commit": "36106b25f5b91add67f0331773743982eab8c26d",
+    "spec_revision": "openspec/changes/guard-worktree@c3db3c189f3d53824afc02e8ff86e43ea50559b6",
+    "tree": "49ccea5aa57cc00a385cfa6ff2497a1aaf9286ea",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "ci",
+    "ref": "https://github.com/Homasters-max/SRA/actions/runs/37043884463/attempts/1"
+  },
+  "context_hash": "sha256:e8b740782d831ba9fdafc7da3a11d1312398cd401aa3d40cf19e2b730c0b668d",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-02T17:56:39.469Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/guard-worktree/raw/tests-passed/junit.xml",
+      "sha256": "sha256:fe5a1bc3b615d01bea7fd44afe9970a1a40aa59bf1fd8cb81f34f2f4507deaa9"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 1,
+    "tests": 1728
+  }
+}

@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://change-record/1",
   "change": "data-paths",
-  "change_state": "VERIFYING",
+  "change_state": "IMPLEMENTING",
   "classification": {
     "profiles": [
       "chore",
@@ -66,6 +66,11 @@
       "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
       "gates": {},
       "evidence": []
+    },
+    {
+      "to": "IMPLEMENTING",
+      "at": "2026-10-02T21:03:17.568Z",
+      "by": "cli:local"
     }
   ]
 }

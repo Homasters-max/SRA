@@ -8,8 +8,8 @@
 `./` и конечные `/`, пока они есть. Элемент SHALL делать файл невалидным с указанием `/paths/data/<i>`, если он содержит символ
 шаблона glob (`*`, `?`, `[`, `]`, `{`, `}`, `(`, `)`, `!`, `+`, `@`) или если его нормализация даёт пустую строку, путь с пустым
 сегментом или сегментом `.` (в том числе ведущий `/`), `.`, `.warrant` или `openspec` или путь под `.warrant/` или `openspec/`
-(регистр букв не различается): каталог данных — буквальный путь, а корень проекта, состояние WARRANT и spec не данные проекта. Наличие и вид пути схема не проверяет; элемент, который называет файл, не делает кодом
-ни одного пути. Каталоги `paths.data`, которые совпадают после нормализации друг с другом или с `paths.src` / `paths.tests`, дают
+(регистр букв не различается): каталог данных — буквальный путь, а корень проекта, состояние WARRANT и spec не данные проекта. Наличие и вид пути схема не проверяет; элемент, который называет файл, делает кодом
+только этот файл, как такой же `paths.src`. Каталоги `paths.data`, которые совпадают после нормализации друг с другом или с `paths.src` / `paths.tests`, дают
 один корень.
 
 Каждый каталог `paths.data` SHALL быть корнем кода наравне с `paths.src` и `paths.tests`: `write_scope` Run `implement`
@@ -45,6 +45,12 @@
 - **THEN** `write_scope` Run равен `["std/**", "openspec/changes/add-search/tasks.md", "openspec/changes/add-search/design.md",
   "openspec/changes/add-search/specs/**"]`, без `CONFIG_INVALID`; у каждого из трёх `warrant ci` `errors[]` содержит
   `SCOPE_VIOLATION` с путём `std/std.json`, проверка кода не в `data.skipped[]`, код 1
+
+#### Scenario: Файл в paths.data
+<!-- id: SCN-KRN-175 -->
+- **WHEN** `warrant.json` задаёт `paths.data: ["std/std.json"]`; без активного Run guard получает событие `pre` `edit` пути
+  `std/std.json` и отдельное событие `pre` `edit` пути `std/other.json`
+- **THEN** первое — `deny` с hint `warrant run start <change> --operation …`, второе — `allow`
 
 #### Scenario: Недопустимые каталоги данных
 <!-- id: SCN-KRN-174 -->

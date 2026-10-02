@@ -220,6 +220,14 @@ describe("warrant guard: pre edit without a Run", () => {
     expect((await guard(p, { phase: "pre", action: "edit", paths: ["docs/notes.md"] })).data["decision"]).toBe("deny");
   });
 
+  it("paths.data naming a file: that file is code — denied without a Run with the hint run start; its neighbour is not (SCN-KRN-175, I-1)", async () => {
+    const p = await repo("IMPLEMENTING", (b) => b.write(".warrant/warrant.json", { ...b.json(".warrant/warrant.json"), paths: { data: ["std/std.json"] } }));
+    const file = await guard(p, { phase: "pre", action: "edit", paths: ["std/std.json"] });
+    expect(file.data["decision"]).toBe("deny");
+    expect(file.data["hints"]).toEqual([expect.stringContaining("warrant run start <change> --operation")]);
+    expect((await guard(p, { phase: "pre", action: "edit", paths: ["std/other.json"] })).data["decision"]).toBe("allow");
+  });
+
   it("tests, openspec/changes/** and the policy paths of factory-change are denied too (ADR-0022 п. 7)", async () => {
     const p = await repo("IMPLEMENTING");
     for (const file of ["tests/test_app.py", "openspec/changes/add-search/proposal.md", ".warrant/local/areas.json", "openspec/config.yaml"]) {

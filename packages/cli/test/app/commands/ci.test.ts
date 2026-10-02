@@ -1179,6 +1179,52 @@ describe("warrant ci: the merge verdict of an impl-PR", () => {
     expect(p.forge.calls).toEqual([]);
   });
 
+  it("--no-record: the verdict of warrant ci, nothing left in .warrant — on success and on CHECK_TIMEOUT (SCN-VER-154)", async () => {
+    const { p } = await implPr();
+    // The evidence directory already holds a record, a manifest and raw/ of an earlier run.
+    const first = await ci(p);
+    expect(first.data["evidence"]).toHaveLength(1);
+    const warrantTree = (): Record<string, string> => Object.fromEntries(Object.entries(p.tree()).filter(([k]) => k.startsWith(".warrant/")));
+    const before = warrantTree();
+
+    const dry = await ci(p, LOCAL, { noRecord: true });
+    expect(warrantTree()).toEqual(before);
+    expect(dry.data).toMatchObject({ no_record: true, not_restored: [] });
+    const wet = await ci(p);
+    const verdict = (r: Result): unknown => ({
+      kind: r.data["kind"],
+      gates: r.data["gates"],
+      deferred: r.data["deferred"],
+      findings: (r.data["findings"] as Data[]).map((x) => x["code"]),
+      errors: r.errors.map((e) => e.code),
+      exit: r.exitCode
+    });
+    expect(verdict(dry)).toEqual(verdict(wet));
+    expect(dry.exitCode).toBe(1);
+    expect(dry.errors.map((e) => e.code)).toContain("GATE_NOT_PASSED");
+    expect((dry.data["findings"] as Data[]).map((x) => x["code"])).toContain("ATTESTATION_REQUIRED");
+
+    p.checks.on("fake-tests", { timedOut: true });
+    const settled = warrantTree();
+    const timedOut = await ci(p, LOCAL, { noRecord: true });
+    expect(codes(timedOut)).toContain("CHECK_TIMEOUT");
+    expect(timedOut.exitCode).toBe(4);
+    expect(timedOut.data).toMatchObject({ no_record: true, not_restored: [] });
+    expect(warrantTree()).toEqual(settled);
+  });
+
+  it("--no-record with --dry-run or in GitHub Actions: USAGE, no_record, exit 3, nothing written (SCN-VER-155)", async () => {
+    const { p } = await implPr();
+    const before = p.tree();
+    for (const [env, opts] of [[LOCAL, { noRecord: true, dryRun: true }], [CI_ENV, { noRecord: true }]] as const) {
+      const result = await ci(p, env, opts);
+      expect(codes(result)).toEqual(["USAGE"]);
+      expect(result.data).toMatchObject({ no_record: true, not_restored: [] });
+      expect(result.exitCode).toBe(3);
+    }
+    expect(p.tree()).toEqual(before);
+  });
+
   it("WARRANT_STATE_DIR: USAGE, exit 3", async () => {
     const { p } = await implPr();
     const result = await ci(p, { ...CI_ENV, WARRANT_STATE_DIR: path.join(p.root, "state") });

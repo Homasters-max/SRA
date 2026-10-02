@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://change-record/1",
   "change": "ci-local",
-  "change_state": "SPECIFIED",
+  "change_state": "VERIFYING",
   "classification": {
     "profiles": [
       "chore",
@@ -28,6 +28,44 @@
       "evidence": [
         "EVID-01M3YDERSHE9B4DQ9D31EPERBD"
       ]
+    },
+    {
+      "to": "APPROVED",
+      "at": "2026-10-02T14:17:16.520Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+      "gates": {
+        "adversarial-review": "PASS",
+        "blocking-unknowns-resolved": "PASS",
+        "human-approval": "PASS",
+        "ids-valid": "PASS",
+        "required-artifacts-present": "PASS",
+        "spec-valid": "PASS"
+      },
+      "evidence": [
+        "EVID-01M3YDDPVPZF2C86R800B02W1K",
+        "EVID-01M3YFKS0JJ49DZNANJ85A2JVV",
+        "EVID-01M3YFKWCTN6R73EX4H5B92H6G"
+      ],
+      "ref": "https://github.com/Homasters-max/SRA/pull/148"
+    },
+    {
+      "to": "IMPLEMENTING",
+      "at": "2026-10-02T14:17:19.610Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+      "gates": {
+        "branch-isolated": "PASS"
+      },
+      "evidence": []
+    },
+    {
+      "to": "VERIFYING",
+      "at": "2026-10-02T18:01:51.423Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+      "gates": {},
+      "evidence": []
     }
   ]
 }

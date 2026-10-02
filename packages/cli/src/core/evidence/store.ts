@@ -118,6 +118,12 @@ export interface ImportInput {
   /** `manifest.commit`: HEAD, as for any local write (REQ-VER-012). */
   commit: string;
   versions: ManifestVersions;
+  /**
+   * Ids a record of the directory may carry without being a leftover: those of
+   * the manifest of the Change at HEAD and of `evidence[]` of the transitions
+   * of its record (REQ-VER-012); the imported ones are added here.
+   */
+  known?: ReadonlySet<string>;
 }
 
 export interface ImportResult {
@@ -125,6 +131,8 @@ export interface ImportResult {
   ids: string[];
   /** `SCHEMA_VIOLATION`, `EVIDENCE_CONFLICT`: when not empty, nothing is written. */
   errors: CliError[];
+  /** Project paths of the records of the directory neither known nor imported — leftovers of a local run; sorted. */
+  untracked: string[];
 }
 
 /**
@@ -134,7 +142,8 @@ export interface ImportResult {
  * bytes is skipped; with other bytes it is `EVIDENCE_CONFLICT`. Any error —
  * nothing is written. The record files are written before the manifest, so an
  * interrupted import is completed by the next one; the manifest is rewritten
- * only when a record is new to the directory or missing from `evidence[]`.
+ * when a record is new to the directory or `evidence[]` differs from the
+ * records of the directory (a removed leftover leaves it, REQ-VER-012).
  */
 export function importRecords(input: ImportInput): ImportResult {
   const dir = evidenceDir(input.root, input.change, input.env);
@@ -178,14 +187,20 @@ export function importRecords(input: ImportInput): ImportResult {
       );
     }
   }
-  if (errors.length > 0) return { ids: [], errors };
+  if (errors.length > 0) return { ids: [], errors, untracked: [] };
 
   for (const { file, bytes } of fresh) {
     input.writes.write(projectUri(input.root, file), () => writeFileAtomic(file, bytes));
   }
   const manifest = readManifest(dir);
-  const listed = new Set(strings(manifest?.["evidence"]));
-  if (fresh.length > 0 || ids.some((id) => !listed.has(id))) {
+  const listed = [...new Set(strings(manifest?.["evidence"]))].sort();
+  const present = [...new Set([...listRecordIds(dir), ...ids])].sort();
+  const known = new Set([...(input.known ?? []), ...ids]);
+  const untracked = listRecordIds(dir)
+    .filter((id) => !known.has(id))
+    .map((id) => projectUri(input.root, path.join(dir, `${id}.json`)))
+    .sort();
+  if (fresh.length > 0 || listed.join("\n") !== present.join("\n")) {
     input.writes.write(projectUri(input.root, path.join(dir, MANIFEST_FILE)), () =>
       writeJsonFile(
         path.join(dir, MANIFEST_FILE),
@@ -193,5 +208,5 @@ export function importRecords(input: ImportInput): ImportResult {
       )
     );
   }
-  return { ids: ids.sort(), errors: [] };
+  return { ids: ids.sort(), errors: [], untracked };
 }

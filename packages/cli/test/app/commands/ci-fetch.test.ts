@@ -30,6 +30,7 @@ import { advance, artifactOf, AT, pullRequest, RECORD } from "../helpers/ci.js";
 import { FAKE_REPOSITORY, fakePull, fakeRun, type FakeArtifact } from "../helpers/fakes/forge.js";
 import { invoke } from "../helpers/invoke.js";
 import { useProjectBuilder, type ProjectBuilder } from "../helpers/project-builder.js";
+import { validateErrors } from "../helpers/validate.js";
 
 const project = useProjectBuilder();
 
@@ -323,6 +324,47 @@ describe("warrant ci fetch: the import", () => {
     p.remove(`${EVIDENCE}/manifest.json`);
     expect((await fetch(p)).errors).toEqual([]);
     expect(p.json(`${EVIDENCE}/manifest.json`).evidence).toEqual(evidence);
+  });
+
+  it("a leftover of a local run: untracked[] and EVIDENCE_UNTRACKED, untouched; a record a transition names is none; deleted and fetched again — out of the manifest (SCN-VER-156)", async () => {
+    const merge = await ready();
+    const { p, evidence } = merge;
+    /** A copy of a record of the artifact under `id`: a valid evidence/1 file of a local run. */
+    const local = (id: string): void => {
+      const sample = JSON.parse((Object.entries(recordsOf(merge.files))[0] as [string, Buffer])[1].toString("utf8"));
+      p.write(`${EVIDENCE}/${id}.json`, { ...sample, id });
+    };
+    const stray = "EVID-01M3YC8FP9SYPK438EKXFQS4TS";
+    const approval = "EVID-01M3YC8FP9SYPK438EKXFQS4TH";
+    local(stray);
+    local(approval);
+    // The record of the working tree names `approval`, as transition MERGED names its human-approval.
+    const record = p.json(RECORD);
+    record.transitions[record.transitions.length - 1].evidence = [...(record.transitions.at(-1).evidence ?? []), approval];
+    p.write(RECORD, record);
+
+    const strayBytes = readFileSync(path.join(p.root, EVIDENCE, `${stray}.json`));
+    const first = await fetch(p);
+    expect(first.errors).toEqual([]);
+    expect(first.exitCode).toBe(0);
+    expect(first.data["untracked"]).toEqual([`${EVIDENCE}/${stray}.json`]);
+    expect(first.data["findings"]).toEqual([
+      { code: "EVIDENCE_UNTRACKED", paths: [`${EVIDENCE}/${stray}.json`], hint: expect.stringContaining("warrant ci fetch 9 again") }
+    ]);
+    expect(readFileSync(path.join(p.root, EVIDENCE, `${stray}.json`))).toEqual(strayBytes);
+    expect(await validateErrors(p)).toEqual([]);
+
+    p.remove(`${EVIDENCE}/${stray}.json`);
+    const again = await fetch(p);
+    expect(again.exitCode).toBe(0);
+    expect(again.data["untracked"]).toEqual([]);
+    // --no-record is of warrant ci only.
+    const refused = (await invoke(() => runCiFetch(p.ctx, "9", {}, { noRecord: true }))) as Result;
+    expect(refused.errors[0]?.code).toBe("USAGE");
+    expect(refused.exitCode).toBe(3);
+    expect(again.data["findings"]).toEqual([]);
+    expect(p.json(`${EVIDENCE}/manifest.json`).evidence).toEqual([...evidence, approval].sort());
+    expect(await validateErrors(p)).toEqual([]);
   });
 
   it("a local record of the same id with other bytes: EVIDENCE_CONFLICT, nothing written", async () => {

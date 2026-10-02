@@ -15,23 +15,64 @@
  * `--dry-run` is a plan only: the kind, the Change, the checks and
  * `data.would_write[]`, without running checks or asking the forge.
  *
+ * `--no-record` (REQ-VER-017) is the same verdict with nothing left written:
+ * every write goes through {@link restoringWrites} and is put back after the
+ * last check, on an exception and on a signal; `data.no_record: true` and
+ * `data.not_restored[]` in every output.
+ *
  * `warrant ci fetch <pr>` — the local step of an archive-PR (`core/ci/fetch.ts`).
  */
+import { fileURLToPath } from "node:url";
+
 import { withBase } from "../core/ci/base.js";
 import { fetchCiEvidence } from "../core/ci/fetch.js";
 import { judgePullRequest, planPullRequest } from "../core/ci/judge.js";
 import { readCiSubject } from "../core/ci/kind.js";
 import type { Ctx } from "../core/ctx.js";
 import { WarrantError } from "../core/errors.js";
-import { failures, success, type CommandResult } from "../io/output.js";
+import { writeFileAtomic } from "../core/canon/format-json.js";
+import { absolutePath } from "../core/fs.js";
+import { restoringWrites } from "../core/writes.js";
+import { failure, failures, resultFromThrown, success, type CommandResult } from "../io/output.js";
 import { requireConfigPath, withDryRun } from "./context.js";
 
 export interface CiOptions {
   dryRun?: boolean | undefined;
+  noRecord?: boolean | undefined;
 }
 
-/** Judges the pull request whose merge is HEAD. */
+/** `result` with `data.no_record: true` and `data.not_restored[]` (REQ-VER-017). */
+function noRecordOf(result: CommandResult, notRestored: string[] = []): CommandResult {
+  return { ...result, data: { ...result.data, no_record: true, not_restored: notRestored } };
+}
+
+/** Judges the pull request whose merge is HEAD; with `noRecord` nothing written stays (REQ-VER-017). */
 export async function runCi(ctx: Ctx, opts: CiOptions = {}, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
+  if (opts.noRecord !== true) return judge(ctx, opts, env);
+  if (opts.dryRun === true) {
+    return noRecordOf(failure(new WarrantError("USAGE", "--no-record runs the checks and --dry-run does not: pass one of them", { hint: "warrant ci --no-record" })));
+  }
+  if (env["GITHUB_ACTIONS"] === "true") {
+    return noRecordOf(
+      failure(new WarrantError("USAGE", "--no-record is for a local verdict: in GitHub Actions warrant ci records the evidence of the artifact and of ci fetch", { hint: "warrant ci" }))
+    );
+  }
+  const writes = restoringWrites((target) => (target.startsWith("file:") ? fileURLToPath(target) : absolutePath(ctx.root, target)), writeFileAtomic);
+  const unregister = ctx.signals.onInterrupt(() => {
+    for (const target of writes.restore()) ctx.warn(`warrant ci --no-record: not restored: ${target}\n`);
+  });
+  let result: CommandResult;
+  try {
+    result = await judge({ ...ctx, writes }, opts, env);
+  } catch (thrown) {
+    result = resultFromThrown(thrown);
+  } finally {
+    unregister();
+  }
+  return noRecordOf(result, writes.restore());
+}
+
+async function judge(ctx: Ctx, opts: CiOptions, env: NodeJS.ProcessEnv): Promise<CommandResult> {
   requireConfigPath(ctx.root);
   if (env["WARRANT_STATE_DIR"] !== undefined && env["WARRANT_STATE_DIR"] !== "") {
     throw new WarrantError("USAGE", "warrant ci judges the state committed in .warrant, not WARRANT_STATE_DIR", {
@@ -59,7 +100,11 @@ export async function runCi(ctx: Ctx, opts: CiOptions = {}, env: NodeJS.ProcessE
  * Exit code — the class of `errors[]`: 0 — imported (or already present); else nothing written.
  * `--dry-run` chooses the run and prints `data.would_write[]` without writing.
  */
-export async function runCiFetch(ctx: Ctx, pr: string, env: NodeJS.ProcessEnv = process.env): Promise<CommandResult> {
+export async function runCiFetch(ctx: Ctx, pr: string, env: NodeJS.ProcessEnv = process.env, opts: { noRecord?: boolean } = {}): Promise<CommandResult> {
+  // `--no-record` is of `warrant ci` only (REQ-VER-017): ci fetch writes the evidence the archive-PR commits.
+  if (opts.noRecord === true) {
+    return failure(new WarrantError("USAGE", "--no-record applies to warrant ci, not to ci fetch: ci fetch writes the evidence the archive-PR commits", { hint: `warrant ci fetch ${pr}` }));
+  }
   requireConfigPath(ctx.root);
   return withDryRun(ctx, async () => {
     const verdict = await fetchCiEvidence(ctx, pr, env);

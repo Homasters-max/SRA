@@ -363,15 +363,17 @@ register(
 const ciCommand = register(
   "ci",
   "judge the pull request whose merge is HEAD: kind by the record in the diff, rules of the base, merge verdict of an impl-PR",
-  (ctx, _args, opts) => runCi(ctx, { dryRun: opts["dryRun"] === true }),
+  (ctx, _args, opts) => runCi(ctx, { dryRun: opts["dryRun"] === true, noRecord: opts["record"] === false }),
   (c) =>
     c
       .option("--dry-run", "print the plan — kind, Change, checks, data.would_write[] — without running checks or asking the forge")
+      .option("--no-record", "the same verdict, nothing left written: every write of the run is put back at its end (a local judge, not in GitHub Actions)")
       .addHelpText(
         "after",
         examples([
           "git checkout --detach origin/main && git merge --no-ff <head of the PR> && warrant ci",
-          "warrant ci --dry-run"
+          "warrant ci --dry-run",
+          "git checkout --detach origin/main && git merge --no-ff <head of the PR> && warrant ci --no-record"
         ]) +
           "\nHEAD must be the result of a merge: the first parent the tip of the base, the second the head of the PR.\n" +
           "Exit codes: 0 no violation; 1 a violation of the PR (errors[]); 2 POLICY_CONFLICT; 3 configuration, USAGE, CHECK_NOT_CONFIGURED, FORGE_ACCESS; 4 retryable — CHECK_TIMEOUT, BUSY, FORGE_UNAVAILABLE.\n"
@@ -380,7 +382,7 @@ const ciCommand = register(
 register(
   "fetch",
   "put the CI evidence of a merged impl-PR — the run whose records are on the tree of its merge commit — into .warrant/evidence/<change>/",
-  (ctx, args) => runCiFetch(ctx, args[0] as string),
+  (ctx, args, opts) => runCiFetch(ctx, args[0] as string, process.env, { noRecord: opts["record"] === false }),
   (c) =>
     c
       .argument("<pr>", "number or URL of the merged impl-PR of this repository")

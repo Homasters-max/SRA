@@ -1,0 +1,15 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-01M3YW6DTEJ9ZF4QBJXFENY6CF",
+  "change": "ci-local",
+  "gate": "spec-approved",
+  "reason": "I-4: MAJOR review spec раунда 4 (R-61) закрыт правкой SCN-VER-156 по ADR-0024 п. 4: незакоммиченная запись human-approval перехода MERGED — не остаток, после повтора manifest [A, B, H]",
+  "risk": "LOW",
+  "compensating_controls": [
+    "Правка уточняет сценарий под уже принятое правило REQ-VER-012; держится тестом SCN-VER-156 в ci-fetch.test.ts; ревью реализации агентом reviewer; Approve maintainer-а impl-PR"
+  ],
+  "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
+  "expires_at": "2026-10-16",
+  "waiver_state": "ACTIVE"
+}

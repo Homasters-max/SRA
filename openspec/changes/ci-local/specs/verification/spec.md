@@ -137,9 +137,9 @@ workflow вручную со входом `merge_commit` = M; ничего не 
 
 #### Scenario: Остаток локальной записи
 <!-- id: SCN-VER-156 -->
-- **WHEN** manifest `add-search` в HEAD перечисляет `EVID-A`; в каталоге лежат `EVID-A`, незакоммиченный `EVID-S` от локального `warrant verify`
-  и manifest, перезаписанный тем `verify`; выбранная попытка несёт `EVID-B`; затем `EVID-S` удалён и `warrant ci fetch 9` повторён
+- **WHEN** manifest `add-search` в HEAD перечисляет `EVID-A`; в каталоге лежат `EVID-A`, незакоммиченный `EVID-S` от локального `warrant verify`,
+  незакоммиченный `EVID-H`, на который ссылается `evidence[]` перехода record рабочего дерева (`human-approval` перехода `MERGED`), и
+  manifest, перезаписанный тем `verify`; выбранная попытка несёт `EVID-B`; затем `EVID-S` удалён и `warrant ci fetch 9` повторён
 - **THEN** первый вызов пишет `EVID-B`, `data.untracked[]` равен `[".warrant/evidence/add-search/EVID-S.json"]`, `data.findings[]`
-  содержит `EVIDENCE_UNTRACKED` с тем же путём и `hint` об удалении и повторе; запись `human-approval`, на которую ссылается
-  переход record, в `untracked[]` не попадает; файл `EVID-S` не изменён, `warrant validate` без находок, код 0; повтор — `data.untracked[]` пуст,
-  `manifest.evidence[]` равен `["EVID-A", "EVID-B"]`, `warrant validate` без находок, код 0
+  содержит `EVIDENCE_UNTRACKED` с тем же путём и `hint` об удалении и повторе; `EVID-H` в `untracked[]` не попадает; файл `EVID-S` не изменён, `warrant validate` без находок, код 0; повтор — `data.untracked[]` пуст,
+  `manifest.evidence[]` равен `["EVID-A", "EVID-B", "EVID-H"]`, `warrant validate` без находок, код 0

@@ -1,0 +1,127 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3Z1Q7C1MK7VDAWKJWN2MG0N",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "Элемент paths.data с метасимволами glob (\"*\", \"**\", \"{.warrant,std}\", \"?warrant\", \"[.]warrant\", \"!(x)\") проходит relative_path и запрет REQ-KRN-037: после нормализации он не равен пустой строке, \".\", \".warrant\" или \"openspec\" и не лежит под ними. Но корень входит в write_scope как glob <каталог>/** (REQ-ENF-002, codeScope), а сопоставление идёт picomatch с dot: true. Тогда [\"*\"] даёт \"*/**\", и этот glob покрывает .warrant/** и openspec/specs/**. Run implement пишет состояние CLI и main specs, а любой PR вида none или spec, который трогает любой подкаталог, получает SCOPE_VIOLATION. Обещание «корень проекта, состояние WARRANT и spec не данные проекта» так обходится. У paths.src тот же пробел был и раньше, но REQ-KRN-037 впервые вводит явный запрет, и метасимволы его обходят.",
+      "targets": [
+        "REQ-KRN-037",
+        "REQ-ENF-002",
+        "SCN-KRN-174"
+      ],
+      "recommendation": "В REQ-KRN-037 отвергать элемент с символами glob (* ? [ ] { } ( ) ! + @) с указанием /paths/data/<i> или явно задать буквальное экранирование. Добавить в SCN-KRN-174 [\"*\"] и [\"{.warrant,std}\"] (невалидны /paths/data/0). Тот же пробел у paths.src записать строкой backlog."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Новое условие пропуска «проверка кода пропускается, только когда не задан ни один из трёх ключей» (REQ-KRN-037), CONFIG_INVALID «implement без paths.src, paths.tests и paths.data» (REQ-ENF-002) и «без paths.src, paths.tests и paths.data finding не вычисляется» (REQ-VER-009) зависят от того, задан ли ключ. Но paths.src: \".\" или \"./\" схема принимает, а directory() корня из него не даёт, и codeScope пуст. Ключ задан, а CLI пропускает проверку и даёт CONFIG_INVALID. Слово «только» в REQ-KRN-037 делает расхождение с кодом явным.",
+      "targets": [
+        "REQ-KRN-037",
+        "REQ-ENF-002",
+        "REQ-VER-009"
+      ],
+      "recommendation": "Сформулировать условие через корни: «когда ни paths.src, ни paths.tests, ни paths.data не дают корня после нормализации». Либо отвергать \".\" в paths.src и paths.tests, но это вне Change: тогда записать предел."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Нормализация снимает только ведущие ./ и конечные /. Пустые и \".\"-сегменты внутри или в начале пути она оставляет: \".//std\" даёт \"/std\", кроме того \"std//x\" и \"std/.\". Такие элементы валидны, их корень (\"/std/**\") не совпадает ни с одним путём проекта, и опечатка молча отключает каталог данных. \".//.warrant\" обходит запрет текстом, хотя и безвредно.",
+      "targets": [
+        "REQ-KRN-037",
+        "SCN-KRN-174"
+      ],
+      "recommendation": "Отвергать элемент, у которого после нормализации есть пустой сегмент или сегмент \".\", с указанием /paths/data/<i>. Добавить [\".//std\"] и [\"std/.\"] в SCN-KRN-174."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-KRN-004 — MODIFIED, но tasks.md не упоминает ни его, ни его SCN (SCN-KRN-008, 009, 086, 126, 165): группа 1 ссылается только на REQ-KRN-037. По REQ-VER-010 это UNSATISFIED с missing [\"task\"], и gate analyze-clean на VERIFYING->MERGED даст FAIL.",
+      "targets": [
+        "REQ-KRN-004",
+        "openspec/changes/data-paths/tasks.md"
+      ],
+      "recommendation": "Добавить REQ-KRN-004 в заголовок группы 1 tasks.md. В 3.1 сослаться на SCN-KRN-008: пример 08 §3 с paths.data остаётся валидным."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Перечень исключения в REQ-KRN-037 называет «правила путей видов none, spec, archive и impl-PR». В REQ-VER-011 вида «impl-PR» нет, есть вид impl. В его тексте нет правила путей по paths.src: код в нём появляется только через FRONTEND_HOOKS_INACTIVE (REQ-VER-009). Кроме того, в перечне нет пункта «База требований», хотя он упоминает paths.src (его закрывает отдельная фраза о HEAD^1).",
+      "targets": [
+        "REQ-KRN-037",
+        "REQ-VER-011"
+      ],
+      "recommendation": "Писать «правила видов none, spec и archive (archive — как у spec), список «База требований»». Вид impl убрать из перечня или назвать его как impl через REQ-VER-009."
+    },
+    {
+      "id": "F-6",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "Перечень требований, где «paths.tests значит именно тесты», не полон: в нём нет REQ-KRN-032 (validate --files, (d) — висячие ссылки REQ и SCN в файлах paths.tests). По тексту REQ-KRN-037 (корень кода только для write_scope и FRONTEND_HOOKS_INACTIVE, плюс исключение из REQ-ENF-004 и REQ-VER-011) поведение однозначно, но перечень выглядит закрытым.",
+      "targets": [
+        "REQ-KRN-037",
+        "REQ-KRN-032"
+      ],
+      "recommendation": "Добавить REQ-KRN-032 в перечень тестовых требований REQ-KRN-037."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "contradiction",
+      "statement": "После archive main REQ-ENF-004 и REQ-VER-011 дословно говорят о коде как о «paths.src, paths.tests», а исключение живёт только в REQ-KRN-037. Читатель одного REQ-ENF-004 видит неполные классы путей. Это принятое решение (D2, образец REQ-VER-017), перенос записан задачей 3.1 в backlog.",
+      "targets": [
+        "REQ-ENF-004",
+        "REQ-VER-011",
+        "REQ-KRN-037"
+      ],
+      "recommendation": "Оставить строку backlog из 3.1 с триггером «archive judge-law». Можно добавить в REQ-ENF-004 и REQ-VER-011 перекрёстную ссылку при первом их MODIFIED."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/data-paths/specs/kernel/spec.md",
+      "change": "REQ-KRN-037: элемент с символами glob или с пустым либо \".\"-сегментом после нормализации невалиден с /paths/data/<i>. SCN-KRN-174 дополнить [\"*\"], [\"{.warrant,std}\"], [\".//std\"] (F-1, F-3). Условие пропуска и CONFIG_INVALID — через «не дают корня» (F-2). В перечень тестовых требований добавить REQ-KRN-032 (F-6), поправить имена видов в исключении (F-5)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/data-paths/tasks.md",
+      "change": "Группа 1: «(REQ-KRN-004, REQ-KRN-037, D3)»; 3.1 — SCN-KRN-008 для примера 08 §3 (F-4)."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Все читатели кода (writeScopeOf, guard decide, liveness, ci judgePaths) идут через codeScope, а сопоставление — pathMatcher (picomatch, dot: true). Проверены scope.ts, glob.ts и импорт codeScope в ci/paths.ts; guard и liveness не открывались."
+    },
+    {
+      "id": "A-2",
+      "statement": "MODIFIED копии REQ-KRN-004, REQ-ENF-002 и REQ-VER-009 сверены с main построчно: они совпадают, кроме намеренных правок (ключ data, write_scope, условие CONFIG_INVALID, пути и условие FRONTEND_HOOKS_INACTIVE). Сценарии совпадают дословно. Других открытых Changes с delta этих REQ нет, judge-law несёт только REQ-VER-011."
+    },
+    {
+      "id": "A-3",
+      "statement": "Находки раунда 1 F-1…F-11 закрыты: F-1 — MODIFIED и явное исключение; F-2 — HEAD^1 и третий случай SCN-KRN-173; F-3 — два события; F-4 и F-7 — неподвижная точка и регистр; F-5 и F-6 — порядок и один корень; F-8 — фраза о файле; F-9 — SCN-VER-160 и spec-PR; F-10 и F-11 — риски design."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:82a9edfb7d6d6825500e903d8ef95101f91b3406dca9a4c0e3116ddce37b54da",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T12:00:00Z",
+    "finished_at": "2026-10-02T12:40:00Z"
+  }
+}

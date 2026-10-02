@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://change-record/1",
   "change": "data-paths",
-  "change_state": "VERIFYING",
+  "change_state": "MERGED",
   "classification": {
     "profiles": [
       "chore",
@@ -79,6 +79,27 @@
       "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
       "gates": {},
       "evidence": []
+    },
+    {
+      "to": "MERGED",
+      "at": "2026-10-02T21:29:15.203Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+      "gates": {
+        "analyze-clean": "PASS",
+        "evidence-complete": "PASS",
+        "factory-golden-passed": "PASS",
+        "human-approval": "PASS",
+        "ids-valid": "PASS",
+        "scope-valid": "PASS",
+        "spec-approved": "WAIVED",
+        "tests-passed": "PASS"
+      },
+      "evidence": [
+        "EVID-01M3Z81KQWJHBAX156845R4XRS",
+        "EVID-01M3Z8ATKTXEZV4RPP3X5P2Y4Z"
+      ],
+      "ref": "https://github.com/Homasters-max/SRA/pull/164"
     }
   ]
 }

@@ -37,7 +37,7 @@ PROPOSED → SPECIFIED → APPROVED → IMPLEMENTING → VERIFYING → MERGED �
     └────────────── ABANDONED (из любого состояния до MERGED) ──────────────┘
 ```
 
-Это **не waterfall**. OpenSpec допускает свободное редактирование artifacts: если design оказался неверным, design исправляется, и работа продолжается. Возврат назад (`VERIFYING → IMPLEMENTING`, `IMPLEMENTING → SPECIFIED`) разрешён; переход вперёд — только через gates, указанные для перехода в effective policy.
+Это **не waterfall**. OpenSpec допускает свободное редактирование artifacts: если design оказался неверным, design исправляется, и работа продолжается. Возврат назад (`VERIFYING → IMPLEMENTING`, `IMPLEMENTING → SPECIFIED`, а до одобрения — `SPECIFIED → PROPOSED`, [ADR-0056](adr/WARRANT-ADR-0056-lattice-fixes-0-10-1.md) п. 3) разрешён; переделка spec после `SPECIFIED → PROPOSED` — снова spec-PR, `APPROVED --ref` называет spec-PR переделки; переход вперёд — только через gates, указанные для перехода в effective policy.
 
 После `ARCHIVED` неизменны каталог архива, record и evidence Change; исправление — новый Change с `amends`. `ABANDONED` замораживает record и удаляет каталог Change тем же коммитом ([ADR-0021](adr/WARRANT-ADR-0021-archive-immutability.md)).
 

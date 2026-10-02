@@ -2,6 +2,21 @@
 
 Релизы CLI WARRANT: тег `v<версия>` репозитория `Homasters-max/SRA`. Раздел — на каждую поднятую версию CLI; рост major или minor CLI или pack требует подразделов «Вердикт» и «Миграция для потребителя» ([ADR-0048](docs/adr/WARRANT-ADR-0048-stabilization.md) п. 3). Держит `npm run versions:check`. История до 0.8.3 — теги и `openspec/changes/archive/`.
 
+## 0.10.1
+
+Patch для LATTICE ([ADR-0056](docs/adr/WARRANT-ADR-0056-lattice-fixes-0-10-1.md)): пять исправлений одним тегом, `kernel` 0.10 и диапазоны packs прежние. Каждое изменение обратно совместимо на входах 0.10.0.
+
+### Вердикт
+
+- **guard** (#138, Change `guard-worktree`) — не судья: вердикт `warrant ci` он не меняет.
+  - Проект и активный Run события берутся по `cwd` события: ближайший checkout под WARRANT (`.warrant/warrant.json` и `.git`), иначе каталог процесса. Раньше — каталог процесса, и в git worktree, чьи хуки исполняются из основного checkout'а, `write_scope` не защищался.
+  - Правка пути другого checkout'а под WARRANT (вложенного worktree, объемлющего основного, соседнего) — вне проекта. При активном Run у проекта события или у того checkout'а — `deny`, путь в reason не называется.
+
+### Миграция для потребителя
+
+- Pin-Change: `warrant` на машине — CLI тега `v0.10.1` (`npm pack github:Homasters-max/SRA#v0.10.1` вне checkout, `npm i -g`), reusable workflow — `@v0.10.1` с `warrant: v0.10.1`. `kernel` в `warrant.json` остаётся `"0.10"`.
+- guard в worktree-сессии теперь отказывает правке вне `write_scope` и правке файлов основного checkout'а, пока в worktree активен Run. Править основной checkout — из его сессии.
+
 ## 0.10.0 — 2026-10-01
 
 Minor: версия для LATTICE — `exit-contract` и `guard-recovery` ([ADR-0052](docs/adr/WARRANT-ADR-0052-cycle-1-close.md), [ADR-0053](docs/adr/WARRANT-ADR-0053-guard-recovery.md), [ADR-0055](docs/adr/WARRANT-ADR-0055-release-for-lattice.md)); тег — archive-PR `guard-recovery`, `judge-law` и `code-floor` — 0.11.0. `exit-contract`: класс у каждого кода ошибки, код выхода 4 и `retryable` (WS-06, A-42, A-48). `guard-recovery`: guard не запирает сессию, когда policy не грузится; хуки и субагент исполняют CLI, который закрепил проект (ADR-0053 п. 2–3). Pack `core-sdd` 0.4.1.

@@ -3,30 +3,45 @@
 ### Requirement: Переделка spec до APPROVED
 <!-- id: REQ-VER-018 -->
 
-Change в `SPECIFIED` SHALL возвращаться в `PROPOSED` переходом назад `warrant transition <change> PROPOSED`
-([ADR-0056](../../../../docs/adr/WARRANT-ADR-0056-lattice-fixes-0-10-1.md) п. 3): без gates и без `--by`; record, его переходы, `unknowns[]`
-и evidence Change SHALL сохраняться. После него Change идёт путём spec-PR заново: Run `specify` и `review` (они стартуют в
-`PROPOSED`), `verify`, `transition SPECIFIED` с gates `PROPOSED->SPECIFIED`. Pull request, чей diff record несёт переход
-`SPECIFIED->PROPOSED` (с новым `SPECIFIED` или без него), `warrant ci` SHALL судить видом `spec` ([REQ-VER-011](#requirement-команда-ci)):
-актом человека его делает merge maintainer'ом, как любой spec-PR. `--ref` перехода `APPROVED` SHALL называть spec-PR, чей
-merge-коммит приносит **последний** переход `SPECIFIED` record: `warrant ci` SHALL отказывать ref, который называет spec-PR более
-раннего `SPECIFIED`, с `REF_NOT_VERIFIED` (причина `change`), как spec-PR, не приносящий `SPECIFIED`. Из `APPROVED` и дальше `PROPOSED`
-недостижим: переделка после одобрения — `IMPLEMENTING->SPECIFIED` и spec-approved ([ADR-0024](../../../../docs/adr/WARRANT-ADR-0024-spec-approved-contract.md)).
+Change в `SPECIFIED`, в `transitions[]` которого нет `APPROVED`, SHALL возвращаться в `PROPOSED` переходом назад
+`warrant transition <change> PROPOSED` ([ADR-0056](../../../../docs/adr/WARRANT-ADR-0056-lattice-fixes-0-10-1.md) п. 3): без gates;
+record, его переходы, `unknowns[]` и evidence Change SHALL сохраняться. Change, однажды одобренный (`APPROVED` есть в
+`transitions[]`, в том числе после `IMPLEMENTING->SPECIFIED`), — `STATE_INVALID`, код 3, record не изменён: переделка после
+одобрения — spec-approved ([ADR-0024](../../../../docs/adr/WARRANT-ADR-0024-spec-approved-contract.md)). После возврата Change идёт путём
+spec-PR заново: Run `specify` и `review` (они стартуют в `PROPOSED`), `verify`, `transition SPECIFIED` с gates `PROPOSED->SPECIFIED`.
+
+Судья `warrant ci` ([REQ-VER-011](#requirement-команда-ci); правила ниже дополняют её, не меняя её текста):
+- вид PR — по `change_state` на HEAD, как прежде: PR переделки (`PROPOSED` или `SPECIFIED` на HEAD) — вид `spec`, сливает его
+  maintainer, как любой spec-PR; новая запись перехода `SPECIFIED->PROPOSED` или `SPECIFIED` после неё в PR другого вида —
+  `RECORD_MISMATCH` с причиной `chain`, код 1; так же `SPECIFIED->PROPOSED` у record, где уже есть `APPROVED`;
+- **ref `APPROVED` после переделки.** Если в record на HEAD перед новым `APPROVED` есть переход `SPECIFIED->PROPOSED`, `--ref`
+  `APPROVED` SHALL называть spec-PR, чей merge-коммит приносит переход `SPECIFIED`, последний перед этим `APPROVED` и после
+  последнего `SPECIFIED->PROPOSED`; ref на spec-PR более раннего `SPECIFIED` — `REF_NOT_VERIFIED` с причиной `change`, код 1.
+  Record без переделки судится, как прежде;
+- **монотонность `unknowns[]`** (REQ-VER-011) после переделки SHALL действовать, как при базе в `SPECIFIED`: критерий — в record
+  базы есть переход в `SPECIFIED`, а не `change_state` базы. Так blocking UNKNOWN не теряет решение, как ни дели переделку на PR.
 
 #### Scenario: Возврат в PROPOSED
 <!-- id: SCN-VER-157 -->
-- **WHEN** `warrant transition add-search PROPOSED` при `change_state: SPECIFIED` и `ids-valid` `FAIL`; тот же вызов при
-  `change_state: APPROVED`
+- **WHEN** `warrant transition add-search PROPOSED` при `change_state: SPECIFIED`, `ids-valid` `FAIL` и без `APPROVED` в
+  `transitions[]`; тот же вызов при `change_state: APPROVED`; тот же вызов в `SPECIFIED` после `IMPLEMENTING->SPECIFIED`
 - **THEN** первый — record получает transition `{ to: "PROPOSED", by: "cli:local" }` без `gates`, прежние переходы и файлы evidence
-  на месте, `change_state` равен `PROPOSED`, `warrant run start add-search --operation specify` стартует, код 0; второй —
-  отказ «не переход 04 §2», record не изменён
+  на месте, `change_state` равен `PROPOSED`, `warrant run start add-search --operation specify` стартует, код 0; второй и третий —
+  `STATE_INVALID`, код 3, record не изменён
 
 #### Scenario: Ref APPROVED после переделки
 <!-- id: SCN-VER-158 -->
 - **WHEN** spec-PR #3 принёс `SPECIFIED`, PR #5 — `SPECIFIED->PROPOSED` и новый `SPECIFIED`, оба слиты maintainer'ом; impl-PR несёт
-  `APPROVED` с `--ref` PR #3, затем — с `--ref` PR #5
-- **THEN** `warrant ci` на PR #5 даёт `kind: "spec"` без нарушений; на impl-PR с ref PR #3 — `REF_NOT_VERIFIED` с причиной `change`
-  (spec-PR не последнего `SPECIFIED`), код 1; с ref PR #5 — ref подтверждён
+  `APPROVED` с `--ref` PR #3, затем — с `--ref` PR #5; отдельно — impl-PR, который сам несёт `SPECIFIED->PROPOSED`, `SPECIFIED` и
+  `APPROVED` с `--ref` PR #3
+- **THEN** `warrant ci` на PR #5 даёт `kind: "spec"` без нарушений; на impl-PR с ref PR #3 — `REF_NOT_VERIFIED` с причиной `change`,
+  код 1; с ref PR #5 — ref подтверждён; impl-PR с переделкой внутри — `RECORD_MISMATCH` с причиной `chain`, код 1
+
+#### Scenario: UNKNOWN после переделки
+<!-- id: SCN-VER-159 -->
+- **WHEN** слит PR только с `SPECIFIED->PROPOSED` (база следующего PR — `PROPOSED`), а следующий PR удаляет blocking UNKNOWN,
+  решённый `decision`
+- **THEN** `warrant ci` даёт `RECORD_MISMATCH` монотонности `unknowns[]`, как при базе в `SPECIFIED`, код 1
 
 ## MODIFIED Requirements
 
@@ -53,7 +68,8 @@ merge-коммит приносит **последний** переход `SPECI
 иметь один и тот же `attestation.ref` — evidence одного CI-run (иначе `REF_MISMATCH` с id записей, код 3, record не изменён; R-6).
 Запись transition SHALL содержать `to`, `at`, `by: "cli:local"`, `effective_policy_hash`, `gates{}`, `evidence[]` (id записей,
 на которых вынесены verdicts), `ref` при наличии. Переход назад (`VERIFYING->IMPLEMENTING`, `IMPLEMENTING->SPECIFIED`, `SPECIFIED->PROPOSED`) SHALL записываться
-без gates и без `--by`; `SPECIFIED->PROPOSED` — только из `SPECIFIED`, то есть до `APPROVED` ([REQ-VER-018](#requirement-переделка-spec-до-approved)). `ABANDONED` SHALL удалить `openspec/changes/<change>/` и записать переход; после `ABANDONED` и `ARCHIVED` любая команда,
+без gates; `--by` у него не требуется и не записывается (переданный — строка предупреждения в stderr). `SPECIFIED->PROPOSED` —
+только у Change, в `transitions[]` которого нет `APPROVED` ([REQ-VER-018](#requirement-переделка-spec-до-approved)). `ABANDONED` SHALL удалить `openspec/changes/<change>/` и записать переход; после `ABANDONED` и `ARCHIVED` любая команда,
 меняющая record, SHALL отказывать с `RECORD_FROZEN`, код 3. Флага `--force` SHALL NOT быть.
 
 #### Scenario: Переход с прошедшими gates

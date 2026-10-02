@@ -15,9 +15,10 @@
 
 ## What Changes
 
-- **Третий переход назад `SPECIFIED -> PROPOSED`** (REQ-VER-007, [04 §2](../../../docs/04-lifecycle.md)) — только из `SPECIFIED`, без gates, без `--by`. Record, переходы, `unknowns[]` и evidence сохраняются.
-- **Переделка — spec-PR заново** (REQ-VER-018, новое требование): Run `specify`, review, `verify`, `transition SPECIFIED`. PR с `SPECIFIED->PROPOSED` `warrant ci` судит видом `spec`, сливает его maintainer.
-- **`APPROVED --ref` — spec-PR последнего `SPECIFIED`.** Ref на spec-PR более раннего `SPECIFIED` судья отвергает (`REF_NOT_VERIFIED`, причина `change`). Без этого одобрение обходило бы переделку.
+- **Третий переход назад `SPECIFIED -> PROPOSED`** (REQ-VER-007, [04 §2](../../../docs/04-lifecycle.md)) — только у Change, ни разу не одобренного (`APPROVED` нет в `transitions[]`), без gates, без `--by`. Record, переходы, `unknowns[]` и evidence сохраняются. Одобренный Change — `STATE_INVALID`.
+- **Переделка — spec-PR заново** (REQ-VER-018, новое требование): Run `specify`, review, `verify`, `transition SPECIFIED`. Вид PR — по HEAD, как прежде (`spec`); переделка в PR другого вида — `RECORD_MISMATCH` (`chain`).
+- **Монотонность `unknowns[]`** после переделки — как при базе в `SPECIFIED` (критерий — переход `SPECIFIED` в record базы).
+- **`APPROVED --ref` после переделки — spec-PR последнего `SPECIFIED`.** Ref на spec-PR более раннего `SPECIFIED` судья отвергает (`REF_NOT_VERIFIED`, причина `change`); без этого одобрение обходило бы переделку. Record без переделки судится, как прежде: вердикт на входах 0.10.0 не меняется.
 
 ## Capabilities
 
@@ -29,7 +30,9 @@
 
 - `verification`:
   - REQ-VER-007 — переход назад `SPECIFIED->PROPOSED`;
-  - REQ-VER-018 (новый) — переделка spec до `APPROVED` и ref `APPROVED`, SCN-VER-157, SCN-VER-158.
+  - REQ-VER-018 (новый) — переделка spec до `APPROVED`, вид PR, ref `APPROVED`, монотонность `unknowns[]`, SCN-VER-157…159.
+
+Kernel spec не меняется: переходы задают 04 §2 и REQ-VER-007 (ADR-0056, Consequences, называет «kernel spec» в общем смысле).
 
 REQ-VER-011 (судья, «Ref») не меняется: его меняет открытый Change `judge-law`. Правило ref после переделки живёт в REQ-VER-018.
 
@@ -41,7 +44,7 @@ REQ-VER-011 (судья, «Ref») не меняется: его меняет о�
 ## Impact
 
 - `packages/cli/src/core/record/lifecycle.ts` — `BACKWARD_TRANSITIONS` и комментарий «nothing re-enters PROPOSED».
-- `packages/cli/src/core/ci/merge.ts` (`locateMerge`: последний `SPECIFIED`), `core/ci/record.ts`, `core/ci/kind.ts` — вид PR с `SPECIFIED->PROPOSED`, проверка цепочки.
-- `packages/cli/src/commands/transition.ts` — сообщение о допустимых переходах.
-- `packages/cli/test/app/commands/transition.test.ts`, `ci.test.ts` — SCN-VER-157, SCN-VER-158.
+- `packages/cli/src/core/ci/merge.ts` (`locateMerge`: последний `SPECIFIED` после переделки), `core/ci/record.ts` (цепочка: переделка только в виде `spec` и без `APPROVED`; `unknownsRule` — критерий по переходу `SPECIFIED` базы).
+- `packages/cli/src/commands/transition.ts` — `STATE_INVALID` для одобренного Change, сообщение о допустимых переходах.
+- `packages/cli/test/app/commands/transition.test.ts`, `ci.test.ts` — SCN-VER-157…159.
 - `docs/04-lifecycle.md` §2, `CHANGELOG.md`.

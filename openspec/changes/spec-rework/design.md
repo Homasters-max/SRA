@@ -18,9 +18,10 @@
 
 ### 1. Решения
 
-- **D1. `SPECIFIED->PROPOSED` в `BACKWARD_TRANSITIONS`.** Переход без gates, как прочие назад. `transition` не требует `--by` и не пишет `human-approval`. Комментарий модуля и сообщение `transition` перечисляют три перехода назад.
-- **D2. Вид PR переделки — `spec`.** Конечное состояние `PROPOSED` или `SPECIFIED` даёт `spec` по таблице. Проверка цепочки в `ci/record.ts` пропускает `SPECIFIED->PROPOSED` через `transitionKind`. Пересчёт gates нового `SPECIFIED` — как у первого spec-PR.
-- **D3. Последний `SPECIFIED`.** `locateMerge` для `APPROVED` дополнительно требует: после merge-коммита ref на first-parent линии базы ни один коммит не приносит в record новый `SPECIFIED`. Иначе — `REF_NOT_VERIFIED`, причина `change`, деталь «spec-PR не последнего `SPECIFIED`». Проверка — по уже читаемым ревизиям record: число переходов `SPECIFIED` в record на merge-коммите ref равно числу в record базы.
+- **D1. `SPECIFIED->PROPOSED` в `BACKWARD_TRANSITIONS`.** Переход без gates, как прочие назад; `--by` не требуется, переданный — предупреждение (как у прочих). `transitionKind` знает только состояния, поэтому `commands/transition.ts` добавляет проверку истории: `APPROVED` в `transitions[]` — `STATE_INVALID`, код 3 (review раунда 1, F-3). Комментарий модуля и сообщение `transition` перечисляют три перехода назад.
+- **D2. Вид PR — по HEAD, переделка — только в виде `spec`.** Таблица видов не меняется. `ci/record.ts` проверку цепочки дополняет: новая запись `SPECIFIED->PROPOSED` и `SPECIFIED` после неё — только в PR вида `spec` и только у record без `APPROVED`, иначе `RECORD_MISMATCH` `chain` (F-1). Пересчёт gates нового `SPECIFIED` — как у первого spec-PR.
+- **D3. Ref `APPROVED` после переделки.** Правило действует, только если в record на HEAD перед новым `APPROVED` есть `SPECIFIED->PROPOSED`: иначе вердикт прежний, и повторное `APPROVED` после `IMPLEMENTING->SPECIFIED` судится, как в 0.10.0 (F-4). `locateMerge` находит переход `SPECIFIED`, последний перед `APPROVED` и после последнего `SPECIFIED->PROPOSED` в record на HEAD, и требует, чтобы merge-коммит ref приносил именно его: в record на M^1 ref этого перехода ещё нет, в record на M он есть (сравнение по индексу в `transitions[]`). Иначе — `REF_NOT_VERIFIED` `change` (F-2).
+- **D3a. `unknownsRule`.** Критерий «база удерживает `unknowns[]`» — в record базы есть переход в `SPECIFIED` (а не `change_state` базы ∈ `UNKNOWNS_HELD_STATES`). Для record без переделки это то же условие: `SPECIFIED` в истории ⇔ состояние `SPECIFIED` и дальше (F-5).
 - **D4. Версия** — 0.10.1 по ADR-0056 п. 1, первым impl-PR из пяти (R-14).
 
 ### 2. Риски
@@ -32,3 +33,4 @@
 
 | ID | Решение | Затронуто |
 |---|---|---|
+| I-1 | Review spec раунда 1 (NOT_PROVEN, BLOCKER 3, MAJOR 2, MINOR 3, INFO 1, RUN-01M3YCCJ7CJY1Z37H68SPZH7P7) закрыт правкой spec до раунда 2: F-1 — вид по HEAD, переделка только в виде `spec` (D2); F-2 — последний `SPECIFIED` по record на HEAD, обход через impl-PR закрыт `chain` (D2, D3); F-3 — «до `APPROVED`» = нет `APPROVED` в `transitions[]`, `STATE_INVALID` (D1); F-4 — правило ref только при переделке (D3); F-5 — `unknownsRule` по переходу `SPECIFIED` базы, SCN-VER-159 (D3a); F-6 — `STATE_INVALID`, код 3; F-7 — `--by` — предупреждение; F-8 — merge maintainer'ом как следствие вида `spec`; F-9 — kernel spec не меняется (proposal) | `specs/**`, `design.md`, `proposal.md`, `tasks.md` |

@@ -28,6 +28,7 @@ const ALLOWED: Record<string, string> = {
   "MERGED->ARCHIVED": "forward",
   "VERIFYING->IMPLEMENTING": "backward",
   "IMPLEMENTING->SPECIFIED": "backward",
+  "SPECIFIED->PROPOSED": "backward",
   "PROPOSED->ABANDONED": "abandon",
   "SPECIFIED->ABANDONED": "abandon",
   "APPROVED->ABANDONED": "abandon",
@@ -36,7 +37,7 @@ const ALLOWED: Record<string, string> = {
 };
 
 describe("transition matrix (04 section 2)", () => {
-  it("allows exactly the forward chain, two backward moves and ABANDONED before MERGED", () => {
+  it("allows exactly the forward chain, three backward moves (SPECIFIED->PROPOSED — SCN-VER-157) and ABANDONED before MERGED", () => {
     for (const from of CHANGE_STATES) {
       for (const to of CHANGE_STATES) {
         expect(transitionKind(from, to), `${from}->${to}`).toBe(ALLOWED[`${from}->${to}`] ?? null);

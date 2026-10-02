@@ -1074,6 +1074,7 @@ describe("warrant ci: the merge verdict of an impl-PR", () => {
     expect(verdict(dry)).toEqual(verdict(wet));
     expect(dry.exitCode).toBe(1);
     expect(dry.errors.map((e) => e.code)).toContain("GATE_NOT_PASSED");
+    expect((dry.data["findings"] as Data[]).map((x) => x["code"])).toContain("ATTESTATION_REQUIRED");
 
     p.checks.on("fake-tests", { timedOut: true });
     const settled = warrantTree();

@@ -343,18 +343,25 @@ describe("warrant ci fetch: the import", () => {
     record.transitions[record.transitions.length - 1].evidence = [...(record.transitions.at(-1).evidence ?? []), approval];
     p.write(RECORD, record);
 
+    const strayBytes = readFileSync(path.join(p.root, EVIDENCE, `${stray}.json`));
     const first = await fetch(p);
     expect(first.errors).toEqual([]);
+    expect(first.exitCode).toBe(0);
     expect(first.data["untracked"]).toEqual([`${EVIDENCE}/${stray}.json`]);
     expect(first.data["findings"]).toEqual([
       { code: "EVIDENCE_UNTRACKED", paths: [`${EVIDENCE}/${stray}.json`], hint: expect.stringContaining("warrant ci fetch 9 again") }
     ]);
-    expect(readdirSync(path.join(p.root, EVIDENCE))).toContain(`${stray}.json`);
+    expect(readFileSync(path.join(p.root, EVIDENCE, `${stray}.json`))).toEqual(strayBytes);
     expect(await validateErrors(p)).toEqual([]);
 
     p.remove(`${EVIDENCE}/${stray}.json`);
     const again = await fetch(p);
+    expect(again.exitCode).toBe(0);
     expect(again.data["untracked"]).toEqual([]);
+    // --no-record is of warrant ci only.
+    const refused = (await invoke(() => runCiFetch(p.ctx, "9", {}, { noRecord: true }))) as Result;
+    expect(refused.errors[0]?.code).toBe("USAGE");
+    expect(refused.exitCode).toBe(3);
     expect(again.data["findings"]).toEqual([]);
     expect(p.json(`${EVIDENCE}/manifest.json`).evidence).toEqual([...evidence, approval].sort());
     expect(await validateErrors(p)).toEqual([]);

@@ -382,7 +382,7 @@ const ciCommand = register(
 register(
   "fetch",
   "put the CI evidence of a merged impl-PR — the run whose records are on the tree of its merge commit — into .warrant/evidence/<change>/",
-  (ctx, args) => runCiFetch(ctx, args[0] as string),
+  (ctx, args, opts) => runCiFetch(ctx, args[0] as string, process.env, { noRecord: opts["record"] === false }),
   (c) =>
     c
       .argument("<pr>", "number or URL of the merged impl-PR of this repository")

@@ -6,7 +6,7 @@
  * `data.would_write[]`, and no file changes. Under `warrant ci --no-record`
  * it performs and puts every target back at the end ({@link restoringWrites}).
  */
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -62,9 +62,10 @@ export interface RestoringWrites extends Writes {
  * target its state — absent, a file, a directory — is kept. A state that
  * cannot be kept stops the command before that write (`INTERNAL`).
  * `absoluteOf` turns a target (a project path or a `file://` URI) into its
- * absolute path.
+ * absolute path; `writeAtomic` puts a file back atomically (REQ-KRN-036) —
+ * the caller passes `writeFileAtomic` of `core/canon`, above this module.
  */
-export function restoringWrites(absoluteOf: (target: string) => string): RestoringWrites {
+export function restoringWrites(absoluteOf: (target: string) => string, writeAtomic: (absolute: string, bytes: Uint8Array) => void): RestoringWrites {
   const snapshots: Snapshot[] = [];
   const seen = new Set<string>();
   let store: string | undefined;
@@ -72,8 +73,9 @@ export function restoringWrites(absoluteOf: (target: string) => string): Restori
 
   const keep = (target: string): void => {
     if (seen.has(target)) return;
-    const absolute = absoluteOf(target);
+    let absolute = target;
     try {
+      absolute = absoluteOf(target);
       if (!existsSync(absolute)) {
         const created: string[] = [];
         for (let dir = path.dirname(absolute); !existsSync(dir); dir = path.dirname(dir)) {
@@ -98,16 +100,16 @@ export function restoringWrites(absoluteOf: (target: string) => string): Restori
   };
 
   const putBack = (snapshot: Snapshot): void => {
-    rmSync(snapshot.absolute, { recursive: true, force: true });
     if (snapshot.kind === "file") {
-      // Atomic as REQ-KRN-036 asks: a temporary file beside it, then a rename (`core/canon` is above this module).
-      const temporary = `${snapshot.absolute}.${process.pid}.restore`;
-      writeFileSync(temporary, snapshot.bytes);
-      renameSync(temporary, snapshot.absolute);
+      // Atomic (REQ-KRN-036): the file is replaced by `writeAtomic`, never removed first; a directory in its place goes first.
+      if (existsSync(snapshot.absolute) && statSync(snapshot.absolute).isDirectory()) rmSync(snapshot.absolute, { recursive: true, force: true });
+      writeAtomic(snapshot.absolute, snapshot.bytes);
+      return;
     }
-    else if (snapshot.kind === "dir") cpSync(snapshot.copy, snapshot.absolute, { recursive: true });
+    rmSync(snapshot.absolute, { recursive: true, force: true });
+    if (snapshot.kind === "dir") cpSync(snapshot.copy, snapshot.absolute, { recursive: true });
     else {
-      for (const dir of [...snapshot.created].sort((a, b) => b.length - a.length)) {
+      for (const dir of [...snapshot.created].sort((x, y) => y.length - x.length)) {
         if (existsSync(dir) && readdirSync(dir).length === 0) rmdirSync(dir);
       }
     }

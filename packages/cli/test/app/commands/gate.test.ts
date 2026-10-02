@@ -484,6 +484,30 @@ describe("warrant gate: analyze-clean (REQ-VER-004)", () => {
     ]);
   });
 
+  it("on a commit with the merged tests of another open Change: PASS; FAIL once that Change is archived without main specs (SCN-VER-153)", async () => {
+    const withStore = async (where: string): Promise<ProjectBuilder> => {
+      const p = await repo("VERIFYING", FEATURE, (b) => {
+        const config = JSON.parse(b.read(".warrant/warrant.json")) as Record<string, unknown>;
+        b.write(".warrant/warrant.json", { ...config, paths: { tests: "tests" } });
+        b.withChange("add-search", { design: "# Design\n", tasks: "# Tasks\n\n- [ ] 1.1 Search by text (SCN-SRC-010)\n", specs: { search: SEARCH } });
+        b.write(`${where}/specs/store/spec.md`, "## ADDED Requirements\n\n### Requirement: Store\n<!-- id: REQ-STO-001 -->\n\nThe store SHALL keep items.\n\n#### Scenario: Keep\n<!-- id: SCN-STO-001 -->\n- **WHEN** an item is put\n- **THEN** it is kept\n");
+      });
+      branch(p, "worktree/add-search", (b) => {
+        b.write("tests/test_search.py", "# SCN-SRC-010\n");
+        b.write("tests/test_store.py", "# SCN-STO-001\n");
+      });
+      return p;
+    };
+
+    const open = await gate(await withStore("openspec/changes/add-store"), ["analyze-clean"], { transition: MERGE });
+    expect(open.data["gates"]).toEqual({ "analyze-clean": "PASS" });
+    const archived = await gate(await withStore("openspec/changes/archive/2026-09-01-add-store"), ["analyze-clean"], { transition: MERGE });
+    expect(archived.data["gates"]).toEqual({ "analyze-clean": "FAIL" });
+    expect(ofGate(archived.data)).toEqual([
+      expect.objectContaining({ code: "ORPHAN", gate: "analyze-clean", id: "SCN-STO-001", path: "tests/test_store.py" })
+    ]);
+  });
+
   it("BLOCKED with NO_INPUT without git", async () => {
     const p = await project()
       .withChange("add-search", { design: "# Design\n", tasks: "# Tasks\n", specs: { search: SEARCH } })

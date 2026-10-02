@@ -1,0 +1,131 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3YCN8PGC1ZB13RVMXF745DY",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "Round 1 F-1 is closed only on the SRA side. The proposal now requires the consumer to run `warrant sync` after moving to 0.10.1, which is correct by REQ-KRN-025: `--check` reports drift on the `.warrant/schemas/` copy. But accepted ADR-0056 p. 1 ('потребитель меняет только тег') and its Consequences ('pin-Change на v0.10.1 (только тег, kernel прежний)') still describe the consumer step as tag only. Round 1 also asked for the lattice hand-off to match, and tasks.md 3.1 covers only CHANGELOG. docs/handoff/lattice.md is not in Impact or tasks. The `warrant-upgrade` skill named as the place of the step is not in this repository.",
+      "targets": [
+        "openspec/changes/waiver-ulid/proposal.md",
+        "openspec/changes/waiver-ulid/tasks.md"
+      ],
+      "recommendation": "State in the proposal that 'только тег' in ADR-0056 means only the pins in warrant.json, with `warrant sync` regenerating files as in any upgrade. Or add a task that updates docs/handoff/lattice.md (pin-Change on v0.10.1: tag, then `warrant sync`) and say who changes the LATTICE `warrant-upgrade` skill."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-KRN-034 requires `warrant waive --dry-run` to print 'тот же JSON, что настоящий запуск', including `data.would_write[]`. Under REQ-KRN-031 (1), the id is now 'новым на каждый вызов'. So the dry run prints `data.waiver.id`, `data.path` and `would_write[]` with a WAV-<ULID> that the real run will not produce. With WAV-YYYY-NNN, a dry run and the real run gave the same id. The design names the risk that the activation id is copied from the PR body, and an id taken from a dry run leads to WAIVER_INVALID on `--activate`. `run start --dry-run` has the same property for RUN ids, but the spec says nothing about it in either place.",
+      "targets": [
+        "REQ-KRN-031"
+      ],
+      "recommendation": "Add to REQ-KRN-031 (1) that under `--dry-run` the id in `data` and `would_write[]` is illustrative and the real run allocates a new one. Then 'тот же JSON' of REQ-KRN-034 holds up to the id. Optionally add a dry-run line to SCN-KRN-121."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "Round 1 F-8 is closed in design I-1 by SCN-KRN-171, but SCN-KRN-171 has only one waiver. Its THEN clause 'gate засчитывает его так же, как waiver прежней формы' has no observable criterion. The order issue remains. readWaivers sorts by path, and applyWaivers reports the first counting waiver as `WAIVED_BY`. Every WAV-<ULID> issued before ~2039 starts with '0' or '1', so it sorts before every WAV-2026-…. With two counting waivers of different forms on one gate, the reported waiver switches from the oldest to the newest. The verdict stays WAIVED, but `WAIVED_BY` and the order of `metrics.waivers` depend on the id form.",
+      "targets": [
+        "SCN-KRN-171",
+        "REQ-KRN-031"
+      ],
+      "recommendation": "In SCN-KRN-171, replace 'так же' with an observable result: `warrant gate add-search` gives `analyze-clean: WAIVED` with finding `WAIVED_BY` naming the new id. State in design (or REQ-KRN-031) that, with several counting waivers, the reported one is the first by path and the id form carries no meaning. Or define the order explicitly."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-KRN-019 says an id of another form is 'находка схемы с путём `/id`'. SCN-KRN-169 says 'находки схемы с путём `#/id` своего файла'. Existing findings and tests use `<file>#/id` (for example `.warrant/waivers/WAV-2026-001.json#/gate`), and SCN-KRN-093 uses the bare pointer `/targets/0`. The two notations in one delta leave the asserted `path` value open.",
+      "targets": [
+        "REQ-KRN-019",
+        "SCN-KRN-169"
+      ],
+      "recommendation": "Use one notation in both places, matching validate output: `path` `.warrant/waivers/<file>.json#/id`."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Round 1 F-9 is closed by the claim 'ADR-0012 уже помечен «уточнён 0056» (#145)'. Neither this worktree, nor the main checkout D:/project/SRA, nor any other local checkout has '0056' in WARRANT-ADR-0012-id-allocation.md. Line 17 still reads '`WAV-<year>-NNN` остаётся: waivers редки и создаются человеком на `main`'. Nothing in tasks.md covers it. If #145 is not merged before this Change's archive, the accepted norm in ADR-0012 p. 3 contradicts the main spec after archive.",
+      "targets": [
+        "openspec/changes/waiver-ulid/proposal.md",
+        "openspec/changes/waiver-ulid/tasks.md"
+      ],
+      "recommendation": "Name the state of #145 (merged or open), or add to tasks 3.1 a conditional step: mark ADR-0012 'уточнён 0056' and update the ADR index if #145 has not landed by the impl-PR."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "missing-boundary",
+      "statement": "REQ-KRN-031 (1) now forbids overwriting an existing `.warrant/waivers/<id>.json` (INTERNAL, code 3, no files changed), which closes round 1 F-6. No scenario covers it. A ULID collision cannot be caused through the CLI, so the test needs a seam for the ULID source (or a pre-written file under the next id). Without one, the clause is untested.",
+      "targets": [
+        "REQ-KRN-031"
+      ],
+      "recommendation": "Add a unit-level scenario with an injected id source: the target file exists, the result is INTERNAL, code 3, and the existing file is byte-identical. Or note in design which seam the test uses."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "SCN-KRN-169 uses `WAV-01M3YC8FP9SYPK438EKXFQS4TX` and `WAV-01m3yc8fp9sypk438ekxfqs4tx`. If the fixture names files `<id>.json`, the two files are one file on case-insensitive file systems (NTFS on the maintainer's Windows, default APFS). The second write replaces the first, and the scenario then checks four files, not five. Validate does not require name = id, so another naming works.",
+      "targets": [
+        "SCN-KRN-169"
+      ],
+      "recommendation": "In the scenario or in tasks 1.2, say that fixture file names differ from the ids (for example `a.json` … `e.json`), or use a lower-case ULID that differs from the valid one in its letters."
+    },
+    {
+      "id": "F-8",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Round 1 F-10 is only partly addressed. REQ-KRN-031 (1) still says waivers of two branches 'не сталкиваются ни id, ни именем файла' as an absolute guarantee. Across processes and machines, ULID uniqueness is probabilistic, as with EVID and RUN.",
+      "targets": [
+        "REQ-KRN-031"
+      ],
+      "recommendation": "Reword it as 'совпадение id между ветками не зависит от общей базы (уникальность ULID, ADR-0012 п. 2)'."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "The new SCN-KRN-168…171 take the next numbers after the main spec maximum, SCN-KRN-167. ADR-0056 p. 1 runs five Changes in parallel for 0.10.1. The #142 Change (SPECIFIED -> PROPOSED) also edits the kernel spec and can allocate the same SCN-KRN numbers from the same base. That is the same branch-collision class as #139, at the level of spec ids.",
+      "targets": [
+        "openspec/changes/waiver-ulid/specs/kernel/spec.md"
+      ],
+      "recommendation": "Before APPROVED, run `warrant id SCN KRN` against main that holds the other 0.10.1 Changes, and `warrant id renumber` if needed."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Issue/PR #145 could not be checked: no network or git was used. F-5 rests only on the local trees, where ADR-0012 has no 'уточнён 0056' mark."
+    },
+    {
+      "id": "A-2",
+      "statement": "ADR-0056 p. 2 (WAV-<ULID>, old ids valid, `year` kept in `warrant id WAV` output by D-1 of round 1) is taken as accepted. Only how the delta expresses it was reviewed."
+    },
+    {
+      "id": "A-3",
+      "statement": "Round 1 findings F-2, F-3, F-4, F-7 are taken as fully closed: SCN-KRN-171, SCN-KRN-168 plus SCN-KRN-170, the REQ-KRN-031 (2)/(3) clause on both forms and malformed ids, and REQ-KRN-024 with `year`. F-1, F-5, F-6, F-8, F-9, F-10 are closed with the residues F-1, F-4, F-6, F-3, F-5, F-8 of this round."
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:c1fc96bd43d94f73a65076c719bbd8d00f6a3d4f95c8eedcaef82fc05a2ae7ac",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T12:00:00Z",
+    "finished_at": "2026-10-02T12:40:00Z"
+  }
+}

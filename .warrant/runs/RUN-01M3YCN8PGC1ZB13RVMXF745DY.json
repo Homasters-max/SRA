@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01M3YCN8PGC1ZB13RVMXF745DY",
+  "change": "waiver-ulid",
+  "operation": "review",
+  "skill": "specification/adversarial-review@0.2.0",
+  "model": "claude-opus-5-5",
+  "write_scope": [],
+  "scope": [],
+  "branch": "spec/waiver-ulid",
+  "started_at": "2026-10-02T13:25:33.577Z",
+  "finished_at": "2026-10-02T13:30:24.804Z",
+  "run_state": "SUCCEEDED",
+  "context_hash": "sha256:c1fc96bd43d94f73a65076c719bbd8d00f6a3d4f95c8eedcaef82fc05a2ae7ac",
+  "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+  "spec_tree": "sha256:de93793ab84b01dad0bb2d61f5441f75e7751661ba4a3ef985c36a0593a9e693",
+  "evidence": [
+    "EVID-01M3YCY54YR7F34AG56EYFS15N"
+  ],
+  "guard_events": []
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "waiver-ulid",
+  "change_state": "SPECIFIED",
+  "classification": {
+    "profiles": [
+      "chore",
+      "factory-change",
+      "human-acceptance"
+    ],
+    "risk": {
+      "blast_radius": {
+        "value": "SYSTEM",
+        "from": "floor:core-sdd:2"
+      }
+    }
+  },
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-10-02T13:16:51.403Z",
+      "by": "cli:local"
+    },
+    {
+      "to": "SPECIFIED",
+      "at": "2026-10-02T13:31:20.907Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829",
+      "gates": {
+        "ids-valid": "PASS",
+        "required-artifacts-present": "PASS",
+        "spec-valid": "PASS"
+      },
+      "evidence": [
+        "EVID-01M3YCZGX0VMW11141T5KE8ES5"
+      ]
+    }
+  ]
+}

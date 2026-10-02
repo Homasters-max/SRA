@@ -1,0 +1,45 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3Y42ZT4X40DJYN56P9YXC4H",
+  "claim": {
+    "text": "specification/adversarial-review@0.2.0 reviewed the spec of guard-worktree: 1 BLOCKER, 3 MAJOR, 2 MINOR, 1 INFO",
+    "targets": []
+  },
+  "kind": "review",
+  "level": "L2",
+  "evidence_status": "NOT_PROVEN",
+  "subject": {
+    "commit": "03fa00a24c1ec0ddeb70daf2ce30d23745835420",
+    "spec_revision": "openspec/changes/guard-worktree@03fa00a24c1ec0ddeb70daf2ce30d23745835420",
+    "spec_tree": "sha256:b306f989a4b61d13c121e9c4e87c6a934e364071ef675b519995c335afad3057",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "skill",
+    "id": "specification/adversarial-review",
+    "version": "0.2.0",
+    "run": "RUN-01M3Y3T4KFRJWJAAAMHZY19YKJ"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:179eeb0d812bdfd51a13ba6e0e6002489868c819a1fd1934ba9f35d4227e68c8",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-02T10:55:45.988Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/runs/RUN-01M3Y3T4KFRJWJAAAMHZY19YKJ.result.json",
+      "sha256": "sha256:18fbcae1254ba649fc89519ee6b1ef33bc3e4b3794d0b6d2c42f2823794455e6"
+    }
+  ],
+  "limitations": [
+    "produced locally, unattested",
+    "same model family as author"
+  ],
+  "metrics": {
+    "BLOCKER": 1,
+    "INFO": 1,
+    "MAJOR": 3,
+    "MINOR": 2
+  }
+}

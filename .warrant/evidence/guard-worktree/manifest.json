@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "guard-worktree",
-  "commit": "cead16b7bfe772a4ce2292f4455d9b4dd8b3b8bc",
+  "commit": "03fa00a24c1ec0ddeb70daf2ce30d23745835420",
   "versions": {
     "warrant": "0.10.0",
     "openspec": "1.13.1",
@@ -9,6 +9,7 @@
     "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b"
   },
   "evidence": [
-    "EVID-01M3Y3KRF6ZG0GWW6DRZ2HR33B"
+    "EVID-01M3Y3KRF6ZG0GWW6DRZ2HR33B",
+    "EVID-01M3Y42ZT4X40DJYN56P9YXC4H"
   ]
 }

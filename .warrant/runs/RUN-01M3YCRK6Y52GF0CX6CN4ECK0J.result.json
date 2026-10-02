@@ -1,0 +1,138 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3YCRK6Y52GF0CX6CN4ECK0J",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "REQ-VER-018 says: «новая запись перехода SPECIFIED->PROPOSED или SPECIFIED после неё в PR другого вида — RECORD_MISMATCH с причиной chain». It does not say whether the SPECIFIED->PROPOSED that «неё» refers to must be new in the same PR. Two inputs split the readings. (a) Split rework: a merged PR carried only SPECIFIED->PROPOSED, so the base is PROPOSED. The impl-PR then carries PROPOSED->SPECIFIED and APPROVED. (b) A reworked Change later goes IMPLEMENTING->SPECIFIED->APPROVED inside an impl-PR. Under «any SPECIFIED->PROPOSED in the record», both give RECORD_MISMATCH chain. Under «a new SPECIFIED->PROPOSED in this PR», neither does. They then fall to the ref rule and get REF_NOT_VERIFIED with reason change, because the impl-PR itself brings the last SPECIFIED. In both readings the exit code is 1, but errors[] differ, so a test cannot follow the spec. Round 1 proposal P-2(b), the split-rework scenario, was not added. SCN-VER-158 covers only a rework fully inside the impl-PR.",
+      "targets": [
+        "REQ-VER-018",
+        "SCN-VER-158"
+      ],
+      "recommendation": "Make the scope of the chain rule explicit. Example: «a new transition SPECIFIED whose record on HEAD has SPECIFIED->PROPOSED earlier, and a new SPECIFIED->PROPOSED, in a PR of kind impl, archive or abandon — RECORD_MISMATCH chain». Or limit it to a SPECIFIED->PROPOSED that is new in the same PR, and state that the other cases are refused by the ref rule. Add the split-rework case (a) to SCN-VER-158 with the exact errors[] code and reason."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-013 (not modified) requires the following in a PR with a new APPROVED. The ref of every blocking UNKNOWN with resolved_as decision must be a comment in PR <N>, where <N> is the PR in the ref of APPROVED. Otherwise the result is REF_NOT_VERIFIED, detail «decision: pull_request». REQ-VER-018 makes the ref of APPROVED the spec-PR of the last SPECIFIED (PR #5), and extends monotonicity of unknowns[] across the rework. So a blocking UNKNOWN decided by a maintainer comment in the first spec-PR (PR #3) keeps its ref to PR #3. The impl-PR with APPROVED --ref PR #5 then fails with REF_NOT_VERIFIED, decision: pull_request. Neither REQ-VER-018 nor SCN-VER-158 says this. Neither names the way out: a new maintainer comment in the rework spec-PR, recorded by `warrant unknown resolve --replace` (REQ-KRN-035) in PROPOSED or SPECIFIED. That replacement keeps ref and resolved_as and does not break monotonicity. On the LATTICE input (#142), any blocking decision of s0-store blocks APPROVED after the rework, with no hint.",
+      "targets": [
+        "REQ-VER-018",
+        "REQ-VER-013",
+        "SCN-VER-158"
+      ],
+      "recommendation": "In REQ-VER-018, state the following. After rework, the decision refs of blocking UNKNOWNs are judged against the spec-PR of the last SPECIFIED (REQ-VER-013 «pull_request»). A decision made in an earlier spec-PR is renewed by a maintainer comment in the rework spec-PR and `warrant unknown resolve --replace` before APPROVED. Add a scenario. Old decision ref to PR #3 with APPROVED --ref PR #5: REF_NOT_VERIFIED, decision: pull_request, code 1. After --replace to a comment in PR #5: no violation."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "The ref rule names «переход SPECIFIED, последний перед этим APPROVED и после последнего SPECIFIED->PROPOSED». A record stores only `to`, so for a reworked Change this also counts a SPECIFIED entered backward by IMPLEMENTING->SPECIFIED. Then re-APPROVED after IMPLEMENTING->SPECIFIED must name the PR that brought that backward SPECIFIED. If that PR is the impl-PR itself, nothing can confirm it. The same record shape without an earlier rework keeps the 0.10.0 verdict: any spec-PR that brought a SPECIFIED, which is backlog WS-24. The verdict on re-approval depends on whether the Change was ever reworked. The spec does not say this. design D3 justifies the scope only by «0.10.0 inputs unchanged» (round-1 F-4).",
+      "targets": [
+        "REQ-VER-018",
+        "openspec/changes/spec-rework/design.md"
+      ],
+      "recommendation": "State explicitly that for a reworked record, the last SPECIFIED includes one entered by IMPLEMENTING->SPECIFIED. Alternatively, count only SPECIFIED entered from PROPOSED. Note the asymmetry with WS-24 in design Risks or the backlog."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-VER-018 says its rules «дополняют [REQ-VER-011], не меняя её текста». The unknowns bullet, however, says «критерий — в record базы есть переход в SPECIFIED, а не change_state базы». REQ-VER-011 (main spec, and judge-law delta line 88) keeps «при change_state record базы SPECIFIED и дальше». As a superset the two are compatible: design D3a equivalence. As worded, it reads as a replacement, so one rule ends up with two definitions in two requirements. The REQ-VER-011 «Ref» rule for APPROVED also gains an extra condition elsewhere, without a back-reference. The spec's own convention for such cross-requirement exceptions is «названные и там» (REQ-VER-013 / REQ-VER-011). A reader of REQ-VER-011 alone gets the wrong verdict for a reworked record.",
+      "targets": [
+        "REQ-VER-018",
+        "REQ-VER-011"
+      ],
+      "recommendation": "Reword it as an addition: «monotonicity also holds when the base is PROPOSED and its record has a transition into SPECIFIED». Record a follow-up, in backlog or for the archive after judge-law, to name REQ-VER-018 in REQ-VER-011 «Record» and «Ref»."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "By the literal chain rule, an abandon-PR whose record carries SPECIFIED->PROPOSED and then ABANDONED is a «PR другого вида». It gets RECORD_MISMATCH chain. Locally both transitions are valid: REQ-VER-007 allows ABANDONED from PROPOSED. The reason for the rule is that the new spec must reach APPROVED only through a maintainer-merged spec-PR. That reason does not apply to abandoning. No scenario covers it, and the refusal is not mentioned as intended.",
+      "targets": [
+        "REQ-VER-018"
+      ],
+      "recommendation": "Either exempt kind abandon, so that SPECIFIED->PROPOSED followed by ABANDONED is allowed, or state the refusal and the recovery: a new abandon branch from main. Add one line to a scenario."
+    },
+    {
+      "id": "F-6",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "The THEN of SCN-VER-159 is «RECORD_MISMATCH монотонности unknowns[]». That is not a reason code. REQ-VER-011 names the reason `unknowns`, with the UNKNOWN id. The WHEN gives no UNKNOWN id and no negative case: in the same base, closing an open blocking UNKNOWN by decision gives no violation (as in SCN-VER-116).",
+      "targets": [
+        "SCN-VER-159"
+      ],
+      "recommendation": "THEN: errors[] contains RECORD_MISMATCH with reason `unknowns` and UNK-SRC-004, code 1. Add the negative half, mirroring SCN-VER-116."
+    },
+    {
+      "id": "F-7",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-VER-018 says: «Change в SPECIFIED, в transitions[] которого нет APPROVED, SHALL возвращаться в PROPOSED переходом назад». Read literally, it obliges every unapproved Change in SPECIFIED to return to PROPOSED. The intent is permission: the transition is admissible.",
+      "targets": [
+        "REQ-VER-018"
+      ],
+      "recommendation": "«`warrant transition <change> PROPOSED` SHALL be admissible for a Change in SPECIFIED whose transitions[] has no APPROVED …»."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/spec-rework/specs/verification/spec.md",
+      "change": "REQ-VER-018, bullet «вид PR»: define the scope of «SPECIFIED после неё» (F-1). Add exempt-or-refuse for kind abandon (F-5). Reword the unknowns bullet as an addition to REQ-VER-011 (F-4). Replace «SHALL возвращаться» with «SHALL быть допустим» (F-7)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/spec-rework/specs/verification/spec.md",
+      "change": "REQ-VER-018 and SCN-VER-158: after rework, decision refs of blocking UNKNOWNs are judged against the spec-PR of the last SPECIFIED (REQ-VER-013). Renewal is by a maintainer comment in that PR plus `warrant unknown resolve --replace`. Add the scenario of F-2 and the split-rework case of F-1."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/spec-rework/specs/verification/spec.md",
+      "change": "SCN-VER-159: reason `unknowns` with the UNKNOWN id, plus the negative half (F-6)."
+    }
+  ],
+  "unknowns": [],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "transitions[] of every record starts with PROPOSED (records are created by `warrant init change`). Under this assumption the D3a equivalence «SPECIFIED in history ⇔ change_state SPECIFIED or later» holds for records without rework. Records created any other way (imports, hand-made legacy records) were not checked."
+    },
+    {
+      "id": "A-2",
+      "statement": "IDs REQ-VER-018 and SCN-VER-157…159 were checked against the main spec and the open Changes in this worktree (judge-law, max SCN-VER-151). They were not checked against the other four 0.10.1 Changes on their branches."
+    },
+    {
+      "id": "A-3",
+      "statement": "Round-1 findings F-1…F-9 (RUN-01M3YCCJ7CJY1Z37H68SPZH7P7) are closed by the current text, as I-1 states. One exception: the display of SPECIFIED->APPROVED gates in a spec-PR that ends in PROPOSED (part of round-1 F-9, INFO) is not addressed. That behavior is unchanged from the first spec-PR in PROPOSED."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "May an abandon-PR carry SPECIFIED->PROPOSED followed by ABANDONED (F-5)?",
+      "options": [
+        "Yes: exempt kind abandon from the chain rule",
+        "No: RECORD_MISMATCH chain; recovery is a fresh abandon branch from main (state it in the spec)"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:3f1876653a20d324ff2ecab2ece65fee51871642c7d087def46e1546e7cc3cf8",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T12:00:00Z",
+    "finished_at": "2026-10-02T12:40:00Z"
+  }
+}

@@ -40,15 +40,16 @@
 
 ### 1. Решения
 
-- **D1. Корень события.** `checkoutOf(dir)` — каталог, где есть и `.warrant/warrant.json`, и `.git` (каталог основного checkout'а или файл git worktree'а). `guardRoot(cwd, fallback)` — ближайший такой каталог от `path.resolve(fallback, cwd)` вверх, включая сам `cwd`. Нет такого — `fallback`, каталог процесса, как сейчас.
+- **D1. Корень события.** `checkoutOf(dir)` — каталог, где есть и `.warrant/warrant.json`, и `.git` (каталог основного checkout'а или файл git worktree'а). `guardRoot(cwd, fallback)` — ближайший такой каталог от `path.resolve(fallback, cwd)` вверх, включая сам `cwd`. Нет такого — ближайший checkout от `fallback` (каталог процесса) вверх, а нет и его — сам `fallback`, как сейчас: каталог процесса внутри golden-каталога checkout'а не делает golden проектом (review раунда 3, F-3). Подъём и сравнение — по тексту пути (`path.dirname`, `projectPath(root, dir) === ""`, без учёта регистра на Windows), без `realpath`: иначе короткие имена Windows и ссылки дали бы ложный «другой checkout» (F-2).
   - `cwd`, ушедший из всех checkout'ов (`cd /tmp`), не выключает guard проекта процесса.
   - Каталог golden с одним `warrant.json` проектом не становится (review раунда 2, F-1).
   - `guard` разбирает вход, находит корень и решает в `ctx` этого корня: `at(root)`. В `bin` `at` — `productionCtx` с этим корнем (адаптеры от него же), по умолчанию — `{ ...ctx, root }`.
   - Вход, который не разбирается, судится в каталоге процесса, как сейчас. Если тот не под WARRANT — `allow` (адаптер `claude` — пустой stdout, код 0), иначе отказ (код 2 адаптера).
 - **D2. Путь другого checkout'а — вне проекта, под Run — `deny`.** `otherCheckout(root, file)` — ближайший к пути предок-checkout под WARRANT (D1), отличный от `root`. Вложенный: `root/.claude/worktrees/<имя>`. Объемлющий: основной checkout для пути из worktree'а под ним. Соседний: `../SRA-<имя>`.
   - Путь такого checkout'а — вне проекта, даже если лежит в каталоге проекта. Он не попадает в `files` и `guard_events[].paths`.
-  - При активном Run, кроме `review`, правка такого пути — `deny`. Reason: путь в другом checkout'е под WARRANT, Run судит только свой. Hint: сессия того checkout'а или `warrant run finish`. Путь не называется: reason уходит в `guard_events[]`, как у Run `review`.
-  - Без Run — `allow` без hints, как любой путь вне проекта.
+  - Правка такого пути — `deny`, если активен Run, кроме `review`, у проекта события или у того checkout'а (`readCurrent` его корня; событие в его Run не пишется). Так `cd` из worktree'а в основной checkout без Run не уводит правку worktree'а из-под его Run (review раунда 3, F-1). Reason: путь в другом checkout'е под WARRANT. Hint: сессия того checkout'а, при Run проекта события — ещё `warrant run finish`. Путь не называется: reason уходит в `guard_events[]`, как у Run `review`.
+  - Проверка идёт до загрузки policy и до `write_scope`: путь другого checkout'а среди любых путей события даёт `deny`, в том числе в режиме восстановления (F-5).
+  - Без Run у обоих — `allow` без hints, как любой путь вне проекта.
   - Под Run `review` — прежнее правило пути вне проекта (временный каталог). `cd` в путь другого checkout'а — выход из проекта (`inProject`).
 
   Почему так (review раундов 1–2, I-1, I-2):
@@ -69,6 +70,8 @@
 
 ### 4. Риски
 
+- **Проект в подкаталоге git-репозитория** (monorepo) по `cwd` не находится: у его каталога нет `.git`. Он судится по каталогу процесса, как до Change (предел в норме, F-4).
+- **Абсолютный `WARRANT_STATE_DIR`** общий для нескольких checkout'ов: у них один `runs/current`, и «Run своего checkout'а» теряет смысл. Это настройка одного checkout'а; так было и до Change (F-8).
 - **Признак checkout'а подделывается.** Агент может создать `x/.warrant/warrant.json` и `x/.git` и сделать `cd x`. Это класс B (обходящий агент, ADR-0048 п. 2): guard не обязан это предотвращать, `scope-valid` и судья в CI видят правку вне scope.
 - **`stat` на путь события** (D2): подъём от каталога пути до корня диска. Глубина — единицы каталогов, хук вызывается на действие агента.
 - **CLI основного checkout'а судит закрепление worktree'а.** С полем `cli` хук worktree-сессии исполняет `${CLAUDE_PROJECT_DIR}/<cli>`, файл основного checkout'а, а после D1 грузит `warrant.json` worktree'а.
@@ -82,4 +85,5 @@
 | ID | Решение | Затронуто |
 |---|---|---|
 | I-1 | Review spec раунда 1 (NOT_PROVEN, BLOCKER 1, MAJOR 5, MINOR 2, INFO 1, RUN-01M3Y3A3KMWF1ZJBZ113NPFHPM) закрыт правкой spec до раунда 2. F-1 (BLOCKER) — признак «`.warrant/warrant.json` между корнем и путём» снят. F-2 — допущение о `cwd` с источниками. F-3 — риск CLI основного checkout'а. F-6 — вход, который не разбирается, судится в каталоге процесса (норма и SCN-ENF-016). F-7 — относительный `cwd`, подъём без `realpath` через несуществующие каталоги — в норме. F-9 — пример Claude Code вынесен из нормы в design. Новый SCN-ENF-057 — `cwd` вне проектов | `specs/**`, `design.md`, `proposal.md`, `tasks.md` |
+| I-3 | Review spec раунда 3 (PROVEN, MAJOR 3, MINOR 4, INFO 1, RUN-01M3Y4AW7JNPPECVWVRGFC3HM0) закрыт правкой spec и раундом 4 — последним (прецедент I-249 `guard-recovery`): F-1 — `deny` и при Run того checkout'а, SCN-ENF-058 (D2); F-2 — подъём от путей по тексту, сравнение через `projectPath` (D1); F-3 — запасной корень — подъём от каталога процесса (D1); F-4 — предел monorepo в норме; F-5 — `deny` при любом таком пути и в восстановлении, событие с двумя путями в SCN-ENF-058; F-6 — условие SCN-ENF-016; F-7 — Run `implement` в SCN-ENF-057; F-8 — риск `WARRANT_STATE_DIR` | `specs/**`, `design.md`, `proposal.md`, `tasks.md` |
 | I-2 | Review spec раунда 2 (NOT_PROVEN, BLOCKER 1, MAJOR 3, MINOR 2, INFO 1, RUN-01M3Y3T4KFRJWJAAAMHZY19YKJ) закрыт правкой spec до раунда 3. F-1 (BLOCKER) — проект события — checkout под WARRANT (`.warrant/warrant.json` и `.git`), каталог golden — часть проекта, SCN-ENF-059 (D1). F-2, F-3 (и F-4, F-5, F-8 раунда 1) — путь другого checkout'а вне проекта, под Run — `deny`, `cd` в него под `review` — выход из проекта, SCN-ENF-058 (D2). F-4 — REQ-ENF-005 в delta: вход, который не разбирается, в каталоге не под WARRANT — пустой stdout, код 0, SCN-ENF-021. F-5 — каталог процесса не под WARRANT в SCN-ENF-056. F-6 — абсолютный и относительный путь в SCN-ENF-057. F-7 — `cwd` входа подтверждён зондом `git-hook.js` (Context), довод о `cd` в D2 поправлен | `specs/**`, `design.md`, `proposal.md`, `tasks.md` |

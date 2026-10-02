@@ -1,0 +1,131 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3Y3ZPVX1YRFTH8M8EP9A4HB",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-VER-010 molча предполагает, что каталоги других открытых Change читаются из того же источника, что и main specs. У analyze два источника: `warrant analyze` читает рабочее дерево, а gate `analyze-clean` (06 §5: «той же функцией на оцениваемом commit») — коммит, через `commitFiles(ctx, git.commit, analyzePaths(...))`. Факт кода: `analyzePaths` (core/analyze/input.ts L23-26) отдаёт только `[changeDir, openspec/specs, paths.tests]`, а `openspec/changes/*` не отдаёт. tasks 1.1 и Impact не называют ни `analyzePaths`, ни `core/transition/facts.ts`. SCN-VER-152 проверяет только команду. Реализация по tasks.md пройдёт SCN-VER-152, а сбой из #141 (`warrant archive` → `GATES_NOT_PASSED`, `analyze-clean FAIL` на `MERGED->ARCHIVED`) останется.",
+      "targets": [
+        "REQ-VER-010",
+        "SCN-VER-152",
+        "openspec/changes/analyze-open/tasks.md",
+        "openspec/changes/analyze-open/proposal.md"
+      ],
+      "recommendation": "Записать в REQ-VER-010, что delta других открытых Change читается из того же дерева, что main specs: рабочего для команды, оцениваемого коммита для gate. Добавить сценарий gate, например: `warrant gate add-search --transition MERGED->ARCHIVED`, изменённый тест упоминает SCN, объявленный в `openspec/changes/add-store/specs/` на оцениваемом коммите → `gates[\"analyze-clean\"]` равен `PASS`. В tasks 1.1 и Impact добавить `analyzePaths` (путь `openspec/changes`) и тест уровня transition/gate."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "docs/06-verification.md §5 (таблица Finding MVP) определяет `ORPHAN` так: «Файл `paths.tests`, изменённый в diff `base...HEAD`, упоминает неопределённый SCN». После delta неопределённый SCN, объявленный в delta другого открытого Change, `ORPHAN` не даёт. Impact и tasks не обновляют 06 §5. Сообщение gate `analyze-clean` (`... which is not defined: removed, or declared in no spec`) тоже останется прежним. Поведение задаёт delta, но нормативный документ разойдётся с main spec после archive.",
+      "targets": [
+        "REQ-VER-010",
+        "docs/06-verification.md",
+        "openspec/changes/analyze-open/proposal.md"
+      ],
+      "recommendation": "Добавить в Impact и tasks правку строки `ORPHAN` в 06 §5: «... упоминает SCN, который не определён и не объявлен в `ADDED` / `MODIFIED` delta другого открытого Change»."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "Заголовок design D3 «`REMOVED` своей delta сильнее» противоречит его тексту и REQ-VER-010. По тексту D3 и по REQ SCN, который свой Change удаляет (`REMOVED`), а другой открытый Change объявляет, — не `ORPHAN`, то есть сильнее объявление другого Change. Сценария на этот случай нет, хотя здесь два открытых Change расходятся по одному требованию (один удаляет, другой объявляет), а тест своего Change с тегом удаляемого SCN проходит молча.",
+      "targets": [
+        "REQ-VER-010",
+        "openspec/changes/analyze-open/design.md"
+      ],
+      "recommendation": "Привести заголовок D3 к тексту (например, «Объявление в другом открытом Change сильнее `REMOVED` своей delta») или изменить правило (см. D-1). Принятое поведение закрепить сценарием: delta Change `REMOVED` содержит SCN-X, delta другого открытого Change объявляет SCN-X в `ADDED`/`MODIFIED`, изменённый тест упоминает SCN-X → ожидаемый результат."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "THEN SCN-VER-152 («одну находку `ORPHAN` — `SCN-STO-009`») не называет `path` находки и код выхода. SCN-VER-065 для той же находки фиксирует `path`, и форма `{ id, path }` входит в контракт.",
+      "targets": [
+        "SCN-VER-152"
+      ],
+      "recommendation": "THEN: «одна находка `ORPHAN` с `id: \"SCN-STO-009\"` и `path: \"tests/test_store.py\"`, `counts.ORPHAN` равен 1, код 1; `SCN-STO-001` находкой не является»."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "Перечень «Входы:» в REQ-VER-010 (delta Change, main specs, `tasks.md`, `paths.tests`, diff) не обновлён, а пункт `ORPHAN` вводит новый вход — delta specs других открытых Change. Перечень входов перестаёт быть полным, хотя по нему видно, что читается и что влияет на детерминизм результата.",
+      "targets": [
+        "REQ-VER-010"
+      ],
+      "recommendation": "Добавить в «Входы:» «секции `ADDED` / `MODIFIED` delta specs каждого другого каталога `openspec/changes/<другой>/`, кроме `archive/`, с их REQ и SCN»."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Не описано, как читаются «другие открытые Change» в пограничных случаях: запись в `openspec/changes/`, которая является файлом, а не каталогом; каталог без `specs/`; delta, которую не удаётся прочитать или разобрать; каталог Change без record WARRANT (создан `openspec new change`); каталог `ABANDONED`, оставшийся вопреки kernel (`ABANDONED_DIR_PRESENT`). Разумное поведение одно — такой каталог не даёт ID, без находки и без `skipped`. Но оно не записано, и последний случай расширяет исключение `ORPHAN` за пределы «открытого» Change.",
+      "targets": [
+        "REQ-VER-010"
+      ],
+      "recommendation": "Одной фразой в REQ-VER-010: открытый Change — каталог `openspec/changes/<имя>/` (не `archive`, не сам Change); каталог без delta или с нечитаемой delta не даёт ID и не меняет `skipped[]`. Решить, считается ли каталог с record `ABANDONED` открытым."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Исключение шире мотивирующего случая: `ORPHAN` пропустит и собственный новый тест Change, который ссылается на SCN чужого открытого Change, а не только тесты, пришедшие в diff merge-коммитом чужого impl-PR (D2 этого не различает). Если чужой Change потом станет `ABANDONED`, тег останется в `main` без требования, а `ORPHAN` его больше не увидит: проверяется только diff. Риск «устаревший открытый Change» в design описан частично.",
+      "targets": [
+        "REQ-VER-010",
+        "openspec/changes/analyze-open/design.md"
+      ],
+      "recommendation": "Дописать в «Риски» design, что тег на SCN брошенного Change после `ABANDONED` остаётся непойманным. При необходимости завести строку backlog: проверка тегов тестов вне diff при `ABANDONED`."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/analyze-open/specs/verification/spec.md",
+      "change": "В REQ-VER-010 добавить вход «секции `ADDED` / `MODIFIED` delta specs других каталогов `openspec/changes/<другой>/`, кроме `archive/`, — из того же дерева (рабочего или оцениваемого коммита), что и main specs». Добавить сценарий gate `analyze-clean` на `MERGED->ARCHIVED` с тестом, который упоминает SCN другого открытого Change → `PASS`. В SCN-VER-152 указать `path` и код 1."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/analyze-open/tasks.md",
+      "change": "1.1: `analyzePaths` включает `openspec/changes` (чтение на коммите в `core/transition/facts.ts`). 1.2: тест gate/transition на сценарий gate. Отдельная задача — правка строки `ORPHAN` в docs/06-verification.md §5."
+    }
+  ],
+  "unknowns": [],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "`parseDelta` относит идентификаторы к секции так же, как для своей delta. Секция `RENAMED` другого Change новых SCN не объявляет, поэтому её неучёт в исключении `ORPHAN` намерен."
+    },
+    {
+      "id": "A-2",
+      "statement": "Уникальность REQ/SCN между открытыми Change обеспечена выдачей ID (`warrant id`, `ids-valid`), как пишет design в «Рисках»; это не проверялось."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "SCN, который свой Change удаляет (`REMOVED`), а другой открытый Change объявляет, упомянут в изменённом тесте: это `ORPHAN` или нет?",
+      "options": [
+        "Не `ORPHAN` (текущий текст REQ и D3): объявление другого открытого Change сильнее",
+        "`ORPHAN`: `REMOVED` своей delta сильнее (как в заголовке D3), исключение действует только для неопределённых SCN, которых своя delta не удаляет"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:5cf31fe833f910798333771d8008a853f8e8c83876ad8a6cad20e8fa8e991781",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T10:00:00Z",
+    "finished_at": "2026-10-02T10:20:00Z"
+  }
+}

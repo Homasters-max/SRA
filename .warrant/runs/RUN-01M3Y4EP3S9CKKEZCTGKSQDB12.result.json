@@ -1,0 +1,93 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3Y4EP3S9CKKEZCTGKSQDB12",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-VER-010: «Все входы читаются из одного дерева: рабочего дерева у команды, оцениваемого commit у gate `analyze-clean`». Но в перечне «Входы» есть «пути diff `base...HEAD`». Это не файлы дерева, а сравнение двух commit. У команды diff тоже берётся из commit, а не из рабочего дерева: незакоммиченная правка теста в diff не попадает. Буквальное прочтение утверждения ложно для одного из входов.",
+      "targets": [
+        "REQ-VER-010"
+      ],
+      "recommendation": "Сузить фразу до файлов: «Файлы-входы (main specs, delta Change и других открытых Change, `tasks.md`, файлы под `paths.tests`) читаются из одного дерева: рабочего у команды, оцениваемого commit у gate `analyze-clean`; пути diff — `base...HEAD`»."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Правило D3 записано в REQ-VER-010: SCN не `ORPHAN`, «даже если delta самого Change его удаляет в `REMOVED`». Ни один сценарий его не описывает: SCN-VER-152 говорит только о SCN, которого нет в delta `add-search`. При этом tasks 1.2 относит проверку «свой `REMOVED` и объявление другого — не `ORPHAN`» к SCN-VER-152. Тест будет помечен SCN, в WHEN/THEN которого такого случая нет. Рекомендация F-3 раунда 1 (закрепить случай сценарием) закрыта не полностью.",
+      "targets": [
+        "REQ-VER-010",
+        "SCN-VER-152",
+        "openspec/changes/analyze-open/tasks.md"
+      ],
+      "recommendation": "Добавить сценарий (например, SCN-VER-154): delta `add-search` `REMOVED` содержит `SCN-STO-002`, delta `add-store` объявляет его в `ADDED`, изменённый в diff тест упоминает `SCN-STO-002` → `ORPHAN` по нему нет; если `tasks.md` упоминает `SCN-STO-002` → `CONFLICT` (`defined` не меняется). В tasks 1.2 сослаться на этот SCN. Другой путь — дописать случай в WHEN/THEN SCN-VER-152."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-153 (1) ждёт `PASS`, но в WHEN не сказано, что delta и `tasks.md` самого `add-search` согласованы. Без этого `UNSATISFIED` или `CONFLICT` дают `FAIL` независимо от `SCN-STO-001`. (2) Во второй ветке («`add-store` уже в архиве, а `SCN-STO-001` нет в main specs») не указаны `id` и `path` находки `ORPHAN`. Не сказано и то, как получается такое состояние: обычный archive переносит `ADDED` в main specs, поэтому SCN там был бы.",
+      "targets": [
+        "SCN-VER-153"
+      ],
+      "recommendation": "WHEN: «delta и `tasks.md` `add-search` согласованы (как в SCN-VER-066)». Вторая ветка THEN: «… — `FAIL` с находкой `ORPHAN` `{ id: \"SCN-STO-001\", path: \"tests/test_store.py\" }`». Пояснить состояние, например: «каталог `add-store` перенесён в архив без переноса specs»."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "missing-error-behavior",
+      "statement": "Исключение `ORPHAN` в выводе не видно: в `data{ change, findings[], counts, skipped[] }` нет следа того, что SCN из изменённого теста принят по delta другого открытого Change, и нет имени этого Change. Риск D1/«Риски» (опечатка совпала с SCN чужого Change; тег на SCN Change, который станет `ABANDONED`) maintainer по выводу `analyze` не увидит.",
+      "targets": [
+        "REQ-VER-010",
+        "openspec/changes/analyze-open/design.md"
+      ],
+      "recommendation": "По желанию — строка backlog: необязательное поле вывода (например, `data.borrowed[] { id, path, change }`) или упоминание в `hint`. В этом Change не обязательно."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/analyze-open/specs/verification/spec.md",
+      "change": "REQ-VER-010: «Все входы читаются из одного дерева» заменить на «Файлы-входы … читаются из одного дерева …; пути diff — `base...HEAD`» (F-1). Добавить SCN на случай «свой `REMOVED` + `ADDED` другого открытого Change» (F-2). В SCN-VER-153 добавить предусловие согласованности `add-search`, `id`/`path` находки во второй ветке и способ получить состояние «в архиве, но не в main specs» (F-3)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/analyze-open/tasks.md",
+      "change": "1.2: случай «свой `REMOVED` и объявление другого» отнести к новому SCN (F-2), а не к SCN-VER-152."
+    }
+  ],
+  "unknowns": [],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Закрытие раунда 1 проверено по тексту: F-1 — «Все входы читаются из одного дерева», SCN-VER-153, tasks 1.1 (`analyzePaths` ∋ `openspec/changes`), D1; F-2 — D4, tasks 2.1, Impact; F-3 — D3 переименован, правило в REQ (сценарий не добавлен, см. F-2 этого раунда); F-4 — THEN SCN-VER-152; F-5 — «Входы»; F-6 — границы в REQ и D1, `ABANDONED` решён фразой «независимо от record»; F-7 — «Риски» design; D-1 — выбран вариант 1."
+    },
+    {
+      "id": "A-2",
+      "statement": "`parseDelta` на любом тексте возвращает список и не бросает исключение, поэтому «delta, которая не разбирается» на деле даёт пустой список. Код `core/analyze/delta.js` не читался."
+    },
+    {
+      "id": "A-3",
+      "statement": "Открытый Change `judge-law` меняет REQ-VER-011 и REQ-ENF-007, но не REQ-VER-010. Значит, MODIFIED REQ-VER-010 ни с одной другой открытой delta не конфликтует (проверено по `openspec/changes/*/specs/**` рабочего дерева)."
+    },
+    {
+      "id": "A-4",
+      "statement": "Из кода: `commitFiles` по `analyzePaths` читает поддерево целиком, `readAnalyzeInput` берёт из него только `openspec/changes/<другой>/specs/**`. Поэтому одного добавления `openspec/changes` в `analyzePaths` хватает, чтобы gate на commit увидел delta других Change; `core/transition/facts.ts` `analyzeFacts` можно не менять."
+    }
+  ],
+  "decisions_required": [],
+  "provenance": {
+    "context_hash": "sha256:f20170b0d74e86ee4c3d5b071f6d396861055b1d273ace6eb374977390199846",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T11:00:00Z",
+    "finished_at": "2026-10-02T11:25:00Z"
+  }
+}

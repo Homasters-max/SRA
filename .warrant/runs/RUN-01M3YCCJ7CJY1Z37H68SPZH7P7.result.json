@@ -1,0 +1,169 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3YCCJ7CJY1Z37H68SPZH7P7",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "REQ-VER-018 determines the PR kind by the diff: «Pull request, чей diff record несёт переход SPECIFIED->PROPOSED (с новым SPECIFIED или без него), warrant ci SHALL судить видом spec». REQ-VER-011 «Change и вид PR» (not modified) determines it by change_state on HEAD. A PR whose diff carries SPECIFIED->PROPOSED, SPECIFIED, APPROVED (and IMPLEMENTING, VERIFYING) ends in APPROVED or later: REQ-VER-011 makes it impl (checks run, code allowed), REQ-VER-018 makes it spec (code is SCOPE_VIOLATION). The two readings give different verdicts. Neither requirement says whether a PR of kind impl, archive or abandon may carry SPECIFIED->PROPOSED or a new SPECIFIED at all. The record chain check (core/ci/record.ts, transitionKind) admits such a chain from a base in SPECIFIED.",
+      "targets": [
+        "REQ-VER-018",
+        "REQ-VER-011",
+        "SCN-VER-158"
+      ],
+      "recommendation": "Keep one rule: the kind stays by change_state on HEAD (REQ-VER-011). Rewrite the sentence in REQ-VER-018 as a consequence: a record ending in PROPOSED or SPECIFIED gives spec. Then state explicitly, with code and reason, what a PR of another kind gets when it carries SPECIFIED->PROPOSED or a new SPECIFIED, for example RECORD_MISMATCH (reason chain): rework only in a spec-PR. Add a scenario for an impl-PR that carries SPECIFIED->PROPOSED, SPECIFIED, APPROVED."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "ambiguity",
+      "statement": "REQ-VER-018: the ref of APPROVED SHALL name the spec-PR whose merge commit brings «последний переход SPECIFIED record». It does not say which revision of the record: HEAD of the judged PR or its base HEAD^1. design D3 picks the base: «число переходов SPECIFIED в record на merge-коммите ref равно числу в record базы». Input that splits the readings: spec-PR #3 brought SPECIFIED; the impl-PR itself carries SPECIFIED->PROPOSED, SPECIFIED, APPROVED with --ref #3 (or a merged PR brought only SPECIFIED->PROPOSED, and the impl-PR carries PROPOSED, SPECIFIED, APPROVED). Under D3 the count at #3 equals the count at the base (1 = 1), so the ref is confirmed. Under «record on HEAD» the last SPECIFIED comes from the PR itself, so the ref is refused. The first reading is exactly the bypass the proposal says the rule closes («Без этого одобрение обходило бы переделку»): the reworked spec reaches APPROVED without a maintainer merging it, and an agent may merge the impl-PR (ADR-0050).",
+      "targets": [
+        "REQ-VER-018",
+        "SCN-VER-158",
+        "openspec/changes/spec-rework/design.md"
+      ],
+      "recommendation": "Define it in REQ-VER-018: «последний переход SPECIFIED record на HEAD», with this condition: the merge commit of the ref, on the first-parent line of HEAD^1, brings exactly that transition (the same index in transitions[]). A last SPECIFIED brought by the judged PR itself gives REF_NOT_VERIFIED (change) or the F-1 refusal. Align D3. Add a scenario for the rework carried by the impl-PR and for the rework split into a PROPOSED-only PR followed by an impl-PR."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "REQ-VER-007 and REQ-VER-018 say «SPECIFIED->PROPOSED — только из SPECIFIED, то есть до APPROVED» and «Из APPROVED и дальше PROPOSED недостижим». The equivalence «в SPECIFIED» = «до APPROVED» is false: the existing backward move IMPLEMENTING->SPECIFIED puts an already approved Change back in SPECIFIED. After APPROVED -> IMPLEMENTING -> SPECIFIED the state-based reading (transitionKind(from, to), design D1) admits PROPOSED. The history-based reading («до APPROVED») refuses it. The observable outcome of `warrant transition <c> PROPOSED` and of the ci chain check differs. SCN-VER-157 checks only change_state APPROVED.",
+      "targets": [
+        "REQ-VER-007",
+        "REQ-VER-018",
+        "SCN-VER-157"
+      ],
+      "recommendation": "Decide (D-1) and write the criterion as observable: either «only when transitions[] of the record has no APPROVED» (then code STATE_INVALID, code 3, and the same rule in the ci chain check, RECORD_MISMATCH reason chain), or allow it from any SPECIFIED and remove «до APPROVED» and «недостижим». Add a scenario for change_state SPECIFIED reached by IMPLEMENTING->SPECIFIED."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "The rule «ref APPROVED — spec-PR последнего SPECIFIED» does not say whether a SPECIFIED entered by the backward move IMPLEMENTING->SPECIFIED counts. broughtTransitions (core/ci/merge.ts) counts every transition into SPECIFIED. If it counts, a 0.10.0 Change that went APPROVED -> IMPLEMENTING -> SPECIFIED -> APPROVED with --ref to the original spec-PR was confirmed before and now gets REF_NOT_VERIFIED. That is a stricter verdict on 0.10.0 inputs. ADR-0056 p. 1 allows a stricter verdict only for guard, and the proposal's Non-Goals exclude rework after APPROVED. The change touches backlog WS-24 («повторное APPROVED может сослаться на старый spec-PR») without saying so.",
+      "targets": [
+        "REQ-VER-018",
+        "docs/adr/WARRANT-ADR-0056-lattice-fixes-0-10-1.md",
+        "openspec/changes/spec-rework/proposal.md"
+      ],
+      "recommendation": "State in REQ-VER-018 which SPECIFIED transitions the rule counts: all of them, or only forward PROPOSED->SPECIFIED. If backward ones count, name the stricter verdict in Impact and in CHANGELOG «Вердикт» and reference WS-24. Divergence from ADR-0056 p. 1 needs a maintainer decision (D-2). If they do not count, add a scenario where re-APPROVED after IMPLEMENTING->SPECIFIED with the original spec-PR stays confirmed."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-018 keeps unknowns[] only on the transition itself. The judge's monotonicity rule (REQ-VER-011 «Record», UNKNOWNS_HELD_STATES) applies only when the base record is SPECIFIED or later. Once a PR with only SPECIFIED->PROPOSED is merged, the base is PROPOSED. The next PR may then delete or weaken unknowns from the earlier SPECIFIED, including closing a blocking one without resolved_as decision, and ci does not object. The same net change in one PR (base SPECIFIED) gives RECORD_MISMATCH reason unknowns. So the verdict depends on how the rework is split across PRs. ADR-0040 p. 3 protection disappears for a Change that has already been SPECIFIED.",
+      "targets": [
+        "REQ-VER-018",
+        "REQ-VER-011"
+      ],
+      "recommendation": "State in REQ-VER-018 whether the monotonicity of unknowns[] holds for a base in PROPOSED whose record already has a SPECIFIED transition. Recommended: yes, the criterion is «record of the base has a SPECIFIED transition», not change_state. Add a scenario. Alternatively say explicitly that rework may drop unknowns, and why that does not lift WAIT without the maintainer."
+    },
+    {
+      "id": "F-6",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-157 describes the refusal from APPROVED only as «отказ «не переход 04 §2»». It gives no errors[0].code and no exit code. The code gives STATE_INVALID (commands/transition.ts).",
+      "targets": [
+        "SCN-VER-157"
+      ],
+      "recommendation": "THEN: errors[0].code is STATE_INVALID, exit code 3, record unchanged."
+    },
+    {
+      "id": "F-7",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "The MODIFIED REQ-VER-007 now says every backward transition «SHALL записываться без gates и без --by». It can be read as «--by is not required» or as «--by is refused (USAGE)». The current code ignores --by with a warning.",
+      "targets": [
+        "REQ-VER-007"
+      ],
+      "recommendation": "Write the observable behavior: «--by не требуется; переданный --by игнорируется с предупреждением» (or USAGE, code 3, if that is the intent)."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "«актом человека его делает merge maintainer'ом, как любой spec-PR» reads as a norm but has no check. warrant ci verifies merged_by only through the ref of APPROVED. Nobody verifies who merged a PR with only SPECIFIED->PROPOSED. As a SHALL it cannot be tested.",
+      "targets": [
+        "REQ-VER-018"
+      ],
+      "recommendation": "Rephrase it as a consequence: the human act of the rework is confirmed by the ref of APPROVED (merged_by in roles), which names the spec-PR of the last SPECIFIED. The merger of a PR without a new SPECIFIED is not checked."
+    },
+    {
+      "id": "F-9",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "missing-boundary",
+      "statement": "For a spec-PR ending in PROPOSED (only SPECIFIED->PROPOSED), REQ-VER-011 «Правила по виду — spec» still computes the gates of SPECIFIED->APPROVED on HEAD^2 for display. That transition is not the next one for such a record. ADR-0056 «Consequences» also assigns «kernel spec (переход)» to this Change, while the proposal modifies only the verification spec.",
+      "targets": [
+        "REQ-VER-011",
+        "openspec/changes/spec-rework/proposal.md"
+      ],
+      "recommendation": "Say which gates a spec-PR ending in PROPOSED displays (those of PROPOSED->SPECIFIED, or none). In the proposal, note that the kernel spec needs no change, or add its delta."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/spec-rework/specs/verification/spec.md",
+      "change": "REQ-VER-018: replace the kind-by-diff sentence with the HEAD-state rule. Add: a PR of kind impl, archive or abandon whose new transitions contain PROPOSED or SPECIFIED gives RECORD_MISMATCH (reason chain). Define the ref of APPROVED as the spec-PR whose merge commit, on the first-parent line of HEAD^1, brings the last SPECIFIED transition of the record on HEAD (F-1, F-2)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/spec-rework/specs/verification/spec.md",
+      "change": "Add scenarios: (a) an impl-PR carrying SPECIFIED->PROPOSED, SPECIFIED, APPROVED with --ref to the earlier spec-PR is refused; (b) a PROPOSED-only rework PR is merged, then an impl-PR carries PROPOSED, SPECIFIED, APPROVED and is refused; (c) transition PROPOSED in SPECIFIED reached via IMPLEMENTING->SPECIFIED, with the decided outcome; (d) unknowns monotonicity with a base in PROPOSED after rework."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/spec-rework/design.md",
+      "change": "D3: replace the count comparison against the base with the HEAD-record rule of P-1, so that a SPECIFIED brought by the judged PR is not masked."
+    }
+  ],
+  "unknowns": [],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "An agent may merge an impl-PR of a Change without gate human-approval on VERIFYING->MERGED (ADR-0050, ADR-0051). This makes the F-2 bypass real, not theoretical."
+    },
+    {
+      "id": "A-2",
+      "statement": "The judge-law Change rewrites REQ-VER-011 but keeps the kind-by-HEAD-state table and the «brings SPECIFIED» ref rule, as its delta shows (lines 40, 151). The findings against REQ-VER-011 hold for both versions."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Is SPECIFIED->PROPOSED allowed in SPECIFIED entered by IMPLEMENTING->SPECIFIED, i.e. after APPROVED (F-3)?",
+      "options": [
+        "No: only while transitions[] has no APPROVED (STATE_INVALID locally, RECORD_MISMATCH chain in ci)",
+        "Yes: from any SPECIFIED; drop «до APPROVED» and «недостижим» and say how this relates to ADR-0024 spec-approved"
+      ]
+    },
+    {
+      "id": "D-2",
+      "question": "Does the «последний SPECIFIED» ref rule count a SPECIFIED entered by IMPLEMENTING->SPECIFIED, making re-APPROVED stricter on 0.10.0 inputs contrary to ADR-0056 p. 1 (F-4)?",
+      "options": [
+        "Count it: stricter verdict, named in CHANGELOG «Вердикт», closes part of WS-24, exception to ADR-0056 p. 1 recorded",
+        "Count only forward PROPOSED->SPECIFIED: 0.10.0 verdicts unchanged, WS-24 stays open"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:c81294fcf075b3999387ed1066f99c7300c8d5f11fbd00e627eab7e2da98f01b",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T10:00:00Z",
+    "finished_at": "2026-10-02T10:35:00Z"
+  }
+}

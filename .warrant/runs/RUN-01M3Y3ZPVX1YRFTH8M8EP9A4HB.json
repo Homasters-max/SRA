@@ -1,0 +1,21 @@
+{
+  "$schema": "warrant://run/1",
+  "id": "RUN-01M3Y3ZPVX1YRFTH8M8EP9A4HB",
+  "change": "analyze-open",
+  "operation": "review",
+  "skill": "specification/adversarial-review@0.2.0",
+  "model": "claude-opus-5-5",
+  "write_scope": [],
+  "scope": [],
+  "branch": "spec/analyze-open",
+  "started_at": "2026-10-02T10:53:58.571Z",
+  "finished_at": "2026-10-02T10:58:34.732Z",
+  "run_state": "SUCCEEDED",
+  "context_hash": "sha256:5cf31fe833f910798333771d8008a853f8e8c83876ad8a6cad20e8fa8e991781",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "spec_tree": "sha256:d069191a9fa15e80af10d57420b8c2a58d8e092481cc3a3161204c6242c09833",
+  "evidence": [
+    "EVID-01M3Y484K824C2WG24M3Y4SRTM"
+  ],
+  "guard_events": []
+}

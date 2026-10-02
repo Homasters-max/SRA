@@ -1,0 +1,15 @@
+{
+  "$schema": "warrant://waiver/1",
+  "id": "WAV-01M3YWG4VZ6FGBCJGK240F2R6H",
+  "change": "spec-rework",
+  "gate": "spec-approved",
+  "reason": "I-3: MAJOR review spec раунда 3 (R-63) закрыт правкой delta REQ-VER-018 по ADR-0024 п. 4: правило ref APPROVED после переделки — только для первого APPROVED, повторное после IMPLEMENTING->SPECIFIED судится, как в 0.10.0",
+  "risk": "LOW",
+  "compensating_controls": [
+    "Правка сужает правило до входов, которых в 0.10.0 не было; держится тестами SCN-VER-158; ревью реализации агентом reviewer; Approve maintainer-а impl-PR"
+  ],
+  "owner": "human:Homasters-max",
+  "approved_by": "human:Homasters-max",
+  "expires_at": "2026-10-16",
+  "waiver_state": "ACTIVE"
+}

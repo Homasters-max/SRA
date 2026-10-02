@@ -16,8 +16,9 @@ spec-PR заново: Run `specify` и `review` (они стартуют в `PRO
 - вид PR — по `change_state` на HEAD, как прежде: PR переделки (`PROPOSED` или `SPECIFIED` на HEAD) — вид `spec`, его сливает
   maintainer, как любой spec-PR; в PR вида `impl` или `archive` новая запись переделки или новый переход `SPECIFIED` из `PROPOSED`
   после переделки (в том числе когда сама переделка слита раньше отдельным PR) — `RECORD_MISMATCH` с причиной `chain`, код 1;
-  так же переделка у record, где уже есть `APPROVED`; PR вида `abandon` может нести переделку перед `ABANDONED`;
-- **ref `APPROVED` после переделки.** Если в record на HEAD перед новым `APPROVED` есть переделка, `--ref` `APPROVED` SHALL
+  так же новая запись переделки, перед которой в `transitions[]` уже есть `APPROVED`, — в PR любого вида; PR вида `abandon` может нести переделку перед `ABANDONED`;
+- **ref `APPROVED` после переделки.** Если в record на HEAD перед новым `APPROVED` есть переделка, а прежнего `APPROVED` нет
+  (повторное `APPROVED` после `IMPLEMENTING->SPECIFIED` судится, как прежде), `--ref` `APPROVED` SHALL
   называть spec-PR, чей merge-коммит приносит последний перед этим `APPROVED` переход `SPECIFIED` из `PROPOSED` (переход
   `IMPLEMENTING->SPECIFIED` им не считается); ref на spec-PR более раннего `SPECIFIED` — `REF_NOT_VERIFIED` с причиной `change`, код 1.
   Record без переделки судится, как прежде;
@@ -25,8 +26,8 @@ spec-PR заново: Run `specify` и `review` (они стартуют в `PRO
   в дополнение к её условию — если в record базы есть переход в `SPECIFIED`. Так blocking UNKNOWN не теряет решение, как ни дели
   переделку на PR;
 - **решение blocking UNKNOWN после переделки.** Ref решения ([REQ-VER-013](#requirement-решения-unknown-в-warrant-ci)) — комментарий в PR,
-  который называет ref `APPROVED`, то есть в spec-PR переделки. Решение комментарием в прежнем spec-PR даёт `REF_NOT_VERIFIED` с
-  причиной `decision`; выход — комментарий maintainer'а в spec-PR переделки и `warrant unknown resolve … --replace` с его URL
+  который называет ref `APPROVED`, то есть в spec-PR, приносящем последний переход `SPECIFIED` из `PROPOSED`. Решение комментарием
+  в прежнем spec-PR даёт `REF_NOT_VERIFIED` с причиной `decision` и деталью `pull_request`; выход — комментарий maintainer'а в spec-PR переделки и `warrant unknown resolve … --replace` с его URL
   (монотонность это допускает: `resolution` и `resolved_as` не слабеют).
 
 #### Scenario: Возврат в PROPOSED

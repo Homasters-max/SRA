@@ -24,6 +24,7 @@ import { runAnalyze } from "../../../src/commands/analyze.js";
 import { runCheck } from "../../../src/commands/check.js";
 import { runClassify } from "../../../src/commands/classify.js";
 import { runGate } from "../../../src/commands/gate.js";
+import { runStart } from "../../../src/commands/run.js";
 import { runStatus } from "../../../src/commands/status.js";
 import { runTransition, type TransitionOptions } from "../../../src/commands/transition.js";
 import { runVerify } from "../../../src/commands/verify.js";
@@ -694,6 +695,44 @@ describe("warrant transition", () => {
     expect(skip.exitCode).toBe(3);
     const unknown = await transition(p, "DONE");
     expect(unknown.errors[0]?.code).toBe("USAGE");
+  });
+
+  it("SPECIFIED -> PROPOSED: a rework before APPROVED, no gates, the history kept, a specify Run starts; once APPROVED — STATE_INVALID (SCN-VER-157)", async () => {
+    const p = await repo("SPECIFIED", FEATURE);
+    const before = p.json(RECORD).transitions;
+    const back = await transition(p, "PROPOSED", { by: "kat" });
+    expect(back.errors).toEqual([]);
+    expect(back.exitCode).toBe(0);
+    expect(back.data["recorded"]).toEqual({ to: "PROPOSED", at: expect.any(String), by: "cli:local" });
+    expect(p.warnings.join("")).toContain("--by is ignored");
+    expect(p.json(RECORD).change_state).toBe("PROPOSED");
+    expect(p.json(RECORD).transitions.slice(0, before.length)).toEqual(before);
+    // The Change keeps its directory and the files of its evidence (nothing is removed by the rework).
+    expect(existsSync(path.join(p.root, "openspec/changes/add-search/design.md"))).toBe(true);
+    const run = await invoke(() => runStart(p.ctx, "add-search", { operation: "specify" }, {}));
+    expect(run.errors).toEqual([]);
+
+    for (const reached of [
+      async () => repo("APPROVED", FEATURE),
+      async () => {
+        const q = await repo("VERIFYING", FEATURE);
+        // The fixture record holds PROPOSED only: the history of an approved Change.
+        const record = q.json(RECORD);
+        q.write(RECORD, { ...record, transitions: [...record.transitions, { to: "APPROVED", at: "2026-09-23T09:00:00Z", by: "cli:local" }] });
+        expect((await transition(q, "IMPLEMENTING")).exitCode).toBe(0);
+        expect((await transition(q, "SPECIFIED")).exitCode).toBe(0);
+        expect(q.json(RECORD).change_state).toBe("SPECIFIED");
+        return q;
+      }
+    ]) {
+      const q = await reached();
+      const frozen = q.read(RECORD);
+      const refused = await transition(q, "PROPOSED");
+      expect(refused.errors[0]?.code).toBe("STATE_INVALID");
+      if (q.json(RECORD).change_state === "SPECIFIED") expect(refused.errors[0]?.message).toContain("was APPROVED once");
+      expect(refused.exitCode).toBe(3);
+      expect(q.read(RECORD)).toBe(frozen);
+    }
   });
 
   it("ABANDONED removes the change directory after the record, then the record is frozen (SCN-VER-035)", async () => {

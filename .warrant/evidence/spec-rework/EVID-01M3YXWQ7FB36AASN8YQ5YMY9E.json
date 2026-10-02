@@ -1,0 +1,41 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3YXWQ7FB36AASN8YQ5YMY9E",
+  "claim": {
+    "text": "tests-passed passed for spec-rework",
+    "targets": []
+  },
+  "kind": "test-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "7b8f476541016344ef820e3a299bb770ba5a2491",
+    "base_commit": "1e232365cbbd151b0272627a2586513ab8505f37",
+    "spec_revision": "openspec/changes/spec-rework@7b8f476541016344ef820e3a299bb770ba5a2491",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "tests-passed",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:b252b9b0d5f2ccced5cbda98bdc0577b4c609763cfd4040cfa1bf79dfb69fb85",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-02T18:26:43.570Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/spec-rework/raw/tests-passed/junit.xml",
+      "sha256": "sha256:d06ee17f1f34bc541aaad6fe544f39a97a2dfce6f25300aad21c207e8c72c674"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 1733
+  }
+}

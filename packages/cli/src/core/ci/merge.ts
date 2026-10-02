@@ -17,7 +17,7 @@ import { changedPaths, mergeOfHead } from "../git/facts.js";
 import { isPlainObject, strings } from "../json.js";
 import type { DiffEntry } from "../ports/git.js";
 import type { PullRequest } from "../ports/forge.js";
-import { confirmationOf, FORWARD_CHAIN, type Confirmation } from "../record/lifecycle.js";
+import { confirmationOf, FORWARD_CHAIN, wasApproved, wasReworked, type Confirmation } from "../record/lifecycle.js";
 import type { ChangeRecord } from "../record/read.js";
 import { recordPath } from "../record/write.js";
 import type { EffectivePolicy } from "../resolve/index.js";
@@ -59,6 +59,33 @@ async function broughtTransitions(ctx: Pick<Ctx, "git">, rev: string, change: st
   return list(after)
     .slice(list(before).length)
     .flatMap((t) => (isPlainObject(t) && typeof t["to"] === "string" ? [t["to"]] : []));
+}
+
+/**
+ * After a rework of the spec (REQ-VER-018): the first `APPROVED` `t` of a
+ * record with a rework before it names the spec-PR whose merge commit `m`
+ * brings the last `SPECIFIED` from `PROPOSED` before `t`; the reason when it
+ * does not, undefined otherwise (no rework, a later `APPROVED` — judged as before).
+ */
+async function reworkedSpecified(ctx: Pick<Ctx, "git">, subject: CiSubject, t: NewTransition, m: string, change: string): Promise<string | undefined> {
+  if (t.to !== "APPROVED") return undefined;
+  const all = isPlainObject(subject.record) && Array.isArray(subject.record["transitions"]) ? (subject.record["transitions"] as unknown[]) : [];
+  if (!wasReworked(all, t.index) || wasApproved(all, t.index)) return undefined;
+  const to = (i: number): unknown => (isPlainObject(all[i]) ? (all[i] as Record<string, unknown>)["to"] : undefined);
+  let last = -1;
+  for (let i = t.index - 1; i > 0; i -= 1) {
+    if (to(i) === "SPECIFIED" && to(i - 1) === "PROPOSED") {
+      last = i;
+      break;
+    }
+  }
+  const parent = (await ctx.git.parents(m))[0];
+  const count = async (rev: string | undefined): Promise<number> => {
+    const record = rev === undefined ? undefined : await jsonAt(ctx, rev, recordPath(change));
+    return isPlainObject(record) && Array.isArray(record["transitions"]) ? record["transitions"].length : 0;
+  };
+  if (last >= 0 && (await count(parent)) <= last && (await count(m)) > last) return undefined;
+  return `merge commit ${m} brings a SPECIFIED earlier than the last one after the rework of the spec of ${change}: APPROVED names the spec-PR of the rework (REQ-VER-018)`;
 }
 
 async function withParents(ctx: Pick<Ctx, "git">, m: string): Promise<MergeCommit> {
@@ -113,6 +140,8 @@ export async function locateMerge(
       detail: `merge commit ${pr.mergeCommit} of pull request ${pr.number} does not bring the transition ${brought} into the record of ${change}`
     };
   }
+  const rework = await reworkedSpecified(ctx, subject, t, pr.mergeCommit, change);
+  if (rework !== undefined) return { ok: false, reason: "change", detail: rework };
   return { ok: true, merge: await withParents(ctx, pr.mergeCommit) };
 }
 

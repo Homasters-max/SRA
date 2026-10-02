@@ -134,7 +134,7 @@ SHALL доходить целиком (B4).
 Схема `warrant://config/1` SHALL описывать `.warrant/warrant.json` ([08 §3](../../../../docs/08-packs.md)):
 обязательные `kernel` (major.minor), `openspec` (диапазон `1.13.x`), `packs` (id kebab-case → `{ "version": semver-range, "params"? }`);
 необязательные `defaults` (`check_timeout_s` — положительное целое, [ADR-0017](../../../../docs/adr/WARRANT-ADR-0017-check-execution.md)),
-`paths` (`adr`, `glossary`, `tests`, `src`), `roles` (роль → список логинов), `identities.agents[]`
+`paths` (`adr`, `glossary`, `tests`, `src`, `data` — [REQ-KRN-037](#requirement-пути-данных-проекта)), `roles` (роль → список логинов), `identities.agents[]`
 ([ADR-0010](../../../../docs/adr/WARRANT-ADR-0010-trust-by-reference.md)), `trusted_signers[]`,
 `frontends[]` — уникальные имена frontend, для которых `warrant sync` генерирует файлы (в фазе 4 — только `claude`,
 [ADR-0034](../../../../docs/adr/WARRANT-ADR-0034-phase-4-frontend.md) п. 1),
@@ -1371,3 +1371,62 @@ CLI SHALL записывать каждый файл своего состоян
 <!-- id: SCN-KRN-158 -->
 - **WHEN** record `.warrant/changes/add-search.json` существует, и запись нового содержимого завершается сбоем переименования
 - **THEN** файл record — прежнее содержимое байт в байт, временного файла в каталоге нет; сбой `EBUSY` на всех 5 попытках — `BUSY`, код 4, `retryable: true`, иной сбой — ошибка записи; без сбоя — файл — новое содержимое, временного файла нет
+
+### Requirement: Пути данных проекта
+<!-- id: REQ-KRN-037 -->
+
+Схема `warrant://config/1` SHALL принимать необязательный ключ `paths.data` ([REQ-KRN-004](#requirement-схема-config)) — непустой
+список каталогов проекта, элементы которого различны как строки, каждый — `relative_path`. Нормализация элемента — снимать ведущие
+`./` и конечные `/`, пока они есть. Элемент SHALL делать файл невалидным с указанием `/paths/data/<i>`, если он содержит символ
+шаблона glob (`*`, `?`, `[`, `]`, `{`, `}`, `(`, `)`, `!`, `+`, `@`) или если его нормализация даёт пустую строку, путь с пустым
+сегментом или сегментом `.` (в том числе ведущий `/`), `.`, `.warrant` или `openspec` или путь под `.warrant/` или `openspec/`
+(регистр букв не различается): каталог данных — буквальный путь, а корень проекта, состояние WARRANT и spec не данные проекта. Наличие и вид пути схема не проверяет; элемент, который называет файл, делает кодом
+только этот файл, как такой же `paths.src`. Каталоги `paths.data`, которые совпадают после нормализации друг с другом или с `paths.src` / `paths.tests`, дают
+один корень.
+
+Каждый каталог `paths.data` SHALL быть корнем кода наравне с `paths.src` и `paths.tests`: `write_scope` Run `implement`
+([REQ-ENF-002](../enforcement/spec.md)), finding `FRONTEND_HOOKS_INACTIVE` ([REQ-VER-009](../verification/spec.md)). Это
+исключение из текста [REQ-ENF-004](../enforcement/spec.md) и [REQ-VER-011](../verification/spec.md): каждое их упоминание
+`paths.src` и `paths.tests` как кода проекта — классы путей guard и hint `deny` без активного Run, policy-путь вне кода,
+правила путей видов `none`, `spec`, `archive` и «База требований», условие пропуска проверки кода с записью в `data.skipped[]` — SHALL
+читаться как `paths.src`, `paths.tests` и каталоги `paths.data`; проверка кода пропускается, только когда ни один из трёх
+ключей не даёт корня (не задан или после нормализации называет корень проекта, как `paths.src: "."`). `warrant ci` SHALL брать `paths.data`, как `paths.src` и `paths.tests`, из `warrant.json` базы требований
+(`HEAD^1`, [ADR-0038](../../../../docs/adr/WARRANT-ADR-0038-pr-judged-by-base.md)).
+
+Требования, где `paths.tests` значит именно тесты — ссылки на ID в файлах тестов ([REQ-KRN-021](#requirement-команда-validate),
+[REQ-KRN-024](#requirement-команда-id), [REQ-KRN-032](#requirement-команда-validate---files)), покрытие SCN тестами ([REQ-VER-004](../verification/spec.md),
+[REQ-VER-010](../verification/spec.md)), — каталогов `paths.data` SHALL NOT касаться. Без `paths.data` поведение CLI SHALL
+оставаться прежним.
+
+#### Scenario: Данные в Run implement и в guard
+<!-- id: SCN-KRN-172 -->
+- **WHEN** `warrant.json` задаёт `paths.src: "src"`, `paths.tests: "tests"` и `paths.data: ["std", "data/ref/"]`; без активного
+  Run guard получает `pre` `edit` пути `std/std.json`; затем `warrant run start add-search --operation implement` при
+  `change_state: IMPLEMENTING`; затем guard получает событие `pre` `edit` пути `std/std.json` и отдельное событие `pre` `edit`
+  пути `docs/notes.md`
+- **THEN** первое событие — `deny` с hint `warrant run start <change> --operation …`; `write_scope` Run равен `["src/**",
+  "tests/**", "std/**", "data/ref/**", "openspec/changes/add-search/tasks.md", "openspec/changes/add-search/design.md",
+  "openspec/changes/add-search/specs/**"]`; событие с `std/std.json` при Run — `allow`, с `docs/notes.md` — `deny`
+
+#### Scenario: Только данные и правило путей ci
+<!-- id: SCN-KRN-173 -->
+- **WHEN** `warrant.json` базы задаёт только `paths.data: ["std"]`; `warrant run start add-search --operation implement` при
+  `change_state: IMPLEMENTING`; затем `warrant ci` на PR без Change (вид `none`), который правит `std/std.json`; на spec-PR
+  Change `add-search`, который правит `std/std.json`; на PR без Change, который убирает `paths.data` из `warrant.json` и правит
+  `std/std.json`
+- **THEN** `write_scope` Run равен `["std/**", "openspec/changes/add-search/tasks.md", "openspec/changes/add-search/design.md",
+  "openspec/changes/add-search/specs/**"]`, без `CONFIG_INVALID`; у каждого из трёх `warrant ci` `errors[]` содержит
+  `SCOPE_VIOLATION` с путём `std/std.json`, проверка кода не в `data.skipped[]`, код 1
+
+#### Scenario: Файл в paths.data
+<!-- id: SCN-KRN-175 -->
+- **WHEN** `warrant.json` задаёт `paths.data: ["std/std.json"]`; без активного Run guard получает событие `pre` `edit` пути
+  `std/std.json` и отдельное событие `pre` `edit` пути `std/other.json`
+- **THEN** первое — `deny` с hint `warrant run start <change> --operation …`, второе — `allow`
+
+#### Scenario: Недопустимые каталоги данных
+<!-- id: SCN-KRN-174 -->
+- **WHEN** `paths.data` равен `["std"]`, `[".warrant-data"]`, `["std/std.json"]`; `[]`, `["std", "std"]`; `["."]`, `["./"]`,
+  `[".//"]`, `[".//std"]`, `["std/./x"]`, `["./.warrant/data"]`, `[".warrant/"]`, `[".Warrant"]`, `["openspec"]`, `["OpenSpec/x"]`,
+  `["../std"]`, `["*"]` или `["{.warrant,std}"]`
+- **THEN** первые три файла валидны; четвёртый и пятый невалидны с указанием `/paths/data`; остальные — с указанием `/paths/data/0`

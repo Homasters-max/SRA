@@ -532,12 +532,12 @@ Controller SHALL быть чистой функцией входов. Код в�
 
 CLI SHALL вычислять для Change finding `FRONTEND_HOOKS_INACTIVE`
 ([ADR-0018](../../../../docs/adr/WARRANT-ADR-0018-frontend-adapters.md) п. 5, D-14): пути diff Change, кроме удалённых (base — как у gate
-`scope-valid`), под `paths.src` ∪ `paths.tests`, ни один Run Change (`<state>/runs/*.json` с `change` этого Change) для которых
+`scope-valid`), под `paths.src` ∪ `paths.tests` ∪ каталоги `paths.data` ([REQ-KRN-037](../kernel/spec.md)), ни один Run Change (`<state>/runs/*.json` с `change` этого Change) для которых
 не содержит события `phase: "post"` с этим путём в `paths[]`. Finding — `{ code: "FRONTEND_HOOKS_INACTIVE", paths[], more }`:
 не больше 10 путей по порядку, `more` — число остальных. `warrant status` SHALL добавлять его в `verification.findings[]` Change в состоянии
 `IMPLEMENTING` и дальше; `warrant verify` и `warrant gate` — в `data.findings[]` для перехода `VERIFYING->MERGED`. Finding SHALL
-NOT менять verdict, `controller_action` и код выхода: правки человека без hooks легитимны. Без `paths.src` и `paths.tests`
-finding не вычисляется.
+NOT менять verdict, `controller_action` и код выхода: правки человека без hooks легитимны. Когда ни `paths.src`, ни `paths.tests`, ни
+`paths.data` не дают корня ([REQ-KRN-037](../kernel/spec.md)), finding не вычисляется.
 
 #### Scenario: Правка без hooks
 <!-- id: SCN-VER-053 -->
@@ -553,6 +553,11 @@ finding не вычисляется.
 <!-- id: SCN-VER-055 -->
 - **WHEN** без событий guard изменено 13 файлов под `paths.src`
 - **THEN** finding содержит 10 путей и `more: 3`
+
+#### Scenario: Правка данных без hooks
+<!-- id: SCN-VER-160 -->
+- **WHEN** `warrant.json` задаёт только `paths.data: ["std"]`, Change в `VERIFYING` меняет `std/std.json` и `docs/notes.md`, а ни в одном Run Change нет события `post` с ними
+- **THEN** `warrant verify add-search --transition VERIFYING->MERGED` содержит в `data.findings[]` `FRONTEND_HOOKS_INACTIVE` с `paths: ["std/std.json"]`, а verdicts и код выхода те же, что без него
 
 ### Requirement: Команда analyze
 <!-- id: REQ-VER-010 -->

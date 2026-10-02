@@ -12,6 +12,9 @@
  * (`importRecords`) under the lock `check` takes; `manifest.json` and `raw/` of
  * the artifact stay out.
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import type { Ctx } from "../ctx.js";
 import { cliError, WarrantError, type CliError } from "../errors.js";
 import { acquireLock, lockPath } from "../check/lock.js";
@@ -19,11 +22,37 @@ import { artifactName, attestationOf, ciRunKey, runAttemptKey } from "../evidenc
 import { subjectOf } from "../evidence/record.js";
 import { importRecords } from "../evidence/store.js";
 import { manifestVersions } from "../evidence/write.js";
-import { isPlainObject } from "../json.js";
+import { isPlainObject, strings } from "../json.js";
 import type { PullRequest, WorkflowRun } from "../ports/forge.js";
 import { recoveryRun } from "./archive.js";
 import { readSubjectOf } from "./kind.js";
 import { parsePullUrl } from "./refs.js";
+
+/**
+ * Ids a record of `<state>/evidence/<change>/` may carry without being a
+ * leftover (REQ-VER-012): `evidence[]` of the manifest of the Change at HEAD
+ * (none, or one that does not read — an empty list) and `evidence[]` of the
+ * transitions of its record in the working tree (`human-approval` of `MERGED`).
+ */
+async function knownRecordIds(ctx: Ctx, change: string): Promise<Set<string>> {
+  const known = new Set<string>();
+  const rel = `.warrant/evidence/${change}/manifest.json`;
+  const text = (await ctx.git.contents("HEAD", [`./${rel}`])).get(`./${rel}`);
+  try {
+    const manifest = text === undefined ? undefined : (JSON.parse(text) as unknown);
+    if (isPlainObject(manifest)) for (const id of strings(manifest["evidence"])) known.add(id);
+  } catch {
+    // A manifest at HEAD that does not read is an empty list.
+  }
+  try {
+    const record = JSON.parse(readFileSync(path.join(ctx.root, ".warrant", "changes", `${change}.json`), "utf8")) as unknown;
+    const transitions = isPlainObject(record) && Array.isArray(record["transitions"]) ? record["transitions"] : [];
+    for (const t of transitions) if (isPlainObject(t)) for (const id of strings(t["evidence"])) known.add(id);
+  } catch {
+    // No record in the working tree: only the manifest of HEAD.
+  }
+  return known;
+}
 
 /** A record file at the root of an artifact; `raw/` and `manifest.json` are not records. */
 const RECORD_FILE_RE = /^EVID-[0-9A-HJKMNP-TV-Z]{26}\.json$/;
@@ -194,8 +223,9 @@ export async function fetchCiEvidence(ctx: Ctx, arg: string, env: NodeJS.Process
   const first = [...selected.files.values()][0] as Buffer;
   const policyHash = (JSON.parse(first.toString("utf8")) as Record<string, unknown>)["effective_policy_hash"];
   const versions = await manifestVersions(ctx, typeof policyHash === "string" ? policyHash : "");
+  const known = await knownRecordIds(ctx, change);
   const perform = (): ReturnType<typeof importRecords> =>
-    importRecords({ root: ctx.root, writes: ctx.writes, change, env, files: selected.files, commit, versions });
+    importRecords({ root: ctx.root, writes: ctx.writes, change, env, files: selected.files, commit, versions, known });
 
   let imported: ReturnType<typeof importRecords>;
   if (ctx.writes.dryRun) imported = perform();
@@ -215,5 +245,15 @@ export async function fetchCiEvidence(ctx: Ctx, arg: string, env: NodeJS.Process
     }
   }
   if (imported.errors.length > 0) return { data: data(), errors: imported.errors, change };
-  return { data: data({ run: selected.run.url, evidence: imported.ids }), errors: [], change };
+  const findings =
+    imported.untracked.length === 0
+      ? []
+      : [
+          {
+            code: "EVIDENCE_UNTRACKED",
+            paths: imported.untracked,
+            hint: `do not commit these records — leftovers of a local run: delete them (a human: guard forbids an agent to delete a record) and run warrant ci fetch ${pr.number} again`
+          }
+        ];
+  return { data: { ...data({ run: selected.run.url, evidence: imported.ids }), untracked: imported.untracked, findings }, errors: [], change };
 }

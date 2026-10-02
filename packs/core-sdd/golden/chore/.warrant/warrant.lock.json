@@ -38,7 +38,7 @@
     ".warrant/schemas/rule.1.schema.json": "sha256:825af0cac60ca2281b1316335b06ae674ed72378a059ac20774899e520a03482",
     ".warrant/schemas/run.1.schema.json": "sha256:dd65e195d4056af6302cbd4b782910feb8b3b7d04692ab41835b366bab55dc08",
     ".warrant/schemas/skill-result.1.schema.json": "sha256:1c055fb0139ab1294e624477422cfb4cffeb8be4df70b3facab118d8de85b5f4",
-    ".warrant/schemas/waiver.1.schema.json": "sha256:427d12eff01e3a2f4c1a37e61a02a839d59835b710a9afff74ccee0f67f0d1ea",
+    ".warrant/schemas/waiver.1.schema.json": "sha256:f5b621611419a3e5cd3697c0c66711432541cb8e63a8bd5b447eb34bc45e8525",
     "openspec/config.yaml": "sha256:f5dc5917fd988e1e3fb603996d7b539a57adbdf7132322644a073c38fce8ac22",
     "openspec/schemas/warrant-sdd/schema.yaml": "sha256:b608edc3b6b8532fc4a9d3f5cdbc0b702e8882a6999f75ae9453a8fb4ad05189",
     "openspec/schemas/warrant-sdd/templates/design.md": "sha256:6ccc87f5017fb190e69e8759dd4e20d5ac3320cc4dabf152708bf8f2aa5205f8",

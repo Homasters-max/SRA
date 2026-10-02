@@ -10,10 +10,11 @@
 
 ## What Changes
 
-- **`warrant waive` и `warrant id WAV` выдают `WAV-<ULID>`**, как `EVID` и `RUN` (REQ-KRN-024, REQ-KRN-031): без счёта по каталогу, без координации веток. Вывод `warrant id WAV` — `{ id, prefix }`, как у `EVID` и `RUN`; поле `year` уходит.
+- **`warrant waive` и `warrant id WAV` выдают `WAV-<ULID>`**, как `EVID` и `RUN` (REQ-KRN-024, REQ-KRN-031): без счёта по каталогу, без координации веток. Вывод `warrant id WAV` сохраняет `year` (год вызова) ради совместимости с 0.10.0.
 - **Схема `waiver/1` принимает обе формы `id`** (REQ-KRN-019): `^WAV-([0-9]{4}-[0-9]{3}|[0-9A-HJKMNP-TV-Z]{26})$`. `--activate` и `--revoke` принимают обе. Старые файлы и ссылки на них валидны.
-- **02 §3** — форма `WAV`.
+- **02 §3** — форма `WAV` и её обоснование («создаются агентом в ветке»); ADR-0012 уже помечен «уточнён 0056» (#145).
 - **Копии схемы** — `.warrant/schemas/` SRA (`warrant sync`) и golden pack `core-sdd` (`npm run golden:update`). Манифест и объекты pack не меняются, hash pack в lock прежний, как I-252 `guard-recovery`.
+- **Потребитель после перехода на 0.10.1 выполняет `warrant sync`**: копия схемы `.warrant/schemas/waiver.1.schema.json` и её hash в lock обновляются, иначе `sync --check` — дрейф. Шаг pin-Change (навык `warrant-upgrade`) и раздел «Миграция» CHANGELOG.
 
 ## Capabilities
 
@@ -23,7 +24,7 @@
 
 ### Modified Capabilities
 
-- `kernel`: REQ-KRN-019 (схема waiver), REQ-KRN-024 (`warrant id WAV`), REQ-KRN-031 (`warrant waive`); SCN-KRN-121, SCN-KRN-122 уточнены; новый SCN-KRN-168.
+- `kernel`: REQ-KRN-019 (схема waiver), REQ-KRN-024 (`warrant id WAV`), REQ-KRN-031 (`warrant waive`); SCN-KRN-121, SCN-KRN-122 уточнены; новые SCN-KRN-168…171.
 
 ## Non-Goals
 

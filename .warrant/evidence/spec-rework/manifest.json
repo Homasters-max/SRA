@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "spec-rework",
-  "commit": "bd04f19b72d1e26f07142a6615cb32c374004f77",
+  "commit": "c94062d3bfcb92528bee0bb514c6907f16dcd44f",
   "versions": {
     "warrant": "0.10.0",
     "openspec": "1.13.1",
@@ -10,6 +10,7 @@
   },
   "evidence": [
     "EVID-01M3YCMXFT8XZR90R4C7CRQT7T",
-    "EVID-01M3YD3PG90HWXGDGTJBWMAFZ7"
+    "EVID-01M3YD3PG90HWXGDGTJBWMAFZ7",
+    "EVID-01M3YDGWV2Y4SSP68C5NVG08D6"
   ]
 }

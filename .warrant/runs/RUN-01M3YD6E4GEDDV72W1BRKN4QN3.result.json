@@ -1,0 +1,120 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3YD6E4GEDDV72W1BRKN4QN3",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "The ref rule of REQ-VER-018 applies to every new APPROVED whose record on HEAD has a rework earlier, including a re-APPROVED after IMPLEMENTING->SPECIFIED. Take a record PROPOSED, SPECIFIED (#3), PROPOSED, SPECIFIED (#5), APPROVED (ref #5), IMPLEMENTING, then SPECIFIED (IMPLEMENTING->SPECIFIED, brought by spec-PR #9 that edits the spec, the spec-approved path of ADR-0024), then a new APPROVED. The SHALL requires --ref to name #5, because the last SPECIFIED from PROPOSED is #5 and IMPLEMENTING->SPECIFIED does not count. A ref to #9, the PR that carries the re-spec, then violates the SHALL. Its verdict is not named: the error clause covers only a spec-PR of an «earlier SPECIFIED», and #9 brought a later one. Design D3 implies REF_NOT_VERIFIED change. The same shape without a rework keeps the 0.10.0 verdict, which accepts #9. So for a reworked Change, re-approval must cite the approval that predates the spec change. That is the weakness of backlog WS-24, now made mandatory. The blocking-UNKNOWN decisions of the re-spec must also be comments in #5 (REQ-VER-013 «pull_request»). No scenario covers this. It is the round-2 F-3 fix seen from the other side.",
+      "targets": [
+        "REQ-VER-018",
+        "SCN-VER-158",
+        "openspec/changes/spec-rework/design.md"
+      ],
+      "recommendation": "Limit the ref rule to the first APPROVED, i.e. when transitions[] before the new APPROVED holds no APPROVED. A re-APPROVED after IMPLEMENTING->SPECIFIED is then judged as in 0.10.0 (WS-24 stays as it is). Alternatively, state that a ref to the PR that brought IMPLEMENTING->SPECIFIED gives REF_NOT_VERIFIED change and record the asymmetry in design Risks and the backlog. Add the case to SCN-VER-158 either way."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "The spec exempts kind abandon. REQ-VER-018 lists only impl and archive for the chain refusal, adds «PR вида abandon может нести переделку перед ABANDONED», and SCN-VER-158 says the abandon-PR has no chain violation. The context documents still say rework is allowed only in kind spec. Proposal «What Changes»: «переделка в PR другого вида — RECORD_MISMATCH (chain)». Proposal Impact and tasks 2.1: «переделка только в виде spec». Design D2: «новая запись SPECIFIED->PROPOSED и SPECIFIED после неё — только в PR вида spec … иначе RECORD_MISMATCH chain». I-2 lists F-5 of round 2 as closed, but D2 was not updated. An implementer who follows D2 or tasks 2.1 refuses the abandon-PR.",
+      "targets": [
+        "openspec/changes/spec-rework/proposal.md",
+        "openspec/changes/spec-rework/design.md",
+        "openspec/changes/spec-rework/tasks.md",
+        "REQ-VER-018"
+      ],
+      "recommendation": "Align proposal «What Changes» and Impact, design D2 and tasks 2.1 with the spec: rework and the new SPECIFIED are refused in kinds impl and archive, and kind abandon may carry the rework before ABANDONED."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-VER-018 defines «переделка» as the record entry SPECIFIED->PROPOSED. It then says the decision ref is a comment «в PR, который называет ref APPROVED, то есть в spec-PR переделки», and SCN-VER-159 says «комментарием maintainer'а в spec-PR переделки». In a split rework this equation fails. PR #6 carries only SPECIFIED->PROPOSED, so by the definition #6 is the spec-PR of the rework. The ref of APPROVED must, however, be the next spec-PR, the one that brings the new SPECIFIED. A maintainer comment in #6 gives REF_NOT_VERIFIED decision. The first clause («PR, который называет ref APPROVED») decides it, but «то есть» states a false equivalence. Separately, the decision bullet names only «причина decision». The testable detail of REQ-VER-013 is `decision: pull_request`, and no scenario covers the REF_NOT_VERIFIED half after a rework. Round-2 F-2 asked for one.",
+      "targets": [
+        "REQ-VER-018",
+        "SCN-VER-159"
+      ],
+      "recommendation": "Replace «spec-PR переделки» with «spec-PR, который приносит последний переход SPECIFIED из PROPOSED» in the decision bullet and in SCN-VER-159. Name the detail `decision: pull_request`. Add to SCN-VER-158 or SCN-VER-159: decision ref to PR #3 with APPROVED --ref PR #5 gives REF_NOT_VERIFIED, `decision: pull_request`, code 1."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "The chain bullet says «так же переделка у record, где уже есть APPROVED». Read literally, it is any SPECIFIED->PROPOSED entry in a record that holds APPROVED. Every later impl-PR or archive-PR of a Change that was reworked and then approved matches that reading, since its record holds both an old rework and APPROVED, and would get RECORD_MISMATCH chain. The intended reading is narrower: a new rework entry after APPROVED (e.g. IMPLEMENTING->SPECIFIED->PROPOSED in a spec-PR). No scenario covers the judge side. SCN-VER-157 covers only the local STATE_INVALID.",
+      "targets": [
+        "REQ-VER-018",
+        "SCN-VER-158"
+      ],
+      "recommendation": "Reword: «новая запись переделки, перед которой в transitions[] на HEAD есть APPROVED, — RECORD_MISMATCH chain в любом виде PR». Add to SCN-VER-158 a spec-PR with IMPLEMENTING->SPECIFIED->PROPOSED (chain), and an impl-PR of a Change reworked and then approved (no chain)."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "missing-error-behavior",
+      "statement": "ADR-0056 p. 1 requires CHANGELOG `## 0.10.1` with subsections «Вердикт» and «Миграция для потребителя», with every behaviour change named. Task 3.1 names only `## 0.10.1`. Verdicts change in this Change. `warrant ci` now accepts SPECIFIED->PROPOSED in kinds spec and abandon (0.10.0: chain), and adds a new refusal of an earlier spec-PR as the APPROVED ref after a rework. Round-2 F-4 also proposed a follow-up: name REQ-VER-018 in REQ-VER-011 «Record»/«Ref» after judge-law. It is recorded nowhere: there is no backlog entry. Meanwhile judge-law rewrites REQ-VER-011 and the ref code in refs.ts/merge.ts (its D6), which this Change also touches.",
+      "targets": [
+        "openspec/changes/spec-rework/tasks.md",
+        "REQ-VER-018"
+      ],
+      "recommendation": "Task 3.1: «CHANGELOG `## 0.10.1`, «Вердикт»: SPECIFIED->PROPOSED accepted in spec/abandon kinds; ref APPROVED after rework — spec-PR of the last SPECIFIED». Add a backlog line for the REQ-VER-011 cross-reference and the code overlap with judge-law D6."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/spec-rework/specs/verification/spec.md",
+      "change": "REQ-VER-018, ref bullet: apply the rule only to the first APPROVED (no APPROVED earlier in transitions[]); a re-APPROVED after IMPLEMENTING->SPECIFIED is judged as in 0.10.0. Add the case to SCN-VER-158 (F-1)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/spec-rework/specs/verification/spec.md",
+      "change": "REQ-VER-018: «spec-PR переделки» becomes «spec-PR, который приносит последний переход SPECIFIED из PROPOSED»; name the detail `decision: pull_request`; the chain refusal after APPROVED covers a new rework entry only. Scenarios: decision ref to the old spec-PR; rework after APPROVED in a spec-PR; impl-PR of a reworked and approved Change without chain (F-3, F-4)."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/spec-rework/design.md",
+      "change": "D2, proposal «What Changes»/Impact, tasks 2.1: rework is refused in kinds impl and archive, and allowed in spec and abandon (F-2). Task 3.1: CHANGELOG subsections «Вердикт» and «Миграция для потребителя» (F-5)."
+    }
+  ],
+  "unknowns": [],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Round-2 findings (RUN-01M3YCRK6Y52GF0CX6CN4ECK0J) are closed in the spec text as I-2 states. F-1: split rework → chain, in SCN-VER-158. F-2: decision bullet with the `--replace` way out. F-3: only SPECIFIED from PROPOSED counts. F-4: unknowns rule worded as an addition. F-5: abandon exemption. F-6: reason `unknowns` with id. F-7: «SHALL быть допустим». Gaps remain in the context documents (F-2 here) and in the decision scenario (F-3 here)."
+    },
+    {
+      "id": "A-2",
+      "statement": "IDs REQ-VER-018 and SCN-VER-157…159 were checked against the main specs and the open Change judge-law in this worktree (max SCN-VER-151). They were not checked against the other 0.10.1 Changes on their branches."
+    },
+    {
+      "id": "A-3",
+      "statement": "Reuse of an old human-approval record after a rework is not a risk. `humanApproval` reuses a record only on the same commit and base (pre-filter). An approval written before a failed APPROVED (the #142 input) is therefore not reused for the reworked spec."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "For a reworked Change, which spec-PR does a re-APPROVED after IMPLEMENTING->SPECIFIED name (F-1)?",
+      "options": [
+        "Any spec-PR that brought SPECIFIED, as in 0.10.0 (rule only for the first APPROVED; WS-24 unchanged)",
+        "Only the spec-PR of the last SPECIFIED from PROPOSED (current text; the re-spec PR is refused, asymmetry recorded)",
+        "The spec-PR that brought the last SPECIFIED of any origin (closes WS-24 for reworked Changes only)"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:9b7d4b8afe0cae740da09423e22c7b7201089fa4dc064e6bd259576aa756bdfd",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T13:00:00Z",
+    "finished_at": "2026-10-02T13:35:00Z"
+  }
+}

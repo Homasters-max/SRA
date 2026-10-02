@@ -198,6 +198,28 @@ describe("warrant guard: pre edit without a Run", () => {
     expect(existsSync(path.join(p.root, ".warrant", "runs"))).toBe(false);
   });
 
+  it("paths.data: a data path is denied without a Run with the hint run start; an implement Run writes src, tests, each data directory in order, then the Change files — std/std.json allowed, docs/notes.md denied (SCN-KRN-172)", async () => {
+    const p = await repo("IMPLEMENTING", (b) =>
+      b.write(".warrant/warrant.json", { ...b.json(".warrant/warrant.json"), paths: { src: "src", tests: "tests", data: ["std", "data/ref/"] } })
+    );
+    const before = await guard(p, { phase: "pre", action: "edit", paths: ["std/std.json"] });
+    expect(before.data["decision"]).toBe("deny");
+    expect(before.data["hints"]).toEqual([expect.stringContaining("warrant run start <change> --operation")]);
+
+    const run = await started(p, "add-search", { operation: "implement" });
+    expect(p.json(`.warrant/runs/${run}.json`)["write_scope"]).toEqual([
+      "src/**",
+      "tests/**",
+      "std/**",
+      "data/ref/**",
+      "openspec/changes/add-search/tasks.md",
+      "openspec/changes/add-search/design.md",
+      "openspec/changes/add-search/specs/**"
+    ]);
+    expect((await guard(p, { phase: "pre", action: "edit", paths: ["std/std.json"] })).data["decision"]).toBe("allow");
+    expect((await guard(p, { phase: "pre", action: "edit", paths: ["docs/notes.md"] })).data["decision"]).toBe("deny");
+  });
+
   it("tests, openspec/changes/** and the policy paths of factory-change are denied too (ADR-0022 п. 7)", async () => {
     const p = await repo("IMPLEMENTING");
     for (const file of ["tests/test_app.py", "openspec/changes/add-search/proposal.md", ".warrant/local/areas.json", "openspec/config.yaml"]) {

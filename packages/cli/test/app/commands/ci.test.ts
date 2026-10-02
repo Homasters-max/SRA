@@ -1594,8 +1594,45 @@ describe("warrant ci: code without a Change and a project without human acceptan
     pullRequest(q, "fix/code", (b) => b.write("src/a.ts", "export const a = 1;\n"));
     const skipped = await ci(q);
     expect(skipped.errors).toEqual([]);
-    expect(skipped.data["skipped"]).toEqual([{ rule: "code", reason: expect.stringContaining("paths.src and paths.tests") }]);
+    expect(skipped.data["skipped"]).toEqual([{ rule: "code", reason: expect.stringContaining("paths.src, paths.tests and paths.data") }]);
     expect(skipped.exitCode).toBe(0);
+  });
+
+  it("only paths.data: a pull request without a Change, a spec-PR and a pull request dropping paths.data each get SCOPE_VIOLATION of std/std.json by the base; the code rule is not skipped (SCN-KRN-173)", async () => {
+    const data = (b: ProjectBuilder): void => {
+      b.write(".warrant/warrant.json", { ...b.json(".warrant/warrant.json"), paths: { data: ["std"] } });
+    };
+    const notSkipped = (result: Result): void => {
+      expect((result.data["skipped"] ?? []).map((s: Data) => s["rule"])).not.toContain("code");
+      expect(scope(result)).toContain("std/std.json");
+      expect(result.exitCode).toBe(1);
+    };
+
+    const p = await repo(data);
+    pullRequest(p, "fix/data", (b) => b.write("std/std.json", "{}\n"));
+    const none = await ci(p);
+    expect(none.data["kind"]).toBe("none");
+    expect(scope(none)).toEqual(["std/std.json"]);
+    notSkipped(none);
+
+    const s = await repo(data);
+    s.branch("spec/add-search", "main");
+    s.withChange("add-search", { design: "# Design\n", tasks: "# Tasks\n", specs: { search: [] } }).withRecord("add-search", "PROPOSED", CHORE);
+    s.write("std/std.json", "{}\n");
+    pullRequest(s, "spec/add-search", () => undefined);
+    const spec = await ci(s);
+    expect(spec.data["kind"]).toBe("spec");
+    expect(scope(spec)).toEqual(["std/std.json"]);
+    notSkipped(spec);
+
+    const d = await repo(data);
+    pullRequest(d, "fix/drop-data", (b) => {
+      const config = b.json(".warrant/warrant.json");
+      delete config.paths;
+      b.write(".warrant/warrant.json", config).write("std/std.json", "{}\n");
+    });
+    // warrant.json itself is a policy path of the base; std/std.json is data by the base, not by the PR.
+    notSkipped(await ci(d));
   });
 
   it("no object of the policy of the base puts human-approval on VERIFYING->MERGED: the finding NO_HUMAN_ACCEPTANCE, exit unchanged; the profile of acceptance — none (SCN-VER-134)", async () => {

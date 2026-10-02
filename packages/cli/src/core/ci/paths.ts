@@ -4,7 +4,7 @@
  * says of its transition. The own state of the Change is allowed everywhere;
  * `openspec/specs/**` only in an archive-PR with a new `ARCHIVED` (equality with
  * a repeated archive — `archive.ts`). The law — `paths.*` and policy paths — is the
- * base's (I-171). Code and tests (`paths.src`, `paths.tests`) change only in an
+ * base's (I-171). Code, tests and data (`paths.src`, `paths.tests`, `paths.data`) change only in an
  * impl-PR: a spec-, archive- or none-PR touching them is `SCOPE_VIOLATION`
  * (design D10 of agent-merge, ADR-0051 п. 8).
  */
@@ -91,11 +91,11 @@ export async function judgePaths(
     }
   }
 
-  // Code and tests: paths.src, paths.tests of the base (D10, ADR-0051 п. 8); none set — the rule is skipped.
+  // Code, tests and data: paths.src, paths.tests, paths.data of the base (D10, ADR-0051 п. 8, REQ-KRN-037); no root — the rule is skipped.
   const code = codeScope(base.loaded.config);
   const isCode = code.length === 0 ? (): boolean => false : pathMatcher(code);
   const skipCode = (): void => {
-    if (code.length === 0) out.skipped.push({ rule: "code", reason: "paths.src and paths.tests are not set in warrant.json of the base" });
+    if (code.length === 0) out.skipped.push({ rule: "code", reason: "paths.src, paths.tests and paths.data give no root in warrant.json of the base" });
   };
 
   if (subject.kind === "none") {
@@ -104,7 +104,7 @@ export async function judgePaths(
     for (const p of rest) {
       if (state(p)) out.errors.push(violation(p, "the state and artifacts of a Change change only in a pull request of that Change"));
       else if (policy(p)) out.errors.push(violation(p, "a policy path (factory-change) changes only in a pull request of a Change"));
-      else if (isCode(p)) out.errors.push(violation(p, "code and tests change only in the impl-PR of a Change (paths.src, paths.tests of the base)"));
+      else if (isCode(p)) out.errors.push(violation(p, "code, tests and data change only in the impl-PR of a Change (paths.src, paths.tests, paths.data of the base)"));
     }
     return out;
   }
@@ -128,7 +128,7 @@ export async function judgePaths(
   for (const p of rest) {
     if (own(p)) continue;
     const changeDir = /^openspec\/changes\/([^/]+)\//.exec(p)?.[1];
-    if (isCode(p)) out.errors.push(violation(p, "code and tests change in the impl-PR (paths.src, paths.tests of the base)"));
+    if (isCode(p)) out.errors.push(violation(p, "code, tests and data change in the impl-PR (paths.src, paths.tests, paths.data of the base)"));
     else if (changeDir !== undefined && changeDir !== change && !(subject.kind === "archive" && archiveDir.test(p))) {
       out.errors.push(violation(p, `the artifacts of another Change (${changeDir})`));
     } else if (other(p)) out.errors.push(violation(p, "the state of another Change"));

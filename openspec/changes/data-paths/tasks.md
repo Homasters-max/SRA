@@ -16,8 +16,8 @@
 
 ## 2. Корни кода (REQ-KRN-037, REQ-ENF-002, REQ-VER-009, D1, D4, D6, D7)
 
-- [ ] 2.1 `core/run/scope.ts`: `codeScope` добавляет `<каталог>/**` каждого `paths.data` через `directory()`; текст и hint `CONFIG_INVALID` у `implement`, сообщение `SCOPE_VIOLATION` и причина `data.skipped[]` в `core/ci/paths.ts` `judgePaths`, справка `--operation` в `bin/warrant.ts` называют `paths.data` (review раунда 3, F-2).
-- [ ] 2.2 Тесты: `app/commands/run.test.ts` и `guard.test.ts` — SCN-KRN-172; `run.test.ts` и `app/commands/ci.test.ts` — SCN-KRN-173 (`paths.data` из базы); `app/commands/liveness.test.ts` — SCN-VER-160; SCN-ENF-036, SCN-VER-053…055 — зелёные.
+- [x] 2.1 `core/run/scope.ts`: `codeScope` добавляет `<каталог>/**` каждого `paths.data` через `directory()`; текст и hint `CONFIG_INVALID` у `implement`, сообщение `SCOPE_VIOLATION` и причина `data.skipped[]` в `core/ci/paths.ts` `judgePaths`, справка `--operation` в `bin/warrant.ts` называют `paths.data` (review раунда 3, F-2).
+- [x] 2.2 Тесты: `app/commands/run.test.ts` и `guard.test.ts` — SCN-KRN-172; `run.test.ts` и `app/commands/ci.test.ts` — SCN-KRN-173 (`paths.data` из базы); `app/commands/liveness.test.ts` — SCN-VER-160; SCN-ENF-036, SCN-VER-053…055 — зелёные.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts run.test guard.test ci.test liveness`.
 

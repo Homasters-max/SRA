@@ -125,7 +125,7 @@ export const RUN_SWITCH_HINT =
 export interface PathClasses {
   /** State the CLI writes: records, waivers, `<state>/evidence/**`, `<state>/runs/**` (I-190). */
   cliState(file: string): boolean;
-  /** A policy path outside `paths.src`, `paths.tests` and `openspec/changes/**`: no Run operation writes it (BL-56). */
+  /** A policy path outside `paths.src`, `paths.tests`, `paths.data` and `openspec/changes/**`: no Run operation writes it (BL-56). */
   humanOnly(file: string): boolean;
 }
 

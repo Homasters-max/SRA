@@ -223,7 +223,23 @@ describe("warrant run start", () => {
     expect(run.exitCode).toBe(3);
     expect(run.errors[0]?.code).toBe("CONFIG_INVALID");
     expect(run.errors[0]?.hint).toMatch(/paths/);
+    expect(run.errors[0]?.message).toContain("paths.data");
     expect(runFiles(p)).toEqual([]);
+  });
+
+  it("implement with only paths.data: write_scope is each data directory and the Change files, no CONFIG_INVALID (SCN-KRN-173)", async () => {
+    const p = await repo("IMPLEMENTING", (b) => {
+      const config = b.json(".warrant/warrant.json");
+      b.write(".warrant/warrant.json", { ...config, paths: { data: ["std"] } });
+    });
+    const run = await start(p, "add-search", { operation: "implement" });
+    expect(run.errors).toEqual([]);
+    expect(run.data["write_scope"]).toEqual([
+      "std/**",
+      "openspec/changes/add-search/tasks.md",
+      "openspec/changes/add-search/design.md",
+      "openspec/changes/add-search/specs/**"
+    ]);
   });
 
   it("--dry-run: the same JSON with dry_run and would_write[] of the Run file and current, no file created (SCN-ENF-008)", async () => {

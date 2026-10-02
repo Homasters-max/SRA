@@ -444,8 +444,9 @@ Controller SHALL быть чистой функцией входов. Код в�
 Все записи перехода `MERGED` SHALL быть на этом commit, а все записи с `attestation.type: "ci"`, на которых вынесены verdicts, SHALL
 иметь один и тот же `attestation.ref` — evidence одного CI-run (иначе `REF_MISMATCH` с id записей, код 3, record не изменён; R-6).
 Запись transition SHALL содержать `to`, `at`, `by: "cli:local"`, `effective_policy_hash`, `gates{}`, `evidence[]` (id записей,
-на которых вынесены verdicts), `ref` при наличии. Переход назад (`VERIFYING->IMPLEMENTING`, `IMPLEMENTING->SPECIFIED`) SHALL записываться
-без gates. `ABANDONED` SHALL удалить `openspec/changes/<change>/` и записать переход; после `ABANDONED` и `ARCHIVED` любая команда,
+на которых вынесены verdicts), `ref` при наличии. Переход назад (`VERIFYING->IMPLEMENTING`, `IMPLEMENTING->SPECIFIED`, `SPECIFIED->PROPOSED`) SHALL записываться
+без gates; `--by` у него не требуется и не записывается (переданный — строка предупреждения в stderr). `SPECIFIED->PROPOSED` —
+только у Change, в `transitions[]` которого нет `APPROVED` ([REQ-VER-018](#requirement-переделка-spec-до-approved)). `ABANDONED` SHALL удалить `openspec/changes/<change>/` и записать переход; после `ABANDONED` и `ARCHIVED` любая команда,
 меняющая record, SHALL отказывать с `RECORD_FROZEN`, код 3. Флага `--force` SHALL NOT быть.
 
 #### Scenario: Переход с прошедшими gates
@@ -1258,6 +1259,61 @@ CLI — поставка сломана, patch до потребителя; уп
 <!-- id: SCN-VER-126 -->
 - **WHEN** tarball `npm pack` checkout'а WARRANT установлен `npm i -g --prefix <временный каталог>`, и установленный CLI вызван в пустом временном каталоге: `warrant --version`, затем `warrant validate`
 - **THEN** `--version` — код 0 и версия из `package.json` репозитория; `validate` — JSON-ответ `command: "validate"`, `ok: false`, ошибка `CONFIG_MISSING`
+
+### Requirement: Переделка spec до APPROVED
+<!-- id: REQ-VER-018 -->
+
+Для Change в `SPECIFIED`, в `transitions[]` которого нет `APPROVED`, SHALL быть допустим возврат в `PROPOSED` переходом назад
+`warrant transition <change> PROPOSED` ([ADR-0056](../../../../docs/adr/WARRANT-ADR-0056-lattice-fixes-0-10-1.md) п. 3): без gates;
+record, его переходы, `unknowns[]` и evidence Change SHALL сохраняться. Change, однажды одобренный (`APPROVED` есть в
+`transitions[]`, в том числе после `IMPLEMENTING->SPECIFIED`), — `STATE_INVALID`, код 3, record не изменён: переделка после
+одобрения — spec-approved ([ADR-0024](../../../../docs/adr/WARRANT-ADR-0024-spec-approved-contract.md)). После возврата Change идёт путём
+spec-PR заново: Run `specify` и `review` (они стартуют в `PROPOSED`), `verify`, `transition SPECIFIED` с gates `PROPOSED->SPECIFIED`.
+
+«Переход `SPECIFIED` из `PROPOSED`» ниже — запись перехода в `SPECIFIED`, чья предыдущая запись — переход в `PROPOSED`; «переделка» —
+запись `SPECIFIED->PROPOSED`. Судья `warrant ci` ([REQ-VER-011](#requirement-команда-ci); правила ниже — дополнение к ней, её
+текст не меняется):
+- вид PR — по `change_state` на HEAD, как прежде: PR переделки (`PROPOSED` или `SPECIFIED` на HEAD) — вид `spec`, его сливает
+  maintainer, как любой spec-PR; в PR вида `impl` или `archive` новая запись переделки или новый переход `SPECIFIED` из `PROPOSED`
+  после переделки (в том числе когда сама переделка слита раньше отдельным PR) — `RECORD_MISMATCH` с причиной `chain`, код 1;
+  так же новая запись переделки, перед которой в `transitions[]` уже есть `APPROVED`, — в PR любого вида; PR вида `abandon` может нести переделку перед `ABANDONED`;
+- **ref `APPROVED` после переделки.** Если в record на HEAD перед новым `APPROVED` есть переделка, а прежнего `APPROVED` нет
+  (повторное `APPROVED` после `IMPLEMENTING->SPECIFIED` судится, как прежде), `--ref` `APPROVED` SHALL
+  называть spec-PR, чей merge-коммит приносит последний перед этим `APPROVED` переход `SPECIFIED` из `PROPOSED` (переход
+  `IMPLEMENTING->SPECIFIED` им не считается); ref на spec-PR более раннего `SPECIFIED` — `REF_NOT_VERIFIED` с причиной `change`, код 1.
+  Record без переделки судится, как прежде;
+- **монотонность `unknowns[]`** (REQ-VER-011) SHALL действовать и тогда, когда `change_state` базы — `PROPOSED` после переделки:
+  в дополнение к её условию — если в record базы есть переход в `SPECIFIED`. Так blocking UNKNOWN не теряет решение, как ни дели
+  переделку на PR;
+- **решение blocking UNKNOWN после переделки.** Ref решения ([REQ-VER-013](#requirement-решения-unknown-в-warrant-ci)) — комментарий в PR,
+  который называет ref `APPROVED`, то есть в spec-PR, приносящем последний переход `SPECIFIED` из `PROPOSED`. Решение комментарием
+  в прежнем spec-PR даёт `REF_NOT_VERIFIED` с причиной `decision` и деталью `pull_request`; выход — комментарий maintainer'а в spec-PR переделки и `warrant unknown resolve … --replace` с его URL
+  (монотонность это допускает: `resolution` и `resolved_as` не слабеют).
+
+#### Scenario: Возврат в PROPOSED
+<!-- id: SCN-VER-157 -->
+- **WHEN** `warrant transition add-search PROPOSED` при `change_state: SPECIFIED`, `ids-valid` `FAIL` и без `APPROVED` в
+  `transitions[]`; тот же вызов при `change_state: APPROVED`; тот же вызов в `SPECIFIED` после `IMPLEMENTING->SPECIFIED`
+- **THEN** первый — record получает transition `{ to: "PROPOSED", by: "cli:local" }` без `gates`, прежние переходы и файлы evidence
+  на месте, `change_state` равен `PROPOSED`, `warrant run start add-search --operation specify` стартует, код 0; второй и третий —
+  `STATE_INVALID`, код 3, record не изменён
+
+#### Scenario: Ref APPROVED после переделки
+<!-- id: SCN-VER-158 -->
+- **WHEN** spec-PR #3 принёс `SPECIFIED`, PR #5 — `SPECIFIED->PROPOSED` и новый `SPECIFIED`, оба слиты maintainer'ом; impl-PR несёт
+  `APPROVED` с `--ref` PR #3, затем — с `--ref` PR #5; отдельно — impl-PR, который сам несёт `SPECIFIED->PROPOSED`, `SPECIFIED` и
+  `APPROVED` с `--ref` PR #3; отдельно — слит PR #6 только с `SPECIFIED->PROPOSED`, а impl-PR несёт `SPECIFIED` и `APPROVED`;
+  отдельно — abandon-PR несёт `SPECIFIED->PROPOSED` и `ABANDONED`
+- **THEN** `warrant ci` на PR #5 даёт `kind: "spec"` без нарушений; на impl-PR с ref PR #3 — `REF_NOT_VERIFIED` с причиной `change`,
+  код 1; с ref PR #5 — ref подтверждён; оба impl-PR с переделкой или её `SPECIFIED` внутри — `RECORD_MISMATCH` с причиной
+  `chain`, код 1; abandon-PR — без нарушения `chain`
+
+#### Scenario: UNKNOWN после переделки
+<!-- id: SCN-VER-159 -->
+- **WHEN** слит PR только с `SPECIFIED->PROPOSED` (база следующего PR — `PROPOSED`), а следующий PR удаляет blocking UNKNOWN,
+  решённый `decision`
+- **THEN** `warrant ci` даёт `RECORD_MISMATCH` с причиной `unknowns` и id этого UNKNOWN, код 1; PR, который оставляет UNKNOWN и
+  заменяет `ref` решения комментарием maintainer'а в spec-PR переделки (`--replace`), — без этого нарушения
 
 ### Requirement: Локальный вердикт без записи
 <!-- id: REQ-VER-017 -->

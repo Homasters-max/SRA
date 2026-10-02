@@ -1,0 +1,33 @@
+{
+  "$schema": "warrant://change-record/1",
+  "change": "ci-local",
+  "change_state": "SPECIFIED",
+  "classification": {
+    "profiles": [
+      "chore",
+      "factory-change",
+      "human-acceptance"
+    ]
+  },
+  "transitions": [
+    {
+      "to": "PROPOSED",
+      "at": "2026-10-02T13:01:13.842Z",
+      "by": "cli:local"
+    },
+    {
+      "to": "SPECIFIED",
+      "at": "2026-10-02T13:39:36.101Z",
+      "by": "cli:local",
+      "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+      "gates": {
+        "ids-valid": "PASS",
+        "required-artifacts-present": "PASS",
+        "spec-valid": "PASS"
+      },
+      "evidence": [
+        "EVID-01M3YDERSHE9B4DQ9D31EPERBD"
+      ]
+    }
+  ]
+}

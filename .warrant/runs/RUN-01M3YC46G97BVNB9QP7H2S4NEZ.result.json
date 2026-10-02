@@ -1,0 +1,181 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3YC46G97BVNB9QP7H2S4NEZ",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "BLOCKER",
+      "category": "contradiction",
+      "statement": "REQ-VER-017 says a target 'которую после записи этой командой изменил другой процесс' SHALL NOT be rolled back and goes to data.not_restored[]. The same requirement says raw/ directories of checks SHALL return to their pre-call state, and SCN-VER-154 expects raw/ of the previous run byte for byte and data.not_restored empty. In the code, the ctx.writes write of raw/ only empties the directory (core/check/execute.ts 204-207). After that, the check command, a child process, writes its output into raw/ (line 208), and the parser's stdout file is written outside ctx.writes (line 224). So after every check run with output, raw/ is 'changed by another process after the write of this command'. Design D1 takes the fingerprint right after perform (an empty directory), so the fingerprints never match at restore. Read literally, raw/ is never restored and is always in not_restored[], and SCN-VER-154 cannot pass. Read as 'another process = not this command and not its checks', raw/ is restored. The two readings give different observable results, and the text gives no way to tell a check's own output from a foreign write.",
+      "targets": [
+        "REQ-VER-017",
+        "SCN-VER-154",
+        "openspec/changes/ci-local/design.md"
+      ],
+      "recommendation": "Define 'другой процесс' in REQ-VER-017 as any process other than this command and the check processes it started. Fix the moment of 'after the write': for a raw/ target, the state is fixed when its check has ended and its record is stored, not when ctx.writes performs. Align design D1 (fingerprint of raw/ taken after the check, not after perform) and keep SCN-VER-154 as is."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-017 does not say which write 'после записи этой командой' means when the command writes the same target several times. manifest.json is rewritten once per check (storeRecord, rebuilt from the directory). Suppose another writer (`warrant check`, `verify`, `run submit` in the same worktree) adds record X and rewrites the manifest between two checks of `ci --no-record`. The next check rebuilds the manifest with X, and its fingerprint (D1: after each perform) matches at restore. Restore then puts back the pre-call manifest without X. X stays on disk outside manifest.evidence[], and data.not_restored[] is empty: the other process's write is silently dropped from the manifest, and `warrant validate` fails (REQ-KRN-021 п. 12). The opposite race, a foreign manifest write after the last write of this command, keeps a manifest that lists this command's deleted records. That case is at least reported in not_restored[].",
+      "targets": [
+        "REQ-VER-017"
+      ],
+      "recommendation": "State that a target changed by another process at any time between the first write of this command and restore is not rolled back and goes to data.not_restored[]. That is, the fingerprint is also compared before each later write of the same target. Alternatively, state that concurrent writers of the same evidence directory are unsupported and name the outcome. Add the manifest-lists-missing-record outcome of the opposite race to the not_restored[] wording."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-error-behavior",
+      "statement": "By the REQ-VER-012 delta, after `ci fetch` the manifest still lists EVID-S (manifest = directory), and data.untracked[] names EVID-S as a file 'которые archive-PR не коммитит без решения человека'. If the archive-PR does not commit EVID-S but commits manifest.json, the committed tree has a manifest listing a record that is not in it. `warrant validate` on a clean checkout then fails (REQ-KRN-021 п. 12). Committing EVID-S is the #143 failure itself. Deleting it is a human act (guard). After the deletion, a repeated `ci fetch` 'ничего не меняет' (REQ-VER-012, SCN-VER-097; store.ts rewrites the manifest only for a new record or an id missing from evidence[]), so the manifest keeps the deleted id. The spec gives no consistent way to exclude an untracked record from the archive-PR, so the goal 'archive-PR видит, какие файлы не коммитить' is not reachable by the specified commands.",
+      "targets": [
+        "REQ-VER-012",
+        "SCN-VER-156",
+        "SCN-VER-097",
+        "openspec/changes/ci-local/proposal.md"
+      ],
+      "recommendation": "Specify the path after data.untracked[]. For example: a human deletes the named files, and a repeated `ci fetch` SHALL rewrite the manifest when manifest.evidence[] is not exactly the directory's records. Qualify SCN-VER-097 accordingly and add a scenario: EVID-S deleted, then `ci fetch 9`, then the manifest lists EVID-A and EVID-B, `validate` is clean and data.untracked[] is empty. Alternatively, give data.untracked[] a hint naming the command that rebuilds the manifest. See D-1."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-VER-017 does not say how restore writes a file back. Design D1 removes the target (rmSync) and then puts the snapshot in its place. For manifest.json and records, REQ-KRN-036 requires every write of a state file to be atomic (temp file plus rename): an interrupted write leaves the previous content intact. A crash or SIGKILL between the rm and the write leaves no manifest.json at all, which REQ-KRN-036 forbids.",
+      "targets": [
+        "REQ-VER-017",
+        "REQ-KRN-036",
+        "openspec/changes/ci-local/design.md"
+      ],
+      "recommendation": "Add to REQ-VER-017: restoring a file is a write of state under REQ-KRN-036 (atomic, with the Windows EPERM/EBUSY retry). A file that still fails goes to data.not_restored[]. Align design D1."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "REQ-VER-017 requires restore on SIGINT, SIGTERM and SIGHUP, and requires unrestored targets in data.not_restored[]. The signals port ends the process by the signal after the cleanups (core/ports/signals.ts), so no JSON is printed on that path. Targets that could not be restored on a signal have no specified channel, and the 'каждый вывод ... SHALL нести data.no_record' rule has no output to apply to.",
+      "targets": [
+        "REQ-VER-017"
+      ],
+      "recommendation": "State what the signal path reports: for example, one stderr line per unrestored path. Alternatively, state that on a signal no JSON is printed and unrestored paths are not reported."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Only the success path of REQ-VER-017 has a scenario (SCN-VER-154: not_restored empty). No scenario covers restore after an exception (for example CHECK_TIMEOUT or a thrown FORGE_UNAVAILABLE), a target changed by another process (not rolled back, listed in not_restored[]), or a target that cannot be restored. These are the obligations that distinguish --no-record. Task 1.3 tests them only as a unit test of restoringWrites, not at the command level by SCN.",
+      "targets": [
+        "REQ-VER-017",
+        "openspec/changes/ci-local/tasks.md"
+      ],
+      "recommendation": "Add one scenario: a check exceeds its timeout under `ci --no-record` (exit 4), and after the command the evidence directory is byte for byte as before with data.no_record true. Add one more: a record file rewritten by another process during the call stays as that process wrote it and is listed in data.not_restored[]."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "REQ-VER-012 lists untracked[] in the output shape, but does not say whether `ci fetch --dry-run` computes and prints data.untracked[]. It also does not say whether outputs with errors (EVIDENCE_CONFLICT, NO_CI_EVIDENCE, BUSY) carry it. SCN-VER-089 (dry-run) mentions only would_write[]. A dry run is the natural place for an owner to see the leftovers before writing.",
+      "targets": [
+        "REQ-VER-012",
+        "SCN-VER-089"
+      ],
+      "recommendation": "State that --dry-run prints data.untracked[] computed against the selected attempt, as the real run would, and that error outputs do or do not carry it."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "The order of data.untracked[] is not specified. Other path lists of the CLI specify their order (for example `paths` in code units order, REQ-ENF). A test with two leftovers cannot assert the array without an order.",
+      "targets": [
+        "REQ-VER-012"
+      ],
+      "recommendation": "Add 'в порядке code units' (or 'by id') to data.untracked[]."
+    },
+    {
+      "id": "F-9",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "SCN-VER-154's THEN, 'каждый файл проекта побайтно тот же, что до вызова', is wider than REQ-VER-017. The requirement bounds the guarantee to ctx.writes targets and excludes files that checks write outside {out}. The scenario's fixture says its checks 'пишут записи evidence и raw/' but not that they write nothing else. The parenthesis '(локально — 1, ATTESTATION_REQUIRED)' also assumes a fixture policy whose L1 gate does not accept attestation none, which the WHEN does not state.",
+      "targets": [
+        "SCN-VER-154"
+      ],
+      "recommendation": "Word the THEN as 'every file under .warrant/ is byte for byte the same, no new files or directories there'. Alternatively, state in WHEN that the checks write only into {out}. Name in WHEN the gate that requires attestation ci, so the expected exit 1 with GATE_NOT_PASSED and finding ATTESTATION_REQUIRED follows from the fixture."
+    },
+    {
+      "id": "F-10",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "Design D4 links docs/adr/WARRANT-ADR-0056-lattice-fixes-0-10-1.md. This file is on main, but not in this worktree's base 20fa6d3, so the link dangles until the branch is rebased. ADR-0056 п. 1 also lists what keeps 0.10.1 compatible ('новый переход и флаг --no-record необязательны'). It does not name the new output key data.untracked[] of `ci fetch`. The key is additive and changes no verdict, but the CHANGELOG 'Вердикт' / 'Миграция' sections required by ADR-0056 should name it.",
+      "targets": [
+        "openspec/changes/ci-local/design.md",
+        "REQ-VER-012"
+      ],
+      "recommendation": "Rebase on main before the spec-PR. In task 3.1, list both --no-record and data.untracked[] in the CHANGELOG ## 0.10.1 subsections that ADR-0056 requires."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/ci-local/specs/verification/spec.md",
+      "change": "REQ-VER-017: replace 'Цель, которую после записи этой командой изменил другой процесс, SHALL NOT откатываться' with: 'Цель, которую между первой записью этой командой и возвратом изменил процесс, отличный от этой команды и запущенных ею checks, SHALL NOT откатываться; состояние каталога raw/ check фиксируется после завершения этого check и записи его записи.'"
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/ci-local/specs/verification/spec.md",
+      "change": "REQ-VER-012: add 'Manifest, в котором manifest.evidence[] не равен записям каталога, ci fetch SHALL переписывать и при отсутствии новых записей' and a scenario: after the human deletes EVID-S, a repeated `ci fetch 9` rewrites the manifest without EVID-S, data.untracked[] is empty, and `warrant validate` passes."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/ci-local/specs/verification/spec.md",
+      "change": "REQ-VER-017: add 'Возврат файла — запись состояния по REQ-KRN-036' and one scenario for restore after CHECK_TIMEOUT."
+    }
+  ],
+  "unknowns": [],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "All 14 findings of round 1 (RUN-01M3YBHGQ62WJGRSP8AZS4RTC3) are closed by the revised text, as design I-1 claims. Checked: F-1 (manifest stays exactly the directory, data.untracked[]), F-2 (SCN-VER-154 compares named fields), F-3 (fingerprint instead of a lock; new defects of that approach are F-1 and F-2 here), F-4 to F-12 in REQ-VER-017 and REQ-VER-012, F-13 (task 3.1), F-14 (design risk)."
+    },
+    {
+      "id": "A-2",
+      "statement": "The code facts come from D:/project/SRA-ci-local at base 20fa6d3: core/check/execute.ts 204-224 (raw/ write, then the check and the stdout file outside ctx.writes), core/evidence/write.ts storeRecord (a manifest rewrite per record), core/evidence/store.ts importRecords 186-195 (the manifest is rewritten only for a new record or an id missing from evidence[]), core/ports/signals.ts."
+    },
+    {
+      "id": "A-3",
+      "statement": "The base checkout of `warrant ci` (withBase, ctx.git.worktreeAt) lives outside the project tree, and the exclusive check lock lives in <git-common-dir>/warrant/. Neither is a project file that SCN-VER-154 compares."
+    },
+    {
+      "id": "A-4",
+      "statement": "No REQ or SCN id of this delta (REQ-VER-017, SCN-VER-154 to 156) collides with the open Changes analyze-open (SCN-VER-152, 153), spec-rework (REQ-VER-018, SCN-VER-157, 158) or judge-law (REQ-VER-011 only), as found in sibling worktrees under D:/project."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "How does an owner keep a record named in data.untracked[] out of the archive-PR without leaving a manifest that lists a record absent from the commit (F-3)?",
+      "options": [
+        "The human deletes the files; a repeated `ci fetch` rewrites the manifest whenever it differs from the directory (spec change to REQ-VER-012 and SCN-VER-097)",
+        "`ci fetch` output carries a hint naming the files to delete and the command that rebuilds the manifest (for example `warrant verify` or a new rebuild step)",
+        "Accept committing untracked records when the human decides so, and state it in REQ-VER-012 as the default"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:deb1e76dbf7ad3ddd6bf22004961f1bd58d30c3030f0a52942c9828ae9dcd8f0",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T12:00:00Z",
+    "finished_at": "2026-10-02T12:45:00Z"
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3YD4EQHZFY1BPJM04X6STVA",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "contradiction",
+      "statement": "SCN-VER-156 is the closure of round-3 F-1, but its WHEN never places a human-approval record in the directory: it lists only EVID-A (in HEAD manifest), EVID-S, the manifest and EVID-B of the attempt. Its THEN still asserts that 'the human-approval record referenced by a record transition is not in untracked[]', and after the repeat asserts manifest.evidence[] == [\"EVID-A\", \"EVID-B\"] with validate clean. REQ-KRN-021 p. 12 and REQ-VER-012 require the manifest to list exactly the directory's records. If the human-approval record is a separate uncommitted file EVID-H (the realistic order: first fetch, then `transition MERGED` writes EVID-H through ensureApproval, then the leftover is deleted and fetch repeated), the manifest after the repeat must be [A, B, H], and the scenario cannot pass. The only reading under which it passes is that the human-approval record is EVID-A, which is already excluded by the HEAD manifest. Then the new exclusion rule (evidence[] of record transitions) goes untested.",
+      "targets": [
+        "SCN-VER-156",
+        "REQ-VER-012"
+      ],
+      "recommendation": "Put the record in WHEN: 'the working-tree record has a transition MERGED whose evidence[] holds EVID-B and an uncommitted human-approval record EVID-H lying in the directory, absent from the HEAD manifest'. Make THEN read: untracked[] == [EVID-S] (EVID-H not in it); after the repeat manifest.evidence[] == [\"EVID-A\", \"EVID-B\", \"EVID-H\"], validate clean."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "Round-3 F-3 is closed only in tasks.md. REQ-VER-012 'Запись' still reads 'Запись с тем же id и тем же содержимым пропускается — повторный `ci fetch` ничего не меняет' with no condition. The new paragraph says the manifest 'SHALL переписываться, если ... его evidence[] отличается от записей каталога: повторный ci fetch после удаления остатка убирает его из manifest', so a repeated fetch does change manifest.json. Task 2.2 adds SCN-VER-097 and SCN-VER-104 but not SCN-VER-109, which round 3 also recommended.",
+      "targets": [
+        "REQ-VER-012",
+        "SCN-VER-097",
+        "openspec/changes/ci-local/tasks.md"
+      ],
+      "recommendation": "Write: 'повторный ci fetch при неизменном каталоге ничего не меняет'. Add SCN-VER-109 to the green list of task 2.2, or state why it is left out."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "The baseline of data.untracked[] is the manifest of this Change 'в HEAD'. This silently assumes that ci fetch runs before the archive branch has commits of its own. The hint itself makes a repeated ci fetch part of the flow. If the agent ignores the hint and commits the leftover EVID-S together with the manifest on the archive branch (the LATTICE #109 failure this Change targets), a later ci fetch finds EVID-S in the HEAD manifest and reports nothing. ci fetch already knows M, the merge commit of the impl-PR, and the manifest at M is what main legitimately holds for this Change.",
+      "targets": [
+        "REQ-VER-012"
+      ],
+      "recommendation": "Either take the manifest of the Change at M as the baseline (records cited by transitions and records of the attempt are still excluded), or state the precondition in REQ-VER-012: untracked[] is computed against HEAD, and a leftover already committed on the branch is not reported."
+    },
+    {
+      "id": "F-4",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-VER-017 promises without exception that every target returns to its prior state, 'так же при исключении команды (в том числе CHECK_TIMEOUT) и при SIGINT / SIGTERM / SIGHUP'. A target that could not be returned goes to not_restored[]. SCN-VER-154 asserts that after the CHECK_TIMEOUT call no new file is in .warrant/. Design 'Риски' accepts the opposite: on Windows the check's process tree is killed asynchronously and may write raw/ after restore(), and that raw/ stays. It is reported neither in not_restored[] nor on stderr. So on Windows the spec's guarantee and SCN-VER-154's third call depend on whether the timeout path waits for the tree to exit. The spec does not say that it does.",
+      "targets": [
+        "REQ-VER-017",
+        "SCN-VER-154",
+        "openspec/changes/ci-local/design.md"
+      ],
+      "recommendation": "Either require that restore() runs only after the process tree of a timed-out check has exited, so the design risk is limited to signals. Or carve the exception into REQ-VER-017: 'raw/ дописанный деревом процессов check после возврата (Windows, таймаут или сигнал) — вне гарантии'. In that case SCN-VER-154's third call asserts only records and manifest."
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-VER-017 makes only data.no_record: true mandatory on every output. For data.not_restored[] it says only that a target that failed to return 'SHALL попадать' there. Design D2 and task 1.2 require data.not_restored[] on every output, errors included. SCN-VER-154 asserts 'data.not_restored пуст', and SCN-VER-155 says nothing about it. A test of SCN-VER-155, or of an empty restore, cannot tell whether the key must be present as [] or may be absent.",
+      "targets": [
+        "REQ-VER-017",
+        "SCN-VER-154",
+        "SCN-VER-155"
+      ],
+      "recommendation": "State in REQ-VER-017: 'каждый вывод с --no-record, включая ошибки, несёт data.no_record: true и data.not_restored[] (пустой, если вернуть удалось всё)'. Assert data.not_restored == [] in SCN-VER-155."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "missing-boundary",
+      "statement": "`warrant ci fetch <pr> --no-record` is not described. The flag belongs to `warrant ci`, while `ci fetch` is its subcommand, and a CLI parser may accept a parent option on a subcommand silently. The reasonable behaviour is USAGE (unknown option), and an agent following the local-judge rule could try it on an archive-PR.",
+      "targets": [
+        "REQ-VER-017",
+        "REQ-VER-012"
+      ],
+      "recommendation": "Add one line: '`--no-record` у `ci fetch` — USAGE, код 3', or make the parser test of task 1.2 cover it."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/ci-local/specs/verification/spec.md",
+      "change": "SCN-VER-156: place the uncommitted human-approval record EVID-H, cited by the working-tree transition MERGED, in WHEN; after the repeat manifest.evidence[] == [EVID-A, EVID-B, EVID-H]. REQ-VER-012 'Запись': qualify 'повторный ci fetch ничего не меняет' with 'при неизменном каталоге'. Name the baseline of untracked[] (HEAD with stated precondition, or M)."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/ci-local/specs/verification/spec.md",
+      "change": "REQ-VER-017: make data.not_restored[] present on every output; resolve the Windows raw/ exception (restore after the timed-out tree exits, or carve raw/ out of the guarantee and SCN-VER-154's third call)."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/ci-local/tasks.md",
+      "change": "Task 2.2: add SCN-VER-109 to the green list."
+    }
+  ],
+  "unknowns": [],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Round-3 findings (RUN-01M3YCK38C0AGWH2RNBQQFWV4R) are closed as design I-3 claims, except as noted. F-1: the exclusion of records cited by record transitions is in the text, but its scenario is defective (F-1 here). F-2: EVIDENCE_UNTRACKED in data.findings[] { code, paths[], hint }, with findings[] in the output shape. The UNCOMMITTED_IN_SCOPE precedent uses paths[]. F-3: closed only in tasks (F-2 here). F-4: the proposal now matches. F-5: data.artifact.path is now unchanged. F-6: a snapshot that cannot be taken gives INTERNAL, code 3. INTERNAL is class config in errors.ts, and no dedicated I/O code exists. F-7: an absent manifest counts as an empty evidence[]. F-8: accepted as a design decision (I-3). F-9: task 3.1 names both subsections."
+    },
+    {
+      "id": "A-2",
+      "statement": "Code facts at D:/project/SRA-ci-local. createWrites in core/writes.ts takes one or several targets per write. runOneIn in core/check/execute.ts takes raw/ as a ctx.writes target (rm + mkdir) before the check runs. It writes the stdout file into raw/ directly after the check, inside the target directory. storeRecord follows. The exclusive lock is released before storeRecord. importRecords (core/evidence/store.ts) rewrites the manifest only for new files or for ids missing from evidence[]. listRecordIds matches EVID-<ULID>.json strictly. raw/ is gitignored (.gitignore line 5), so raw/ leftovers do not reach a commit. ensureApproval (core/evidence/approval.ts) reuses or writes a human-approval record through storeRecord."
+    },
+    {
+      "id": "A-3",
+      "statement": "ADR-0056 p. 1 allows --no-record as an optional flag and forbids new exit codes. The delta adds no exit code (EVIDENCE_UNTRACKED is informational, and INTERNAL and USAGE are existing codes of class 3)."
+    }
+  ],
+  "decisions_required": [],
+  "provenance": {
+    "context_hash": "sha256:7c8e65668c4d5ab2bcfa3fba3cff69045310f8d85fb8834adb87de7e843b4238",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T14:00:00Z",
+    "finished_at": "2026-10-02T14:35:00Z"
+  }
+}

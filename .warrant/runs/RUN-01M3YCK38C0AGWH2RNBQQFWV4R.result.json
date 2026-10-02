@@ -1,0 +1,159 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3YCK38C0AGWH2RNBQQFWV4R",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "REQ-VER-012 treats every record in <state>/evidence/<change>/ that is neither in the HEAD manifest nor in the selected attempt as a leftover of a local verify or ci, and its hint tells the human to delete it. This silently assumes that no legitimate uncommitted record is in the directory when ci fetch runs. The hint itself makes a repeated ci fetch part of the flow. Take the order the spec allows: the first ci fetch exits 0 with untracked[] = [EVID-S], the agent goes on with `transition MERGED --ref --by` (which writes a human-approval record through storeRecord, core/evidence/approval.ts ensureApproval), then the human deletes EVID-S and repeats ci fetch. The uncommitted human-approval record is now in untracked[] with the hint to delete it. Deleting it leaves the record's MERGED transition with an evidence[] id that has no file, which REQ-VER-011 rejects (RECORD_MISMATCH) and validate flags. The same applies to EVID-S itself if the transition already cited it in evidence[].",
+      "targets": [
+        "REQ-VER-012",
+        "SCN-VER-156"
+      ],
+      "recommendation": "Exclude from data.untracked[] every id that evidence[] of a transition of the working-tree record .warrant/changes/<change>.json references. Alternatively, state the precondition in REQ-VER-012 and in the hint: the leftover is deleted and ci fetch repeated before `transition MERGED`. Add a scenario: an uncommitted human-approval record referenced by the record is not in untracked[]."
+    },
+    {
+      "id": "F-2",
+      "marker": "FACT",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "REQ-VER-012 says 'при непустом списке вывод SHALL нести hint', and SCN-VER-156 asserts 'hint называет удаление и повтор' with exit 0. REQ-KRN-002 defines hint only as a field of errors[] entries, and an errors[] entry contradicts exit 0 and ok: true. The new output shape `data{ pr, change, merge_commit, tree, run, evidence[], untracked[], skipped[] }` has no key for a hint either. So the hint can sit in data.hint, in a data.findings[] entry, or in errors[], and each gives different JSON. The main spec's precedent for a hint on a successful output is a data.findings[] entry { code, path, hint } with exit 0 (REQ-KRN sync: REVIEWER_SKILL_MISSING, FRONTEND_RESTART_REQUIRED). A test of SCN-VER-156 cannot be derived from the text.",
+      "targets": [
+        "REQ-VER-012",
+        "SCN-VER-156",
+        "REQ-KRN-002"
+      ],
+      "recommendation": "Name the location and the code. For example, one data.findings[] entry { code: \"EVIDENCE_UNTRACKED\", path, hint } per untracked path (or one entry for the list), exit 0. Add findings[] to the output shape of ci fetch, and let SCN-VER-156 assert the code."
+    },
+    {
+      "id": "F-3",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "REQ-VER-012 'Запись' still says 'Запись с тем же id и тем же содержимым пропускается — повторный `ci fetch` ничего не меняет' without a condition. The new paragraph 'Чужие записи каталога' says 'повторный `ci fetch` после удаления остатка убирает его из manifest', so a repeated fetch does change manifest.json. SCN-VER-097 holds the condition ('каталог не менялся'), but the requirement text does not. Task 2.2 runs SCN-VER-086…089, 096, 103 but not SCN-VER-097, and SCN-VER-097 is the scenario the new rewrite rule can break.",
+      "targets": [
+        "REQ-VER-012",
+        "SCN-VER-097",
+        "openspec/changes/ci-local/tasks.md"
+      ],
+      "recommendation": "Qualify the sentence: 'повторный ci fetch при неизменном каталоге ничего не меняет'. Add SCN-VER-097 (and SCN-VER-104, 109) to the green list of task 2.2."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "contradiction",
+      "statement": "proposal.md (What Changes, --no-record) says 'Что вернуть не удалось или что успел изменить другой процесс — в data.not_restored[]'. After round 2, REQ-VER-017 says the opposite: another process writing the same <state> is not supported, and its write to a target of this command is rolled back with it, not reported. Design D1 matches the spec. The proposal is part of the approved contract and promises detection of foreign writes, which the spec dropped.",
+      "targets": [
+        "openspec/changes/ci-local/proposal.md",
+        "REQ-VER-017"
+      ],
+      "recommendation": "Rewrite the proposal bullet: 'Что вернуть не удалось — в data.not_restored[]. Другой писатель того же состояния во время вызова не поддерживается: его запись откатывается.'"
+    },
+    {
+      "id": "F-5",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-VER-017 says 'data.evidence[], пути записей и data.artifact называют файлы, которых после команды уже нет'. data.artifact.path is the evidence directory <state>/evidence/<change>/ (core/ci/impl.ts judgeImpl). In SCN-VER-154 that directory already holds committed records, so it still exists after the command. A test that takes the sentence literally fails.",
+      "targets": [
+        "REQ-VER-017",
+        "SCN-VER-154"
+      ],
+      "recommendation": "Say: 'data.evidence[] и пути записей называют файлы, которых после команды уже нет; data.artifact.path — каталог, который после команды таков, каким был до неё'."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "REQ-VER-017 covers a target that could not be restored (data.not_restored[]). It does not cover a snapshot that could not be taken before the first write: copying an existing raw/ to the OS temp directory (design D1, cpSync) can fail on disk space or permissions. Two outcomes are possible. Either the write goes ahead and the target cannot be restored, or the command stops before writing with an error. They differ in errors[], exit code and in the verdict, which REQ-VER-017 requires to equal that of warrant ci.",
+      "targets": [
+        "REQ-VER-017"
+      ],
+      "recommendation": "State one: for example, 'снимок, который не удалось снять, — цель не пишется, команда завершается ошибкой ввода-вывода с путём, код 3', or 'запись выполняется, цель — в data.not_restored[]'."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-VER-012: 'Manifest в HEAD, которого нет или который не разбирается как evidence-manifest/1, — пустой список.' The sentence follows the definition of data.untracked[]. It can mean that data.untracked[] is empty (no baseline, report nothing), or that the HEAD manifest's evidence[] counts as empty (report every record outside the attempt). The two give opposite outputs for a Change whose impl-PR committed no manifest.",
+      "targets": [
+        "REQ-VER-012"
+      ],
+      "recommendation": "Write: 'Manifest в HEAD, которого нет или который не разбирается как evidence-manifest/1, считается manifest с пустым evidence[]'."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "SCN-VER-156 starts from a manifest 'перезаписанный тем verify'. A local verify writes not only evidence[] but also manifest.gates (recordVerdicts), and buildManifest carries gates and runs of the previous manifest into every rewrite, including the one by ci fetch. So after the human deletes EVID-S and repeats ci fetch, the committed manifest keeps the gate verdicts the local verify computed with EVID-S. data.untracked[] names only record files. For VERIFYING->MERGED a later `transition MERGED` overwrites the same keys, so the effect is small, but the leftover is not named anywhere.",
+      "targets": [
+        "REQ-VER-012",
+        "SCN-VER-156"
+      ],
+      "recommendation": "Either state that manifest.gates is not evidence and may keep the verdicts of a local verify, or make SCN-VER-156 assert manifest.gates after the repeat."
+    },
+    {
+      "id": "F-9",
+      "marker": "FACT",
+      "severity": "INFO",
+      "category": "missing-boundary",
+      "statement": "Round 2 F-10 is closed only in part: the branch now contains ADR-0056. ADR-0056 п. 1 lists what keeps 0.10.1 compatible and requires CHANGELOG ## 0.10.1 with the subsections 'Вердикт' and 'Миграция для потребителя', naming every behaviour change. The list names --no-record but not the ci fetch changes: data.untracked[], its hint, and the manifest rewrite when evidence[] differs from the directory. Task 3.1 says only 'CHANGELOG.md — строки ## 0.10.1'.",
+      "targets": [
+        "openspec/changes/ci-local/tasks.md",
+        "REQ-VER-012"
+      ],
+      "recommendation": "In task 3.1 name both subsections and list --no-record, data.untracked[] with its hint, and the manifest rewrite of a repeated ci fetch."
+    }
+  ],
+  "proposals": [
+    {
+      "id": "P-1",
+      "target": "openspec/changes/ci-local/specs/verification/spec.md",
+      "change": "REQ-VER-012 'Чужие записи каталога': exclude ids referenced by evidence[] of transitions of the working-tree record; give the hint as a data.findings[] entry { code: \"EVIDENCE_UNTRACKED\", path, hint } and add findings[] to the output shape; replace '— пустой список' with 'считается manifest с пустым evidence[]'; qualify 'повторный ci fetch ничего не меняет' by 'при неизменном каталоге'."
+    },
+    {
+      "id": "P-2",
+      "target": "openspec/changes/ci-local/specs/verification/spec.md",
+      "change": "REQ-VER-017: fix the data.artifact sentence (the directory is as before the command); state the outcome of a snapshot that cannot be taken."
+    },
+    {
+      "id": "P-3",
+      "target": "openspec/changes/ci-local/proposal.md",
+      "change": "Replace 'или что успел изменить другой процесс — в data.not_restored[]' with the round-2 rule: another writer is not supported, its write is rolled back."
+    }
+  ],
+  "unknowns": [],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Round 2 findings (RUN-01M3YC46G97BVNB9QP7H2S4NEZ) are closed by the revised text as design I-2 claims: F-1 and F-2 (the fingerprint is gone, restore runs after the last check, another writer is unsupported), F-3 (manifest rewritten on mismatch, hint 'delete and repeat', SCN-VER-156 with a repeat), F-4 (atomic restore), F-5 (stderr on a signal), F-6 (CHECK_TIMEOUT in SCN-VER-154), F-7 (untracked[] under --dry-run, not on errors), F-8 (code-unit order), F-9 (.warrant/ only, gate tests-passed named). F-10 is closed in part (see F-9 here)."
+    },
+    {
+      "id": "A-2",
+      "statement": "Code facts at D:/project/SRA-ci-local (branch head 60b0920): ctx.writes targets of warrant ci impl kind are raw/<check> (execute.ts runOneIn), the record and manifest.json (evidence/write.ts storeRecord), and manifest.gates (transition/gates.ts recordVerdicts via ci/impl.ts judgeGates). Signal cleanups run latest first (adapters/signals.ts), so killTree of a check runs before a restore registered earlier. ensureApproval (evidence/approval.ts) writes the human-approval record through storeRecord during `transition`. buildManifest keeps runs and gates of the previous manifest. hint exists only in errors[] (REQ-KRN-002, io/output.ts Envelope)."
+    },
+    {
+      "id": "A-3",
+      "statement": "warrant ci rejects WARRANT_STATE_DIR, so <state> in REQ-VER-017 is always .warrant of the checkout, and the exclusive check lock lives in <git-common-dir>/warrant/ because ci needs a git merge commit. Neither is a gap of REQ-VER-017."
+    },
+    {
+      "id": "A-4",
+      "statement": "No id of this delta (REQ-VER-017, SCN-VER-154…156) appears in another open Change found under D:/project/*/openspec/changes. judge-law, open in the same worktree, modifies REQ-VER-011 only and does not touch REQ-VER-012."
+    }
+  ],
+  "decisions_required": [],
+  "provenance": {
+    "context_hash": "sha256:122a4757b95628ee29f3c82034b2efa109b41aead7ae5939468921fc71487f63",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T13:00:00Z",
+    "finished_at": "2026-10-02T13:40:00Z"
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "$schema": "warrant://skill-result/1",
+  "skill": "specification/adversarial-review@0.2.0",
+  "run": "RUN-01M3YC8FP9SYPK438EKXFQS4TX",
+  "run_state": "SUCCEEDED",
+  "findings": [
+    {
+      "id": "F-1",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "hidden-assumption",
+      "statement": "The Change edits the kernel schema waiver/1, whose copy every consumer keeps in .warrant/schemas/ with its hash in warrant.lock.json (REQ-KRN sync: copies of kernel schemas, GENERATED_DRIFT / LOCK_MISMATCH on --check). After a consumer moves to CLI 0.10.1, `warrant sync --check` reports drift on .warrant/schemas/waiver.1.schema.json until `warrant sync` is run. The proposal only covers the SRA copy and the golden pack. It says nothing about consumer migration, and ADR-0056 says 'потребитель меняет только тег' and 'pin-Change ... только тег'. The proposal silently assumes the consumer's schema copy does not matter.",
+      "targets": [
+        "openspec/changes/waiver-ulid/proposal.md",
+        "REQ-KRN-019"
+      ],
+      "recommendation": "Add one of two things to the proposal (What Changes / Impact) and to the CHANGELOG 'Миграция' task. Either the consumer runs `warrant sync` after the tag (schema copy and lock hash), with the lattice hand-off updated to match. Or a stated reason why no drift appears. Do not leave 'только тег' standing while the schema copy changes."
+    },
+    {
+      "id": "F-2",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "missing-boundary",
+      "statement": "REQ-KRN-031 (2)/(3) require `--activate` / `--revoke` to accept both id forms. Every scenario still activates or revokes the old form only: SCN-KRN-122 and SCN-KRN-124 use WAV-2026-005, and SCN-KRN-168 activates WAV-2026-004. From now on the main path is a waiver whose id is WAV-<ULID>, and no scenario activates or revokes one. Today's code (waive.ts WAIVER_ID_RE = /^WAV-[0-9]{4}-[0-9]{3}$/) rejects exactly that path, so a missing test would let the regression through.",
+      "targets": [
+        "REQ-KRN-031",
+        "SCN-KRN-122",
+        "SCN-KRN-124"
+      ],
+      "recommendation": "Add a scenario: a waiver proposed by `warrant waive` (WAV-<ULID>) is activated with `--activate <that id> --by kat` (ACTIVE, approved_by human:kat, gate WAIVED) and then revoked with `--revoke` (REVOKED). Alternatively, make SCN-KRN-122 cover both forms."
+    },
+    {
+      "id": "F-3",
+      "marker": "INFERENCE",
+      "severity": "MAJOR",
+      "category": "ambiguity",
+      "statement": "SCN-KRN-168 joins two independent WHENs: two branches calling `warrant waive` and then merging, plus `warrant id WAV` called twice. Its THEN repeats one claim ('id ... различны' and 'оба id `warrant id WAV` различны и той же формы'). Its key observable, 'merge второй ветки не даёт конфликта `.warrant/waivers/`', needs a git merge of two branches. tasks.md 1.3 puts SCN-KRN-168 in the app test waive.test.ts, which has no git. The scenario as written and the planned test check different things.",
+      "targets": [
+        "SCN-KRN-168",
+        "openspec/changes/waiver-ulid/tasks.md"
+      ],
+      "recommendation": "Split it into two scenarios. (a) Two `warrant waive` calls on two copies of the same base, which holds WAV-2026-004, write files with different names, neither present in the base. After both files are combined in one tree, `warrant validate` is ok and WAV-2026-004 is valid. (b) Two `warrant id WAV` calls give different ids of the form WAV-[0-9A-HJKMNP-TV-Z]{26}. Either restate 'no merge conflict' as disjoint file names or move the scenario to an e2e test with git."
+    },
+    {
+      "id": "F-4",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "REQ-KRN-031 says '(`<WAV>` — в любой из двух форм `waiver/1`)' only for (2) `--activate`. (3) `--revoke <WAV>` has no such clause, although the proposal says '`--activate` и `--revoke` принимают обе'. The spec also does not say what an argument in neither form gets (e.g. `WAV-2026-01`, a lower-case ULID, `WAV-<ULID>` of 25 characters). 'неизвестный `<WAV>` — `WAIVER_INVALID`' does not clearly cover a malformed id.",
+      "targets": [
+        "REQ-KRN-031"
+      ],
+      "recommendation": "Move the clause about both forms so it applies to (2) and (3) together. Add that an argument outside the waiver/1 id pattern gets WAIVER_INVALID, exit code 3 (as the code does today), and that lower-case input is not normalised."
+    },
+    {
+      "id": "F-5",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "REQ-KRN-019 is modified (id now in two forms), but none of its scenarios (SCN-KRN-038, -039, -093, -111) checks the id: a valid WAV-<ULID>, a valid WAV-YYYY-NNN, and invalid forms. tasks.md 1.2 plans such fixtures without SCN ids, so the schema-pattern contract is not traceable to a scenario.",
+      "targets": [
+        "REQ-KRN-019"
+      ],
+      "recommendation": "Add a scenario to REQ-KRN-019. WAV-<ULID> and WAV-2026-004 are valid. WAV-2026-04, a lower-case ULID and a ULID with I/L/O/U are invalid, reported at `/id`."
+    },
+    {
+      "id": "F-6",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "missing-error-behavior",
+      "statement": "design.md D1 decides that `warrant waive` checks the target file does not exist before writing and fails with INTERNAL instead of overwriting. REQ-KRN-031 (1) is silent on what happens when the generated id's file already exists in .warrant/waivers/. A rule that a waiver must never be overwritten is part of the contract, not an implementation detail.",
+      "targets": [
+        "REQ-KRN-031",
+        "openspec/changes/waiver-ulid/design.md"
+      ],
+      "recommendation": "Add to REQ-KRN-031 (1): `warrant waive` SHALL NOT overwrite an existing `.warrant/waivers/<id>.json`. If the name is taken, it fails with a named code and exit code (INTERNAL, code 4 or as REQ-KRN-003 defines), and no file changes."
+    },
+    {
+      "id": "F-7",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "ambiguity",
+      "statement": "The proposal removes `data.year` from `warrant id WAV` output (`{ id, prefix }`). REQ-KRN-024 does not state the `data` shape, so this breaking change of machine output in a patch release is visible only in the proposal and CHANGELOG. ADR-0056 p. 1 lists backward compatibility only on 0.10.0 inputs and does not mention removing an output field.",
+      "targets": [
+        "REQ-KRN-024",
+        "openspec/changes/waiver-ulid/proposal.md"
+      ],
+      "recommendation": "State in REQ-KRN-024 that `warrant id EVID|RUN|WAV` prints `data` `{ id, prefix }`, with a scenario for WAV. Or keep `year` for 0.10.x (see decisions_required)."
+    },
+    {
+      "id": "F-8",
+      "marker": "INFERENCE",
+      "severity": "MINOR",
+      "category": "hidden-assumption",
+      "statement": "design.md says gates, ci and validate 'берут id из файла как есть'. Waivers are read in path order (core/waivers/read.ts sorts by path), and the first counting waiver is the one reported (WAIVED_BY waiver, evidence metrics.waivers). With WAV-YYYY-NNN, path order matched creation order. Under mixed forms, WAV-01... (ULID) sorts before every WAV-2026-..., so a new waiver is chosen before an older one on the same gate. The spec silently assumes the order of waivers carries no meaning.",
+      "targets": [
+        "REQ-KRN-019",
+        "REQ-KRN-031",
+        "openspec/changes/waiver-ulid/design.md"
+      ],
+      "recommendation": "State in the spec or design that the choice of counting waiver does not depend on the id form, or fix the order (for example, by path, lexicographic, any form). If the reported waiver id is part of the verdict, add a scenario with two counting waivers of different forms."
+    },
+    {
+      "id": "F-9",
+      "marker": "FACT",
+      "severity": "MINOR",
+      "category": "missing-boundary",
+      "statement": "Impact lists only 02 §3 and 05 §7 among documents. ADR-0056 Consequences require marking ADR-0012 'уточнён 0056' (p. 3), and ADR-0012 line 17 still says '`WAV-<year>-NNN` остаётся'. 02-vocabulary line 166 also gives the reason 'Редки, создаются человеком на `main`', which this Change refutes. The examples in docs/10-pack-bdd-tdd.md (`waivers: [\"WAV-2026-004\"]`) stay valid but are not named.",
+      "targets": [
+        "openspec/changes/waiver-ulid/proposal.md",
+        "openspec/changes/waiver-ulid/tasks.md"
+      ],
+      "recommendation": "Add to Impact and tasks 3.1: ADR-0012 marked 'уточнён 0056', unless the ADR-0056 PR does it (then say so). Add the 02 §3 table row with form `WAV-<ULID>`, the old form valid, and a reason that matches ADR-0056."
+    },
+    {
+      "id": "F-10",
+      "marker": "INFERENCE",
+      "severity": "INFO",
+      "category": "hidden-assumption",
+      "statement": "REQ-KRN-031 (1) states as a guarantee that 'waivers двух веток от одной базы не совпадают ни id, ни именем файла'. Across processes and machines, ULID uniqueness is probabilistic (the monotonic factory covers only one process), and a cross-branch collision cannot be detected at write time. The risk is negligible, but the wording is absolute.",
+      "targets": [
+        "REQ-KRN-031"
+      ],
+      "recommendation": "Reword it as 'id не выводится из содержимого `.warrant/waivers/`, так что совпадение между ветками не зависит от общей базы', or mention probabilistic uniqueness as with EVID / RUN (ADR-0012 p. 2)."
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-1",
+      "statement": "Consumer CI (LATTICE) runs `warrant sync --check` or an equivalent drift check of .warrant/schemas/ copies. F-1 rests on this; if no such check runs, F-1 is only a documentation gap."
+    },
+    {
+      "id": "A-2",
+      "statement": "ADR-0056 p. 2 (WAV-<ULID>, old ids valid) is accepted and was not reviewed as a decision; only how the delta spec expresses it was reviewed."
+    }
+  ],
+  "decisions_required": [
+    {
+      "id": "D-1",
+      "question": "Is the field `year` dropped from `warrant id WAV` output in patch 0.10.1, or kept until 0.11?",
+      "options": [
+        "Drop it now, name it in CHANGELOG 'Миграция', and fix `data` `{ id, prefix }` in REQ-KRN-024 (as the proposal says)",
+        "Keep `year` (current UTC year) in 0.10.x for compatibility of output parsers and drop it in 0.11.0"
+      ]
+    }
+  ],
+  "provenance": {
+    "context_hash": "sha256:723b7ed4ae9bef10343281a389733aa89d9d6db4dcc1953f1afdaa62f57498b9",
+    "model": "claude-opus-5-5",
+    "started_at": "2026-10-02T10:00:00Z",
+    "finished_at": "2026-10-02T10:30:00Z"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "warrant://evidence-manifest/1",
+  "change": "waiver-ulid",
+  "commit": "8c9d4a5e264dc3655ea8567fb4b8466961a9dd62",
+  "versions": {
+    "warrant": "0.10.0",
+    "openspec": "1.13.1",
+    "lock_hash": "sha256:4043da78e789083b5ebc86e2bf601e68c55cf2d43699bc01101bafcbb6cc1e7c",
+    "effective_policy_hash": "sha256:0975648ef97c5f46279e163d015f5e4df38196ffc5d5ec45f2f0ca4141590829"
+  },
+  "evidence": [
+    "EVID-01M3YCFARQSY42WCNQ1D6CPWKX"
+  ]
+}

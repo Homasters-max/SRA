@@ -1,0 +1,38 @@
+{
+  "$schema": "warrant://evidence/1",
+  "id": "EVID-01M3YFKS0JJ49DZNANJ85A2JVV",
+  "claim": {
+    "text": "openspec-validate passed for ci-local",
+    "targets": []
+  },
+  "kind": "spec-report",
+  "level": "L1",
+  "evidence_status": "PROVEN",
+  "subject": {
+    "commit": "2f39849864a1cd43a78bc3bbadb078ae9465a0df",
+    "base_commit": "2f39849864a1cd43a78bc3bbadb078ae9465a0df",
+    "spec_revision": "openspec/changes/ci-local@2f39849864a1cd43a78bc3bbadb078ae9465a0df",
+    "dataset_snapshot": null
+  },
+  "produced_by": {
+    "type": "check",
+    "id": "openspec-validate",
+    "version": "1.0.0"
+  },
+  "attestation": {
+    "type": "none"
+  },
+  "context_hash": "sha256:7866d36c15241619a2773181dd8eccf09d9ffdd799c8dfae83be91d9fba81c39",
+  "effective_policy_hash": "sha256:01aac965af7230f9437fe737882f57fb9cac7113343c461db59a7b0ab4c9d15b",
+  "created_at": "2026-10-02T14:17:10.419Z",
+  "artifacts": [
+    {
+      "uri": ".warrant/evidence/ci-local/raw/openspec-validate/stdout.json",
+      "sha256": "sha256:4d7942e53df3f3d0912a881cbc3264bf26abda623d4cefedab07c4cc2be4b192"
+    }
+  ],
+  "limitations": [],
+  "metrics": {
+    "issues": 0
+  }
+}

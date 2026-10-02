@@ -9,7 +9,7 @@
 
 ## 1. Переход назад (D1, D2)
 
-- [x] 1.1 `core/record/lifecycle.ts`: `SPECIFIED->PROPOSED` в `BACKWARD_TRANSITIONS`, комментарий модуля; `commands/transition.ts` — `STATE_INVALID` при `APPROVED` в истории, сообщение о допустимых переходах; проверка мест, где ищется первый `PROPOSED` (`cs grep`).
+- [x] 1.1 (REQ-VER-007) `core/record/lifecycle.ts`: `SPECIFIED->PROPOSED` в `BACKWARD_TRANSITIONS`, комментарий модуля; `commands/transition.ts` — `STATE_INVALID` при `APPROVED` в истории, сообщение о допустимых переходах; проверка мест, где ищется первый `PROPOSED` (`cs grep`).
 - [x] 1.2 Тесты `app/commands/transition.test.ts`: SCN-VER-157 (переход без gates, evidence на месте, Run `specify` стартует; из `APPROVED` и после `IMPLEMENTING->SPECIFIED` — `STATE_INVALID`); `unit` `transitionKind`.
 
   Проверка: `npx vitest run --config packages/cli/vitest.config.ts transition lifecycle`.

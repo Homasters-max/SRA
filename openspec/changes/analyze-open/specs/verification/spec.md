@@ -9,16 +9,20 @@
 датой (BL-43: `analyze-clean` на
 `MERGED->ARCHIVED` вычисляется и после `openspec archive`). Входы: требования delta specs Change
 по секциям `ADDED`, `MODIFIED`, `REMOVED`, `RENAMED` с их REQ и SCN; REQ и SCN main specs `openspec/specs/**`; текст
-`tasks.md` каталога Change; файлы под `paths.tests`; пути diff `base...HEAD` (base — как у gate `scope-valid`).
+`tasks.md` каталога Change; файлы под `paths.tests`; пути diff `base...HEAD` (base — как у gate `scope-valid`); REQ и SCN
+секций `ADDED` и `MODIFIED` delta specs других открытых Change — каждого каталога `openspec/changes/<другой>/`, кроме
+`archive/` и каталога самого Change, независимо от record. Все входы читаются из одного дерева: рабочего дерева у команды,
+оцениваемого commit у gate `analyze-clean`. Запись в `openspec/changes/`, которая не каталог, каталог без `specs/` и delta,
+которая не разбирается, ID не дают и в `data.skipped[]` не попадают.
 ID «определён», если он объявлен в main specs или в `ADDED` / `MODIFIED` delta и не объявлен в `REMOVED` delta. Находки:
 - `UNSATISFIED` `{ id, missing[] }` — REQ из `ADDED` или `MODIFIED`, если `tasks.md` не упоминает ни его, ни один его SCN
   (`missing` ∋ `task`), или ни один его SCN не встречается ни в одном файле под `paths.tests` (`missing` ∋ `test`; REQ без SCN —
   тоже `test`);
 - `CONFLICT` `{ id, path }` — `tasks.md` упоминает REQ или SCN, который не определён;
 - `ORPHAN` `{ id, path }` — файл под `paths.tests`, изменённый в diff и не удалённый, упоминает SCN, который не определён и
-  не объявлен в `ADDED` / `MODIFIED` delta specs другого открытого Change — каталога `openspec/changes/<другой>/`, кроме
-  `archive/`. Так тест Change, чей impl-PR слит раньше archive-PR, не держит `analyze-clean` чужого Change: его SCN
-  объявлены в delta, пока archive-PR не перенёс их в main specs.
+  не объявлен в delta другого открытого Change (даже если delta самого Change его удаляет в `REMOVED`). Так тест Change, чей
+  impl-PR слит раньше archive-PR, не держит `analyze-clean` чужого Change: его SCN объявлены в delta, пока archive-PR не
+  перенёс их в main specs.
 
 Без `paths.tests` проверка тестов в `UNSATISFIED` и `ORPHAN` не выполняется; без diff (нет git, base не разрешается) не
 выполняется `ORPHAN`; каждый пропуск SHALL попадать в `data.skipped[]` с причиной. Вывод —
@@ -66,4 +70,12 @@ ID «определён», если он объявлен в main specs или �
 - **WHEN** `tests/test_store.py` изменён в diff и упоминает `SCN-STO-001`, которого нет ни в main specs, ни в delta `add-search`,
   а delta `openspec/changes/add-store/specs/` объявляет его в `ADDED`; тот же файл упоминает `SCN-STO-009`, объявленный только
   в delta `openspec/changes/archive/2026-09-01-old-store/specs/`
-- **THEN** `warrant analyze add-search` даёт одну находку `ORPHAN` — `SCN-STO-009`; `SCN-STO-001` находкой не является
+- **THEN** `warrant analyze add-search` даёт одну находку `ORPHAN` с `id: "SCN-STO-009"` и `path: "tests/test_store.py"`,
+  `counts.ORPHAN` равен 1, код 1; `SCN-STO-001` находкой не является
+
+#### Scenario: Gate на commit со слитым чужим impl-PR
+<!-- id: SCN-VER-153 -->
+- **WHEN** на оцениваемом commit тест `tests/test_store.py` из diff упоминает только `SCN-STO-001`, объявленный в delta
+  открытого Change `add-store`, а `add-search` в `MERGED`; вызван `warrant gate add-search --transition MERGED->ARCHIVED`
+- **THEN** `gates["analyze-clean"]` равен `PASS`; если `add-store` на этом commit уже в архиве, а `SCN-STO-001` нет в main
+  specs, — `FAIL` с находкой `ORPHAN`

@@ -24,7 +24,7 @@
 
 ### Modified Capabilities
 
-- `verification`: REQ-VER-010 — `ORPHAN` не даёт SCN, объявленный в delta другого открытого Change; новый SCN-VER-152.
+- `verification`: REQ-VER-010 — новый вход (delta других открытых Change, из того же дерева, что main specs), `ORPHAN` не даёт их SCN; новые SCN-VER-152, SCN-VER-153.
 
 ## Non-Goals
 
@@ -33,7 +33,8 @@
 
 ## Impact
 
-- `packages/cli/src/core/analyze/input.ts` — ID delta других открытых Change.
+- `packages/cli/src/core/analyze/input.ts` — ID delta других открытых Change, `analyzePaths` (gate на commit).
+- `packages/cli/src/core/gates/l0/analyze-clean.ts` — сообщение `ORPHAN`.
 - `packages/cli/src/core/analyze/index.ts` — `ORPHAN` по ним.
-- `packages/cli/test/unit/analyze/analyze.test.ts`, `packages/cli/test/app/commands/analyze.test.ts` — SCN-VER-152.
-- `CHANGELOG.md` — строка в разделе релиза.
+- `packages/cli/test/unit/analyze/analyze.test.ts`, `packages/cli/test/app/commands/analyze.test.ts`, `gate.test.ts` — SCN-VER-152, SCN-VER-153.
+- `CHANGELOG.md` — строка в разделе релиза; `docs/06-verification.md` §5.

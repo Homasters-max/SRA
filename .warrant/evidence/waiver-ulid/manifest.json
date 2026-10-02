@@ -1,7 +1,7 @@
 {
   "$schema": "warrant://evidence-manifest/1",
   "change": "waiver-ulid",
-  "commit": "b89b36403b429c51db1ab7b7b3b95fbcf29ff0a0",
+  "commit": "c1976e7aac8a03eeb0ad647ca677af577a672ece",
   "versions": {
     "warrant": "0.10.0",
     "openspec": "1.13.1",
@@ -10,6 +10,12 @@
   },
   "evidence": [
     "EVID-01M3YCFARQSY42WCNQ1D6CPWKX",
-    "EVID-01M3YCY54YR7F34AG56EYFS15N"
-  ]
+    "EVID-01M3YCY54YR7F34AG56EYFS15N",
+    "EVID-01M3YCZGX0VMW11141T5KE8ES5"
+  ],
+  "gates": {
+    "ids-valid": "PASS",
+    "required-artifacts-present": "PASS",
+    "spec-valid": "PASS"
+  }
 }

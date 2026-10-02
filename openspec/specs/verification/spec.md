@@ -1064,7 +1064,20 @@ workflow вручную со входом `merge_commit` = M; ничего не 
 другим содержимым → `EVIDENCE_CONFLICT`; запись, не проходящая схему `evidence/1`, или файл, чьё имя не равно `id`, →
 `SCHEMA_VIOLATION` с путём; в обоих случаях код 3, ничего не записано.
 
-Вывод — `data{ pr, change, merge_commit, tree, run, evidence[], skipped[] }`. `--dry-run` SHALL выбрать run и вывести
+**Чужие записи каталога.** Запись `<state>/evidence/<change>/EVID-*.json`, которой нет ни в `manifest.evidence[]` этого Change
+в HEAD, ни среди записей выбранной попытки, ни в `evidence[]` переходов record Change рабочего дерева (так запись
+`human-approval` перехода `MERGED` — не остаток), — остаток локального `warrant verify` или `warrant ci`. `ci fetch` SHALL
+перечислить такие записи в `data.untracked[]` путями проекта в порядке кодовых единиц и SHALL NOT их трогать; при непустом
+списке `data.findings[]` SHALL нести элемент `{ code: "EVIDENCE_UNTRACKED", paths[], hint }` (информационный, код выхода не
+меняет) с `hint`: не коммитить эти файлы, а удалить их (человек — guard агента удаление записи запрещает) и повторить
+`warrant ci fetch`. Manifest в HEAD, которого нет или который не разбирается как `evidence-manifest/1`, считается manifest с
+пустым `evidence[]`. Записи попытки — все её
+записи с `attestation.ref` попытки, в том числе уже лежащие в каталоге с тем же содержимым. Manifest SHALL перечислять ровно
+записи каталога ([REQ-KRN-021](../kernel/spec.md) п. 12) и SHALL переписываться, если записан хоть один файл записи или его
+`evidence[]` отличается от записей каталога: повторный `ci fetch` после удаления остатка убирает его из manifest.
+`data.untracked[]` есть и под `--dry-run`; вывод с ошибкой его не несёт.
+
+Вывод — `data{ pr, change, merge_commit, tree, run, evidence[], untracked[], findings[], skipped[] }`. `--dry-run` SHALL выбрать run и вывести
 `data.dry_run: true` и `data.would_write[]` без записи.
 
 #### Scenario: Run на дереве merge
@@ -1104,13 +1117,22 @@ workflow вручную со входом `merge_commit` = M; ничего не 
 
 #### Scenario: Повторный fetch
 <!-- id: SCN-VER-097 -->
-- **WHEN** `warrant ci fetch 9` выполнен второй раз после успешного первого
+- **WHEN** `warrant ci fetch 9` выполнен второй раз после успешного первого, каталог не менялся
 - **THEN** ни один файл не изменён, `data.evidence[]` перечисляет те же id, код 0
 
 #### Scenario: fetch во внешнее состояние
 <!-- id: SCN-VER-109 -->
 - **WHEN** `warrant ci fetch 9` при заданном `WARRANT_STATE_DIR`
 - **THEN** `errors[0].code` равен `USAGE` с `hint` снять переменную, к форжу не было обращений, ни один файл не изменён, код 3
+
+#### Scenario: Остаток локальной записи
+<!-- id: SCN-VER-156 -->
+- **WHEN** manifest `add-search` в HEAD перечисляет `EVID-A`; в каталоге лежат `EVID-A`, незакоммиченный `EVID-S` от локального `warrant verify`,
+  незакоммиченный `EVID-H`, на который ссылается `evidence[]` перехода record рабочего дерева (`human-approval` перехода `MERGED`), и
+  manifest, перезаписанный тем `verify`; выбранная попытка несёт `EVID-B`; затем `EVID-S` удалён и `warrant ci fetch 9` повторён
+- **THEN** первый вызов пишет `EVID-B`, `data.untracked[]` равен `[".warrant/evidence/add-search/EVID-S.json"]`, `data.findings[]`
+  содержит `EVIDENCE_UNTRACKED` с тем же путём и `hint` об удалении и повторе; `EVID-H` в `untracked[]` не попадает; файл `EVID-S` не изменён, `warrant validate` без находок, код 0; повтор — `data.untracked[]` пуст,
+  `manifest.evidence[]` равен `["EVID-A", "EVID-B", "EVID-H"]`, `warrant validate` без находок, код 0
 
 ### Requirement: Решения UNKNOWN в warrant ci
 <!-- id: REQ-VER-013 -->
@@ -1292,3 +1314,40 @@ spec-PR заново: Run `specify` и `review` (они стартуют в `PRO
   решённый `decision`
 - **THEN** `warrant ci` даёт `RECORD_MISMATCH` с причиной `unknowns` и id этого UNKNOWN, код 1; PR, который оставляет UNKNOWN и
   заменяет `ref` решения комментарием maintainer'а в spec-PR переделки (`--replace`), — без этого нарушения
+
+### Requirement: Локальный вердикт без записи
+<!-- id: REQ-VER-017 -->
+
+`warrant ci --no-record` SHALL выносить вердикт `warrant ci` ([REQ-VER-011](#requirement-команда-ci); это исключение из её
+синопсиса `ci [--dry-run]` и безусловной записи evidence) на тех же входах — те же checks, gates, обращения к форжу, `kind`,
+`gates`, `deferred[]`, `findings[]`, коды и пути `errors[]`, код выхода — и SHALL NOT оставлять записанного в состоянии
+WARRANT. Снимок цели, который не удалось снять до её первой записи, SHALL останавливать команду до этой записи: `INTERNAL`, код 3,
+с путём цели, уже записанное — возвращено. Каждая цель `ctx.writes` команды — записи evidence, `manifest.json`, каталоги `raw/` checks в
+`<state>/evidence/<change>/`, вместе с тем, что в них пишут запущенные командой checks, — после конца последнего check и до
+вывода SHALL вернуться в состояние до первой записи этой командой: созданная — удалена вместе с созданными пустыми каталогами,
+изменённая или удалённая — восстановлена побайтно, файл — атомарной записью ([REQ-KRN-036](../kernel/spec.md)); так же при
+исключении команды (в том числе `CHECK_TIMEOUT`) и при SIGINT / SIGTERM / SIGHUP (SIGBREAK на Windows), как снимается lock.
+Другой процесс, пишущий то же `<state>` во время `--no-record` (`check`, `verify`, `transition`, `run submit` того же
+checkout'а), не поддерживается: его запись в цели этой команды откатывается вместе с ней. Файлы, которые команды checks пишут
+вне `{out}` (покрытие, сборка, кэши), — не цели `ctx.writes`, требование их не касается. Цель, которую вернуть не удалось,
+SHALL попадать в `data.not_restored[]` путём проекта (при сигнале, когда вывода нет, — строкой в stderr на каждую); остальной
+вывод от этого не меняется. Записи этого прогона — новые `EVID-<ULID>` на каждый вызов, а `data.evidence[]` и пути записей называют файлы,
+которых после команды уже нет; каталог `data.artifact.path` после команды такой же, как до неё. Каждый вывод с `--no-record`, включая ошибки, SHALL нести
+`data.no_record: true`. `--no-record` вместе с `--dry-run` — `USAGE`, код 3: `--dry-run` checks не запускает.
+`--no-record` при `GITHUB_ACTIONS=true` — `USAGE`, код 3: CI записывает evidence для artifact и `ci fetch`.
+
+#### Scenario: Вердикт без записи
+<!-- id: SCN-VER-154 -->
+- **WHEN** `warrant ci --no-record` вне GitHub Actions на результате merge impl-PR `add-search` в `VERIFYING`, чей gate `tests-passed`
+  требует записи check `tests` с `attestation: ci`; check пишет запись и `raw/`, а в каталоге evidence уже лежат закоммиченные
+  записи, manifest и `raw/` прошлого прогона; затем `warrant ci` на той же копии проекта; затем `warrant ci --no-record`, чей
+  check превышает свой таймаут
+- **THEN** у первых двух одинаковы `data.kind`, `data.gates`, `data.deferred`, коды `data.findings[]` и `errors[]` и код выхода
+  (локально — 1, `ATTESTATION_REQUIRED`); у первого `data.no_record: true`, `data.not_restored` пуст, и после него каждый файл
+  `.warrant/` побайтно тот же, что до вызова, новых файлов и каталогов там нет; после третьего (`CHECK_TIMEOUT`, код 4) —
+  тоже
+
+#### Scenario: Без записи — недопустимые сочетания
+<!-- id: SCN-VER-155 -->
+- **WHEN** `warrant ci --no-record --dry-run`; `warrant ci --no-record` при `GITHUB_ACTIONS=true`
+- **THEN** оба — `errors[0].code` равен `USAGE`, `data.no_record: true`, код 3, ни один файл не изменён
